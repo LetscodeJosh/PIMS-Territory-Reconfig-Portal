@@ -1082,23 +1082,70 @@
     font-weight: 600;
   }
 
-  /* Toast */
+  /* Toast Notification */
   #toast {
     position: fixed;
     bottom: 24px;
     right: 24px;
     background: #0B192C;
-    border: 1px solid #0066FF;
+    border: 1.5px solid #0066FF;
     color: #FFFFFF;
     padding: 12px 18px;
     border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 12px rgba(0, 102, 255, 0.25);
     font-size: 13px;
     font-weight: 600;
     display: none;
-    z-index: 2000;
+    align-items: center;
+    gap: 8px;
+    z-index: 99999;
+    transition: opacity 0.25s ease, transform 0.25s ease, bottom 0.25s ease;
   }
 
+  /* Logged-In User Bottom-Right Notification Card */
+  #activeUserSessionToast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    background: #0B192C;
+    border: 1.5px solid #10B981;
+    border-radius: 12px;
+    padding: 14px 18px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.25);
+    color: #FFFFFF;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-width: 290px;
+    max-width: 360px;
+    display: none;
+    animation: toastSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.3s ease;
+  }
+
+  #activeUserSessionToast.compact {
+    padding: 8px 14px;
+    border-radius: 20px;
+    background: rgba(11, 25, 44, 0.95);
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+  }
+
+  @keyframes toastSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes liveDotPulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  }
   /* Realignment & Archive Cards */
   .cluster-grid {
     display: grid;
@@ -1898,7 +1945,49 @@
 </footer>
 
 <!-- Toast Notification -->
+<!-- Toast Notification -->
 <div id="toast">Notification message</div>
+
+<!-- Logged-In User Bottom-Right Notification Card -->
+<div id="activeUserSessionToast">
+  <div id="sessionToastFullContent">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10B981; animation:liveDotPulse 2s infinite;"></span>
+        <span style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#10B981;">Active User Session</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <button type="button" onclick="minimizeSessionNotification(event)" style="background:none; border:none; color:#94A3B8; font-size:13px; cursor:pointer; line-height:1; padding:2px;" title="Minimize to pill">─</button>
+        <button type="button" onclick="dismissSessionNotification(event)" style="background:none; border:none; color:#94A3B8; font-size:14px; cursor:pointer; line-height:1; padding:2px;" title="Dismiss notification">✕</button>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div style="width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg, #0066FF, #00D2FF); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:#FFFFFF; flex-shrink:0; box-shadow:0 2px 8px rgba(0,102,255,0.4);" id="userSessionAvatar">
+        U
+      </div>
+      <div style="overflow:hidden; min-width:0;">
+        <div style="font-size:13.5px; font-weight:800; color:#FFFFFF; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;" id="userSessionName">
+          User Name
+        </div>
+        <div style="font-size:11.5px; color:#94A3B8; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;" id="userSessionEmail">
+          user@domain.com
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:10px; padding-top:8px; border-top:1px solid #1E293B; display:flex; align-items:center; justify-content:space-between; font-size:11px;">
+      <span style="color:#64748B;">Role: <strong style="color:#38BDF8;" id="userSessionRole">SFE Lead</strong></span>
+      <span style="color:#10B981; font-weight:700; display:flex; align-items:center; gap:4px;">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        Logged In
+      </span>
+    </div>
+  </div>
+  <div id="sessionToastCompactContent" style="display:none; align-items:center; gap:8px;" onclick="expandSessionNotification(event)">
+    <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#10B981; animation:liveDotPulse 2s infinite;"></span>
+    <span style="font-size:11.5px; font-weight:700; color:#FFFFFF;" id="userSessionCompactText">User: Online</span>
+  </div>
+</div>
+
 
 <!-- MODAL 1: Edit & Reconfigure Record Modal -->
 <div class="modal-overlay" id="editModalOverlay">
@@ -7121,6 +7210,145 @@ const BASELINE_ERP_TERRITORIES = [
     return false;
   }
 
+
+  // --- BOTTOM-RIGHT TOAST & USER SESSION NOTIFICATIONS ---
+  function showToast(message, type = 'info', duration = 3500) {
+    const toastEl = document.getElementById('toast');
+    if (!toastEl) return;
+
+    let icon = 'ℹ️';
+    let borderColor = '#0066FF';
+    let shadowColor = 'rgba(0, 102, 255, 0.3)';
+
+    if (type === 'success') {
+      icon = '✅';
+      borderColor = '#10B981';
+      shadowColor = 'rgba(16, 185, 129, 0.3)';
+    } else if (type === 'error') {
+      icon = '⚠️';
+      borderColor = '#EF4444';
+      shadowColor = 'rgba(239, 68, 68, 0.3)';
+    } else if (type === 'warning') {
+      icon = '🔔';
+      borderColor = '#F59E0B';
+      shadowColor = 'rgba(245, 158, 11, 0.3)';
+    }
+
+    toastEl.innerHTML = `<span style="margin-right:6px;">${icon}</span><span>${escapeHtml(message)}</span>`;
+    toastEl.style.borderColor = borderColor;
+    toastEl.style.boxShadow = `0 6px 20px rgba(0,0,0,0.4), 0 0 12px ${shadowColor}`;
+    
+    // Position cleanly above session toast if visible
+    const sessionCard = document.getElementById('activeUserSessionToast');
+    if (sessionCard && sessionCard.style.display !== 'none' && !sessionCard.classList.contains('compact')) {
+      toastEl.style.bottom = '150px';
+    } else {
+      toastEl.style.bottom = '24px';
+    }
+
+    toastEl.style.display = 'flex';
+    toastEl.style.opacity = '1';
+    toastEl.style.transform = 'translateY(0)';
+
+    if (window.toastTimeout) clearTimeout(window.toastTimeout);
+    window.toastTimeout = setTimeout(() => {
+      toastEl.style.opacity = '0';
+      toastEl.style.transform = 'translateY(10px)';
+      setTimeout(() => { toastEl.style.display = 'none'; }, 300);
+    }, duration);
+  }
+
+  function showActiveUserSessionNotification(user) {
+    const card = document.getElementById('activeUserSessionToast');
+    if (!card || !user) return;
+
+    const nameEl = document.getElementById('userSessionName');
+    const emailEl = document.getElementById('userSessionEmail');
+    const roleEl = document.getElementById('userSessionRole');
+    const avatarEl = document.getElementById('userSessionAvatar');
+    const compactTextEl = document.getElementById('userSessionCompactText');
+
+    const fullName = user.full_name || user.email || 'Authorized User';
+    const email = user.email || '';
+    const roleTitle = user.role_title || user.role_profile || (user.is_admin ? 'Administrator' : 'SFE Lead');
+
+    if (nameEl) nameEl.innerText = fullName;
+    if (emailEl) emailEl.innerText = email;
+    if (roleEl) roleEl.innerText = roleTitle;
+    if (compactTextEl) compactTextEl.innerText = `● ${fullName} [${roleTitle}]`;
+
+    // Compute initials
+    if (avatarEl) {
+      const parts = fullName.split(' ').filter(Boolean);
+      let initials = 'U';
+      if (parts.length >= 2) {
+        initials = (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      } else if (parts.length === 1 && parts[0].length >= 1) {
+        initials = parts[0].substring(0, 2).toUpperCase();
+      }
+      avatarEl.innerText = initials;
+    }
+
+    // Reset to full view and show
+    card.classList.remove('compact');
+    const fullContent = document.getElementById('sessionToastFullContent');
+    const compactContent = document.getElementById('sessionToastCompactContent');
+    if (fullContent) fullContent.style.display = 'block';
+    if (compactContent) compactContent.style.display = 'none';
+
+    card.style.display = 'block';
+    card.style.opacity = '1';
+    card.style.transform = 'translateY(0)';
+
+    // Auto-minimize into compact pill after 8 seconds so workspace is unobscured
+    if (window.sessionToastAutoMinTimer) clearTimeout(window.sessionToastAutoMinTimer);
+    window.sessionToastAutoMinTimer = setTimeout(() => {
+      minimizeSessionNotification();
+    }, 8000);
+  }
+
+  function minimizeSessionNotification(event) {
+    if (event) event.stopPropagation();
+    const card = document.getElementById('activeUserSessionToast');
+    if (!card) return;
+    card.classList.add('compact');
+    const fullContent = document.getElementById('sessionToastFullContent');
+    const compactContent = document.getElementById('sessionToastCompactContent');
+    if (fullContent) fullContent.style.display = 'none';
+    if (compactContent) compactContent.style.display = 'flex';
+  }
+
+  function expandSessionNotification(event) {
+    if (event) event.stopPropagation();
+    const card = document.getElementById('activeUserSessionToast');
+    if (!card) return;
+    card.classList.remove('compact');
+    const fullContent = document.getElementById('sessionToastFullContent');
+    const compactContent = document.getElementById('sessionToastCompactContent');
+    if (fullContent) fullContent.style.display = 'block';
+    if (compactContent) compactContent.style.display = 'none';
+
+    if (window.sessionToastAutoMinTimer) clearTimeout(window.sessionToastAutoMinTimer);
+    window.sessionToastAutoMinTimer = setTimeout(() => {
+      minimizeSessionNotification();
+    }, 8000);
+  }
+
+  function dismissSessionNotification(event) {
+    if (event) event.stopPropagation();
+    const card = document.getElementById('activeUserSessionToast');
+    if (card) {
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(15px)';
+      setTimeout(() => { card.style.display = 'none'; }, 300);
+    }
+  }
+
+  function hideActiveUserSessionNotification() {
+    const card = document.getElementById('activeUserSessionToast');
+    if (card) card.style.display = 'none';
+  }
+
   function applyAuthenticatedUser(user) {
     authenticatedUser = user;
 
@@ -7131,6 +7359,9 @@ const BASELINE_ERP_TERRITORIES = [
     // Show authenticated portal app layout as flex container
     const portalLayout = document.getElementById('portalAppLayout');
     if (portalLayout) portalLayout.style.display = 'flex';
+
+    // Show active user session notification below-right side
+    showActiveUserSessionNotification(user);
 
     // Ensure workspace and sidebar are visible
     const sidebar = document.getElementById('sidebarNav');
@@ -7178,6 +7409,7 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function showLoginView() {
+    hideActiveUserSessionNotification();
     authenticatedUser = null;
     localStorage.removeItem('sfe_portal_user');
     sessionStorage.removeItem('sfe_portal_user');
