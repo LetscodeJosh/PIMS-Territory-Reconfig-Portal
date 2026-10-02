@@ -7252,7 +7252,7 @@ const BASELINE_ERP_TERRITORIES = [
     const isKnownAdmin = lowerU.includes('admin') || lowerU.includes('jptan') || lowerU.includes('root');
 
     try {
-      // 1. Post credentials to server login endpoint
+      // Post credentials to authentication endpoint
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -7266,7 +7266,7 @@ const BASELINE_ERP_TERRITORIES = [
         data = null;
       }
 
-      if (data && data.success && data.authorized && data.user) {
+      if (res.ok && data && data.success && data.authorized && data.user) {
         const userObj = JSON.stringify(data.user);
         sessionStorage.removeItem('sfe_portal_logged_out');
         sessionStorage.setItem('sfe_portal_user', userObj);
@@ -7283,34 +7283,18 @@ const BASELINE_ERP_TERRITORIES = [
         if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
         return;
       }
+
+      // If server returned failure or authorization rejection:
+      const errMsg = (data && data.message)
+        ? data.message
+        : 'Invalid username or password. Please verify your credentials registered in https://dev.pmii-marketing.com/app/user.';
+      showLoginError(errMsg);
     } catch (err) {
-      console.warn('Backend /api/login communication notice, utilizing resilient direct authorization:', err);
+      showLoginError('Authentication server connection error. Please verify your network connection to https://dev.pmii-marketing.com.');
+    } finally {
+      if (btn) btn.disabled = false;
+      if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
     }
-
-    // Direct resilient authentication fallback (active offline & standalone safe)
-    const fallbackUser = {
-      email: isSfe ? (usr.includes('@') ? usr : 'lesantos@pims-marketing.com') : (usr.includes('@') ? usr : 'admin@pims.com'),
-      full_name: isSfe ? (lowerU.includes('lesantos') ? 'Leilani Santos' : usr) : (lowerU.includes('jptan') ? 'Josh Tan (System Admin)' : 'System Administrator'),
-      role_profile: isSfe ? 'Sales Force Effectiveness' : 'Administrator',
-      role_title: isSfe ? 'SFE Lead' : 'Administrator',
-      is_admin: !isSfe,
-      is_sfe: isSfe,
-      auth_source: 'ERPNext Local Session (SFE Authorized)'
-    };
-    const userObj = JSON.stringify(fallbackUser);
-    sessionStorage.removeItem('sfe_portal_logged_out');
-    sessionStorage.setItem('sfe_portal_user', userObj);
-    if (rememberMe) {
-      localStorage.setItem('sfe_saved_username', usr);
-    } else {
-      localStorage.removeItem('sfe_saved_username');
-    }
-    localStorage.removeItem('sfe_portal_user');
-    applyAuthenticatedUser(fallbackUser);
-    showToast(`Signed in successfully as ${fallbackUser.role_title}.`);
-
-    if (btn) btn.disabled = false;
-    if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
   }
 
   function showLoginError(msg) {
