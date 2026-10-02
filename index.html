@@ -1940,7 +1940,7 @@
 
 <!-- Footer -->
 <footer style="background:#FFFFFF; border-top:1.5px solid #E2E8F0; padding:12px 24px; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B;">
-  <div>Territory Reconfiguration Web Portal &bull; Standalone SFE Edition (V.0.5.2)</div>
+  <div>Territory Reconfiguration Web Portal &bull; Standalone SFE Edition (V.0.5.8)</div>
   <div>ERPNext SFE CRM Integration</div>
 </footer>
 
@@ -7146,10 +7146,15 @@ const BASELINE_ERP_TERRITORIES = [
   let isTreeViewActive = true;
 
   // Initialize
-  document.addEventListener('DOMContentLoaded', () => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      checkAuthSession();
+      initStreamlitComponent();
+    });
+  } else {
     checkAuthSession();
     initStreamlitComponent();
-  });
+  }
 
   function switchProgram() {
     const progSelect = document.getElementById('programSelect');
@@ -7457,19 +7462,23 @@ const BASELINE_ERP_TERRITORIES = [
     }
   }
 
-  // Streamlit Custom Component protocol handshake
+  // Streamlit Custom Component protocol handshake & detection
+  let isStreamlitActive = false;
+
   function initStreamlitComponent() {
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage({
-        isStreamlitMessage: true,
-        type: "streamlit:componentReady",
-        apiVersion: 1
-      }, "*");
-      window.parent.postMessage({
-        isStreamlitMessage: true,
-        type: "streamlit:setFrameHeight",
-        height: Math.max(document.documentElement.scrollHeight, 1080)
-      }, "*");
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:componentReady",
+          apiVersion: 1
+        }, "*");
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setFrameHeight",
+          height: Math.max(document.documentElement.scrollHeight, 1080)
+        }, "*");
+      } catch (_) {}
     }
   }
 
@@ -7477,6 +7486,7 @@ const BASELINE_ERP_TERRITORIES = [
   window.addEventListener('message', function(event) {
     if (!event.data) return;
     if (event.data.type === 'streamlit:render') {
+      isStreamlitActive = true;
       const auth = event.data.args ? event.data.args.auth_response : null;
       if (auth) {
         const btn = document.getElementById('loginSubmitBtn');
@@ -7526,33 +7536,45 @@ const BASELINE_ERP_TERRITORIES = [
     }
 
     // 1. If running inside Streamlit component iframe:
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({
-        isStreamlitMessage: true,
-        type: "streamlit:setComponentValue",
-        value: {
-          action: "login",
-          usr: usr,
-          pwd: pwd,
-          timestamp: Date.now()
-        }
-      }, "*");
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "login",
+            usr: usr,
+            pwd: pwd,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
 
-      // Reset button if no response within 12 seconds
+      // Strict 6-second watchdog timeout so user is NEVER stuck on "Signing in..."
       setTimeout(() => {
-        if (btn) btn.disabled = false;
-        if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
-      }, 12000);
+        if (btn && btn.disabled) {
+          btn.disabled = false;
+          if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
+          if (!authenticatedUser) {
+            showLoginError('Authentication response timed out (6s). Please verify your connection to https://dev.pmii-marketing.com and try again.');
+          }
+        }
+      }, 6000);
       return;
     }
 
-    // 2. Standalone / local server.py environment:
+    // 2. Standalone / local server.py environment (with strict 6s AbortController timeout):
+    const abortController = new AbortController();
+    const timeoutHandle = setTimeout(() => abortController.abort(), 6000);
+
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usr: usr, pwd: pwd })
+        body: JSON.stringify({ usr: usr, pwd: pwd }),
+        signal: abortController.signal
       });
+      clearTimeout(timeoutHandle);
 
       let data = null;
       try {
@@ -7574,7 +7596,11 @@ const BASELINE_ERP_TERRITORIES = [
         : 'Invalid username or password. Please verify your credentials registered in https://dev.pmii-marketing.com/app/user.';
       showLoginError(errMsg);
     } catch (err) {
-      showLoginError('Authentication server error. Please verify your network connection to https://dev.pmii-marketing.com.');
+      if (err.name === 'AbortError') {
+        showLoginError('Authentication timed out (6s). Please check server connectivity to https://dev.pmii-marketing.com.');
+      } else {
+        showLoginError('Authentication server error. Please verify your network connection to https://dev.pmii-marketing.com.');
+      }
     } finally {
       if (btn) btn.disabled = false;
       if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
