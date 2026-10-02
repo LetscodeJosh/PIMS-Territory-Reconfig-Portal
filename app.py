@@ -15,15 +15,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2. Modern Clean Styling
+# 2. Seamless Fullscreen Styling (Zero Streamlit header, footer, or padding)
 st.markdown("""
 <style>
-    /* Remove padding & maximize viewport */
+    /* Full bleed viewport */
     .block-container {
-        padding-top: 0.5rem !important;
-        padding-bottom: 0.5rem !important;
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
+        padding: 0 !important;
+        margin: 0 !important;
         max-width: 100% !important;
     }
     header[data-testid="stHeader"] {
@@ -34,29 +32,9 @@ st.markdown("""
     }
     iframe {
         border: none !important;
-        width: 100% !important;
-    }
-    .auth-card {
-        background: #18181B;
-        border: 1px solid #27272A;
-        border-radius: 12px;
-        padding: 30px;
-        color: #FFFFFF;
-        max-width: 480px;
-        margin: 40px auto;
-        box-shadow: 0 16px 40px rgba(0,0,0,0.5);
-    }
-    .auth-title {
-        font-size: 20px;
-        font-weight: 800;
-        color: #FFFFFF;
-        margin-bottom: 6px;
-    }
-    .auth-subtitle {
-        font-size: 13px;
-        color: #A1A1AA;
-        margin-bottom: 22px;
-        line-height: 1.5;
+        width: 100vw !important;
+        height: 100vh !important;
+        min-height: 100vh !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -170,86 +148,36 @@ def verify_erpnext_credentials(usr, pwd):
         }
     }
 
-# 3. Check Authentication State
-if "authenticated_user" not in st.session_state:
-    # Render Secure Login Form
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("""
-        <div style="text-align:center; padding: 24px 0 10px 0;">
-            <div style="font-size:38px; margin-bottom:8px;">🗺️</div>
-            <h2 style="font-size:22px; font-weight:800; color:#0F172A; margin:0 0 4px 0;">PIMS • Territory Reconfiguration</h2>
-            <div style="font-size:13px; color:#64748B;">SFE CRM Masterlist & Hierarchy Workbench</div>
-        </div>
-        """, unsafe_allow_html=True)
+# 3. Mount Territory Reconfiguration Portal Component
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+INDEX_HTML = os.path.join(CURRENT_DIR, "index.html")
+PORTAL_HTML = os.path.join(CURRENT_DIR, "territory_reconfiguration_portal.html")
 
-        with st.form("erpnext_login_form"):
-            st.markdown("##### 🔐 Sign In with ERPNext")
-            st.caption("Credentials are authenticated live against https://dev.pmii-marketing.com/app/user (Restricted to SFE and Administrator accounts).")
-            username = st.text_input("Username or Email", placeholder="e.g. jptan@profinsights.biz")
-            password = st.text_input("Password", type="password", placeholder="Enter your ERPNext password")
-            submit = st.form_submit_button("Sign In to Reconfiguration Portal", use_container_width=True, type="primary")
+# Ensure index.html exists for Streamlit component resolution
+if not os.path.exists(INDEX_HTML) and os.path.exists(PORTAL_HTML):
+    import shutil
+    shutil.copy2(PORTAL_HTML, INDEX_HTML)
 
-            if submit:
-                with st.spinner("Authenticating against dev.pmii-marketing.com..."):
-                    res = verify_erpnext_credentials(username, password)
-                    if res["success"] and res["authorized"]:
-                        st.session_state["authenticated_user"] = res["user"]
-                        st.success(res["message"])
-                        st.rerun()
-                    else:
-                        st.error(f"⚠️ {res['message']}")
+portal_component = components.declare_component("pims_portal", path=CURRENT_DIR)
 
-        st.markdown("""
-        <div style="text-align:center; font-size:12px; color:#94A3B8; margin-top:16px;">
-            Protected by ERPNext v15 Live Role-Based Access Control (RBAC)<br>
-            Authorized: <strong>Sales Force Effectiveness (SFE)</strong> &bull; <strong>System Manager / Administrator</strong>
-        </div>
-        """, unsafe_allow_html=True)
+if "auth_response" not in st.session_state:
+    st.session_state["auth_response"] = None
 
-else:
-    # Authenticated Session
-    user = st.session_state["authenticated_user"]
+# Render the web app component directly (Opens directly to the native login view - Image 2)
+component_val = portal_component(
+    auth_response=st.session_state["auth_response"],
+    key="pims_portal_app"
+)
 
-    # Top Navigation Bar with User Info & Logout
-    top_col1, top_col2 = st.columns([4, 1])
-    with top_col1:
-        st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:8px; padding:4px 0;">
-            <span style="font-size:13px; color:#0F172A; font-weight:700;">🗺️ PIMS Reconfiguration Portal</span>
-            <span style="color:#CBD5E1;">&bull;</span>
-            <span style="font-size:12px; color:#64748B;">User: <strong style="color:#0066FF;">{user['email']}</strong> [{user['role_title']}]</span>
-        </div>
-        """, unsafe_allow_html=True)
-    with top_col2:
-        if st.button("🚪 Sign Out", use_container_width=True):
-            del st.session_state["authenticated_user"]
-            st.rerun()
-
-    # Read and Render the Web Portal HTML
-    HTML_FILE = os.path.join(os.path.dirname(__file__), "territory_reconfiguration_portal.html")
-    if os.path.exists(HTML_FILE):
-        with open(HTML_FILE, "r", encoding="utf-8") as f:
-            portal_html = f.read()
-
-        # Inject Authenticated User Session into the HTML so it bypasses the internal login and directly opens Territory Tree!
-        user_json = json.dumps(user)
-        injected_script = f"""
-        <script>
-            (function() {{
-                const userObj = {user_json};
-                sessionStorage.removeItem('sfe_portal_logged_out');
-                sessionStorage.setItem('sfe_portal_user', JSON.stringify(userObj));
-                document.addEventListener('DOMContentLoaded', function() {{
-                    if (typeof applyAuthenticatedUser === 'function') {{
-                        applyAuthenticatedUser(userObj);
-                    }}
-                }});
-            }})();
-        </script>
-        """
-        portal_html = portal_html.replace("</head>", f"{injected_script}\n</head>")
-
-        components.html(portal_html, height=1080, scrolling=True)
-    else:
-        st.error("⚠️ Portal HTML file not found!")
+# Handle authentication events dispatched from the portal
+if component_val and isinstance(component_val, dict):
+    action = component_val.get("action")
+    if action == "login":
+        usr = component_val.get("usr")
+        pwd = component_val.get("pwd")
+        res = verify_erpnext_credentials(usr, pwd)
+        st.session_state["auth_response"] = res
+        st.rerun()
+    elif action == "logout":
+        st.session_state["auth_response"] = None
+        st.rerun()
