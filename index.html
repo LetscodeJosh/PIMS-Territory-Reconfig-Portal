@@ -34,25 +34,36 @@
     padding: 0;
   }
 
+  html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background-color: #F4F6F9;
     color: #0F172A;
-    min-height: 100vh;
     display: flex;
     flex-direction: column;
+    height: 100vh;
+    max-height: 100vh;
+    width: 100vw;
+    overflow: hidden;
   }
 
   /* Header (Matches HCP Profiling App Top AppBar) */
   header {
     background: linear-gradient(135deg, #0B192C 0%, #1E3E62 100%);
     border-bottom: 1px solid #1E293B;
-    padding: 12px 24px;
+    padding: 10px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    position: sticky;
-    top: 0;
+    position: relative;
+    flex-shrink: 0;
+    height: 56px;
     z-index: 100;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   }
@@ -190,22 +201,26 @@
   /* App Layout */
   .app-layout {
     display: flex;
-    flex: 1;
-    min-height: calc(100vh - 58px);
+    flex: 1 1 0;
+    min-height: 0;
     position: relative;
     background: #F4F6F9;
+    overflow: hidden;
+    width: 100%;
   }
 
   /* Left Sidebar Navigation (Deep Navy Enterprise Drawer) */
   .sidebar-nav {
-    width: 255px;
+    width: 250px;
+    height: 100%;
     background: #0B192C;
     border-right: 1px solid #1E293B;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    transition: width 0.25s ease, opacity 0.2s ease;
-    overflow: hidden;
+    transition: width 0.25s ease, opacity 0.2s ease, transform 0.25s ease;
+    overflow-y: auto;
+    overflow-x: hidden;
     flex-shrink: 0;
     z-index: 50;
   }
@@ -312,11 +327,16 @@
 
   /* Main Workspace */
   main {
-    flex: 1;
-    padding: 22px 26px;
-    overflow-y: auto;
+    flex: 1 1 0;
+    padding: 18px 24px 60px 24px;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
     width: 100%;
     background: #F4F6F9;
+    -webkit-overflow-scrolling: touch;
   }
 
   .tab-content {
@@ -1233,11 +1253,15 @@
     justify-content: center;
     gap: 10px;
     margin-top: 14px;
-    padding: 14px 20px;
+    padding: 12px 18px;
     background: #FFFFFF;
-    border: 1.5px solid #E2E8F0;
+    border: 1.5px solid #CBD5E1;
     border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+    position: sticky;
+    bottom: 12px;
+    z-index: 30;
+    width: 100%;
   }
 
   .pagination-controls-row {
@@ -1326,6 +1350,58 @@
     background: #0066FF;
     color: #FFFFFF;
     box-shadow: 0 1px 4px rgba(0, 102, 255, 0.25);
+  }
+
+  /* Responsive Breakpoints & Zoom Adaptations */
+  @media (max-width: 1024px) {
+    main {
+      padding: 14px 16px 50px 16px;
+    }
+    .card-container {
+      padding: 16px 18px;
+    }
+    .table-pagination-center {
+      padding: 10px 14px;
+      gap: 8px;
+      bottom: 8px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    header {
+      padding: 8px 12px;
+      height: 52px;
+    }
+    .app-layout {
+      flex: 1 1 0;
+      min-height: 0;
+    }
+    .sidebar-nav {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      box-shadow: 4px 0 16px rgba(0, 0, 0, 0.3);
+    }
+    .sidebar-nav.collapsed {
+      transform: translateX(-100%);
+      width: 250px;
+    }
+    .pagination-meta-row {
+      flex-direction: column;
+      gap: 6px;
+      text-align: center;
+    }
+    .page-btn {
+      min-width: 28px;
+      height: 28px;
+      padding: 0 6px;
+      font-size: 11px;
+    }
+    .page-size-pills button {
+      padding: 3px 8px;
+      font-size: 11px;
+    }
   }
 
 </style>
@@ -1939,8 +2015,8 @@
 </div>
 
 <!-- Footer -->
-<footer style="background:#FFFFFF; border-top:1.5px solid #E2E8F0; padding:12px 24px; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B;">
-  <div>Territory Reconfiguration Web Portal &bull; Standalone SFE Edition (V.0.5.8)</div>
+<footer style="background:#FFFFFF; border-top:1.5px solid #E2E8F0; padding:8px 24px; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; flex-shrink:0; height:40px; z-index:90;">
+  <div>Territory Reconfiguration Web Portal &bull; Standalone SFE Edition (V.0.5.9)</div>
   <div>ERPNext SFE CRM Integration</div>
 </footer>
 
@@ -7263,6 +7339,9 @@ const BASELINE_ERP_TERRITORIES = [
     }, duration);
   }
 
+  // State guard to strictly prevent repeated notification popups on zoom in/out or window resizing
+  let loginNotificationShown = false;
+
   function showActiveUserSessionNotification(user) {
     const card = document.getElementById('activeUserSessionToast');
     if (!card || !user) return;
@@ -7305,38 +7384,20 @@ const BASELINE_ERP_TERRITORIES = [
     card.style.opacity = '1';
     card.style.transform = 'translateY(0)';
 
-    // Auto-minimize into compact pill after 8 seconds so workspace is unobscured
+    // Automatically remove completely after 4.5 seconds with ZERO lingering elements
     if (window.sessionToastAutoMinTimer) clearTimeout(window.sessionToastAutoMinTimer);
     window.sessionToastAutoMinTimer = setTimeout(() => {
-      minimizeSessionNotification();
-    }, 8000);
+      dismissSessionNotification();
+    }, 4500);
   }
 
   function minimizeSessionNotification(event) {
     if (event) event.stopPropagation();
-    const card = document.getElementById('activeUserSessionToast');
-    if (!card) return;
-    card.classList.add('compact');
-    const fullContent = document.getElementById('sessionToastFullContent');
-    const compactContent = document.getElementById('sessionToastCompactContent');
-    if (fullContent) fullContent.style.display = 'none';
-    if (compactContent) compactContent.style.display = 'flex';
+    dismissSessionNotification(event);
   }
 
   function expandSessionNotification(event) {
     if (event) event.stopPropagation();
-    const card = document.getElementById('activeUserSessionToast');
-    if (!card) return;
-    card.classList.remove('compact');
-    const fullContent = document.getElementById('sessionToastFullContent');
-    const compactContent = document.getElementById('sessionToastCompactContent');
-    if (fullContent) fullContent.style.display = 'block';
-    if (compactContent) compactContent.style.display = 'none';
-
-    if (window.sessionToastAutoMinTimer) clearTimeout(window.sessionToastAutoMinTimer);
-    window.sessionToastAutoMinTimer = setTimeout(() => {
-      minimizeSessionNotification();
-    }, 8000);
   }
 
   function dismissSessionNotification(event) {
@@ -7351,10 +7412,13 @@ const BASELINE_ERP_TERRITORIES = [
 
   function hideActiveUserSessionNotification() {
     const card = document.getElementById('activeUserSessionToast');
-    if (card) card.style.display = 'none';
+    if (card) {
+      card.style.opacity = '0';
+      card.style.display = 'none';
+    }
   }
 
-  function applyAuthenticatedUser(user) {
+  function applyAuthenticatedUser(user, showNotification = true) {
     authenticatedUser = user;
 
     // Hide login screen
@@ -7365,8 +7429,11 @@ const BASELINE_ERP_TERRITORIES = [
     const portalLayout = document.getElementById('portalAppLayout');
     if (portalLayout) portalLayout.style.display = 'flex';
 
-    // Show active user session notification below-right side
-    showActiveUserSessionNotification(user);
+    // Show active user session notification below-right side strictly once on initial login
+    if (showNotification && !loginNotificationShown) {
+      loginNotificationShown = true;
+      showActiveUserSessionNotification(user);
+    }
 
     // Ensure workspace and sidebar are visible
     const sidebar = document.getElementById('sidebarNav');
@@ -7414,6 +7481,7 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function showLoginView() {
+    loginNotificationShown = false;
     hideActiveUserSessionNotification();
     authenticatedUser = null;
     localStorage.removeItem('sfe_portal_user');
@@ -7465,6 +7533,19 @@ const BASELINE_ERP_TERRITORIES = [
   // Streamlit Custom Component protocol handshake & detection
   let isStreamlitActive = false;
 
+  function sendStreamlitFrameHeight() {
+    if (window.parent && window.parent !== window) {
+      try {
+        const h = window.innerHeight || document.documentElement.clientHeight || 750;
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setFrameHeight",
+          height: h
+        }, "*");
+      } catch (_) {}
+    }
+  }
+
   function initStreamlitComponent() {
     if (window.parent && window.parent !== window) {
       try {
@@ -7473,16 +7554,17 @@ const BASELINE_ERP_TERRITORIES = [
           type: "streamlit:componentReady",
           apiVersion: 1
         }, "*");
-        window.parent.postMessage({
-          isStreamlitMessage: true,
-          type: "streamlit:setFrameHeight",
-          height: Math.max(document.documentElement.scrollHeight, 1080)
-        }, "*");
+        sendStreamlitFrameHeight();
       } catch (_) {}
     }
   }
 
-  // Streamlit inbound message handler
+  // Responsive resize handler that keeps Streamlit iframe exactly sized to viewport without triggering popups
+  window.addEventListener('resize', function() {
+    sendStreamlitFrameHeight();
+  });
+
+  // Streamlit inbound message handler (Gated to prevent repetitive popups on zoom in/out or window resizing)
   window.addEventListener('message', function(event) {
     if (!event.data) return;
     if (event.data.type === 'streamlit:render') {
@@ -7495,10 +7577,18 @@ const BASELINE_ERP_TERRITORIES = [
         if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
 
         if (auth.success && auth.authorized && auth.user) {
+          const isFirstLogin = !authenticatedUser || (authenticatedUser.email !== auth.user.email) || !loginNotificationShown;
           sessionStorage.removeItem('sfe_portal_logged_out');
           sessionStorage.setItem('sfe_portal_user', JSON.stringify(auth.user));
-          applyAuthenticatedUser(auth.user);
-          showToast(`Welcome back, ${auth.user.full_name || auth.user.email}! Signed in as ${auth.user.role_title}.`);
+          
+          // Apply authenticated state; only show bottom-right notification on true first login
+          applyAuthenticatedUser(auth.user, isFirstLogin);
+
+          // Only display welcome toast once on initial login, never on zoom/resize rerenders
+          if (isFirstLogin) {
+            loginNotificationShown = true;
+            showToast(`Welcome back, ${auth.user.full_name || auth.user.email}! Signed in as ${auth.user.role_title}.`);
+          }
         } else {
           showLoginError(auth.message || 'Invalid username or password. Please verify your credentials registered in https://dev.pmii-marketing.com/app/user.');
         }
@@ -7586,7 +7676,8 @@ const BASELINE_ERP_TERRITORIES = [
       if (res.ok && data && data.success && data.authorized && data.user) {
         sessionStorage.removeItem('sfe_portal_logged_out');
         sessionStorage.setItem('sfe_portal_user', JSON.stringify(data.user));
-        applyAuthenticatedUser(data.user);
+        loginNotificationShown = true;
+        applyAuthenticatedUser(data.user, true);
         showToast(`Welcome back, ${data.user.full_name || data.user.email}! Signed in as ${data.user.role_title}.`);
         return;
       }
@@ -7632,6 +7723,7 @@ const BASELINE_ERP_TERRITORIES = [
     if (!confirm('Are you sure you want to sign out of the Territory Reconfiguration Portal?')) {
       return;
     }
+    loginNotificationShown = false;
 
     if (window.parent && window.parent !== window) {
       window.parent.postMessage({

@@ -19,10 +19,20 @@ st.set_page_config(
 st.markdown("""
 <style>
     /* Full bleed viewport */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stCustomComponentV1"] {
+        height: 100vh !important;
+        max-height: 100vh !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
     .block-container {
         padding: 0 !important;
         margin: 0 !important;
         max-width: 100% !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        overflow: hidden !important;
     }
     header[data-testid="stHeader"] {
         display: none !important;
@@ -35,6 +45,7 @@ st.markdown("""
         width: 100vw !important;
         height: 100vh !important;
         min-height: 100vh !important;
+        max-height: 100vh !important;
     }
 </style>
 """, unsafe_allow_html=True)
