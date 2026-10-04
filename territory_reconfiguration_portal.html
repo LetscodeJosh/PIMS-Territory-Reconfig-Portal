@@ -10117,12 +10117,20 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   // --- AUDIT TRAIL MODAL (PER RECORD) ---
-  function openAuditModal(index) {
-    const row = programTerritories[index];
+  function openAuditModal(target) {
+    let row = null;
+    if (typeof target === 'number') {
+      row = programTerritories[target];
+    } else if (typeof target === 'string') {
+      row = programTerritories.find(t => t.recordId === target || t.activeCode === target || t.histCode === target);
+      if (!row) {
+        row = archivedRecords.find(t => t.recordId === target || t.activeCode === target || t.histCode === target);
+      }
+    }
     if (!row) return;
 
-    document.getElementById('auditModalTitle').innerText = `Audit Trail: ${row.activeCode} (${row.recordId})`;
-    document.getElementById('auditModalSubtitle').innerText = `Assigned to: ${row.rep} (${row.userId}) &bull; District: ${row.district}`;
+    document.getElementById('auditModalTitle').innerText = `Audit Trail: ${row.activeCode || row.histCode} (${row.recordId})`;
+    document.getElementById('auditModalSubtitle').innerText = `Assigned to: ${row.rep || 'Unassigned'} (${row.userId || 'N/A'}) &bull; District: ${row.district || 'Unassigned'}`;
 
     const container = document.getElementById('auditTimelineContainer');
     container.innerHTML = '';
@@ -10614,13 +10622,18 @@ const BASELINE_ERP_TERRITORIES = [
         else if (log.action === 'ARCHIVED' || log.action === 'BULK_DELETE' || log.action === 'BULK_DECOMMISSION') actionBadgeClass = 'badge-archive';
         else if (log.action === 'REACTIVATED' || log.action === 'BULK_ADD') actionBadgeClass = 'badge-unchanged';
 
+        const isLongText = (log.details || '').length > 80;
+        const detailsDisplay = isLongText
+          ? `<span>${escapeHtml(log.details.substring(0, 80))}...</span> <button type="button" onclick="openAuditModal('${escapeHtml(log.territoryCode)}')" style="background:none; border:none; color:#0066FF; font-weight:700; font-size:11px; cursor:pointer; padding:0; text-decoration:underline;" title="View full audit trail">[View Details ↗]</button>`
+          : escapeHtml(log.details || '');
+
         tr.innerHTML = `
           <td class="col-audit-time" style="${auditColumnVisibility.time ? '' : 'display:none;'}"><span style="font-size:11.5px; color:#334155; font-weight:600;">${escapeHtml(log.timestamp)}</span></td>
-          <td class="col-audit-id" style="${auditColumnVisibility.id ? '' : 'display:none;'}"><code>${escapeHtml(log.recordId)}</code></td>
+          <td class="col-audit-id" style="${auditColumnVisibility.id ? '' : 'display:none;'}"><code onclick="openAuditModal('${escapeHtml(log.recordId)}')" title="Click to view audit history for this territory" style="cursor:pointer; color:#0066FF; text-decoration:underline;">${escapeHtml(log.recordId)}</code></td>
           <td class="col-audit-action" style="${auditColumnVisibility.action ? '' : 'display:none;'}"><span class="badge ${actionBadgeClass}">${escapeHtml(log.action)}</span></td>
-          <td class="col-audit-code" style="${auditColumnVisibility.code ? '' : 'display:none;'}"><strong style="color:#0066FF;">${escapeHtml(log.territoryCode)}</strong></td>
+          <td class="col-audit-code" style="${auditColumnVisibility.code ? '' : 'display:none;'}"><a href="javascript:void(0)" onclick="openAuditModal('${escapeHtml(log.territoryCode)}')" title="Click to view full audit trail for this territory" style="color:#0066FF; font-weight:700; text-decoration:underline; cursor:pointer;">${escapeHtml(log.territoryCode)}</a></td>
           <td class="col-audit-user" style="${auditColumnVisibility.user ? '' : 'display:none;'}"><span style="font-size:11.5px; color:#0F172A; font-weight:600;">${escapeHtml(log.user)}</span></td>
-          <td class="col-audit-details" style="font-size:12px; color:#475569; ${auditColumnVisibility.details ? '' : 'display:none;'}">${escapeHtml(log.details)}</td>
+          <td class="col-audit-details" style="font-size:12px; color:#475569; ${auditColumnVisibility.details ? '' : 'display:none;'}">${detailsDisplay}</td>
         `;
         tbody.appendChild(tr);
       }
