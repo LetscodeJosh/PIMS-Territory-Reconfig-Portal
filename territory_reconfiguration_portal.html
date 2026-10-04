@@ -1245,22 +1245,21 @@
     padding-right: 6px;
   }
 
-  /* Centered Bottom Pagination Switch */
+  /* Centered Bottom Pagination Switch (Document flow: remains cleanly at bottom, zero row overlap on scroll) */
   .table-pagination-center {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    margin-top: 14px;
+    margin-top: 16px;
+    margin-bottom: 16px;
     padding: 12px 18px;
     background: #FFFFFF;
     border: 1.5px solid #CBD5E1;
     border-radius: 10px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
-    position: sticky;
-    bottom: 12px;
-    z-index: 30;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    position: relative;
     width: 100%;
   }
 
@@ -1363,7 +1362,8 @@
     .table-pagination-center {
       padding: 10px 14px;
       gap: 8px;
-      bottom: 8px;
+      margin-top: 12px;
+      margin-bottom: 12px;
     }
   }
 
