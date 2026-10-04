@@ -7532,6 +7532,7 @@ const BASELINE_ERP_TERRITORIES = [
 
   // Streamlit Custom Component protocol handshake & detection
   let isStreamlitActive = false;
+  let lastProcessedTreeEventTs = 0;
 
   function sendStreamlitFrameHeight() {
     if (window.parent && window.parent !== window) {
@@ -7570,6 +7571,9 @@ const BASELINE_ERP_TERRITORIES = [
     if (event.data.type === 'streamlit:render') {
       isStreamlitActive = true;
       const auth = event.data.args ? event.data.args.auth_response : null;
+      const liveTerrs = event.data.args ? event.data.args.live_territories : null;
+      const treeSync = event.data.args ? event.data.args.tree_sync_event : null;
+
       if (auth) {
         const btn = document.getElementById('loginSubmitBtn');
         const btnText = document.getElementById('loginBtnText');
@@ -7592,6 +7596,28 @@ const BASELINE_ERP_TERRITORIES = [
         } else {
           showLoginError(auth.message || 'Invalid username or password. Please verify your credentials registered in https://dev.pmii-marketing.com/app/user.');
         }
+      }
+
+      // Live territory tree updates from ERPNext via Streamlit
+      if (liveTerrs && Array.isArray(liveTerrs) && liveTerrs.length > 0) {
+        if (!liveTerrs.some(t => t.name === 'All Territories')) {
+          liveTerrs.unshift({
+            name: 'All Territories',
+            territory_name: 'All Territories',
+            parent_territory: '',
+            is_group: 1,
+            territory_manager: null
+          });
+        }
+        territoryTreeData = liveTerrs;
+        localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
+        if (typeof renderTree === 'function') renderTree();
+      }
+
+      // Two-way server feedback toasts
+      if (treeSync && treeSync.timestamp && treeSync.timestamp > lastProcessedTreeEventTs) {
+        lastProcessedTreeEventTs = treeSync.timestamp;
+        showToast(treeSync.message, treeSync.status || 'info');
       }
     }
   });
@@ -8985,6 +9011,18 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   async function syncTreeWithERPNext() {
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "tree_refresh",
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
     try {
       const res = await fetch('/api/resource/Territory?fields=["name","territory_name","parent_territory","is_group","territory_manager"]&limit_page_length=500', {
         headers: { 'Accept': 'application/json' }
@@ -9344,6 +9382,23 @@ const BASELINE_ERP_TERRITORIES = [
       });
     }
 
+    // Streamlit bidirectional dispatch
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "tree_add",
+            territory_name: name,
+            parent_territory: parent,
+            is_group: isGroup,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
+
     // Dispatch to ERPNext API asynchronously
     try {
       fetch('/api/resource/Territory', {
@@ -9354,9 +9409,20 @@ const BASELINE_ERP_TERRITORIES = [
           parent_territory: parent,
           is_group: isGroup
         })
-      }).then(res => {
-        if (res.ok) console.log(`[ERPNext] Created Territory ${name} online`);
-      }).catch(() => {});
+      }).then(async res => {
+        if (res.ok) {
+          console.log(`[ERPNext] Created Territory ${name} online`);
+          showToast(`Territory "${name}" synced live to ERPNext!`, 'success');
+        } else {
+          try {
+            const err = await res.json();
+            const msg = err.exception || err.message || (err._server_messages ? JSON.parse(err._server_messages)[0] : 'Server error');
+            showToast(`ERPNext Warning: ${msg}`, 'warning');
+          } catch (_) {}
+        }
+      }).catch(err => {
+        console.warn(`[ERPNext Sync Warning] ${err.message}`);
+      });
     } catch (_) {}
 
     treeExpandedNodes.add(parent);
@@ -9439,6 +9505,24 @@ const BASELINE_ERP_TERRITORIES = [
       });
     }
 
+    // Streamlit bidirectional dispatch
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "tree_edit",
+            name: origName,
+            parent_territory: newParent,
+            is_group: newIsGroup,
+            territory_manager: newMgr,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
+
     try {
       const updateBody = { parent_territory: newParent, is_group: newIsGroup };
       if (newMgr) updateBody.territory_manager = newMgr;
@@ -9446,7 +9530,20 @@ const BASELINE_ERP_TERRITORIES = [
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(updateBody)
-      }).catch(() => {});
+      }).then(async res => {
+        if (res.ok) {
+          console.log(`[ERPNext] Updated Territory "${origName}" online`);
+          showToast(`Territory "${origName}" updated live on ERPNext!`, 'success');
+        } else {
+          try {
+            const err = await res.json();
+            const msg = err.exception || err.message || 'Server error';
+            showToast(`ERPNext Warning: ${msg}`, 'warning');
+          } catch (_) {}
+        }
+      }).catch(err => {
+        console.warn(`[ERPNext Sync Warning] ${err.message}`);
+      });
     } catch (_) {}
 
     closeTreeEditModal();
@@ -9533,6 +9630,22 @@ const BASELINE_ERP_TERRITORIES = [
 
     localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
 
+    // Streamlit bidirectional dispatch
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "tree_rename",
+            old_name: oldName,
+            new_name: newName,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
+
     try {
       fetch('/api/method/frappe.client.rename_doc', {
         method: 'POST',
@@ -9542,7 +9655,20 @@ const BASELINE_ERP_TERRITORIES = [
           old_name: oldName,
           new_name: newName
         })
-      }).catch(() => {});
+      }).then(async res => {
+        if (res.ok) {
+          console.log(`[ERPNext] Renamed Territory "${oldName}" -> "${newName}" online`);
+          showToast(`Renamed "${oldName}" &rarr; "${newName}" live on ERPNext!`, 'success');
+        } else {
+          try {
+            const err = await res.json();
+            const msg = err.exception || err.message || 'Server error';
+            showToast(`ERPNext Warning: ${msg}`, 'warning');
+          } catch (_) {}
+        }
+      }).catch(err => {
+        console.warn(`[ERPNext Sync Warning] ${err.message}`);
+      });
     } catch (_) {}
 
     closeTreeRenameModal();
@@ -9614,10 +9740,38 @@ const BASELINE_ERP_TERRITORIES = [
 
     localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
 
+    // Streamlit bidirectional dispatch
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "tree_delete",
+            name: target,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
+
     try {
       fetch(`/api/resource/Territory/${encodeURIComponent(target)}`, {
         method: 'DELETE'
-      }).catch(() => {});
+      }).then(async res => {
+        if (res.ok) {
+          console.log(`[ERPNext] Deleted Territory "${target}" online`);
+          showToast(`Territory "${target}" deleted from ERPNext!`, 'success');
+        } else {
+          try {
+            const err = await res.json();
+            const msg = err.exception || err.message || (err._server_messages ? JSON.parse(err._server_messages)[0] : 'Server error');
+            showToast(`ERPNext Warning: ${msg}`, 'warning');
+          } catch (_) {}
+        }
+      }).catch(err => {
+        console.warn(`[ERPNext Sync Warning] ${err.message}`);
+      });
     } catch (_) {}
 
     closeTreeDeleteModal();
