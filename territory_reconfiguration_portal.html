@@ -1682,27 +1682,62 @@
           </div>
         </div>
 
-        <!-- VIEW A: Interactive Table Grid with Checkbox Selector Column -->
-        <div id="gridTableView" class="table-responsive" style="display:none;">
-          <table id="editorTable">
-            <thead>
-              <tr>
-                <th class="col-cb" style="width:48px; min-width:48px; max-width:48px; text-align:center;"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="Select all on this page" style="cursor:pointer; width:16px; height:16px; accent-color:#0066FF;"></th>
-                <th class="col-prev" style="width:16%;">Latest Previous Code</th>
-                <th class="col-active" style="width:16%;">Active Code</th>
-                <th class="col-rep" style="width:28%;">Assigned MedRep</th>
-                <th class="col-docs" style="width:12%; text-align:center;">Doctor Count</th>
-                <th class="col-status" style="width:14%;">Status</th>
-                <th class="col-actions" style="width:180px; min-width:180px; max-width:180px; text-align:center;">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="editorTableBody">
-              <!-- Rendered dynamically -->
-            </tbody>
-          </table>
+        <!-- VIEW A: Interactive Table Grid with Checkbox Selector Column & Dedicated Pagination -->
+        <div id="gridTableView" style="display:none;">
+          <div class="table-responsive">
+            <table id="editorTable">
+              <thead>
+                <tr>
+                  <th class="col-cb" style="width:48px; min-width:48px; max-width:48px; text-align:center;"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="Select all on this page" style="cursor:pointer; width:16px; height:16px; accent-color:#0066FF;"></th>
+                  <th class="col-prev" style="width:16%;">Latest Previous Code</th>
+                  <th class="col-active" style="width:16%;">Active Code</th>
+                  <th class="col-rep" style="width:28%;">Assigned MedRep</th>
+                  <th class="col-docs" style="width:12%; text-align:center;">Doctor Count</th>
+                  <th class="col-status" style="width:14%;">Status</th>
+                  <th class="col-actions" style="width:180px; min-width:180px; max-width:180px; text-align:center;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="editorTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Bottom Pagination Switch (Strictly visible ONLY when Table Grid is active, never in Tree View) -->
+          <div id="tablePaginationWrapper" class="table-pagination-center" style="display:none;">
+            <!-- Page Controls Switch (Centered) -->
+            <div class="pagination-controls-row">
+              <button type="button" class="page-btn page-nav" id="pageBtn_prev" onclick="goToTablePage(tableCurrentPage - 1)" title="Previous page">
+                ◀ Prev
+              </button>
+              <div id="tablePageNumbers" style="display:inline-flex; align-items:center; gap:4px;">
+                <!-- Generated dynamically -->
+              </div>
+              <button type="button" class="page-btn page-nav" id="pageBtn_next" onclick="goToTablePage(tableCurrentPage + 1)" title="Next page">
+                Next ▶
+              </button>
+            </div>
+            <!-- Range Info & Page Size Switcher (10, 20, 30, 40, All) -->
+            <div class="pagination-meta-row">
+              <div>
+                Showing <strong style="color:#0F172A;" id="pageRangeStart">1</strong>–<strong style="color:#0F172A;" id="pageRangeEnd">10</strong> of <strong style="color:#0066FF;" id="pageRangeTotal">42</strong> territories
+              </div>
+              <div style="width:1px; height:14px; background:#CBD5E1;"></div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span>Rows per page:</span>
+                <div class="page-size-pills">
+                  <button type="button" class="size-pill active" data-size="10" onclick="setTablePageSize(10)">10</button>
+                  <button type="button" class="size-pill" data-size="20" onclick="setTablePageSize(20)">20</button>
+                  <button type="button" class="size-pill" data-size="30" onclick="setTablePageSize(30)">30</button>
+                  <button type="button" class="size-pill" data-size="40" onclick="setTablePageSize(40)">40</button>
+                  <button type="button" class="size-pill" data-size="all" onclick="setTablePageSize('all')">All</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- VIEW B: Territory Tree Format (Default View matching ERPNext) -->
+        <!-- VIEW B: Territory Tree Format (Default View matching ERPNext, Zero Pagination Overlap) -->
         <div id="territoryTreeView" style="display:block;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
             <div style="display:flex; align-items:center; gap:10px;">
@@ -1727,39 +1762,6 @@
           </div>
           <div class="erp-tree-container" id="interactiveTreeContainer">
             <!-- Rendered dynamically -->
-          </div>
-        </div>
-
-        <!-- Bottom Pagination Switch (Placed at the Center, Below Tree & Table) -->
-        <div id="tablePaginationWrapper" class="table-pagination-center">
-          <!-- Page Controls Switch (Centered) -->
-          <div class="pagination-controls-row">
-            <button type="button" class="page-btn page-nav" id="pageBtn_prev" onclick="goToTablePage(tableCurrentPage - 1)" title="Previous page">
-              ◀ Prev
-            </button>
-            <div id="tablePageNumbers" style="display:inline-flex; align-items:center; gap:4px;">
-              <!-- Generated dynamically -->
-            </div>
-            <button type="button" class="page-btn page-nav" id="pageBtn_next" onclick="goToTablePage(tableCurrentPage + 1)" title="Next page">
-              Next ▶
-            </button>
-          </div>
-          <!-- Range Info & Page Size Switcher (10, 20, 30, 40, All) -->
-          <div class="pagination-meta-row">
-            <div>
-              Showing <strong style="color:#0F172A;" id="pageRangeStart">1</strong>–<strong style="color:#0F172A;" id="pageRangeEnd">10</strong> of <strong style="color:#0066FF;" id="pageRangeTotal">42</strong> territories
-            </div>
-            <div style="width:1px; height:14px; background:#CBD5E1;"></div>
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span>Rows per page:</span>
-              <div class="page-size-pills">
-                <button type="button" class="size-pill active" data-size="10" onclick="setTablePageSize(10)">10</button>
-                <button type="button" class="size-pill" data-size="20" onclick="setTablePageSize(20)">20</button>
-                <button type="button" class="size-pill" data-size="30" onclick="setTablePageSize(30)">30</button>
-                <button type="button" class="size-pill" data-size="40" onclick="setTablePageSize(40)">40</button>
-                <button type="button" class="size-pill" data-size="all" onclick="setTablePageSize('all')">All</button>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -7467,9 +7469,11 @@ const BASELINE_ERP_TERRITORIES = [
     const gridEl = document.getElementById('gridTableView');
     const treeEl = document.getElementById('territoryTreeView');
     const btn = document.getElementById('btnToggleView');
+    const pagEl = document.getElementById('tablePaginationWrapper');
     if (gridEl) gridEl.style.display = 'none';
     if (treeEl) treeEl.style.display = 'block';
     if (btn) btn.innerText = 'View as Table Grid';
+    if (pagEl) pagEl.style.display = 'none';
 
     // Initialize or render data
     if (programTerritories && programTerritories.length > 0) {
@@ -7864,7 +7868,7 @@ const BASELINE_ERP_TERRITORIES = [
     const wrapper = document.getElementById('tablePaginationWrapper');
     if (!wrapper) return;
 
-    if (totalMatching === 0) {
+    if (totalMatching === 0 || isTreeViewActive) {
       wrapper.style.display = 'none';
       return;
     }
@@ -9054,16 +9058,19 @@ const BASELINE_ERP_TERRITORIES = [
     const gridEl = document.getElementById('gridTableView');
     const treeEl = document.getElementById('territoryTreeView');
     const btn = document.getElementById('btnToggleView');
+    const pagEl = document.getElementById('tablePaginationWrapper');
 
     if (isTreeViewActive) {
       gridEl.style.display = 'none';
       treeEl.style.display = 'block';
       if (btn) btn.innerText = 'View as Table Grid';
+      if (pagEl) pagEl.style.display = 'none';
       renderTree();
     } else {
       gridEl.style.display = 'block';
       treeEl.style.display = 'none';
       if (btn) btn.innerText = 'View as Territory Tree';
+      if (pagEl) pagEl.style.display = 'flex';
       renderTable();
     }
   }
@@ -9087,6 +9094,8 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function renderTree() {
+    const pagEl = document.getElementById('tablePaginationWrapper');
+    if (pagEl) pagEl.style.display = 'none';
     const container = document.getElementById('interactiveTreeContainer');
     if (!container) return;
     container.innerHTML = '';
