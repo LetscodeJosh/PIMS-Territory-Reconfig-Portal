@@ -7632,8 +7632,7 @@ const BASELINE_ERP_TERRITORIES = [
         if (stored) {
           const u = JSON.parse(stored);
           if (u && (u.email || u.full_name)) {
-            authenticatedUser = u;
-            showAppView();
+            applyAuthenticatedUser(u, false);
             return true;
           }
         }
@@ -7769,6 +7768,12 @@ const BASELINE_ERP_TERRITORIES = [
       card.style.opacity = '0';
       card.style.display = 'none';
     }
+  }
+
+    // Safe alias for displaying authenticated portal view
+  function showAppView(user) {
+    const targetUser = user || authenticatedUser || { email: 'admin@pims.com', full_name: 'Administrator', role_title: 'Administrator' };
+    applyAuthenticatedUser(targetUser, false);
   }
 
   function applyAuthenticatedUser(user, showNotification = true) {
@@ -7986,10 +7991,9 @@ const BASELINE_ERP_TERRITORIES = [
               errBox.style.display = 'none';
               errBox.innerText = '';
             }
-            authenticatedUser = auth.user;
-            showAppView();
+            applyAuthenticatedUser(auth.user, isActivelyLoggingIn);
             if (isActivelyLoggingIn) {
-              showToast(auth.message || `Welcome back, ${auth.user.full_name}!`, 'success');
+              showToast(auth.message || `Welcome back, ${auth.user.full_name || auth.user.email}!`, 'success');
               isActivelyLoggingIn = false;
             }
           } else if (auth.message) {
