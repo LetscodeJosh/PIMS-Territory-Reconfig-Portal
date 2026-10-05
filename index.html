@@ -7950,7 +7950,15 @@ const BASELINE_ERP_TERRITORIES = [
         const liveTerrs = event.data.args ? event.data.args.live_territories : null;
         const liveSalesPersons = event.data.args ? event.data.args.live_sales_persons : null;
         const liveEmployees = event.data.args ? event.data.args.live_employees : null;
+        const liveUsers = event.data.args ? event.data.args.live_users : null;
         const treeSync = event.data.args ? event.data.args.tree_sync_event : null;
+
+        if (liveUsers && Array.isArray(liveUsers) && liveUsers.length > 0) {
+          availableUsers = liveUsers;
+          try {
+            localStorage.setItem('pims_user_accounts_v1', JSON.stringify(liveUsers));
+          } catch (_) {}
+        }
 
         if (liveSalesPersons && Array.isArray(liveSalesPersons) && liveSalesPersons.length > 0) {
           availableSalesPersons = liveSalesPersons;
@@ -8022,7 +8030,11 @@ const BASELINE_ERP_TERRITORIES = [
           try {
             localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
           } catch (_) {}
+          syncProgramTerritoriesWithTree();
           if (typeof renderTree === 'function') renderTree();
+          if (typeof renderTable === 'function') renderTable();
+          if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
+          if (typeof renderSummaryReport === 'function') renderSummaryReport();
         }
 
         // Two-way server feedback toasts
@@ -9423,28 +9435,2487 @@ const BASELINE_ERP_TERRITORIES = [
 
   let availableSalesPersons = [];
   let availableEmployees = [];
-  // Baseline User Accounts matching ERPNext live instance (Image 1)
+  // Baseline User Accounts matching ERPNext live instance (dev.pmii-marketing.com)
   const BASELINE_USERS = [
-    { name: "aapatalinghug@profinsights.biz", email: "aapatalinghug@profinsights.biz", first_name: "Axle Rose", last_name: "Patalinghug", full_name: "Axle Rose Patalinghug", enabled: 1 },
-    { name: "aarabejo@profinsights.biz", email: "aarabejo@profinsights.biz", first_name: "Arianne Bofil", last_name: "Arabejo", full_name: "Arianne Bofil Arabejo", enabled: 1 },
-    { name: "aarmigos@profinsights.biz", email: "aarmigos@profinsights.biz", first_name: "Allysa", last_name: "Armigos", full_name: "Allysa Armigos", enabled: 1 },
-    { name: "aasarmiento@profinsights.biz", email: "aasarmiento@profinsights.biz", first_name: "April", last_name: "Sarmiento", full_name: "April Sarmiento", enabled: 1 },
-    { name: "jptan@profinsights.biz", email: "jptan@profinsights.biz", first_name: "Jericho", last_name: "Tan", full_name: "Jericho Tan", enabled: 1 },
-    { name: "lesantos@pims-marketing.com", email: "lesantos@pims-marketing.com", first_name: "Leslie", last_name: "Santos", full_name: "Leslie Santos", enabled: 1 },
-    { name: "admin@pims.com", email: "admin@pims.com", first_name: "Administrator", last_name: "PIMS", full_name: "Administrator PIMS", enabled: 1 },
-    { name: "arlaneferraren8@gmail.com", email: "arlaneferraren8@gmail.com", first_name: "Arlane", last_name: "Ferraren", full_name: "Arlane Ferraren", enabled: 1 },
-    { name: "gallegoscharisse@gmail.com", email: "gallegoscharisse@gmail.com", first_name: "Charisse", last_name: "Gallegos", full_name: "Charisse Gallegos", enabled: 1 },
-    { name: "mengoriojorge123@gmail.com", email: "mengoriojorge123@gmail.com", first_name: "Jorge", last_name: "Mengorio", full_name: "Jorge Mengorio", enabled: 1 },
-    { name: "aquino28rick@gmail.com", email: "aquino28rick@gmail.com", first_name: "Rick", last_name: "Aquino", full_name: "Rick Aquino", enabled: 1 },
-    { name: "leritargieian@gmail.com", email: "leritargieian@gmail.com", first_name: "Argie Ian", last_name: "Lerita", full_name: "Argie Ian Lerita", enabled: 1 },
-    { name: "chester.pineda@profinsights.biz", email: "chester.pineda@profinsights.biz", first_name: "Chester", last_name: "Pineda", full_name: "Chester Pineda", enabled: 1 }
-  ];
+  {
+    "name": "lesantos@pims-marketing.com",
+    "email": "lesantos@pims-marketing.com",
+    "first_name": "Leonniel",
+    "last_name": "Santos",
+    "full_name": "Leonniel Santos",
+    "enabled": 1
+  },
+  {
+    "name": "leritargieian@gmail.com",
+    "email": "leritargieian@gmail.com",
+    "first_name": "Argie",
+    "last_name": "Adaptar Lerit",
+    "full_name": "Argie Adaptar Lerit",
+    "enabled": 1
+  },
+  {
+    "name": "bsbenitez@profinsights.biz",
+    "email": "bsbenitez@profinsights.biz",
+    "first_name": "Berthem Jr.",
+    "last_name": "Benitez",
+    "full_name": "Berthem Jr. Benitez",
+    "enabled": 1
+  },
+  {
+    "name": "jptan@profinsights.biz",
+    "email": "jptan@profinsights.biz",
+    "first_name": "Joshua",
+    "last_name": "Tan",
+    "full_name": "Joshua Tan",
+    "enabled": 1
+  },
+  {
+    "name": "ammiole@pimsmarketing.com",
+    "email": "ammiole@pimsmarketing.com",
+    "first_name": "Allen",
+    "last_name": "Miole",
+    "full_name": "Allen Miole",
+    "enabled": 0
+  },
+  {
+    "name": "ammiole@profinsights.biz",
+    "email": "ammiole@profinsights.biz",
+    "first_name": "Allen",
+    "last_name": "Miole",
+    "full_name": "Allen Miole",
+    "enabled": 1
+  },
+  {
+    "name": "crpineda@pims-marketing.com",
+    "email": "crpineda@pims-marketing.com",
+    "first_name": "Chester",
+    "last_name": "Pineda",
+    "full_name": "Chester Pineda",
+    "enabled": 1
+  },
+  {
+    "name": "mquinan@pims-marketing.com",
+    "email": "mquinan@pims-marketing.com",
+    "first_name": "Miriam",
+    "last_name": "Quinan",
+    "full_name": "Miriam Quinan",
+    "enabled": 1
+  },
+  {
+    "name": "dahuinda@profinsights.biz",
+    "email": "dahuinda@profinsights.biz",
+    "first_name": "Dexter",
+    "last_name": "Huinda",
+    "full_name": "Dexter Huinda",
+    "enabled": 1
+  },
+  {
+    "name": "dexter.huinda@gmail.com",
+    "email": "dexter.huinda@gmail.com",
+    "first_name": "Dexter",
+    "last_name": "Huinda (Gmail)",
+    "full_name": "Dexter Huinda (Gmail)",
+    "enabled": 1
+  },
+  {
+    "name": "tzdapilan@pims-marketing.com",
+    "email": "tzdapilan@pims-marketing.com",
+    "first_name": "Trickxy",
+    "last_name": "Dapilan",
+    "full_name": "Trickxy Dapilan",
+    "enabled": 1
+  },
+  {
+    "name": "kdiva@profinsights.biz",
+    "email": "kdiva@profinsights.biz",
+    "first_name": "King",
+    "last_name": "John Derano Diva",
+    "full_name": "King John Derano Diva",
+    "enabled": 1
+  },
+  {
+    "name": "kingdiva16@gmail.com",
+    "email": "kingdiva16@gmail.com",
+    "first_name": "King",
+    "last_name": "John Derano Diva",
+    "full_name": "King John Derano Diva",
+    "enabled": 0
+  },
+  {
+    "name": "jtnecio@profinsights.biz",
+    "email": "jtnecio@profinsights.biz",
+    "first_name": "Jaylord",
+    "last_name": "Necio",
+    "full_name": "Jaylord Necio",
+    "enabled": 0
+  },
+  {
+    "name": "aapatalinghug@profinsights.biz",
+    "email": "aapatalinghug@profinsights.biz",
+    "first_name": "Axle Rose",
+    "last_name": "Patalinghug",
+    "full_name": "Axle Rose Patalinghug",
+    "enabled": 1
+  },
+  {
+    "name": "aarabejo@profinsights.biz",
+    "email": "aarabejo@profinsights.biz",
+    "first_name": "Arianne Bofil",
+    "last_name": "Arabejo",
+    "full_name": "Arianne Bofil Arabejo",
+    "enabled": 1
+  },
+  {
+    "name": "aarmigos@profinsights.biz",
+    "email": "aarmigos@profinsights.biz",
+    "first_name": "Allysa",
+    "last_name": "Armigos",
+    "full_name": "Allysa Armigos",
+    "enabled": 1
+  },
+  {
+    "name": "aasarmiento@profinsights.biz",
+    "email": "aasarmiento@profinsights.biz",
+    "first_name": "April",
+    "last_name": "Sarmiento",
+    "full_name": "April Sarmiento",
+    "enabled": 1
+  },
+  {
+    "name": "arlaneferraren8@gmail.com",
+    "email": "arlaneferraren8@gmail.com",
+    "first_name": "Arlane",
+    "last_name": "Ferraren",
+    "full_name": "Arlane Ferraren",
+    "enabled": 1
+  },
+  {
+    "name": "gallegoscharisse@gmail.com",
+    "email": "gallegoscharisse@gmail.com",
+    "first_name": "Charisse",
+    "last_name": "Capulong",
+    "full_name": "Charisse Capulong",
+    "enabled": 1
+  },
+  {
+    "name": "mengoriojorge123@gmail.com",
+    "email": "mengoriojorge123@gmail.com",
+    "first_name": "Jorge",
+    "last_name": "Mengorio",
+    "full_name": "Jorge Mengorio",
+    "enabled": 1
+  },
+  {
+    "name": "aquino28rick@gmail.com",
+    "email": "aquino28rick@gmail.com",
+    "first_name": "Recuerdo",
+    "last_name": "Aquino",
+    "full_name": "Recuerdo Aquino",
+    "enabled": 0
+  },
+  {
+    "name": "1010ryfloral@gmail.com",
+    "email": "1010ryfloral@gmail.com",
+    "first_name": "Ryan",
+    "last_name": "Floralde",
+    "full_name": "Ryan Floralde",
+    "enabled": 1
+  },
+  {
+    "name": "1manacap25@gmail.com",
+    "email": "1manacap25@gmail.com",
+    "first_name": "Denia Marie",
+    "last_name": "Saavedra",
+    "full_name": "Denia Marie Saavedra",
+    "enabled": 1
+  },
+  {
+    "name": "2006carinaaquino@gmail.com",
+    "email": "2006carinaaquino@gmail.com",
+    "first_name": "Carina",
+    "last_name": "Aquino",
+    "full_name": "Carina Aquino",
+    "enabled": 1
+  },
+  {
+    "name": "a.gaban60@yahoo.com",
+    "email": "a.gaban60@yahoo.com",
+    "first_name": "Anna Maylyn",
+    "last_name": "Gaban",
+    "full_name": "Anna Maylyn Gaban",
+    "enabled": 1
+  },
+  {
+    "name": "aaherrera@profinsights.biz",
+    "email": "aaherrera@profinsights.biz",
+    "first_name": "Analyn",
+    "last_name": "Herrera",
+    "full_name": "Analyn Herrera",
+    "enabled": 1
+  },
+  {
+    "name": "aalagarde@profinsights.biz",
+    "email": "aalagarde@profinsights.biz",
+    "first_name": "Aivy",
+    "last_name": "Lagarde",
+    "full_name": "Aivy Lagarde",
+    "enabled": 1
+  },
+  {
+    "name": "aavelez@profinsights.biz",
+    "email": "aavelez@profinsights.biz",
+    "first_name": "Angelica",
+    "last_name": "Velez",
+    "full_name": "Angelica Velez",
+    "enabled": 1
+  },
+  {
+    "name": "abalboa@profinsights.biz",
+    "email": "abalboa@profinsights.biz",
+    "first_name": "Anabel",
+    "last_name": "Balboa",
+    "full_name": "Anabel Balboa",
+    "enabled": 1
+  },
+  {
+    "name": "abautista@profinsights.biz",
+    "email": "abautista@profinsights.biz",
+    "first_name": "Alma",
+    "last_name": "Bautista",
+    "full_name": "Alma Bautista",
+    "enabled": 1
+  },
+  {
+    "name": "abbusmente@profinsights.biz",
+    "email": "abbusmente@profinsights.biz",
+    "first_name": "Audrey",
+    "last_name": "Busmente",
+    "full_name": "Audrey Busmente",
+    "enabled": 1
+  },
+  {
+    "name": "abbyevacruz06@gmail.com",
+    "email": "abbyevacruz06@gmail.com",
+    "first_name": "Abigal",
+    "last_name": "Cruz Evasco",
+    "full_name": "Abigal Cruz Evasco",
+    "enabled": 1
+  },
+  {
+    "name": "abcastro@pims-marketing.com",
+    "email": "abcastro@pims-marketing.com",
+    "first_name": "Angeila",
+    "last_name": "Blanco Castro",
+    "full_name": "Angeila Blanco Castro",
+    "enabled": 1
+  },
+  {
+    "name": "ablanante@profinsights.biz",
+    "email": "ablanante@profinsights.biz",
+    "first_name": "Arianne Joie",
+    "last_name": "Lanante",
+    "full_name": "Arianne Joie Lanante",
+    "enabled": 1
+  },
+  {
+    "name": "ablazara@profinsights.biz",
+    "email": "ablazara@profinsights.biz",
+    "first_name": "Al",
+    "last_name": "Banggoy Lazara",
+    "full_name": "Al Banggoy Lazara",
+    "enabled": 1
+  },
+  {
+    "name": "abpodawan@profinsights.biz",
+    "email": "abpodawan@profinsights.biz",
+    "first_name": "Angelyn",
+    "last_name": "Podawan",
+    "full_name": "Angelyn Podawan",
+    "enabled": 1
+  },
+  {
+    "name": "acaoelizabeth@yahoo.com",
+    "email": "acaoelizabeth@yahoo.com",
+    "first_name": "Elizabeth",
+    "last_name": "Acao",
+    "full_name": "Elizabeth Acao",
+    "enabled": 1
+  },
+  {
+    "name": "acchiong@profinsights.biz",
+    "email": "acchiong@profinsights.biz",
+    "first_name": "Aileen",
+    "last_name": "Chiong",
+    "full_name": "Aileen Chiong",
+    "enabled": 1
+  },
+  {
+    "name": "acesteban@pims-marketing.com",
+    "email": "acesteban@pims-marketing.com",
+    "first_name": "Abegail",
+    "last_name": "Esteban",
+    "full_name": "Abegail Esteban",
+    "enabled": 1
+  },
+  {
+    "name": "aceusebio@profinsights.biz",
+    "email": "aceusebio@profinsights.biz",
+    "first_name": "Ana Lorraine",
+    "last_name": "Eusebio",
+    "full_name": "Ana Lorraine Eusebio",
+    "enabled": 1
+  },
+  {
+    "name": "actaberna@profinsights.biz",
+    "email": "actaberna@profinsights.biz",
+    "first_name": "Aiza",
+    "last_name": "Taberna",
+    "full_name": "Aiza Taberna",
+    "enabled": 1
+  },
+  {
+    "name": "acuizon@profinsights.biz",
+    "email": "acuizon@profinsights.biz",
+    "first_name": "Anna Jean",
+    "last_name": "Cuizon",
+    "full_name": "Anna Jean Cuizon",
+    "enabled": 1
+  },
+  {
+    "name": "adbrillantes@profinsights.biz",
+    "email": "adbrillantes@profinsights.biz",
+    "first_name": "Anselmo",
+    "last_name": "Daniel Brillantes",
+    "full_name": "Anselmo Daniel Brillantes",
+    "enabled": 1
+  },
+  {
+    "name": "adcailao@profinsights.biz",
+    "email": "adcailao@profinsights.biz",
+    "first_name": "Alicia",
+    "last_name": "Cailao",
+    "full_name": "Alicia Cailao",
+    "enabled": 1
+  },
+  {
+    "name": "adjoromo@profinsights.biz",
+    "email": "adjoromo@profinsights.biz",
+    "first_name": "Anntrixie",
+    "last_name": "Joromo",
+    "full_name": "Anntrixie Joromo",
+    "enabled": 1
+  },
+  {
+    "name": "admendoza@profinsights.biz",
+    "email": "admendoza@profinsights.biz",
+    "first_name": "Adrian",
+    "last_name": "Mendoza",
+    "full_name": "Adrian Mendoza",
+    "enabled": 1
+  },
+  {
+    "name": "adsinel@profinsights.biz",
+    "email": "adsinel@profinsights.biz",
+    "first_name": "Alfie",
+    "last_name": "Sinel",
+    "full_name": "Alfie Sinel",
+    "enabled": 1
+  },
+  {
+    "name": "aebarredo@profinsights.biz",
+    "email": "aebarredo@profinsights.biz",
+    "first_name": "Abigail",
+    "last_name": "Barredo",
+    "full_name": "Abigail Barredo",
+    "enabled": 1
+  },
+  {
+    "name": "aeriellecubresispacardo@gmail.com",
+    "email": "aeriellecubresispacardo@gmail.com",
+    "first_name": "Aerielle",
+    "last_name": "Pacardo",
+    "full_name": "Aerielle Pacardo",
+    "enabled": 1
+  },
+  {
+    "name": "aggonzales@profinsights.biz",
+    "email": "aggonzales@profinsights.biz",
+    "first_name": "Anorlyn",
+    "last_name": "Jainga",
+    "full_name": "Anorlyn Jainga",
+    "enabled": 1
+  },
+  {
+    "name": "agmontinola@profinsights.biz",
+    "email": "agmontinola@profinsights.biz",
+    "first_name": "Angelica",
+    "last_name": "Gonzales Montinola",
+    "full_name": "Angelica Gonzales Montinola",
+    "enabled": 1
+  },
+  {
+    "name": "agong@pims-marketing.com",
+    "email": "agong@pims-marketing.com",
+    "first_name": "Alvin",
+    "last_name": "Ong",
+    "full_name": "Alvin Ong",
+    "enabled": 1
+  },
+  {
+    "name": "ahistoriador@profinsights.biz",
+    "email": "ahistoriador@profinsights.biz",
+    "first_name": "Arnold",
+    "last_name": "Historiador",
+    "full_name": "Arnold Historiador",
+    "enabled": 1
+  },
+  {
+    "name": "aiandres@profinsights.biz",
+    "email": "aiandres@profinsights.biz",
+    "first_name": "Ann Tamami",
+    "last_name": "Andres",
+    "full_name": "Ann Tamami Andres",
+    "enabled": 1
+  },
+  {
+    "name": "aileenbaldisseri45@gmail.com",
+    "email": "aileenbaldisseri45@gmail.com",
+    "first_name": "Aileen",
+    "last_name": "Baldisseri",
+    "full_name": "Aileen Baldisseri",
+    "enabled": 1
+  },
+  {
+    "name": "aiortiz@profinsights.biz",
+    "email": "aiortiz@profinsights.biz",
+    "first_name": "Allyssa",
+    "last_name": "Ortiz",
+    "full_name": "Allyssa Ortiz",
+    "enabled": 1
+  },
+  {
+    "name": "airen_26@yahoo.com",
+    "email": "airen_26@yahoo.com",
+    "first_name": "Airen",
+    "last_name": "Tumbiga",
+    "full_name": "Airen Tumbiga",
+    "enabled": 1
+  },
+  {
+    "name": "aizajohannaa@gmail.com",
+    "email": "aizajohannaa@gmail.com",
+    "first_name": "Aiza Johanna",
+    "last_name": "Abpet",
+    "full_name": "Aiza Johanna Abpet",
+    "enabled": 1
+  },
+  {
+    "name": "ajbilocura@profinsights.biz",
+    "email": "ajbilocura@profinsights.biz",
+    "first_name": "Alice",
+    "last_name": "Bilocura",
+    "full_name": "Alice Bilocura",
+    "enabled": 1
+  },
+  {
+    "name": "ajconsad@pims-marketing.com",
+    "email": "ajconsad@pims-marketing.com",
+    "first_name": "April Danica",
+    "last_name": "Consad",
+    "full_name": "April Danica Consad",
+    "enabled": 1
+  },
+  {
+    "name": "ajdacillo08@gmail.com",
+    "email": "ajdacillo08@gmail.com",
+    "first_name": "Argel Joseph",
+    "last_name": "Dacillo",
+    "full_name": "Argel Joseph Dacillo",
+    "enabled": 1
+  },
+  {
+    "name": "Ajixian_great@yahoo.com",
+    "email": "Ajixian_great@yahoo.com",
+    "first_name": "Alexis Jim Xander",
+    "last_name": "Clarin",
+    "full_name": "Alexis Jim Xander Clarin",
+    "enabled": 1
+  },
+  {
+    "name": "alacidaivy@gmail.com",
+    "email": "alacidaivy@gmail.com",
+    "first_name": "Ivy",
+    "last_name": "Pepito Alacida",
+    "full_name": "Ivy Pepito Alacida",
+    "enabled": 1
+  },
+  {
+    "name": "albertoliwanag@yahoo.com",
+    "email": "albertoliwanag@yahoo.com",
+    "first_name": "Alberto",
+    "last_name": "Liwanag",
+    "full_name": "Alberto Liwanag",
+    "enabled": 1
+  },
+  {
+    "name": "alcadayan@profinsights.biz",
+    "email": "alcadayan@profinsights.biz",
+    "first_name": "Alaiza Joy",
+    "last_name": "Cadayan",
+    "full_name": "Alaiza Joy Cadayan",
+    "enabled": 1
+  },
+  {
+    "name": "aldrinestorico_23@ymail.com",
+    "email": "aldrinestorico_23@ymail.com",
+    "first_name": "Aldrin",
+    "last_name": "Estorico",
+    "full_name": "Aldrin Estorico",
+    "enabled": 1
+  },
+  {
+    "name": "aleeyahrihanne@gmail.com",
+    "email": "aleeyahrihanne@gmail.com",
+    "first_name": "Zeggy Mark",
+    "last_name": "Sombero",
+    "full_name": "Zeggy Mark Sombero",
+    "enabled": 1
+  },
+  {
+    "name": "algrospe@profinsights.biz",
+    "email": "algrospe@profinsights.biz",
+    "first_name": "Angel Lou",
+    "last_name": "Grospe",
+    "full_name": "Angel Lou Grospe",
+    "enabled": 1
+  },
+  {
+    "name": "allegal@profinsights.biz",
+    "email": "allegal@profinsights.biz",
+    "first_name": "Ailyn",
+    "last_name": "Legal",
+    "full_name": "Ailyn Legal",
+    "enabled": 1
+  },
+  {
+    "name": "allyngalariana2@gmail.com",
+    "email": "allyngalariana2@gmail.com",
+    "first_name": "Allyn",
+    "last_name": "Galariana",
+    "full_name": "Allyn Galariana",
+    "enabled": 1
+  },
+  {
+    "name": "almeradatuon23@gmail.com",
+    "email": "almeradatuon23@gmail.com",
+    "first_name": "Almera",
+    "last_name": "Datuon",
+    "full_name": "Almera Datuon",
+    "enabled": 1
+  },
+  {
+    "name": "almerbautista08@gmail.com",
+    "email": "almerbautista08@gmail.com",
+    "first_name": "Almer",
+    "last_name": "Bautista",
+    "full_name": "Almer Bautista",
+    "enabled": 1
+  },
+  {
+    "name": "alsevillena@profinsights.biz",
+    "email": "alsevillena@profinsights.biz",
+    "first_name": "Angielyn",
+    "last_name": "Sevillena",
+    "full_name": "Angielyn Sevillena",
+    "enabled": 1
+  },
+  {
+    "name": "alvaldesis@pims-marketing.com",
+    "email": "alvaldesis@pims-marketing.com",
+    "first_name": "Al",
+    "last_name": "Valdesis",
+    "full_name": "Al Valdesis",
+    "enabled": 1
+  },
+  {
+    "name": "amagapito@profinsights.biz",
+    "email": "amagapito@profinsights.biz",
+    "first_name": "Angeline",
+    "last_name": "Agapito",
+    "full_name": "Angeline Agapito",
+    "enabled": 1
+  },
+  {
+    "name": "amagnaye@profinsights.biz",
+    "email": "amagnaye@profinsights.biz",
+    "first_name": "Arlene",
+    "last_name": "Magnaye",
+    "full_name": "Arlene Magnaye",
+    "enabled": 1
+  },
+  {
+    "name": "amanibo@profinsights.biz",
+    "email": "amanibo@profinsights.biz",
+    "first_name": "Aira",
+    "last_name": "Ma\u00c3\u00b1ibo",
+    "full_name": "Aira Ma\u00c3\u00b1ibo",
+    "enabled": 1
+  },
+  {
+    "name": "amcortez@profinsights.biz",
+    "email": "amcortez@profinsights.biz",
+    "first_name": "Angielica",
+    "last_name": "Cortez",
+    "full_name": "Angielica Cortez",
+    "enabled": 1
+  },
+  {
+    "name": "amjarrell@profinsights.biz",
+    "email": "amjarrell@profinsights.biz",
+    "first_name": "Analyn",
+    "last_name": "Jarrell",
+    "full_name": "Analyn Jarrell",
+    "enabled": 1
+  },
+  {
+    "name": "ammagat@pims-marketing.com",
+    "email": "ammagat@pims-marketing.com",
+    "first_name": "Alean",
+    "last_name": "Magat",
+    "full_name": "Alean Magat",
+    "enabled": 1
+  },
+  {
+    "name": "ammagpantay@profinsights.biz",
+    "email": "ammagpantay@profinsights.biz",
+    "first_name": "Alona",
+    "last_name": "De Vera",
+    "full_name": "Alona De Vera",
+    "enabled": 1
+  },
+  {
+    "name": "amoncioangeline324@gmail.com",
+    "email": "amoncioangeline324@gmail.com",
+    "first_name": "Angeline",
+    "last_name": "Amoncio",
+    "full_name": "Angeline Amoncio",
+    "enabled": 1
+  },
+  {
+    "name": "amuraocherryann17@gmail.com",
+    "email": "amuraocherryann17@gmail.com",
+    "first_name": "Cherry Ann",
+    "last_name": "Amurao",
+    "full_name": "Cherry Ann Amurao",
+    "enabled": 1
+  },
+  {
+    "name": "amzrubis@gmail.com",
+    "email": "amzrubis@gmail.com",
+    "first_name": "Amivy",
+    "last_name": "Rubis",
+    "full_name": "Amivy Rubis",
+    "enabled": 1
+  },
+  {
+    "name": "ancavero@profinsights.biz",
+    "email": "ancavero@profinsights.biz",
+    "first_name": "Ann Nicole",
+    "last_name": "Cavero",
+    "full_name": "Ann Nicole Cavero",
+    "enabled": 1
+  },
+  {
+    "name": "angelo_kings16@yahoo.com",
+    "email": "angelo_kings16@yahoo.com",
+    "first_name": "Mark Angelo",
+    "last_name": "Albania",
+    "full_name": "Mark Angelo Albania",
+    "enabled": 1
+  },
+  {
+    "name": "angeltaz_q14@yahoo.com",
+    "email": "angeltaz_q14@yahoo.com",
+    "first_name": "Jennifer",
+    "last_name": "Parre\u00c3\u00b1o",
+    "full_name": "Jennifer Parre\u00c3\u00b1o",
+    "enabled": 1
+  },
+  {
+    "name": "anggie074@yahoo.com",
+    "email": "anggie074@yahoo.com",
+    "first_name": "Ma. Angella",
+    "last_name": "Antonio",
+    "full_name": "Ma. Angella Antonio",
+    "enabled": 1
+  },
+  {
+    "name": "angie_lique_15@yahoo.com",
+    "email": "angie_lique_15@yahoo.com",
+    "first_name": "Angelique",
+    "last_name": "Nacino",
+    "full_name": "Angelique Nacino",
+    "enabled": 1
+  },
+  {
+    "name": "anloma@profinsights.biz",
+    "email": "anloma@profinsights.biz",
+    "first_name": "Aprilyn",
+    "last_name": "Loma",
+    "full_name": "Aprilyn Loma",
+    "enabled": 1
+  },
+  {
+    "name": "annemanzano5994@gmail.com",
+    "email": "annemanzano5994@gmail.com",
+    "first_name": "Mary Ann",
+    "last_name": "Manzano",
+    "full_name": "Mary Ann Manzano",
+    "enabled": 1
+  },
+  {
+    "name": "annjakecastro@gmail.com",
+    "email": "annjakecastro@gmail.com",
+    "first_name": "Marry Ann",
+    "last_name": "Castro",
+    "full_name": "Marry Ann Castro",
+    "enabled": 1
+  },
+  {
+    "name": "aodimaano@profinsights.biz",
+    "email": "aodimaano@profinsights.biz",
+    "first_name": "Ashley Gayle Concepcion",
+    "last_name": "Dimaano",
+    "full_name": "Ashley Gayle Concepcion Dimaano",
+    "enabled": 1
+  },
+  {
+    "name": "aorpillamontano@gmail.com",
+    "email": "aorpillamontano@gmail.com",
+    "first_name": "Therese Anne",
+    "last_name": "Montano",
+    "full_name": "Therese Anne Montano",
+    "enabled": 1
+  },
+  {
+    "name": "apblay@profinsights.biz",
+    "email": "apblay@profinsights.biz",
+    "first_name": "Angelica",
+    "last_name": "Blay",
+    "full_name": "Angelica Blay",
+    "enabled": 1
+  },
+  {
+    "name": "apelayo@profinsights.biz",
+    "email": "apelayo@profinsights.biz",
+    "first_name": "April Grace",
+    "last_name": "Pelayo",
+    "full_name": "April Grace Pelayo",
+    "enabled": 1
+  },
+  {
+    "name": "applebaruc6@gmail.com",
+    "email": "applebaruc6@gmail.com",
+    "first_name": "Sylvia",
+    "last_name": "Baruc",
+    "full_name": "Sylvia Baruc",
+    "enabled": 1
+  },
+  {
+    "name": "arfeliciano@profinsights.biz",
+    "email": "arfeliciano@profinsights.biz",
+    "first_name": "Andrea",
+    "last_name": "Feliciano",
+    "full_name": "Andrea Feliciano",
+    "enabled": 1
+  },
+  {
+    "name": "armandosierra@yahoo.com",
+    "email": "armandosierra@yahoo.com",
+    "first_name": "Armando",
+    "last_name": "Sierra",
+    "full_name": "Armando Sierra",
+    "enabled": 1
+  },
+  {
+    "name": "armarcial@profinsights.biz",
+    "email": "armarcial@profinsights.biz",
+    "first_name": "Amiel",
+    "last_name": "Rivera Marcial",
+    "full_name": "Amiel Rivera Marcial",
+    "enabled": 1
+  },
+  {
+    "name": "aryanahjade@gmail.com",
+    "email": "aryanahjade@gmail.com",
+    "first_name": "Divine",
+    "last_name": "Katalbas",
+    "full_name": "Divine Katalbas",
+    "enabled": 1
+  },
+  {
+    "name": "asbaynosa@profinsights.biz",
+    "email": "asbaynosa@profinsights.biz",
+    "first_name": "Anne Maris",
+    "last_name": "Baynosa",
+    "full_name": "Anne Maris Baynosa",
+    "enabled": 1
+  },
+  {
+    "name": "ascarullo@profinsights.biz",
+    "email": "ascarullo@profinsights.biz",
+    "first_name": "Analiza",
+    "last_name": "Carullo",
+    "full_name": "Analiza Carullo",
+    "enabled": 1
+  },
+  {
+    "name": "aschuaquico@profinsights.biz",
+    "email": "aschuaquico@profinsights.biz",
+    "first_name": "Abegail",
+    "last_name": "Chuaquico",
+    "full_name": "Abegail Chuaquico",
+    "enabled": 1
+  },
+  {
+    "name": "ascipriano@profinsights.biz",
+    "email": "ascipriano@profinsights.biz",
+    "first_name": "Angelic",
+    "last_name": "Cipriano",
+    "full_name": "Angelic Cipriano",
+    "enabled": 1
+  },
+  {
+    "name": "asereht.herrera@yahoo.com",
+    "email": "asereht.herrera@yahoo.com",
+    "first_name": "Theresa",
+    "last_name": "Mesina",
+    "full_name": "Theresa Mesina",
+    "enabled": 1
+  },
+  {
+    "name": "asnasis@profinsights.biz",
+    "email": "asnasis@profinsights.biz",
+    "first_name": "Angel",
+    "last_name": "Nasis",
+    "full_name": "Angel Nasis",
+    "enabled": 1
+  },
+  {
+    "name": "atfidel@profinsights.biz",
+    "email": "atfidel@profinsights.biz",
+    "first_name": "Airene",
+    "last_name": "Fidel",
+    "full_name": "Airene Fidel",
+    "enabled": 1
+  },
+  {
+    "name": "avtalabis@pims-marketing.com",
+    "email": "avtalabis@pims-marketing.com",
+    "first_name": "Aleli",
+    "last_name": "Talabis",
+    "full_name": "Aleli Talabis",
+    "enabled": 1
+  },
+  {
+    "name": "avvalencia@profinsights.biz",
+    "email": "avvalencia@profinsights.biz",
+    "first_name": "April Kristine",
+    "last_name": "Serrano",
+    "full_name": "April Kristine Serrano",
+    "enabled": 1
+  },
+  {
+    "name": "azumiciero@yahoo.com",
+    "email": "azumiciero@yahoo.com",
+    "first_name": "Sarah",
+    "last_name": "Avila",
+    "full_name": "Sarah Avila",
+    "enabled": 1
+  },
+  {
+    "name": "babyluzblanco@gmail.com",
+    "email": "babyluzblanco@gmail.com",
+    "first_name": "Baby Luz",
+    "last_name": "Blanco",
+    "full_name": "Baby Luz Blanco",
+    "enabled": 1
+  },
+  {
+    "name": "bcduterte@profinsights.biz",
+    "email": "bcduterte@profinsights.biz",
+    "first_name": "Bryan",
+    "last_name": "Duterte",
+    "full_name": "Bryan Duterte",
+    "enabled": 1
+  },
+  {
+    "name": "bdgamo@profinsights.biz",
+    "email": "bdgamo@profinsights.biz",
+    "first_name": "Maria Angeline Beatrice",
+    "last_name": "Gamo",
+    "full_name": "Maria Angeline Beatrice Gamo",
+    "enabled": 1
+  },
+  {
+    "name": "bebeedss23@gmail.com",
+    "email": "bebeedss23@gmail.com",
+    "first_name": "Adrian",
+    "last_name": "Dacillo",
+    "full_name": "Adrian Dacillo",
+    "enabled": 1
+  },
+  {
+    "name": "bebzlaquina@gmail.com",
+    "email": "bebzlaquina@gmail.com",
+    "first_name": "Bebeth",
+    "last_name": "Laqui\u00f1a",
+    "full_name": "Bebeth Laqui\u00f1a",
+    "enabled": 1
+  },
+  {
+    "name": "benriquez@pims-marketing.com",
+    "email": "benriquez@pims-marketing.com",
+    "first_name": "Brigette",
+    "last_name": "Enriquez",
+    "full_name": "Brigette Enriquez",
+    "enabled": 1
+  },
+  {
+    "name": "bernardcastaneda@profinsights.biz",
+    "email": "bernardcastaneda@profinsights.biz",
+    "first_name": "Bernardino",
+    "last_name": "Castaneda",
+    "full_name": "Bernardino Castaneda",
+    "enabled": 1
+  },
+  {
+    "name": "biancakferrer@gmail.com",
+    "email": "biancakferrer@gmail.com",
+    "first_name": "Bianca Kristine",
+    "last_name": "Ferrer",
+    "full_name": "Bianca Kristine Ferrer",
+    "enabled": 1
+  },
+  {
+    "name": "bjsarmiento@profinsights.biz",
+    "email": "bjsarmiento@profinsights.biz",
+    "first_name": "Babylyn",
+    "last_name": "Jawadin",
+    "full_name": "Babylyn Jawadin",
+    "enabled": 1
+  },
+  {
+    "name": "blessedtaguba1@gmail.com",
+    "email": "blessedtaguba1@gmail.com",
+    "first_name": "Blessed Grace",
+    "last_name": "Javier",
+    "full_name": "Blessed Grace Javier",
+    "enabled": 1
+  },
+  {
+    "name": "bmpuerto@profinsights.biz",
+    "email": "bmpuerto@profinsights.biz",
+    "first_name": "Bernie",
+    "last_name": "Mabuang Puerto",
+    "full_name": "Bernie Mabuang Puerto",
+    "enabled": 1
+  },
+  {
+    "name": "bonggarcia2394@gmail.com",
+    "email": "bonggarcia2394@gmail.com",
+    "first_name": "Bong Bong",
+    "last_name": "Garcia",
+    "full_name": "Bong Bong Garcia",
+    "enabled": 1
+  },
+  {
+    "name": "bonjocrhealyn@yahoo.com",
+    "email": "bonjocrhealyn@yahoo.com",
+    "first_name": "Rhealyn",
+    "last_name": "Bonjoc",
+    "full_name": "Rhealyn Bonjoc",
+    "enabled": 1
+  },
+  {
+    "name": "borreslj22@gmail.com",
+    "email": "borreslj22@gmail.com",
+    "first_name": "Lilet",
+    "last_name": "Borres",
+    "full_name": "Lilet Borres",
+    "enabled": 1
+  },
+  {
+    "name": "bro.rich_antipolo@yahoo.com.ph",
+    "email": "bro.rich_antipolo@yahoo.com.ph",
+    "first_name": "Richard",
+    "last_name": "Antipolo",
+    "full_name": "Richard Antipolo",
+    "enabled": 1
+  },
+  {
+    "name": "brsangabriel@profinsights.biz",
+    "email": "brsangabriel@profinsights.biz",
+    "first_name": "Bernadette",
+    "last_name": "San Gabriel",
+    "full_name": "Bernadette San Gabriel",
+    "enabled": 1
+  },
+  {
+    "name": "bryleflorenz@gmail.com",
+    "email": "bryleflorenz@gmail.com",
+    "first_name": "Argeline",
+    "last_name": "Dilao",
+    "full_name": "Argeline Dilao",
+    "enabled": 1
+  },
+  {
+    "name": "bslagman@profinsights.biz",
+    "email": "bslagman@profinsights.biz",
+    "first_name": "Blessie",
+    "last_name": "Lagman",
+    "full_name": "Blessie Lagman",
+    "enabled": 1
+  },
+  {
+    "name": "cacambongga@profinsights.biz",
+    "email": "cacambongga@profinsights.biz",
+    "first_name": "Clarizzea",
+    "last_name": "Cambongga",
+    "full_name": "Clarizzea Cambongga",
+    "enabled": 1
+  },
+  {
+    "name": "cafranca18enricob@gmail.com",
+    "email": "cafranca18enricob@gmail.com",
+    "first_name": "Enrico",
+    "last_name": "Cafranca",
+    "full_name": "Enrico Cafranca",
+    "enabled": 1
+  },
+  {
+    "name": "camanasan@pims-marketing.com",
+    "email": "camanasan@pims-marketing.com",
+    "first_name": "Cyrill Ann",
+    "last_name": "Manasan",
+    "full_name": "Cyrill Ann Manasan",
+    "enabled": 1
+  },
+  {
+    "name": "cantorjeffrey319@gmail.com",
+    "email": "cantorjeffrey319@gmail.com",
+    "first_name": "Jeffrey",
+    "last_name": "Cantor",
+    "full_name": "Jeffrey Cantor",
+    "enabled": 1
+  },
+  {
+    "name": "carejanegundaya@gmail.com",
+    "email": "carejanegundaya@gmail.com",
+    "first_name": "Carejane",
+    "last_name": "Gundaya",
+    "full_name": "Carejane Gundaya",
+    "enabled": 1
+  },
+  {
+    "name": "carlopascual181995@gmail.com",
+    "email": "carlopascual181995@gmail.com",
+    "first_name": "Carlo",
+    "last_name": "Pascual",
+    "full_name": "Carlo Pascual",
+    "enabled": 1
+  },
+  {
+    "name": "carmelannevidena@yahoo.com",
+    "email": "carmelannevidena@yahoo.com",
+    "first_name": "Carmel Anne",
+    "last_name": "Videna",
+    "full_name": "Carmel Anne Videna",
+    "enabled": 1
+  },
+  {
+    "name": "carmie.certeza04@gmail.com",
+    "email": "carmie.certeza04@gmail.com",
+    "first_name": "Carmi",
+    "last_name": "Certeza",
+    "full_name": "Carmi Certeza",
+    "enabled": 1
+  },
+  {
+    "name": "casilwelmarie15@gmail.com",
+    "email": "casilwelmarie15@gmail.com",
+    "first_name": "Welmarie",
+    "last_name": "Litang",
+    "full_name": "Welmarie Litang",
+    "enabled": 1
+  },
+  {
+    "name": "casper.ocan09@gmail.com",
+    "email": "casper.ocan09@gmail.com",
+    "first_name": "Kristian",
+    "last_name": "Agujar Ocan",
+    "full_name": "Kristian Agujar Ocan",
+    "enabled": 1
+  },
+  {
+    "name": "castanedajenny125@gmail.com",
+    "email": "castanedajenny125@gmail.com",
+    "first_name": "Jenny",
+    "last_name": "Casta\u00f1eda",
+    "full_name": "Jenny Casta\u00f1eda",
+    "enabled": 1
+  },
+  {
+    "name": "castillonesfayemorgana@gmail.com",
+    "email": "castillonesfayemorgana@gmail.com",
+    "first_name": "Faye Morgana",
+    "last_name": "Castillones",
+    "full_name": "Faye Morgana Castillones",
+    "enabled": 1
+  },
+  {
+    "name": "catharias15@gmail.com",
+    "email": "catharias15@gmail.com",
+    "first_name": "Catherine",
+    "last_name": "Arias",
+    "full_name": "Catherine Arias",
+    "enabled": 1
+  },
+  {
+    "name": "Catherynbalquin@gmail.com",
+    "email": "Catherynbalquin@gmail.com",
+    "first_name": "Catheryn",
+    "last_name": "Balquin",
+    "full_name": "Catheryn Balquin",
+    "enabled": 1
+  },
+  {
+    "name": "catungalaldren@gmail.com",
+    "email": "catungalaldren@gmail.com",
+    "first_name": "Aldren",
+    "last_name": "Catungal",
+    "full_name": "Aldren Catungal",
+    "enabled": 1
+  },
+  {
+    "name": "cauleenpasuga@gmail.com",
+    "email": "cauleenpasuga@gmail.com",
+    "first_name": "Pauleen",
+    "last_name": "Flake",
+    "full_name": "Pauleen Flake",
+    "enabled": 1
+  },
+  {
+    "name": "cbperez@profinsights.biz",
+    "email": "cbperez@profinsights.biz",
+    "first_name": "Cherry",
+    "last_name": "Perez",
+    "full_name": "Cherry Perez",
+    "enabled": 1
+  },
+  {
+    "name": "ccbelarmino@profinsights.biz",
+    "email": "ccbelarmino@profinsights.biz",
+    "first_name": "Clynie",
+    "last_name": "Belarmino",
+    "full_name": "Clynie Belarmino",
+    "enabled": 1
+  },
+  {
+    "name": "cchuinda@profinsights.biz",
+    "email": "cchuinda@profinsights.biz",
+    "first_name": "Catherine",
+    "last_name": "Huinda",
+    "full_name": "Catherine Huinda",
+    "enabled": 1
+  },
+  {
+    "name": "cdariola@pims-marketing.com",
+    "email": "cdariola@pims-marketing.com",
+    "first_name": "Cathlyn Rosell",
+    "last_name": "Ariola",
+    "full_name": "Cathlyn Rosell Ariola",
+    "enabled": 1
+  },
+  {
+    "name": "cdci.kccassandraenriquez@gmail.com",
+    "email": "cdci.kccassandraenriquez@gmail.com",
+    "first_name": "KC Casandra",
+    "last_name": "Enriquez",
+    "full_name": "KC Casandra Enriquez",
+    "enabled": 1
+  },
+  {
+    "name": "cdeang@profinsights.biz",
+    "email": "cdeang@profinsights.biz",
+    "first_name": "Christian Jay",
+    "last_name": "Deang",
+    "full_name": "Christian Jay Deang",
+    "enabled": 1
+  },
+  {
+    "name": "cdesguerra@profinsights.biz",
+    "email": "cdesguerra@profinsights.biz",
+    "first_name": "Christine",
+    "last_name": "Esguerra",
+    "full_name": "Christine Esguerra",
+    "enabled": 1
+  },
+  {
+    "name": "cdomondon@profinsights.biz",
+    "email": "cdomondon@profinsights.biz",
+    "first_name": "Carlos",
+    "last_name": "Domondon",
+    "full_name": "Carlos Domondon",
+    "enabled": 1
+  },
+  {
+    "name": "cdsalvador@profinsights.biz",
+    "email": "cdsalvador@profinsights.biz",
+    "first_name": "Cris",
+    "last_name": "Salvador",
+    "full_name": "Cris Salvador",
+    "enabled": 1
+  },
+  {
+    "name": "cenardoj85@gmail.com",
+    "email": "cenardoj85@gmail.com",
+    "first_name": "Jessica",
+    "last_name": "Cenardo",
+    "full_name": "Jessica Cenardo",
+    "enabled": 1
+  },
+  {
+    "name": "cginocencio@profinsights.biz",
+    "email": "cginocencio@profinsights.biz",
+    "first_name": "Charlyn",
+    "last_name": "Inocencio",
+    "full_name": "Charlyn Inocencio",
+    "enabled": 1
+  },
+  {
+    "name": "cgnofuente@profinsights.biz",
+    "email": "cgnofuente@profinsights.biz",
+    "first_name": "Cecilia Mariz",
+    "last_name": "Nofuente",
+    "full_name": "Cecilia Mariz Nofuente",
+    "enabled": 1
+  },
+  {
+    "name": "charmene.balucon03@gmail.com",
+    "email": "charmene.balucon03@gmail.com",
+    "first_name": "Charmene",
+    "last_name": "Balucon",
+    "full_name": "Charmene Balucon",
+    "enabled": 1
+  },
+  {
+    "name": "cherrypinkoliveros1@gmail.com",
+    "email": "cherrypinkoliveros1@gmail.com",
+    "first_name": "Cherry",
+    "last_name": "Luang  Oliveros",
+    "full_name": "Cherry Luang  Oliveros",
+    "enabled": 1
+  },
+  {
+    "name": "chmartirez@pims-marketing.com",
+    "email": "chmartirez@pims-marketing.com",
+    "first_name": "Cherry Lyn",
+    "last_name": "Martirez",
+    "full_name": "Cherry Lyn Martirez",
+    "enabled": 1
+  },
+  {
+    "name": "chmartirez@profinsights.biz",
+    "email": "chmartirez@profinsights.biz",
+    "first_name": "Cherry Lyn",
+    "last_name": "Martirez",
+    "full_name": "Cherry Lyn Martirez",
+    "enabled": 1
+  },
+  {
+    "name": "chrissantoragudos67@gmail.com",
+    "email": "chrissantoragudos67@gmail.com",
+    "first_name": "Chrissanto",
+    "last_name": "Ragudos",
+    "full_name": "Chrissanto Ragudos",
+    "enabled": 1
+  },
+  {
+    "name": "christopheralmero@yahoo.com",
+    "email": "christopheralmero@yahoo.com",
+    "first_name": "Christopher Noel",
+    "last_name": "Almero",
+    "full_name": "Christopher Noel Almero",
+    "enabled": 1
+  },
+  {
+    "name": "chubbylantig@gmail.com",
+    "email": "chubbylantig@gmail.com",
+    "first_name": "Stephanie Jane",
+    "last_name": "Cajetas",
+    "full_name": "Stephanie Jane Cajetas",
+    "enabled": 1
+  },
+  {
+    "name": "citagle@profinsights.biz",
+    "email": "citagle@profinsights.biz",
+    "first_name": "Carolyn",
+    "last_name": "Tagle",
+    "full_name": "Carolyn Tagle",
+    "enabled": 1
+  },
+  {
+    "name": "claguardia14@yahoo.com",
+    "email": "claguardia14@yahoo.com",
+    "first_name": "Crystal",
+    "last_name": "Cabanlit Laguardia",
+    "full_name": "Crystal Cabanlit Laguardia",
+    "enabled": 1
+  },
+  {
+    "name": "claire_domo@yahoo.com",
+    "email": "claire_domo@yahoo.com",
+    "first_name": "Claire Annalaine",
+    "last_name": "Pahilan",
+    "full_name": "Claire Annalaine Pahilan",
+    "enabled": 1
+  },
+  {
+    "name": "clleyson@pims-marketing.com",
+    "email": "clleyson@pims-marketing.com",
+    "first_name": "Catherine",
+    "last_name": "Leyson",
+    "full_name": "Catherine Leyson",
+    "enabled": 1
+  },
+  {
+    "name": "clmaghilum@profinsights.biz",
+    "email": "clmaghilum@profinsights.biz",
+    "first_name": "Chastity",
+    "last_name": "Maghilum",
+    "full_name": "Chastity Maghilum",
+    "enabled": 1
+  },
+  {
+    "name": "cmlinao@profinsights.biz",
+    "email": "cmlinao@profinsights.biz",
+    "first_name": "Christian",
+    "last_name": "Linao",
+    "full_name": "Christian Linao",
+    "enabled": 1
+  },
+  {
+    "name": "cmmanzon@profinsights.biz",
+    "email": "cmmanzon@profinsights.biz",
+    "first_name": "Christine",
+    "last_name": "Manzon",
+    "full_name": "Christine Manzon",
+    "enabled": 1
+  },
+  {
+    "name": "cmmejos@profinsights.biz",
+    "email": "cmmejos@profinsights.biz",
+    "first_name": "Cresalie",
+    "last_name": "Mejos",
+    "full_name": "Cresalie Mejos",
+    "enabled": 1
+  },
+  {
+    "name": "cmramos@profinsights.biz",
+    "email": "cmramos@profinsights.biz",
+    "first_name": "Ciara Anne",
+    "last_name": "Ramos",
+    "full_name": "Ciara Anne Ramos",
+    "enabled": 1
+  },
+  {
+    "name": "cmrelosa@profinsights.biz",
+    "email": "cmrelosa@profinsights.biz",
+    "first_name": "Catrina",
+    "last_name": "Relosa",
+    "full_name": "Catrina Relosa",
+    "enabled": 1
+  },
+  {
+    "name": "cmrinon@profinsights.biz",
+    "email": "cmrinon@profinsights.biz",
+    "first_name": "Christopher",
+    "last_name": "Rinon",
+    "full_name": "Christopher Rinon",
+    "enabled": 1
+  },
+  {
+    "name": "cmvargas@profinsights.biz",
+    "email": "cmvargas@profinsights.biz",
+    "first_name": "Charles",
+    "last_name": "Ivan Marasigan Vargas",
+    "full_name": "Charles Ivan Marasigan Vargas",
+    "enabled": 1
+  },
+  {
+    "name": "cnsilva@profinsights.biz",
+    "email": "cnsilva@profinsights.biz",
+    "first_name": "Cheryl",
+    "last_name": "Silva",
+    "full_name": "Cheryl Silva",
+    "enabled": 1
+  },
+  {
+    "name": "codera.andrey@gmail.com",
+    "email": "codera.andrey@gmail.com",
+    "first_name": "Andrey",
+    "last_name": "Codera",
+    "full_name": "Andrey Codera",
+    "enabled": 1
+  },
+  {
+    "name": "conradandres@profinsights.biz",
+    "email": "conradandres@profinsights.biz",
+    "first_name": "Conrad",
+    "last_name": "Andres",
+    "full_name": "Conrad Andres",
+    "enabled": 1
+  },
+  {
+    "name": "corpuzferdinanddhieter@gmail.com",
+    "email": "corpuzferdinanddhieter@gmail.com",
+    "first_name": "Ferdinand Dhieter",
+    "last_name": "Corpuz",
+    "full_name": "Ferdinand Dhieter Corpuz",
+    "enabled": 1
+  },
+  {
+    "name": "costales.lacey@gmail.com",
+    "email": "costales.lacey@gmail.com",
+    "first_name": "Lacey",
+    "last_name": "Costales",
+    "full_name": "Lacey Costales",
+    "enabled": 1
+  },
+  {
+    "name": "cptulagan@profinsights.biz",
+    "email": "cptulagan@profinsights.biz",
+    "first_name": "Cristin Joy",
+    "last_name": "Tulagan",
+    "full_name": "Cristin Joy Tulagan",
+    "enabled": 1
+  },
+  {
+    "name": "cqamano@profinsights.biz",
+    "email": "cqamano@profinsights.biz",
+    "first_name": "Christian Willie",
+    "last_name": "Amano",
+    "full_name": "Christian Willie Amano",
+    "enabled": 1
+  },
+  {
+    "name": "crandres@profinsights.biz",
+    "email": "crandres@profinsights.biz",
+    "first_name": "Catherine",
+    "last_name": "Andres-Gamo",
+    "full_name": "Catherine Andres-Gamo",
+    "enabled": 1
+  },
+  {
+    "name": "crmosura@profinsights.biz",
+    "email": "crmosura@profinsights.biz",
+    "first_name": "Catherine",
+    "last_name": "Mosura",
+    "full_name": "Catherine Mosura",
+    "enabled": 1
+  },
+  {
+    "name": "cruzwinston5@gmail.com",
+    "email": "cruzwinston5@gmail.com",
+    "first_name": "Winston",
+    "last_name": "Cruz",
+    "full_name": "Winston Cruz",
+    "enabled": 1
+  },
+  {
+    "name": "cscarator@profinsights.biz",
+    "email": "cscarator@profinsights.biz",
+    "first_name": "Cristina Marie",
+    "last_name": "Carator",
+    "full_name": "Cristina Marie Carator",
+    "enabled": 1
+  },
+  {
+    "name": "cscarbon@profinsights.biz",
+    "email": "cscarbon@profinsights.biz",
+    "first_name": "Cherry Ann",
+    "last_name": "Carbon",
+    "full_name": "Cherry Ann Carbon",
+    "enabled": 1
+  },
+  {
+    "name": "cspizarro@profinsights.biz",
+    "email": "cspizarro@profinsights.biz",
+    "first_name": "Crisia Francesca",
+    "last_name": "Pizarro",
+    "full_name": "Crisia Francesca Pizarro",
+    "enabled": 1
+  },
+  {
+    "name": "csrodas@profinsights.biz",
+    "email": "csrodas@profinsights.biz",
+    "first_name": "Corina",
+    "last_name": "Rodas",
+    "full_name": "Corina Rodas",
+    "enabled": 1
+  },
+  {
+    "name": "csrodas@profinsights.biz1",
+    "email": "csrodas@profinsights.biz1",
+    "first_name": "Corina",
+    "last_name": "Rodas",
+    "full_name": "Corina Rodas",
+    "enabled": 1
+  },
+  {
+    "name": "cstangkay@profinsights.biz",
+    "email": "cstangkay@profinsights.biz",
+    "first_name": "Maria Christina",
+    "last_name": "Tangkay",
+    "full_name": "Maria Christina Tangkay",
+    "enabled": 1
+  },
+  {
+    "name": "csvasquez@profinsights.biz",
+    "email": "csvasquez@profinsights.biz",
+    "first_name": "Christoper Gringo",
+    "last_name": "Vasquez",
+    "full_name": "Christoper Gringo Vasquez",
+    "enabled": 1
+  },
+  {
+    "name": "cvatienza@profinsights.biz",
+    "email": "cvatienza@profinsights.biz",
+    "first_name": "Cheermith",
+    "last_name": "Villarosa Atienza",
+    "full_name": "Cheermith Villarosa Atienza",
+    "enabled": 1
+  },
+  {
+    "name": "cvcasimiro@profinsights.biz",
+    "email": "cvcasimiro@profinsights.biz",
+    "first_name": "Cherie Lou",
+    "last_name": "Casimiro",
+    "full_name": "Cherie Lou Casimiro",
+    "enabled": 1
+  },
+  {
+    "name": "dabaylon@profinsights.biz",
+    "email": "dabaylon@profinsights.biz",
+    "first_name": "Diana",
+    "last_name": "Adan Baylon",
+    "full_name": "Diana Adan Baylon",
+    "enabled": 1
+  },
+  {
+    "name": "dalvarez@profinsights.biz",
+    "email": "dalvarez@profinsights.biz",
+    "first_name": "Debbie Ann",
+    "last_name": "Alvarez",
+    "full_name": "Debbie Ann Alvarez",
+    "enabled": 1
+  },
+  {
+    "name": "darryllegada94@gmail.com",
+    "email": "darryllegada94@gmail.com",
+    "first_name": "Darryl",
+    "last_name": "Legada",
+    "full_name": "Darryl Legada",
+    "enabled": 1
+  },
+  {
+    "name": "dbdelossantos@profinsights.biz",
+    "email": "dbdelossantos@profinsights.biz",
+    "first_name": "Donato Jose",
+    "last_name": "Delos Santos",
+    "full_name": "Donato Jose Delos Santos",
+    "enabled": 1
+  },
+  {
+    "name": "dcantor@profinsights.biz",
+    "email": "dcantor@profinsights.biz",
+    "first_name": "Dionicio",
+    "last_name": "Cantor",
+    "full_name": "Dionicio Cantor",
+    "enabled": 1
+  },
+  {
+    "name": "dccastillo@profinsights.biz",
+    "email": "dccastillo@profinsights.biz",
+    "first_name": "Diana",
+    "last_name": "Catingub Castillo",
+    "full_name": "Diana Catingub Castillo",
+    "enabled": 1
+  },
+  {
+    "name": "dcjacob@pims-marketing.com",
+    "email": "dcjacob@pims-marketing.com",
+    "first_name": "Daisy Jane",
+    "last_name": "Jacob",
+    "full_name": "Daisy Jane Jacob",
+    "enabled": 1
+  },
+  {
+    "name": "ddaricoy@profinsights.biz",
+    "email": "ddaricoy@profinsights.biz",
+    "first_name": "Danica",
+    "last_name": "Aricoy",
+    "full_name": "Danica Aricoy",
+    "enabled": 1
+  },
+  {
+    "name": "dddowning@profinsights.biz",
+    "email": "dddowning@profinsights.biz",
+    "first_name": "Delsey",
+    "last_name": "Cruz Downing",
+    "full_name": "Delsey Cruz Downing",
+    "enabled": 1
+  },
+  {
+    "name": "decena.nicole@yahoo.com",
+    "email": "decena.nicole@yahoo.com",
+    "first_name": "Nicole",
+    "last_name": "Reyes Decena",
+    "full_name": "Nicole Reyes Decena",
+    "enabled": 1
+  },
+  {
+    "name": "delfincrisedenclaire@gmail.com",
+    "email": "delfincrisedenclaire@gmail.com",
+    "first_name": "Cris Eden Claire",
+    "last_name": "Delfin",
+    "full_name": "Cris Eden Claire Delfin",
+    "enabled": 1
+  },
+  {
+    "name": "desireepernes@yahoo.com",
+    "email": "desireepernes@yahoo.com",
+    "first_name": "Desiree",
+    "last_name": "Pernes",
+    "full_name": "Desiree Pernes",
+    "enabled": 1
+  },
+  {
+    "name": "dgandales@profinsights.biz",
+    "email": "dgandales@profinsights.biz",
+    "first_name": "Diana Rose Mariz",
+    "last_name": "Andales",
+    "full_name": "Diana Rose Mariz Andales",
+    "enabled": 1
+  },
+  {
+    "name": "dgcarbonell@profinsights.biz",
+    "email": "dgcarbonell@profinsights.biz",
+    "first_name": "Dione",
+    "last_name": "Carbonell",
+    "full_name": "Dione Carbonell",
+    "enabled": 1
+  },
+  {
+    "name": "dhaneangel@yahoo.com",
+    "email": "dhaneangel@yahoo.com",
+    "first_name": "Maria Regina",
+    "last_name": "Lanuza",
+    "full_name": "Maria Regina Lanuza",
+    "enabled": 1
+  },
+  {
+    "name": "dianalaguardia0721@gmail.com",
+    "email": "dianalaguardia0721@gmail.com",
+    "first_name": "Diana Jean",
+    "last_name": "Laguardia",
+    "full_name": "Diana Jean Laguardia",
+    "enabled": 1
+  },
+  {
+    "name": "dianasumugat000@gmail.com",
+    "email": "dianasumugat000@gmail.com",
+    "first_name": "Diana Rose",
+    "last_name": "Sumugat",
+    "full_name": "Diana Rose Sumugat",
+    "enabled": 1
+  },
+  {
+    "name": "dickinson_jocelyn0802@yahoo.com",
+    "email": "dickinson_jocelyn0802@yahoo.com",
+    "first_name": "Jocelyn",
+    "last_name": "Dickinson",
+    "full_name": "Jocelyn Dickinson",
+    "enabled": 1
+  },
+  {
+    "name": "didomingo@profinsights.biz",
+    "email": "didomingo@profinsights.biz",
+    "first_name": "Danilo",
+    "last_name": "Domingo",
+    "full_name": "Danilo Domingo",
+    "enabled": 1
+  },
+  {
+    "name": "dioricocatherine@yahoo.com.ph",
+    "email": "dioricocatherine@yahoo.com.ph",
+    "first_name": "Catherine",
+    "last_name": "Diorico",
+    "full_name": "Catherine Diorico",
+    "enabled": 1
+  },
+  {
+    "name": "disalonga@profinsights.biz",
+    "email": "disalonga@profinsights.biz",
+    "first_name": "Daniel",
+    "last_name": "Salonga",
+    "full_name": "Daniel Salonga",
+    "enabled": 1
+  },
+  {
+    "name": "dlagutan@profinsights.biz",
+    "email": "dlagutan@profinsights.biz",
+    "first_name": "Divine",
+    "last_name": "Lagutan",
+    "full_name": "Divine Lagutan",
+    "enabled": 1
+  },
+  {
+    "name": "dmauricio@profinsights.biz",
+    "email": "dmauricio@profinsights.biz",
+    "first_name": "Dante",
+    "last_name": "Mauricio",
+    "full_name": "Dante Mauricio",
+    "enabled": 1
+  },
+  {
+    "name": "dmlao@profinsights.biz",
+    "email": "dmlao@profinsights.biz",
+    "first_name": "Divina",
+    "last_name": "Lao",
+    "full_name": "Divina Lao",
+    "enabled": 1
+  },
+  {
+    "name": "dmozo.pmii@gmail.com",
+    "email": "dmozo.pmii@gmail.com",
+    "first_name": "Dimple",
+    "last_name": "Mozo",
+    "full_name": "Dimple Mozo",
+    "enabled": 1
+  },
+  {
+    "name": "doheniasdonna15@gmail.com",
+    "email": "doheniasdonna15@gmail.com",
+    "first_name": "Donna",
+    "last_name": "Dohenias",
+    "full_name": "Donna Dohenias",
+    "enabled": 1
+  },
+  {
+    "name": "dppolicarpio@gmail.com",
+    "email": "dppolicarpio@gmail.com",
+    "first_name": "Dionne Paulo",
+    "last_name": "Policarpio",
+    "full_name": "Dionne Paulo Policarpio",
+    "enabled": 1
+  },
+  {
+    "name": "drewjan110714@gmail.com",
+    "email": "drewjan110714@gmail.com",
+    "first_name": "Adrian",
+    "last_name": "Oclarit Candia",
+    "full_name": "Adrian Oclarit Candia",
+    "enabled": 1
+  },
+  {
+    "name": "dsayago@profinsights.biz",
+    "email": "dsayago@profinsights.biz",
+    "first_name": "Dindo",
+    "last_name": "Sayago",
+    "full_name": "Dindo Sayago",
+    "enabled": 1
+  },
+  {
+    "name": "dsniper3rthy@gmail.com",
+    "email": "dsniper3rthy@gmail.com",
+    "first_name": "Dario",
+    "last_name": "Pernis",
+    "full_name": "Dario Pernis",
+    "enabled": 1
+  },
+  {
+    "name": "dtgeraldo@profinsights.biz",
+    "email": "dtgeraldo@profinsights.biz",
+    "first_name": "Donalyn",
+    "last_name": "Geraldo",
+    "full_name": "Donalyn Geraldo",
+    "enabled": 1
+  },
+  {
+    "name": "dvpatiag@profinsights.biz",
+    "email": "dvpatiag@profinsights.biz",
+    "first_name": "Dexter",
+    "last_name": "Patiag",
+    "full_name": "Dexter Patiag",
+    "enabled": 1
+  },
+  {
+    "name": "eaeudela@profinsights.biz",
+    "email": "eaeudela@profinsights.biz",
+    "first_name": "Eunicca",
+    "last_name": "Eudela",
+    "full_name": "Eunicca Eudela",
+    "enabled": 1
+  },
+  {
+    "name": "eagonzales@profinsights.biz",
+    "email": "eagonzales@profinsights.biz",
+    "first_name": "Emely",
+    "last_name": "Gonzales",
+    "full_name": "Emely Gonzales",
+    "enabled": 1
+  },
+  {
+    "name": "eatecson@pims-marketing.com",
+    "email": "eatecson@pims-marketing.com",
+    "first_name": "Ernest Khristoffer",
+    "last_name": "Tecson",
+    "full_name": "Ernest Khristoffer Tecson",
+    "enabled": 1
+  },
+  {
+    "name": "ebverzosa@profinsights.biz",
+    "email": "ebverzosa@profinsights.biz",
+    "first_name": "Evelyn",
+    "last_name": "Verzosa",
+    "full_name": "Evelyn Verzosa",
+    "enabled": 1
+  },
+  {
+    "name": "ecabanlet@profinsights.biz",
+    "email": "ecabanlet@profinsights.biz",
+    "first_name": "Eric",
+    "last_name": "Cabanlet Jr",
+    "full_name": "Eric Cabanlet Jr",
+    "enabled": 1
+  },
+  {
+    "name": "ecayanan@profinsights.biz",
+    "email": "ecayanan@profinsights.biz",
+    "first_name": "Eleanor",
+    "last_name": "Cayanan",
+    "full_name": "Eleanor Cayanan",
+    "enabled": 1
+  },
+  {
+    "name": "ecmanreza@profinsights.biz",
+    "email": "ecmanreza@profinsights.biz",
+    "first_name": "Ezekyela",
+    "last_name": "Manreza",
+    "full_name": "Ezekyela Manreza",
+    "enabled": 1
+  },
+  {
+    "name": "ecoctiva@profinsights.biz",
+    "email": "ecoctiva@profinsights.biz",
+    "first_name": "Emmanuel",
+    "last_name": "Octiva",
+    "full_name": "Emmanuel Octiva",
+    "enabled": 1
+  },
+  {
+    "name": "edmachucar@profinsights.biz",
+    "email": "edmachucar@profinsights.biz",
+    "first_name": "Erica",
+    "last_name": "Machucar",
+    "full_name": "Erica Machucar",
+    "enabled": 1
+  },
+  {
+    "name": "edvega@profinsights.biz",
+    "email": "edvega@profinsights.biz",
+    "first_name": "Eathel",
+    "last_name": "Vega",
+    "full_name": "Eathel Vega",
+    "enabled": 1
+  },
+  {
+    "name": "eebayubay@profinsights.biz",
+    "email": "eebayubay@profinsights.biz",
+    "first_name": "Emerlinda",
+    "last_name": "Bayubay",
+    "full_name": "Emerlinda Bayubay",
+    "enabled": 1
+  },
+  {
+    "name": "egfield@profinsights.biz",
+    "email": "egfield@profinsights.biz",
+    "first_name": "Eloisa",
+    "last_name": "Field",
+    "full_name": "Eloisa Field",
+    "enabled": 1
+  },
+  {
+    "name": "egrafia@profinsights.biz",
+    "email": "egrafia@profinsights.biz",
+    "first_name": "Edward Bryan",
+    "last_name": "Grafia",
+    "full_name": "Edward Bryan Grafia",
+    "enabled": 1
+  },
+  {
+    "name": "eieroles@pims-marketing.com",
+    "email": "eieroles@pims-marketing.com",
+    "first_name": "Eileen",
+    "last_name": "Eroles",
+    "full_name": "Eileen Eroles",
+    "enabled": 1
+  },
+  {
+    "name": "elgiemonica1605@gmail.com",
+    "email": "elgiemonica1605@gmail.com",
+    "first_name": "Elgie Monica",
+    "last_name": "Herrera",
+    "full_name": "Elgie Monica Herrera",
+    "enabled": 1
+  },
+  {
+    "name": "ellamaealih@gmail.com",
+    "email": "ellamaealih@gmail.com",
+    "first_name": "Ella",
+    "last_name": "Daud Alih",
+    "full_name": "Ella Daud Alih",
+    "enabled": 1
+  },
+  {
+    "name": "eltamayo@pims-marketing.com",
+    "email": "eltamayo@pims-marketing.com",
+    "first_name": "Elaiza joyce",
+    "last_name": "Tamayo",
+    "full_name": "Elaiza joyce Tamayo",
+    "enabled": 1
+  },
+  {
+    "name": "elvinvillanueva0815@gmail.com",
+    "email": "elvinvillanueva0815@gmail.com",
+    "first_name": "Elvin",
+    "last_name": "Villanueva",
+    "full_name": "Elvin Villanueva",
+    "enabled": 1
+  },
+  {
+    "name": "elyseesemrog@gmail.com",
+    "email": "elyseesemrog@gmail.com",
+    "first_name": "Sharmaine",
+    "last_name": "Gorme",
+    "full_name": "Sharmaine Gorme",
+    "enabled": 1
+  },
+  {
+    "name": "emaranas@profinsights.biz",
+    "email": "emaranas@profinsights.biz",
+    "first_name": "Errecka",
+    "last_name": "Mendoza Aranas",
+    "full_name": "Errecka Mendoza Aranas",
+    "enabled": 1
+  },
+  {
+    "name": "emartinez@profinsights.biz",
+    "email": "emartinez@profinsights.biz",
+    "first_name": "Eugene",
+    "last_name": "Martinez",
+    "full_name": "Eugene Martinez",
+    "enabled": 1
+  },
+  {
+    "name": "emeraldgaluno1@gmail.com",
+    "email": "emeraldgaluno1@gmail.com",
+    "first_name": "Emerald",
+    "last_name": "Galuno",
+    "full_name": "Emerald Galuno",
+    "enabled": 1
+  },
+  {
+    "name": "emerinetandoyplandez@gmail.com",
+    "email": "emerinetandoyplandez@gmail.com",
+    "first_name": "Emerine",
+    "last_name": "Plandez",
+    "full_name": "Emerine Plandez",
+    "enabled": 1
+  },
+  {
+    "name": "emgamoiii@profinsights.biz",
+    "email": "emgamoiii@profinsights.biz",
+    "first_name": "Enrico",
+    "last_name": "Gamo III",
+    "full_name": "Enrico Gamo III",
+    "enabled": 1
+  },
+  {
+    "name": "emilyducosinledda@gmail.com",
+    "email": "emilyducosinledda@gmail.com",
+    "first_name": "Emily",
+    "last_name": "Ledda",
+    "full_name": "Emily Ledda",
+    "enabled": 1
+  },
+  {
+    "name": "emmafelizcastro07@gmail.com",
+    "email": "emmafelizcastro07@gmail.com",
+    "first_name": "Emma Feliz",
+    "last_name": "Castro",
+    "full_name": "Emma Feliz Castro",
+    "enabled": 1
+  },
+  {
+    "name": "emmie@me.com",
+    "email": "emmie@me.com",
+    "first_name": "Emmilie",
+    "last_name": "Macabinguil",
+    "full_name": "Emmilie Macabinguil",
+    "enabled": 1
+  },
+  {
+    "name": "emnariz@profinsights.biz",
+    "email": "emnariz@profinsights.biz",
+    "first_name": "Eva",
+    "last_name": "Malazarta Nariz",
+    "full_name": "Eva Malazarta Nariz",
+    "enabled": 1
+  },
+  {
+    "name": "emrosas@profinsights.biz",
+    "email": "emrosas@profinsights.biz",
+    "first_name": "Elaine Joy",
+    "last_name": "Rosas",
+    "full_name": "Elaine Joy Rosas",
+    "enabled": 1
+  },
+  {
+    "name": "engelmark.fortuna@yahoo.com.ph",
+    "email": "engelmark.fortuna@yahoo.com.ph",
+    "first_name": "Engel Mark",
+    "last_name": "Fortuna",
+    "full_name": "Engel Mark Fortuna",
+    "enabled": 1
+  },
+  {
+    "name": "enricodelossantos5@gmail.com",
+    "email": "enricodelossantos5@gmail.com",
+    "first_name": "Enrico Luis",
+    "last_name": "Delos Santos",
+    "full_name": "Enrico Luis Delos Santos",
+    "enabled": 1
+  },
+  {
+    "name": "enriquezrohanie@gmail.com",
+    "email": "enriquezrohanie@gmail.com",
+    "first_name": "Rohanie Grace",
+    "last_name": "Enriquez",
+    "full_name": "Rohanie Grace Enriquez",
+    "enabled": 1
+  },
+  {
+    "name": "envitangcol@profinsights.biz",
+    "email": "envitangcol@profinsights.biz",
+    "first_name": "Emily",
+    "last_name": "Vitangcol",
+    "full_name": "Emily Vitangcol",
+    "enabled": 1
+  },
+  {
+    "name": "eobaril@profinsights.biz",
+    "email": "eobaril@profinsights.biz",
+    "first_name": "Elvermae",
+    "last_name": "Baril",
+    "full_name": "Elvermae Baril",
+    "enabled": 1
+  },
+  {
+    "name": "eoliveros@profinsights.biz",
+    "email": "eoliveros@profinsights.biz",
+    "first_name": "Ma. Elizabeth",
+    "last_name": "Oliveros",
+    "full_name": "Ma. Elizabeth Oliveros",
+    "enabled": 1
+  },
+  {
+    "name": "eparabit@profinsights.biz",
+    "email": "eparabit@profinsights.biz",
+    "first_name": "Estephanie",
+    "last_name": "Pe\u00f1aranda Arabit",
+    "full_name": "Estephanie Pe\u00f1aranda Arabit",
+    "enabled": 1
+  },
+  {
+    "name": "Eramos@profinsights.biz",
+    "email": "Eramos@profinsights.biz",
+    "first_name": "Evangeline",
+    "last_name": "Ramos",
+    "full_name": "Evangeline Ramos",
+    "enabled": 1
+  },
+  {
+    "name": "erinfrancheskay@gmail.com",
+    "email": "erinfrancheskay@gmail.com",
+    "first_name": "Erin Francheska",
+    "last_name": "Yungco",
+    "full_name": "Erin Francheska Yungco",
+    "enabled": 1
+  },
+  {
+    "name": "ernaval@profinsights.biz",
+    "email": "ernaval@profinsights.biz",
+    "first_name": "Eyrlan",
+    "last_name": "Naval",
+    "full_name": "Eyrlan Naval",
+    "enabled": 1
+  },
+  {
+    "name": "errol.orong@gmail.com",
+    "email": "errol.orong@gmail.com",
+    "first_name": "Errol",
+    "last_name": "Orong",
+    "full_name": "Errol Orong",
+    "enabled": 1
+  },
+  {
+    "name": "ersanchez@profinsights.biz",
+    "email": "ersanchez@profinsights.biz",
+    "first_name": "Eddieson",
+    "last_name": "Sanchez",
+    "full_name": "Eddieson Sanchez",
+    "enabled": 1
+  },
+  {
+    "name": "erwinsam150@gmail.com",
+    "email": "erwinsam150@gmail.com",
+    "first_name": "Erwin",
+    "last_name": "Sambas Jr.",
+    "full_name": "Erwin Sambas Jr.",
+    "enabled": 1
+  },
+  {
+    "name": "ethamz27@gmail.com",
+    "email": "ethamz27@gmail.com",
+    "first_name": "Nathaniel",
+    "last_name": "Vallecer",
+    "full_name": "Nathaniel Vallecer",
+    "enabled": 1
+  },
+  {
+    "name": "eunicejayrainolermo@gmail.com",
+    "email": "eunicejayrainolermo@gmail.com",
+    "first_name": "Jeremy",
+    "last_name": "Olermo",
+    "full_name": "Jeremy Olermo",
+    "enabled": 1
+  },
+  {
+    "name": "eurikaucab@gmail.com",
+    "email": "eurikaucab@gmail.com",
+    "first_name": "Eurika Vania",
+    "last_name": "Ucab",
+    "full_name": "Eurika Vania Ucab",
+    "enabled": 1
+  },
+  {
+    "name": "eviolanta@pims-marketing.com",
+    "email": "eviolanta@pims-marketing.com",
+    "first_name": "Eva",
+    "last_name": "Serrano Violanta",
+    "full_name": "Eva Serrano Violanta",
+    "enabled": 1
+  },
+  {
+    "name": "faarsua@profinsights.biz",
+    "email": "faarsua@profinsights.biz",
+    "first_name": "Faith Ann",
+    "last_name": "Arsua",
+    "full_name": "Faith Ann Arsua",
+    "enabled": 1
+  },
+  {
+    "name": "fajilagonoryisabel@yahoo.com",
+    "email": "fajilagonoryisabel@yahoo.com",
+    "first_name": "Nory",
+    "last_name": "Roxas Fajilago",
+    "full_name": "Nory Roxas Fajilago",
+    "enabled": 1
+  },
+  {
+    "name": "fbquimque@profinsights.biz",
+    "email": "fbquimque@profinsights.biz",
+    "first_name": "Flora",
+    "last_name": "Bernadez Quimque",
+    "full_name": "Flora Bernadez Quimque",
+    "enabled": 1
+  },
+  {
+    "name": "fdelosreyes@profinsights.biz",
+    "email": "fdelosreyes@profinsights.biz",
+    "first_name": "Frederick",
+    "last_name": "delos Reyes",
+    "full_name": "Frederick delos Reyes",
+    "enabled": 1
+  },
+  {
+    "name": "figurajeremias@gmail.com",
+    "email": "figurajeremias@gmail.com",
+    "first_name": "Jeremias",
+    "last_name": "Figura",
+    "full_name": "Jeremias Figura",
+    "enabled": 1
+  },
+  {
+    "name": "fmaslucrida@gmail.com",
+    "email": "fmaslucrida@gmail.com",
+    "first_name": "Francesca Marie",
+    "last_name": "Lucrida",
+    "full_name": "Francesca Marie Lucrida",
+    "enabled": 1
+  },
+  {
+    "name": "focastro@profinsights.biz",
+    "email": "focastro@profinsights.biz",
+    "first_name": "Franz Glen",
+    "last_name": "Castro",
+    "full_name": "Franz Glen Castro",
+    "enabled": 1
+  },
+  {
+    "name": "francis.mazaredo@gmail.com",
+    "email": "francis.mazaredo@gmail.com",
+    "first_name": "Aga Francis",
+    "last_name": "Mazaredo",
+    "full_name": "Aga Francis Mazaredo",
+    "enabled": 1
+  },
+  {
+    "name": "frenzelannblanco@gmail.com",
+    "email": "frenzelannblanco@gmail.com",
+    "first_name": "Frenzel Ann Carmela",
+    "last_name": "Blanco",
+    "full_name": "Frenzel Ann Carmela Blanco",
+    "enabled": 1
+  },
+  {
+    "name": "frmalabo@profinsights.biz",
+    "email": "frmalabo@profinsights.biz",
+    "first_name": "Frederic",
+    "last_name": "Malabo",
+    "full_name": "Frederic Malabo",
+    "enabled": 1
+  },
+  {
+    "name": "fscahiyang@profinsights.biz",
+    "email": "fscahiyang@profinsights.biz",
+    "first_name": "Maria Felipa",
+    "last_name": "Cahiyang",
+    "full_name": "Maria Felipa Cahiyang",
+    "enabled": 1
+  },
+  {
+    "name": "ftblanco@profinsights.biz",
+    "email": "ftblanco@profinsights.biz",
+    "first_name": "Frederick",
+    "last_name": "Blanco",
+    "full_name": "Frederick Blanco",
+    "enabled": 1
+  },
+  {
+    "name": "gabmeika0215@gmail.com",
+    "email": "gabmeika0215@gmail.com",
+    "first_name": "Angelic",
+    "last_name": "Ranin",
+    "full_name": "Angelic Ranin",
+    "enabled": 1
+  },
+  {
+    "name": "galawcharmen045@gmail.com",
+    "email": "galawcharmen045@gmail.com",
+    "first_name": "Charmen",
+    "last_name": "Galaw",
+    "full_name": "Charmen Galaw",
+    "enabled": 1
+  },
+  {
+    "name": "gatolosa@profinsights.biz",
+    "email": "gatolosa@profinsights.biz",
+    "first_name": "Gerly",
+    "last_name": "Marie Parreno Tolosa",
+    "full_name": "Gerly Marie Parreno Tolosa",
+    "enabled": 1
+  },
+  {
+    "name": "gbdipasupil@profinsights.biz",
+    "email": "gbdipasupil@profinsights.biz",
+    "first_name": "Mary Grace",
+    "last_name": "Dipasupil",
+    "full_name": "Mary Grace Dipasupil",
+    "enabled": 1
+  },
+  {
+    "name": "gbpulgado@profinsights.biz",
+    "email": "gbpulgado@profinsights.biz",
+    "first_name": "Gladys Catherine",
+    "last_name": "Pulgado",
+    "full_name": "Gladys Catherine Pulgado",
+    "enabled": 1
+  },
+  {
+    "name": "gbsazon@profinsights.biz",
+    "email": "gbsazon@profinsights.biz",
+    "first_name": "Geramar",
+    "last_name": "Sazon",
+    "full_name": "Geramar Sazon",
+    "enabled": 1
+  },
+  {
+    "name": "gcabigon@profinsights.biz",
+    "email": "gcabigon@profinsights.biz",
+    "first_name": "Geraldine",
+    "last_name": "Cabigon",
+    "full_name": "Geraldine Cabigon",
+    "enabled": 1
+  },
+  {
+    "name": "gcarlos@profinsights.biz",
+    "email": "gcarlos@profinsights.biz",
+    "first_name": "Gretha",
+    "last_name": "Carlos",
+    "full_name": "Gretha Carlos",
+    "enabled": 1
+  },
+  {
+    "name": "gccanete@profinsights.biz",
+    "email": "gccanete@profinsights.biz",
+    "first_name": "Gay",
+    "last_name": "Ca\u00f1ete",
+    "full_name": "Gay Ca\u00f1ete",
+    "enabled": 1
+  },
+  {
+    "name": "geddy.sanjuan29@gmail.com",
+    "email": "geddy.sanjuan29@gmail.com",
+    "first_name": "Geddy",
+    "last_name": "Javier",
+    "full_name": "Geddy Javier",
+    "enabled": 1
+  },
+  {
+    "name": "gellabetsy@gmail.com",
+    "email": "gellabetsy@gmail.com",
+    "first_name": "Angel",
+    "last_name": "Betoya",
+    "full_name": "Angel Betoya",
+    "enabled": 1
+  },
+  {
+    "name": "gelomarcelo1994@gmail.com",
+    "email": "gelomarcelo1994@gmail.com",
+    "first_name": "Julie Ann",
+    "last_name": "Marcelo",
+    "full_name": "Julie Ann Marcelo",
+    "enabled": 1
+  },
+  {
+    "name": "genelabs42@yahoo.com",
+    "email": "genelabs42@yahoo.com",
+    "first_name": "Genevieve",
+    "last_name": "Labiste",
+    "full_name": "Genevieve Labiste",
+    "enabled": 1
+  },
+  {
+    "name": "genemarlamaiara@gmail.com",
+    "email": "genemarlamaiara@gmail.com",
+    "first_name": "Maria Laarni",
+    "last_name": "Garcia Cortez",
+    "full_name": "Maria Laarni Garcia Cortez",
+    "enabled": 1
+  }
+];
   let availableUsers = [];
 
   let activeErpDropdown = null;
 
+
+  // Synchronize Table Grid programTerritories with live ERPNext territoryTreeData
+  function syncProgramTerritoriesWithTree() {
+    if (!territoryTreeData || territoryTreeData.length === 0) return;
+
+    const ptMap = new Map();
+    programTerritories.forEach(pt => {
+      if (pt.activeCode) ptMap.set(pt.activeCode, pt);
+      if (pt.histCode) ptMap.set(pt.histCode, pt);
+    });
+
+    const activeTerrNames = new Set();
+
+    territoryTreeData.forEach(t => {
+      if (t.name === 'All Territories') return;
+      activeTerrNames.add(t.name);
+
+      if (!t.is_group) {
+        let existing = ptMap.get(t.name);
+        if (!existing) {
+          const newRecordId = `REC-${t.name.replace(/[^A-Za-z0-9]/g, '_')}`;
+          const newRow = {
+            histCode: t.name,
+            newCode: t.name,
+            latestPrevCode: t.name,
+            activeCode: t.name,
+            district: t.parent_territory || 'All Territories',
+            rep: t.territory_manager ? t.territory_manager : 'Unassigned Rep',
+            docs: 0,
+            status: 'CHANGED',
+            recordId: newRecordId,
+            userId: '',
+            auditTrail: [{
+              timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+              action: 'INITIAL_SYNC',
+              user: 'admin@pims.com [SFE Lead]',
+              details: `Synchronized from live ERPNext database under ${t.parent_territory || 'All Territories'}.`
+            }]
+          };
+          programTerritories.push(newRow);
+          ptMap.set(t.name, newRow);
+        } else {
+          if (t.parent_territory && existing.district !== t.parent_territory) {
+            existing.district = t.parent_territory;
+          }
+          if (t.territory_manager && (!existing.rep || existing.rep === 'Unassigned Rep')) {
+            existing.rep = t.territory_manager;
+          }
+        }
+      }
+    });
+
+    programTerritories = programTerritories.filter(pt => {
+      const code = pt.activeCode || pt.histCode;
+      return activeTerrNames.has(code);
+    });
+
+    try {
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+    } catch (_) {}
+  }
+
   function initTerritoryTree() {
     initSalesPersonsAndEmployees();
+    const savedUsers = localStorage.getItem('pims_user_accounts_v1');
+    if (savedUsers) {
+      try {
+        availableUsers = JSON.parse(savedUsers);
+      } catch (_) {
+        availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
+      }
+    } else {
+      availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
+    }
     const saved = localStorage.getItem('pims_territory_tree_v1');
     if (saved) {
       try {
@@ -9490,7 +11961,11 @@ const BASELINE_ERP_TERRITORIES = [
           }
           territoryTreeData = liveTerrs;
           localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
+          syncProgramTerritoriesWithTree();
           renderTree();
+          renderTable();
+          renderRealignmentAndArchive();
+          renderSummaryReport();
         }
       }
     } catch (_) {}
@@ -10858,6 +13333,7 @@ const BASELINE_ERP_TERRITORIES = [
     const pt = programTerritories.find(p => p.activeCode === origName || p.histCode === origName);
     if (pt) {
       if (newUserId) pt.userId = newUserId;
+      if (newMgr) pt.rep = newMgr;
       pt.district = newParent;
       pt.status = 'CHANGED';
       pt.auditTrail = pt.auditTrail || [];

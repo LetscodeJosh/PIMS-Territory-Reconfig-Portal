@@ -228,6 +228,20 @@ def fetch_live_employees(opener):
         print(f"[Streamlit Proxy] Failed to fetch live employees: {e}")
         return None
 
+def fetch_live_users(opener):
+    if not opener:
+        return None
+    try:
+        fields = json.dumps(["name", "email", "full_name", "first_name", "last_name", "enabled"])
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/User?fields={urllib.parse.quote(fields)}&limit_page_length=3000"
+        req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+        res = opener.open(req, timeout=12)
+        data = json.loads(res.read().decode("utf-8")).get("data", [])
+        return data
+    except Exception as e:
+        print(f"[Streamlit Proxy] Failed to fetch live users: {e}")
+        return None
+
 def execute_tree_action(opener, action, payload):
     if not opener:
         return "error", "Active session expired. Please log in again."
@@ -237,7 +251,7 @@ def execute_tree_action(opener, action, payload):
     try:
         if action == "tree_add":
             t_name = payload.get("territory_name", "").strip()
-            parent = payload.get("parent_territory", "").strip()
+            parent = payload.get("parent_territory", "").strip() or "All Territories"
             is_group = int(payload.get("is_group", 0))
             t_mgr = payload.get("territory_manager", "").strip()
             body = {
@@ -254,10 +268,26 @@ def execute_tree_action(opener, action, payload):
                 headers=headers_json,
                 method="POST"
             )
-            res = opener.open(req, timeout=10)
-            if res.status in [200, 201]:
-                return "success", f'Territory "{t_name}" created live on dev.pmii-marketing.com!'
-            return "warning", f"ERPNext responded with HTTP {res.status}"
+            try:
+                res = opener.open(req, timeout=10)
+                if res.status in [200, 201]:
+                    return "success", f'Territory "{t_name}" created live on dev.pmii-marketing.com!'
+                return "warning", f"ERPNext responded with HTTP {res.status}"
+            except urllib.error.HTTPError as he:
+                err_text = he.read().decode("utf-8", errors="ignore")
+                if "LinkValidationError" in err_text and "territory_manager" in err_text and "territory_manager" in body:
+                    del body["territory_manager"]
+                    data = json.dumps(body).encode("utf-8")
+                    req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+                        data=data,
+                        headers=headers_json,
+                        method="POST"
+                    )
+                    res = opener.open(req, timeout=10)
+                    if res.status in [200, 201]:
+                        return "success", f'Territory "{t_name}" created live on dev.pmii-marketing.com!'
+                raise he
 
         elif action == "tree_edit":
             orig_name = payload.get("name", "").strip()
@@ -277,10 +307,26 @@ def execute_tree_action(opener, action, payload):
                 headers=headers_json,
                 method="PUT"
             )
-            res = opener.open(req, timeout=10)
-            if res.status == 200:
-                return "success", f'Territory "{orig_name}" updated live on dev.pmii-marketing.com!'
-            return "warning", f"ERPNext responded with HTTP {res.status}"
+            try:
+                res = opener.open(req, timeout=10)
+                if res.status == 200:
+                    return "success", f'Territory "{orig_name}" updated live on dev.pmii-marketing.com!'
+                return "warning", f"ERPNext responded with HTTP {res.status}"
+            except urllib.error.HTTPError as he:
+                err_text = he.read().decode("utf-8", errors="ignore")
+                if "LinkValidationError" in err_text and "territory_manager" in err_text and "territory_manager" in body:
+                    del body["territory_manager"]
+                    data = json.dumps(body).encode("utf-8")
+                    req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name)}",
+                        data=data,
+                        headers=headers_json,
+                        method="PUT"
+                    )
+                    res = opener.open(req, timeout=10)
+                    if res.status == 200:
+                        return "success", f'Territory "{orig_name}" updated live on dev.pmii-marketing.com!'
+                raise he
 
         elif action == "tree_rename":
             old_name = payload.get("old_name", "").strip()
@@ -502,6 +548,8 @@ if session_token and session_token in ACTIVE_SESSIONS:
         st.session_state["live_sales_persons"] = cached_session.get("live_sales_persons")
     if "live_employees" not in st.session_state or not st.session_state["live_employees"]:
         st.session_state["live_employees"] = cached_session.get("live_employees")
+    if "live_users" not in st.session_state or not st.session_state["live_users"]:
+        st.session_state["live_users"] = cached_session.get("live_users")
     st.session_state["session_token"] = session_token
 elif session_token:
     clear_query_param("sfe_session")
@@ -517,6 +565,8 @@ if "live_sales_persons" not in st.session_state:
     st.session_state["live_sales_persons"] = None
 if "live_employees" not in st.session_state:
     st.session_state["live_employees"] = None
+if "live_users" not in st.session_state:
+    st.session_state["live_users"] = None
 if "tree_sync_event" not in st.session_state:
     st.session_state["tree_sync_event"] = None
 if "last_action_timestamp" not in st.session_state:
@@ -528,6 +578,7 @@ component_val = portal_component(
     live_territories=st.session_state["live_territories"],
     live_sales_persons=st.session_state["live_sales_persons"],
     live_employees=st.session_state["live_employees"],
+    live_users=st.session_state["live_users"],
     tree_sync_event=st.session_state["tree_sync_event"],
     key="pims_portal_app"
 )
@@ -548,16 +599,19 @@ if component_val and isinstance(component_val, dict):
             if res.get("authorized") and opener:
                 st.session_state["opener"] = opener
                 try:
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
                         f_terrs = executor.submit(fetch_live_territories, opener)
                         f_sps = executor.submit(fetch_live_sales_persons, opener)
                         f_emps = executor.submit(fetch_live_employees, opener)
+                        f_users = executor.submit(fetch_live_users, opener)
                         st.session_state["live_territories"] = f_terrs.result()
                         st.session_state["live_sales_persons"] = f_sps.result()
                         st.session_state["live_employees"] = f_emps.result()
+                        st.session_state["live_users"] = f_users.result()
                 except Exception as ex:
                     print(f"[Streamlit Data Fetch Warning] {ex}")
                     st.session_state["live_territories"] = fetch_live_territories(opener)
+                    st.session_state["live_users"] = fetch_live_users(opener)
             if res.get("authorized") and opener:
                 purge_expired_sessions()
                 token = secrets.token_urlsafe(32)
@@ -567,6 +621,7 @@ if component_val and isinstance(component_val, dict):
                     "live_territories": st.session_state["live_territories"],
                     "live_sales_persons": st.session_state["live_sales_persons"],
                     "live_employees": st.session_state["live_employees"],
+                    "live_users": st.session_state["live_users"],
                     "last_active": time.time()
                 }
                 set_query_param("sfe_session", token)
@@ -588,6 +643,7 @@ if component_val and isinstance(component_val, dict):
             st.session_state["live_territories"] = None
             st.session_state["live_sales_persons"] = None
             st.session_state["live_employees"] = None
+            st.session_state["live_users"] = None
             st.session_state["tree_sync_event"] = None
             st.session_state["session_token"] = None
             st.rerun()
