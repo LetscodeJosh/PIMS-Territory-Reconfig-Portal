@@ -202,10 +202,10 @@ def fetch_live_sales_persons(opener):
     if not opener:
         return None
     try:
-        fields = json.dumps(["name", "sales_person_name", "parent_sales_person", "employee", "is_group", "enabled"])
-        url = f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person?fields={urllib.parse.quote(fields)}&limit_page_length=500"
+        fields = json.dumps(["name", "sales_person_name", "parent_sales_person", "employee", "is_group", "enabled", "department"])
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person?fields={urllib.parse.quote(fields)}&limit_page_length=2000"
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
-        res = opener.open(req, timeout=8)
+        res = opener.open(req, timeout=10)
         data = json.loads(res.read().decode("utf-8")).get("data", [])
         return data
     except Exception as e:
@@ -216,10 +216,10 @@ def fetch_live_employees(opener):
     if not opener:
         return None
     try:
-        fields = json.dumps(["name", "employee_name", "first_name", "last_name", "gender", "company", "status"])
-        url = f"{ERPNEXT_SERVER_URL}/api/resource/Employee?fields={urllib.parse.quote(fields)}&limit_page_length=500"
+        fields = json.dumps(["name", "employee_name", "first_name", "last_name", "gender", "company", "status", "department", "designation"])
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/Employee?fields={urllib.parse.quote(fields)}&limit_page_length=5000"
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
-        res = opener.open(req, timeout=8)
+        res = opener.open(req, timeout=12)
         data = json.loads(res.read().decode("utf-8")).get("data", [])
         return data
     except Exception as e:
