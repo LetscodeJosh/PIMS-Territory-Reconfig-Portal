@@ -1717,8 +1717,8 @@
               </button>
             </div>
 
-            <button class="btn btn-success" id="btnAddTerritoryRecord" onclick="openAddModal()" style="display:none;">
-              <span>+</span> Add Territory Record
+            <button class="btn btn-success" id="btnAddTerritoryRecord" onclick="openTreeAddModal('All Territories')" style="display:none; align-items:center; gap:6px;">
+              <span>+</span> Add Child / Territory
             </button>
             <button class="btn btn-outline" id="btnBatchCodeRename" style="border-color:var(--accent); color:var(--accent); display:none;" onclick="openBatchRenameModal()">
               Batch Code Rename
@@ -2228,8 +2228,14 @@
         <input type="text" id="editRecordId" class="form-control" readonly>
       </div>
       <div class="form-group">
-        <label>Unique User ID:</label>
-        <input type="text" id="editUserId" class="form-control" readonly>
+        <label>User Account:</label>
+        <div class="erp-search-container" id="editUserAccountContainer">
+          <input type="hidden" id="editUserAccountInput" value="">
+          <input type="text" id="editUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User Account..." autocomplete="off" onfocus="openErpDropdown('editUserAccount')" oninput="onErpSearchInput('editUserAccount')">
+          <button type="button" class="erp-clear-btn" id="editUserAccountClear" onclick="clearErpSelection('editUserAccount')">✕</button>
+          <span class="erp-search-chevron">▼</span>
+          <div class="erp-dropdown-menu" id="editUserAccountMenu"></div>
+        </div>
       </div>
     </div>
 
@@ -2241,6 +2247,24 @@
       <div class="form-group">
         <label>Active Territory Code:</label>
         <input type="text" id="editActiveCode" class="form-control" placeholder="e.g. AD0101">
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+      <div class="form-group">
+        <label>Territory Manager <span style="color:#EF4444;">*</span>:</label>
+        <div class="erp-search-container" id="editManagerContainer">
+          <input type="hidden" id="editManagerInput" value="">
+          <input type="text" id="editManagerDisplay" class="erp-search-input-box" placeholder="Search or select Sales Person..." autocomplete="off" onfocus="openErpDropdown('editManager')" oninput="onErpSearchInput('editManager')">
+          <button type="button" class="erp-clear-btn" id="editManagerClear" onclick="clearErpSelection('editManager')">✕</button>
+          <span class="erp-search-chevron">▼</span>
+          <div class="erp-dropdown-menu" id="editManagerMenu"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Parent Territory / District:</label>
+        <select id="editParentSelect" style="width:100%; height:36px; background:#FFFFFF; border:1px solid #CBD5E1; border-radius:6px; padding:0 10px; color:#0F172A; font-size:12.5px; cursor:pointer;">
+        </select>
       </div>
     </div>
 
@@ -7423,13 +7447,24 @@ const BASELINE_ERP_TERRITORIES = [
   
   // --- AUTHENTICATION & SESSION MANAGEMENT ---
   let authenticatedUser = null;
+  let isActivelyLoggingIn = false;
 
   function checkAuthSession() {
-    // When opened, NEVER direct to homepage - always require user to log in on the login page first
+    // When opened or refreshed, NEVER auto-login - always require user to log in on the login page first
     localStorage.removeItem('sfe_portal_user');
     sessionStorage.removeItem('sfe_portal_user');
     sessionStorage.removeItem('sfe_portal_logged_out');
+    authenticatedUser = null;
     showLoginView();
+    if (window.parent && window.parent !== window) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: { action: "logout", timestamp: Date.now() }
+        }, "*");
+      } catch (_) {}
+    }
     return false;
   }
 
@@ -7754,6 +7789,19 @@ const BASELINE_ERP_TERRITORIES = [
         }
 
         if (auth) {
+          if (!isActivelyLoggingIn) {
+            // Browser refreshed or reloaded: ignore cached session and enforce relogin
+            try {
+              window.parent.postMessage({
+                isStreamlitMessage: true,
+                type: "streamlit:setComponentValue",
+                value: { action: "logout", timestamp: Date.now() }
+              }, "*");
+            } catch (_) {}
+            return;
+          }
+          isActivelyLoggingIn = false;
+
           if (streamlitLoginWatchdog) {
             clearTimeout(streamlitLoginWatchdog);
             streamlitLoginWatchdog = null;
@@ -7821,6 +7869,7 @@ const BASELINE_ERP_TERRITORIES = [
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
     }
+    isActivelyLoggingIn = true;
     const usrInput = document.getElementById('loginUsername');
     const pwdInput = document.getElementById('loginPassword');
     const rememberMe = document.getElementById('loginRememberMe') ? document.getElementById('loginRememberMe').checked : true;
@@ -8445,7 +8494,7 @@ const BASELINE_ERP_TERRITORIES = [
             <td class="col-rep" style="${tableColumnVisibility.rep ? '' : 'display:none;'}">
               <div style="font-weight:600; color:#0F172A;">${escapeHtml(formattedAssignedMedRep)}</div>
               <div style="font-size:10.5px; color:#64748B; margin-top:2px;">
-                User ID: <span class="badge badge-user-id">${escapeHtml(row.userId || 'EMP-N/A')}</span>
+                User Account: <span class="badge badge-user-id">${escapeHtml(row.userId || 'N/A')}</span>
                 &bull; Record: <code style="font-size:10px;">${escapeHtml(row.recordId)}</code>
               </div>
             </td>
@@ -8461,9 +8510,12 @@ const BASELINE_ERP_TERRITORIES = [
             <input type="checkbox" class="row-select-checkbox" data-index="${index}" ${isChecked ? 'checked' : ''} onchange="onRowSelectionChange(this, ${index})" style="cursor:pointer; width:16px; height:16px; accent-color:#0066FF;">
           </td>
           ${middleTds}
-          <td class="col-actions" style="width:180px; min-width:180px; max-width:180px; text-align:center;">
-            <div style="display:inline-flex; gap:4px;">
-              <button class="btn btn-sm btn-action-edit" onclick="openEditModal(${index})">Edit</button>
+          <td class="col-actions" style="width:280px; min-width:280px; max-width:280px; text-align:center;">
+            <div style="display:inline-flex; gap:3px; flex-wrap:nowrap; align-items:center;">
+              <button class="btn btn-sm btn-action-edit" onclick="openEditModal(${index})" title="Edit Territory">Edit</button>
+              <button class="btn btn-sm" style="background:#0284C7; color:#FFFFFF; border:none; padding:4px 8px; font-size:11px; font-weight:700; border-radius:4px; cursor:pointer;" onclick="openTreeAddModal('${escapeHtml(row.activeCode || row.latestPrevCode)}', event)" title="Add Child under this territory">+ Child</button>
+              <button class="btn btn-sm" style="background:#475569; color:#FFFFFF; border:none; padding:4px 8px; font-size:11px; font-weight:700; border-radius:4px; cursor:pointer;" onclick="openTreeRenameModal('${escapeHtml(row.activeCode || row.latestPrevCode)}')" title="Rename Territory Code">Rename</button>
+              <button class="btn btn-sm" style="background:#EF4444; color:#FFFFFF; border:none; padding:4px 8px; font-size:11px; font-weight:700; border-radius:4px; cursor:pointer;" onclick="openTreeDeleteModal('${escapeHtml(row.activeCode || row.latestPrevCode)}')" title="Delete Territory">Delete</button>
               <button class="btn btn-sm btn-action-docs" title="View Doctors Covered by MedRep (${docCountNum})" onclick="openCoveredDoctorsModal(${index})">Docs (${docCountNum})</button>
               <button class="btn btn-sm btn-action-audit" title="View Record Audit Trail" onclick="openAuditModal(${index})">Audit</button>
             </div>
@@ -9202,6 +9254,24 @@ const BASELINE_ERP_TERRITORIES = [
 
   let availableSalesPersons = [];
   let availableEmployees = [];
+  // Baseline User Accounts matching ERPNext live instance (Image 1)
+  const BASELINE_USERS = [
+    { name: "aapatalinghug@profinsights.biz", email: "aapatalinghug@profinsights.biz", first_name: "Axle Rose", last_name: "Patalinghug", full_name: "Axle Rose Patalinghug", enabled: 1 },
+    { name: "aarabejo@profinsights.biz", email: "aarabejo@profinsights.biz", first_name: "Arianne Bofil", last_name: "Arabejo", full_name: "Arianne Bofil Arabejo", enabled: 1 },
+    { name: "aarmigos@profinsights.biz", email: "aarmigos@profinsights.biz", first_name: "Allysa", last_name: "Armigos", full_name: "Allysa Armigos", enabled: 1 },
+    { name: "aasarmiento@profinsights.biz", email: "aasarmiento@profinsights.biz", first_name: "April", last_name: "Sarmiento", full_name: "April Sarmiento", enabled: 1 },
+    { name: "jptan@profinsights.biz", email: "jptan@profinsights.biz", first_name: "Jericho", last_name: "Tan", full_name: "Jericho Tan", enabled: 1 },
+    { name: "lesantos@pims-marketing.com", email: "lesantos@pims-marketing.com", first_name: "Leslie", last_name: "Santos", full_name: "Leslie Santos", enabled: 1 },
+    { name: "admin@pims.com", email: "admin@pims.com", first_name: "Administrator", last_name: "PIMS", full_name: "Administrator PIMS", enabled: 1 },
+    { name: "arlaneferraren8@gmail.com", email: "arlaneferraren8@gmail.com", first_name: "Arlane", last_name: "Ferraren", full_name: "Arlane Ferraren", enabled: 1 },
+    { name: "gallegoscharisse@gmail.com", email: "gallegoscharisse@gmail.com", first_name: "Charisse", last_name: "Gallegos", full_name: "Charisse Gallegos", enabled: 1 },
+    { name: "mengoriojorge123@gmail.com", email: "mengoriojorge123@gmail.com", first_name: "Jorge", last_name: "Mengorio", full_name: "Jorge Mengorio", enabled: 1 },
+    { name: "aquino28rick@gmail.com", email: "aquino28rick@gmail.com", first_name: "Rick", last_name: "Aquino", full_name: "Rick Aquino", enabled: 1 },
+    { name: "leritargieian@gmail.com", email: "leritargieian@gmail.com", first_name: "Argie Ian", last_name: "Lerita", full_name: "Argie Ian Lerita", enabled: 1 },
+    { name: "chester.pineda@profinsights.biz", email: "chester.pineda@profinsights.biz", first_name: "Chester", last_name: "Pineda", full_name: "Chester Pineda", enabled: 1 }
+  ];
+  let availableUsers = [];
+
   let activeErpDropdown = null;
 
   function initTerritoryTree() {
@@ -9581,6 +9651,23 @@ const BASELINE_ERP_TERRITORIES = [
     } catch (_) {
       availableEmployees = JSON.parse(JSON.stringify(BASELINE_EMPLOYEES));
     }
+    try {
+      const savedUsers = localStorage.getItem('pims_user_accounts_v1');
+      if (savedUsers) {
+        const parsed = JSON.parse(savedUsers);
+        if (Array.isArray(parsed) && parsed.length >= BASELINE_USERS.length) {
+          availableUsers = parsed;
+        } else {
+          availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
+          localStorage.setItem('pims_user_accounts_v1', JSON.stringify(availableUsers));
+        }
+      } else {
+        availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
+      }
+    } catch (_) {
+      availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
+    }
+
   }
 
   async function syncSalesPersonsAndEmployeesWithERPNext() {
@@ -9628,6 +9715,29 @@ const BASELINE_ERP_TERRITORIES = [
         }
       }
     } catch (_) {}
+
+    // 3. Fetch Users live from ERPNext v15
+    try {
+      const res = await fetch('/api/resource/User?fields=["name","email","first_name","last_name","full_name","enabled"]&limit_page_length=2000', {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        const body = await res.json();
+        const live = body.data || [];
+        if (live.length > 0) {
+          live.forEach(l => {
+            const idx = availableUsers.findIndex(u => u.name === l.name || u.email === l.email);
+            if (idx >= 0) {
+              availableUsers[idx] = Object.assign(availableUsers[idx], l);
+            } else {
+              availableUsers.push(l);
+            }
+          });
+          localStorage.setItem('pims_user_accounts_v1', JSON.stringify(availableUsers));
+        }
+      }
+    } catch (_) {}
+
   }
 
   // --- ERPNext Searchable Select Controller ---
@@ -9746,7 +9856,59 @@ const BASELINE_ERP_TERRITORIES = [
     const rawQ = (query || '').trim();
     const tokens = rawQ.toLowerCase().split(/\s+/).filter(Boolean);
 
-    if (fieldId === 'treeAddManager' || fieldId === 'treeEditManager' || fieldId === 'newSpParent') {
+    if (fieldId === 'treeEditUserAccount' || fieldId === 'treeAddUserAccount' || fieldId === 'editUserAccount' || fieldId === 'addUserAccount' || fieldId === 'newSpUserAccount') {
+      // Filter User Accounts across email, full name, first name, last name (matching Image 1)
+      let matches = availableUsers.filter(u => {
+        if (!tokens.length) return true;
+        const searchable = [
+          u.name || '',
+          u.email || '',
+          u.full_name || '',
+          u.first_name || '',
+          u.last_name || ''
+        ].join(' ').toLowerCase();
+
+        return tokens.every(tok => searchable.includes(tok));
+      });
+
+      if (matches.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.cssText = 'padding: 10px 14px; color: #71717A; font-size: 11.5px;';
+        emptyDiv.innerText = rawQ ? `No User matching "${query}"` : 'No User Accounts available';
+        menu.appendChild(emptyDiv);
+      } else {
+        matches.slice(0, 50).forEach(u => {
+          const item = document.createElement('div');
+          item.className = 'erp-dropdown-item';
+          const email = u.email || u.name;
+          const fullName = u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || email;
+          
+          item.innerHTML = `
+            <div class="erp-dropdown-item-title">${escapeHtml(email)}</div>
+            <div class="erp-dropdown-item-sub">${escapeHtml(fullName)}</div>
+          `;
+          item.onclick = () => selectErpItem(fieldId, email, email, u);
+          menu.appendChild(item);
+        });
+      }
+
+      // Bottom Action Rows matching Image 1
+      const createRow = document.createElement('div');
+      createRow.className = 'erp-dropdown-create-row';
+      createRow.innerHTML = `<span>+</span> <span>Create a new User</span>`;
+      createRow.onclick = (e) => {
+        e.stopPropagation();
+        closeAllErpDropdowns();
+        showToast('User accounts are managed centrally in ERPNext Users & Permissions.', 'info');
+      };
+      menu.appendChild(createRow);
+
+      const advRow = document.createElement('div');
+      advRow.className = 'erp-dropdown-adv-search';
+      advRow.innerHTML = `<span>🔍</span> <span>Advanced Search (${matches.length} Users found)</span>`;
+      menu.appendChild(advRow);
+
+    } else if (fieldId === 'treeAddManager' || fieldId === 'treeEditManager' || fieldId === 'editManager' || fieldId === 'addManager' || fieldId === 'newSpParent') {
       // Filter Sales Persons across all fields (name, sales_person_name, parent_sales_person, employee, department)
       let matches = availableSalesPersons.filter(s => {
         if (!tokens.length) return true;
@@ -9839,17 +10001,12 @@ const BASELINE_ERP_TERRITORIES = [
         });
       }
 
-      // Bottom Action Row: + Create a new Employee (matching Image 2)
+      // SFE Restriction: Adding employee is restricted to HR / System Manager
       if (fieldId === 'newSpEmployee') {
-        const createRow = document.createElement('div');
-        createRow.className = 'erp-dropdown-create-row';
-        createRow.innerHTML = `<span>+</span> <span>Create a new Employee</span>`;
-        createRow.onclick = (e) => {
-          e.stopPropagation();
-          closeAllErpDropdowns();
-          openNewEmployeeModal(rawQ);
-        };
-        menu.appendChild(createRow);
+        const infoRow = document.createElement('div');
+        infoRow.style.cssText = 'padding: 8px 12px; font-size: 11px; color: #A1A1AA; border-top: 1px solid #27272A; display: flex; align-items: center; gap: 6px;';
+        infoRow.innerHTML = `<span>🔒</span> <span>Adding new Employees is restricted to HR / System Manager</span>`;
+        menu.appendChild(infoRow);
       }
 
       const advRow = document.createElement('div');
@@ -9873,6 +10030,7 @@ const BASELINE_ERP_TERRITORIES = [
     
     // Clear Employee selection
     clearErpSelection('newSpEmployee');
+    clearErpSelection('newSpUserAccount');
     
     // Set parent sales person to Sales Team default
     const parentInp = document.getElementById('newSpParentInput');
@@ -9914,6 +10072,7 @@ const BASELINE_ERP_TERRITORIES = [
     const isGrp = document.getElementById('newSpIsGroup').checked ? 1 : 0;
     const isEnabled = document.getElementById('newSpEnabled').checked ? 1 : 0;
 
+    const userAcc = document.getElementById('newSpUserAccountInput') ? document.getElementById('newSpUserAccountInput').value.trim() : '';
     const newSpRecord = {
       name: spName,
       sales_person_name: spName,
@@ -9921,7 +10080,8 @@ const BASELINE_ERP_TERRITORIES = [
       is_group: isGrp,
       enabled: isEnabled,
       employee: empId || null,
-      department: dep || null
+      department: dep || null,
+      user_id: userAcc || null
     };
 
     // Update local list
@@ -9965,6 +10125,7 @@ const BASELINE_ERP_TERRITORIES = [
       if (empId) payload.employee = empId;
       if (dep) payload.department = dep;
       if (commRate) payload.commission_rate = commRate;
+      if (userAcc) payload.user_id = userAcc;
 
       fetch('/api/resource/Sales%20Person', {
         method: 'POST',
@@ -10000,6 +10161,8 @@ const BASELINE_ERP_TERRITORIES = [
 
   // --- MODAL: New Employee (Image 3 Flow) ---
   function openNewEmployeeModal(prefillName) {
+    showToast('Adding new Employees is restricted to HR / System Administrators. SFE may select existing employees or create Sales Persons.', 'warning');
+    return;
     const fnInp = document.getElementById('newEmpFirstName');
     const mnInp = document.getElementById('newEmpMiddleName');
     const lnInp = document.getElementById('newEmpLastName');
@@ -10181,14 +10344,41 @@ const BASELINE_ERP_TERRITORIES = [
   function openTreeAddModal(parentName, event) {
     if (event) event.stopPropagation();
     const parent = parentName || selectedTreeNode || 'All Territories';
-    document.getElementById('treeAddParentLabel').innerText = parent;
-    document.getElementById('treeAddParentInput').value = parent;
+    
+    // Populate Parent Territory select with all group nodes
+    const parentSelect = document.getElementById('treeAddParentSelect');
+    if (parentSelect) {
+      parentSelect.innerHTML = '';
+      const groupNodes = territoryTreeData.filter(t => t.is_group);
+      groupNodes.sort((a, b) => a.name.localeCompare(b.name));
+      if (!groupNodes.some(g => g.name === 'All Territories')) {
+        groupNodes.unshift({ name: 'All Territories' });
+      }
+      groupNodes.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.name;
+        opt.innerText = g.name;
+        if (g.name === parent) opt.selected = true;
+        parentSelect.appendChild(opt);
+      });
+      parentSelect.value = parent;
+    }
+
+    const parentInp = document.getElementById('treeAddParentInput');
+    if (parentInp) parentInp.value = parent;
+    
     document.getElementById('treeAddIsGroup').checked = false;
     const nameInp = document.getElementById('treeAddNameInput');
-    nameInp.value = '';
+    if (nameInp) nameInp.value = '';
+    
     clearErpSelection('treeAddManager');
+    clearErpSelection('treeAddUserAccount');
+    
+    const progInp = document.getElementById('treeAddProgramInput');
+    if (progInp) progInp.value = activeProgram || 'Abbott Diabetes Care';
+
     document.getElementById('treeAddModalOverlay').classList.add('active');
-    setTimeout(() => nameInp.focus(), 100);
+    setTimeout(() => { if (nameInp) nameInp.focus(); }, 100);
   }
 
   function closeTreeAddModal() {
@@ -10196,9 +10386,12 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   async function submitTreeAdd() {
-    const parent = document.getElementById('treeAddParentInput').value.trim();
+    const parentSel = document.getElementById('treeAddParentSelect');
+    const parent = (parentSel ? parentSel.value : document.getElementById('treeAddParentInput').value).trim() || 'All Territories';
     const name = document.getElementById('treeAddNameInput').value.trim();
     const isGroup = document.getElementById('treeAddIsGroup').checked ? 1 : 0;
+    const mgr = document.getElementById('treeAddManagerInput').value.trim();
+    const userAcc = document.getElementById('treeAddUserAccountInput') ? document.getElementById('treeAddUserAccountInput').value.trim() : '';
 
     if (!name) {
       showToast('Please enter a territory name!', 'error');
@@ -10210,7 +10403,6 @@ const BASELINE_ERP_TERRITORIES = [
       return;
     }
 
-    const mgr = document.getElementById('treeAddManagerInput').value.trim();
     const newNode = {
       name: name,
       territory_name: name,
@@ -10229,11 +10421,11 @@ const BASELINE_ERP_TERRITORIES = [
         histCode: name,
         newCode: name,
         district: parent,
-        rep: 'Unassigned Rep',
+        rep: mgr ? `Assigned (${mgr})` : 'Unassigned Rep',
         docs: 0,
         status: 'CHANGED',
         recordId: newRecordId,
-        userId: `EMP-${Math.floor(10000 + Math.random() * 90000)}`,
+        userId: userAcc || `EMP-${Math.floor(10000 + Math.random() * 90000)}`,
         latestPrevCode: name,
         activeCode: name,
         auditTrail: [{
@@ -10334,7 +10526,13 @@ const BASELINE_ERP_TERRITORIES = [
 
     const pt = programTerritories.find(p => p.activeCode === name || p.histCode === name);
     document.getElementById('treeEditProgramInput').value = activeProgram;
-    document.getElementById('treeEditUserIdInput').value = pt ? pt.userId : '';
+    const currentUserId = pt ? (pt.userId || '') : '';
+    const userInp = document.getElementById('treeEditUserAccountInput');
+    const userDisp = document.getElementById('treeEditUserAccountDisplay');
+    const userClr = document.getElementById('treeEditUserAccountClear');
+    if (userInp) userInp.value = currentUserId;
+    if (userDisp) userDisp.value = currentUserId;
+    if (userClr) userClr.style.display = currentUserId ? 'block' : 'none';
     document.getElementById('treeEditDocCount').innerText = `${pt ? (pt.docs || 0) : 0} Doctors Assigned`;
 
     document.getElementById('treeEditModalOverlay').classList.add('active');
@@ -10349,7 +10547,7 @@ const BASELINE_ERP_TERRITORIES = [
     const newParent = document.getElementById('treeEditParentSelect').value;
     const newMgr = document.getElementById('treeEditManagerInput').value.trim();
     const newIsGroup = document.getElementById('treeEditIsGroup').checked ? 1 : 0;
-    const newUserId = document.getElementById('treeEditUserIdInput').value.trim();
+    const newUserId = (document.getElementById('treeEditUserAccountInput') ? document.getElementById('treeEditUserAccountInput').value : '').trim();
 
     const node = territoryTreeData.find(t => t.name === origName);
     if (!node) return;
@@ -10673,7 +10871,41 @@ const BASELINE_ERP_TERRITORIES = [
     document.getElementById('editRecordIndex').value = index;
     document.getElementById('editModalTitle').innerText = `Reconfigure Territory: ${row.activeCode || row.latestPrevCode}`;
     document.getElementById('editRecordId').value = row.recordId || '';
-    document.getElementById('editUserId').value = row.userId || '';
+    
+    // User Account dropdown
+    const editUserIdVal = row.userId || '';
+    const editUserInp = document.getElementById('editUserAccountInput');
+    const editUserDisp = document.getElementById('editUserAccountDisplay');
+    const editUserClr = document.getElementById('editUserAccountClear');
+    if (editUserInp) editUserInp.value = editUserIdVal;
+    if (editUserDisp) editUserDisp.value = editUserIdVal;
+    if (editUserClr) editUserClr.style.display = editUserIdVal ? 'block' : 'none';
+
+    // Territory Manager dropdown
+    const treeNode = territoryTreeData.find(t => t.name === (row.activeCode || row.latestPrevCode));
+    const editMgrVal = treeNode ? (treeNode.territory_manager || '') : '';
+    const editMgrInp = document.getElementById('editManagerInput');
+    const editMgrDisp = document.getElementById('editManagerDisplay');
+    const editMgrClr = document.getElementById('editManagerClear');
+    if (editMgrInp) editMgrInp.value = editMgrVal;
+    if (editMgrDisp) editMgrDisp.value = editMgrVal;
+    if (editMgrClr) editMgrClr.style.display = editMgrVal ? 'block' : 'none';
+
+    // Parent Territory select
+    const parentSel = document.getElementById('editParentSelect');
+    if (parentSel) {
+      parentSel.innerHTML = '';
+      const groupNodes = territoryTreeData.filter(t => t.is_group);
+      groupNodes.sort((a, b) => a.name.localeCompare(b.name));
+      groupNodes.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.name;
+        opt.innerText = g.name;
+        if (g.name === (treeNode ? treeNode.parent_territory : row.district)) opt.selected = true;
+        parentSel.appendChild(opt);
+      });
+    }
+
     document.getElementById('editLatestPrevCode').value = row.latestPrevCode || '';
     document.getElementById('editActiveCode').value = row.activeCode || '';
     document.getElementById('editRepName').value = row.rep ? row.rep.replace(/\s*\([^)]*\)/g, '').trim() : '';
@@ -10722,7 +10954,10 @@ const BASELINE_ERP_TERRITORIES = [
       document.getElementById('editRepName').value = cleanName;
       // Generate new distinct User ID for new MedRep
       const newUserId = `EMP-${Math.floor(10000 + Math.random() * 89999)}`;
-      document.getElementById('editUserId').value = newUserId;
+      const userAccInp = document.getElementById('editUserAccountInput') || document.getElementById('editUserId');
+      if (userAccInp) userAccInp.value = newUserId;
+      const userAccDisp = document.getElementById('editUserAccountDisplay');
+      if (userAccDisp) userAccDisp.value = newUserId;
       document.getElementById('editNotes').value = `Territory transferred to new MedRep: ${cleanName} (${newUserId})`;
       showToast(`Transferred to ${cleanName}! Remember to click Save Changes.`);
     }
@@ -10743,7 +10978,8 @@ const BASELINE_ERP_TERRITORIES = [
     const newRep = document.getElementById('editRepName').value.trim();
     const newDistrict = document.getElementById('editDistrict').value.trim();
     const newDocs = parseInt(document.getElementById('editDocs').value, 10) || 0;
-    const newUserId = document.getElementById('editUserId').value.trim();
+    const userAccInp = document.getElementById('editUserAccountInput') || document.getElementById('editUserId');
+    const newUserId = userAccInp ? userAccInp.value.trim() : (row.userId || '');
     const notes = document.getElementById('editNotes').value.trim() || 'Manual SFE reconfiguration';
 
     if (!newActiveCode) {
@@ -10854,13 +11090,7 @@ const BASELINE_ERP_TERRITORIES = [
 
   // --- ADD NEW TERRITORY MODAL ---
   function openAddModal() {
-    document.getElementById('addActiveCode').value = '';
-    document.getElementById('addPrevCode').value = '';
-    document.getElementById('addRepName').value = '';
-    document.getElementById('addUserId').value = `EMP-${Math.floor(10000 + Math.random() * 89999)}`;
-    document.getElementById('addDistrict').value = '';
-    document.getElementById('addDocs').value = '0';
-    document.getElementById('addModalOverlay').classList.add('active');
+    openTreeAddModal('All Territories');
   }
 
   function closeAddModal() {
@@ -11733,7 +11963,7 @@ const BASELINE_ERP_TERRITORIES = [
     document.getElementById('coveredDocsModalSubtitle').innerHTML = `
       <strong>${escapeHtml(activeProgram)}</strong> &bull; 
       District: <span style="color:#CBD5E1;">${escapeHtml(row.district || 'N/A')}</span> &bull; 
-      User ID: <span class="badge badge-user-id">${escapeHtml(row.userId || 'N/A')}</span> &bull; 
+      User Account: <span class="badge badge-user-id">${escapeHtml(row.userId || 'N/A')}</span> &bull; 
       Record: <code>${escapeHtml(row.recordId)}</code>
     `;
 
@@ -11847,54 +12077,90 @@ const BASELINE_ERP_TERRITORIES = [
 <!-- MODALS: ERPNext Territory Tree Actions (Add, Edit, Rename, Delete) -->
 <!-- ======================================================== -->
 
-<!-- MODAL: New Territory (Image 3) -->
+<!-- MODAL: New Territory / Add Child (Expanded with Edit Capabilities) -->
 <div class="modal-overlay" id="treeAddModalOverlay">
-  <div class="modal-card" style="background:#18181B; border:1px solid #27272A; color:#FFFFFF; max-width:440px; border-radius:12px; padding:22px; box-shadow:0 20px 48px rgba(0,0,0,0.6);">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
-      <h3 style="font-size:16px; font-weight:800; color:#FFFFFF; margin:0;" id="treeAddModalTitle">New Territory</h3>
-      <button type="button" onclick="closeTreeAddModal()" style="background:none; border:none; color:#A1A1AA; font-size:18px; cursor:pointer; line-height:1;">✕</button>
-    </div>
-
-    <!-- Parent Indicator -->
-    <div style="font-size:11.5px; color:#A1A1AA; margin-bottom:16px; background:#27272A; padding:6px 12px; border-radius:6px; border:1px solid #3F3F46;">
-      Parent Territory: <strong id="treeAddParentLabel" style="color:#38BDF8;">All Territories</strong>
-      <input type="hidden" id="treeAddParentInput" value="All Territories">
-    </div>
-
-    <!-- Group Node Checkbox with Help Text matching Image 3 -->
-    <div style="margin-bottom:16px;">
-      <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#FFFFFF; cursor:pointer;">
-        <input type="checkbox" id="treeAddIsGroup" style="width:16px; height:16px; accent-color:#0066FF; cursor:pointer;">
-        <span>Group Node</span>
-      </label>
-      <div style="font-size:11px; color:#A1A1AA; margin-top:4px; margin-left:24px;">
-        Further nodes can be only created under 'Group' type nodes
+  <div class="modal-card" style="background:#18181B; border:1px solid #27272A; color:#FFFFFF; max-width:620px; border-radius:12px; padding:24px; box-shadow:0 20px 48px rgba(0,0,0,0.6);">
+    <!-- Header with Breadcrumb matching Edit Modal -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; border-bottom:1px solid #27272A; padding-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="color:#38BDF8; font-size:13px; font-weight:700;">Territory</span>
+        <span style="color:#71717A;">&gt;</span>
+        <h3 style="font-size:15px; font-weight:800; color:#FFFFFF; margin:0;" id="treeAddModalTitle">New Territory (Add Child)</h3>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button type="button" onclick="submitTreeAdd()" style="background:#FFFFFF; border:none; color:#0F172A; font-size:12.5px; font-weight:700; padding:6px 16px; border-radius:6px; cursor:pointer;">
+          Save
+        </button>
+        <button type="button" onclick="closeTreeAddModal()" style="background:none; border:none; color:#A1A1AA; font-size:18px; cursor:pointer; line-height:1;">✕</button>
       </div>
     </div>
 
-    <!-- Territory Manager Searchable Dropdown matching Image 2 -->
-    <div style="margin-bottom:16px;">
-      <label style="font-size:12px; font-weight:700; color:#FFFFFF; display:block; margin-bottom:6px;">
-        Territory Manager
-      </label>
-      <div class="erp-search-container" id="treeAddManagerContainer">
-        <input type="hidden" id="treeAddManagerInput" value="">
-        <input type="text" id="treeAddManagerDisplay" class="erp-search-input-box" placeholder="Search or select Sales Person..." autocomplete="off" onfocus="openErpDropdown('treeAddManager')" oninput="onErpSearchInput('treeAddManager')">
-        <button type="button" class="erp-clear-btn" id="treeAddManagerClear" onclick="clearErpSelection('treeAddManager')">✕</button>
-        <span class="erp-search-chevron">▼</span>
-        <div class="erp-dropdown-menu" id="treeAddManagerMenu"></div>
+    <!-- Parent Territory & Territory Manager (Mandatory with * but submittable even if empty) -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Parent Territory</label>
+        <select id="treeAddParentSelect" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; cursor:pointer;">
+          <!-- Dynamically populated with all group nodes -->
+        </select>
+        <input type="hidden" id="treeAddParentInput" value="All Territories">
+      </div>
+      <div>
+        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+          Territory Manager <span style="color:#EF4444;">*</span>
+        </label>
+        <div class="erp-search-container" id="treeAddManagerContainer">
+          <input type="hidden" id="treeAddManagerInput" value="">
+          <input type="text" id="treeAddManagerDisplay" class="erp-search-input-box" placeholder="Search or select Sales Person..." autocomplete="off" onfocus="openErpDropdown('treeAddManager')" oninput="onErpSearchInput('treeAddManager')">
+          <button type="button" class="erp-clear-btn" id="treeAddManagerClear" onclick="clearErpSelection('treeAddManager')">✕</button>
+          <span class="erp-search-chevron">▼</span>
+          <div class="erp-dropdown-menu" id="treeAddManagerMenu"></div>
+        </div>
       </div>
     </div>
 
     <!-- Territory Name Field -->
-    <div style="margin-bottom:20px;">
+    <div style="margin-bottom:16px;">
       <label style="font-size:12px; font-weight:700; color:#FFFFFF; display:block; margin-bottom:6px;">
         Territory Name <span style="color:#EF4444;">*</span>
       </label>
       <input type="text" id="treeAddNameInput" placeholder="e.g. AD3 - GMA/EAST LUZON" style="width:100%; height:38px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 12px; color:#FFFFFF; font-size:13px; outline:none;" onkeydown="if(event.key==='Enter') submitTreeAdd()">
     </div>
 
-    <!-- Actions matching Image 3 -->
+    <!-- Checkbox Is Group -->
+    <div style="margin-bottom:16px;">
+      <label style="display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#FFFFFF; cursor:pointer;">
+        <input type="checkbox" id="treeAddIsGroup" style="width:16px; height:16px; accent-color:#0066FF; cursor:pointer;">
+        <span>Is Group</span>
+      </label>
+      <div style="font-size:11px; color:#A1A1AA; margin-top:4px; margin-left:24px;">
+        Further nodes can be only created under 'Group' type nodes
+      </div>
+    </div>
+
+    <!-- Account / Program & User Account Dropdown (matching Image 1) -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Account / Program</label>
+        <input type="text" id="treeAddProgramInput" placeholder="e.g. Abbott Diabetes Care" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px;">
+      </div>
+      <div>
+        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">User Account</label>
+        <div class="erp-search-container" id="treeAddUserAccountContainer">
+          <input type="hidden" id="treeAddUserAccountInput" value="">
+          <input type="text" id="treeAddUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User Account..." autocomplete="off" onfocus="openErpDropdown('treeAddUserAccount')" oninput="onErpSearchInput('treeAddUserAccount')">
+          <button type="button" class="erp-clear-btn" id="treeAddUserAccountClear" onclick="clearErpSelection('treeAddUserAccount')">✕</button>
+          <span class="erp-search-chevron">▼</span>
+          <div class="erp-dropdown-menu" id="treeAddUserAccountMenu"></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:#27272A; border-radius:8px; padding:12px 16px; font-size:12px; color:#D4D4D8; display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <span>Covered Doctor Masterlist Links:</span>
+      <span style="font-weight:700; color:#38BDF8;" id="treeAddDocCount">0 Doctors Assigned (Initial)</span>
+    </div>
+
+    <!-- Actions -->
     <div style="display:flex; justify-content:flex-end; gap:10px;">
       <button type="button" onclick="closeTreeAddModal()" style="background:#27272A; border:1px solid #3F3F46; color:#E4E4E7; font-size:12px; font-weight:600; padding:7px 16px; border-radius:6px; cursor:pointer;">
         Cancel
@@ -11934,7 +12200,7 @@ const BASELINE_ERP_TERRITORIES = [
         </select>
       </div>
       <div>
-        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Territory Manager</label>
+        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Territory Manager <span style="color:#EF4444;">*</span></label>
         <div class="erp-search-container" id="treeEditManagerContainer">
           <input type="hidden" id="treeEditManagerInput" value="">
           <input type="text" id="treeEditManagerDisplay" class="erp-search-input-box" placeholder="Search or select Sales Person..." autocomplete="off" onfocus="openErpDropdown('treeEditManager')" oninput="onErpSearchInput('treeEditManager')">
@@ -11959,8 +12225,14 @@ const BASELINE_ERP_TERRITORIES = [
         <input type="text" id="treeEditProgramInput" placeholder="e.g. Abbott Diabetes Care" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px;">
       </div>
       <div>
-        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">User ID</label>
-        <input type="text" id="treeEditUserIdInput" placeholder="e.g. EMP-10023" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px;">
+        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">User Account</label>
+        <div class="erp-search-container" id="treeEditUserAccountContainer">
+          <input type="hidden" id="treeEditUserAccountInput" value="">
+          <input type="text" id="treeEditUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User Account..." autocomplete="off" onfocus="openErpDropdown('treeEditUserAccount')" oninput="onErpSearchInput('treeEditUserAccount')">
+          <button type="button" class="erp-clear-btn" id="treeEditUserAccountClear" onclick="clearErpSelection('treeEditUserAccount')">✕</button>
+          <span class="erp-search-chevron">▼</span>
+          <div class="erp-dropdown-menu" id="treeEditUserAccountMenu"></div>
+        </div>
       </div>
     </div>
 
@@ -12045,7 +12317,21 @@ const BASELINE_ERP_TERRITORIES = [
           </select>
         </div>
 
-        <!-- Left: Commission Rate -->
+        <!-- Left: User Account (Labeled User Account instead of User ID matching Image 1) -->
+        <div>
+          <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+            User Account
+          </label>
+          <div class="erp-search-container" id="newSpUserAccountContainer">
+            <input type="hidden" id="newSpUserAccountInput" value="">
+            <input type="text" id="newSpUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User Account..." autocomplete="off" onfocus="openErpDropdown('newSpUserAccount')" oninput="onErpSearchInput('newSpUserAccount')">
+            <button type="button" class="erp-clear-btn" id="newSpUserAccountClear" onclick="clearErpSelection('newSpUserAccount')">✕</button>
+            <span class="erp-search-chevron">▼</span>
+            <div class="erp-dropdown-menu" id="newSpUserAccountMenu"></div>
+          </div>
+        </div>
+
+        <!-- Right: Commission Rate -->
         <div>
           <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
             Commission Rate
