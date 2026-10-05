@@ -7,6 +7,8 @@ import urllib.parse
 import ssl
 import http.cookiejar
 import concurrent.futures
+import secrets
+import time
 
 # 1. Enterprise Streamlit Page Configuration
 st.set_page_config(
@@ -422,6 +424,57 @@ def execute_tree_action(opener, action, payload):
     except Exception as e:
         return "error", f"Network error: {str(e)}"
 
+
+# Persistent Cross-Refresh Session Cache
+if "ACTIVE_SESSIONS" not in globals():
+    ACTIVE_SESSIONS = {}
+
+SESSION_MAX_AGE_SECONDS = 7 * 86400  # 7 days
+
+def get_query_param(key):
+    try:
+        if hasattr(st, "query_params"):
+            return st.query_params.get(key)
+        elif hasattr(st, "experimental_get_query_params"):
+            vals = st.experimental_get_query_params().get(key, [])
+            return vals[0] if vals else None
+    except Exception:
+        pass
+    return None
+
+def set_query_param(key, value):
+    try:
+        if hasattr(st, "query_params"):
+            st.query_params[key] = value
+        elif hasattr(st, "experimental_set_query_params"):
+            st.experimental_set_query_params(**{key: value})
+    except Exception:
+        pass
+
+def clear_query_param(key=None):
+    try:
+        if hasattr(st, "query_params"):
+            if key:
+                if key in st.query_params:
+                    del st.query_params[key]
+            else:
+                st.query_params.clear()
+        elif hasattr(st, "experimental_set_query_params"):
+            if key:
+                params = st.experimental_get_query_params()
+                params.pop(key, None)
+                st.experimental_set_query_params(**params)
+            else:
+                st.experimental_set_query_params()
+    except Exception:
+        pass
+
+def purge_expired_sessions():
+    now = time.time()
+    expired = [k for k, v in ACTIVE_SESSIONS.items() if now - v.get("last_active", 0) > SESSION_MAX_AGE_SECONDS]
+    for k in expired:
+        ACTIVE_SESSIONS.pop(k, None)
+
 # 3. Mount Territory Reconfiguration Portal Component
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(CURRENT_DIR, "index.html")
@@ -433,6 +486,26 @@ if not os.path.exists(INDEX_HTML) and os.path.exists(PORTAL_HTML):
     shutil.copy2(PORTAL_HTML, INDEX_HTML)
 
 portal_component = components.declare_component("pims_portal", path=CURRENT_DIR)
+
+# Restore persistent session across page refresh if present in query parameters
+session_token = get_query_param("sfe_session")
+if session_token and session_token in ACTIVE_SESSIONS:
+    cached_session = ACTIVE_SESSIONS[session_token]
+    cached_session["last_active"] = time.time()
+    if "auth_response" not in st.session_state or not st.session_state["auth_response"]:
+        st.session_state["auth_response"] = cached_session.get("auth_response")
+    if "opener" not in st.session_state or not st.session_state["opener"]:
+        st.session_state["opener"] = cached_session.get("opener")
+    if "live_territories" not in st.session_state or not st.session_state["live_territories"]:
+        st.session_state["live_territories"] = cached_session.get("live_territories")
+    if "live_sales_persons" not in st.session_state or not st.session_state["live_sales_persons"]:
+        st.session_state["live_sales_persons"] = cached_session.get("live_sales_persons")
+    if "live_employees" not in st.session_state or not st.session_state["live_employees"]:
+        st.session_state["live_employees"] = cached_session.get("live_employees")
+    st.session_state["session_token"] = session_token
+elif session_token:
+    clear_query_param("sfe_session")
+
 
 if "auth_response" not in st.session_state:
     st.session_state["auth_response"] = None
@@ -485,6 +558,20 @@ if component_val and isinstance(component_val, dict):
                 except Exception as ex:
                     print(f"[Streamlit Data Fetch Warning] {ex}")
                     st.session_state["live_territories"] = fetch_live_territories(opener)
+            if res.get("authorized") and opener:
+                purge_expired_sessions()
+                token = secrets.token_urlsafe(32)
+                ACTIVE_SESSIONS[token] = {
+                    "auth_response": res,
+                    "opener": opener,
+                    "live_territories": st.session_state["live_territories"],
+                    "live_sales_persons": st.session_state["live_sales_persons"],
+                    "live_employees": st.session_state["live_employees"],
+                    "last_active": time.time()
+                }
+                set_query_param("sfe_session", token)
+                st.session_state["session_token"] = token
+
             # Immediately scrub credentials from memory and component payload
             if "pwd" in component_val:
                 component_val["pwd"] = ""
@@ -492,12 +579,17 @@ if component_val and isinstance(component_val, dict):
             del usr
             st.rerun()
         elif action == "logout":
+            token = st.session_state.get("session_token") or get_query_param("sfe_session")
+            if token and token in ACTIVE_SESSIONS:
+                ACTIVE_SESSIONS.pop(token, None)
+            clear_query_param("sfe_session")
             st.session_state["auth_response"] = None
             st.session_state["opener"] = None
             st.session_state["live_territories"] = None
             st.session_state["live_sales_persons"] = None
             st.session_state["live_employees"] = None
             st.session_state["tree_sync_event"] = None
+            st.session_state["session_token"] = None
             st.rerun()
         elif action in ["tree_add", "tree_edit", "tree_rename", "tree_delete", "tree_refresh", "sales_person_create", "employee_create"]:
             opener = st.session_state.get("opener")
@@ -506,6 +598,12 @@ if component_val and isinstance(component_val, dict):
                 st.session_state["live_territories"] = fetch_live_territories(opener)
                 st.session_state["live_sales_persons"] = fetch_live_sales_persons(opener)
                 st.session_state["live_employees"] = fetch_live_employees(opener)
+                token = st.session_state.get("session_token")
+                if token and token in ACTIVE_SESSIONS:
+                    ACTIVE_SESSIONS[token]["live_territories"] = st.session_state["live_territories"]
+                    ACTIVE_SESSIONS[token]["live_sales_persons"] = st.session_state["live_sales_persons"]
+                    ACTIVE_SESSIONS[token]["live_employees"] = st.session_state["live_employees"]
+                    ACTIVE_SESSIONS[token]["last_active"] = time.time()
             st.session_state["tree_sync_event"] = {
                 "action": action,
                 "status": status,

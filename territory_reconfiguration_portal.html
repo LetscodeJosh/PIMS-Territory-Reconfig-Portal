@@ -7624,10 +7624,21 @@ const BASELINE_ERP_TERRITORIES = [
   let isActivelyLoggingIn = false;
 
   function checkAuthSession() {
-    // When opened or refreshed, NEVER auto-login - always require user to log in on the login page first
-    localStorage.removeItem('sfe_portal_user');
-    sessionStorage.removeItem('sfe_portal_user');
-    sessionStorage.removeItem('sfe_portal_logged_out');
+    // Restore persistent session from session/local storage across page refresh
+    try {
+      const isExplicitlyLoggedOut = sessionStorage.getItem('sfe_portal_logged_out') === '1';
+      if (!isExplicitlyLoggedOut) {
+        const stored = sessionStorage.getItem('sfe_portal_user') || localStorage.getItem('sfe_portal_user');
+        if (stored) {
+          const u = JSON.parse(stored);
+          if (u && (u.email || u.full_name)) {
+            authenticatedUser = u;
+            showAppView();
+            return true;
+          }
+        }
+      }
+    } catch (_) {}
     authenticatedUser = null;
     showLoginView();
     return false;
@@ -7954,12 +7965,6 @@ const BASELINE_ERP_TERRITORIES = [
         }
 
         if (auth) {
-          if (!isActivelyLoggingIn) {
-            // Browser refreshed or reloaded: ignore stale cached session and remain on login screen
-            return;
-          }
-          isActivelyLoggingIn = false;
-
           if (streamlitLoginWatchdog) {
             clearTimeout(streamlitLoginWatchdog);
             streamlitLoginWatchdog = null;
@@ -7971,30 +7976,34 @@ const BASELINE_ERP_TERRITORIES = [
           if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
 
           if (auth.success && auth.authorized && auth.user) {
+            sessionStorage.removeItem('sfe_portal_logged_out');
+            try {
+              sessionStorage.setItem('sfe_portal_user', JSON.stringify(auth.user));
+              localStorage.setItem('sfe_portal_user', JSON.stringify(auth.user));
+            } catch (_) {}
             const errBox = document.getElementById('loginErrorBox');
             if (errBox) {
               errBox.style.display = 'none';
-              errBox.innerHTML = '';
+              errBox.innerText = '';
             }
-
-            const isFirstLogin = !authenticatedUser || (authenticatedUser.email !== auth.user.email) || !loginNotificationShown;
-            sessionStorage.removeItem('sfe_portal_logged_out');
-            sessionStorage.setItem('sfe_portal_user', JSON.stringify(auth.user));
-            
-            // Apply authenticated state; only show bottom-right notification on true first login
-            applyAuthenticatedUser(auth.user, isFirstLogin);
-
-            // Only display welcome toast once on initial login, never on zoom/resize rerenders
-            if (isFirstLogin) {
-              loginNotificationShown = true;
-              showToast(`Welcome back, ${auth.user.full_name || auth.user.email}! Signed in as ${auth.user.role_title}.`);
+            authenticatedUser = auth.user;
+            showAppView();
+            if (isActivelyLoggingIn) {
+              showToast(auth.message || `Welcome back, ${auth.user.full_name}!`, 'success');
+              isActivelyLoggingIn = false;
             }
-          } else {
-            showLoginError(auth.message || 'Invalid username or password. Please verify your credentials registered in https://dev.pmii-marketing.com/app/user.');
+          } else if (auth.message) {
+            isActivelyLoggingIn = false;
+            const errBox = document.getElementById('loginErrorBox');
+            if (errBox) {
+              errBox.style.display = 'block';
+              errBox.innerText = auth.message;
+            }
+            showToast(auth.message, 'error');
+            showLoginView();
           }
         }
 
-        // Live territory tree updates from ERPNext via Streamlit
         if (liveTerrs && Array.isArray(liveTerrs) && liveTerrs.length > 0) {
           if (!liveTerrs.some(t => t.name === 'All Territories')) {
             liveTerrs.unshift({
