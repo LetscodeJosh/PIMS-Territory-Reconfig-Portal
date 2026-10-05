@@ -1237,12 +1237,186 @@
   }
 
   #editorTable th.col-actions, #editorTable td.col-actions {
-    width: 180px !important;
-    min-width: 180px !important;
-    max-width: 180px !important;
+    width: 110px !important;
+    min-width: 110px !important;
+    max-width: 110px !important;
     text-align: center !important;
     padding-left: 6px;
     padding-right: 6px;
+  }
+
+  /* Grid Row Actions Trigger Button */
+  .btn-grid-action-trigger {
+    background: #0F172A;
+    color: #38BDF8;
+    border: 1px solid #334155;
+    padding: 4px 11px;
+    font-size: 11.5px;
+    font-weight: 700;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+    white-space: nowrap;
+  }
+  .btn-grid-action-trigger:hover, .btn-grid-action-trigger.active {
+    background: #0284C7;
+    color: #FFFFFF;
+    border-color: #0284C7;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.4);
+  }
+  .btn-grid-action-trigger svg {
+    transition: transform 0.15s ease;
+  }
+  .btn-grid-action-trigger.active svg {
+    transform: rotate(180deg);
+  }
+
+  /* Grid Row Actions Popover Menu */
+  .grid-actions-popover {
+    position: fixed;
+    z-index: 99999;
+    min-width: 230px;
+    max-width: 260px;
+    background: #0F172A;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    animation: popoverFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+  }
+
+  @keyframes popoverFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .grid-actions-header {
+    padding: 6px 8px 5px 8px;
+    border-bottom: 1px solid #1E293B;
+    margin-bottom: 4px;
+  }
+
+  .grid-actions-label {
+    display: block;
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #94A3B8;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+
+  .grid-actions-terr-name {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #38BDF8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+  }
+
+  .grid-actions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .grid-action-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 5px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.12s ease;
+    color: #E2E8F0;
+  }
+
+  .grid-action-item:hover {
+    background: #1E293B;
+    color: #FFFFFF;
+  }
+
+  .grid-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .grid-action-icon.edit-icon { background: rgba(59, 130, 246, 0.18); color: #60A5FA; }
+  .grid-action-icon.add-icon { background: rgba(16, 185, 129, 0.18); color: #34D399; }
+  .grid-action-icon.rename-icon { background: rgba(168, 85, 247, 0.18); color: #C084FC; }
+  .grid-action-icon.delete-icon { background: rgba(239, 68, 68, 0.18); color: #F87171; }
+  .grid-action-icon.docs-icon { background: rgba(14, 165, 233, 0.18); color: #38BDF8; }
+  .grid-action-icon.audit-icon { background: rgba(148, 163, 184, 0.18); color: #CBD5E1; }
+
+  .grid-action-texts {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .grid-action-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: inherit;
+  }
+
+  .grid-action-desc {
+    font-size: 9.5px;
+    color: #94A3B8;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .grid-action-item.danger-item:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #FCA5A5;
+  }
+  .grid-action-item.danger-item:hover .grid-action-title {
+    color: #FCA5A5;
+  }
+  .grid-action-item.danger-item:hover .grid-action-desc {
+    color: #F87171;
+  }
+
+  .grid-action-badge {
+    background: #1E293B;
+    border: 1px solid #334155;
+    color: #38BDF8;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+  }
+
+  .grid-actions-divider {
+    height: 1px;
+    background: #1E293B;
+    margin: 4px 0;
   }
 
   /* Centered Bottom Pagination Switch (Document flow: remains cleanly at bottom, zero row overlap on scroll) */
@@ -1838,7 +2012,7 @@
                   <th class="col-rep" style="width:28%;">Assigned MedRep</th>
                   <th class="col-docs" style="width:12%; text-align:center;">Doctor Count</th>
                   <th class="col-status" style="width:14%;">Status</th>
-                  <th class="col-actions" style="width:180px; min-width:180px; max-width:180px; text-align:center;">Actions</th>
+                  <th class="col-actions" style="width:110px; min-width:110px; max-width:110px; text-align:center;">Actions</th>
                 </tr>
               </thead>
               <tbody id="editorTableBody">
@@ -8494,15 +8668,13 @@ const BASELINE_ERP_TERRITORIES = [
             <input type="checkbox" class="row-select-checkbox" data-index="${index}" ${isChecked ? 'checked' : ''} onchange="onRowSelectionChange(this, ${index})" style="cursor:pointer; width:16px; height:16px; accent-color:#0066FF;">
           </td>
           ${middleTds}
-          <td class="col-actions" style="width:280px; min-width:280px; max-width:280px; text-align:center;">
-            <div style="display:inline-flex; gap:3px; flex-wrap:nowrap; align-items:center;">
-              <button class="btn btn-sm btn-action-edit" onclick="openEditModal(${index})" title="Edit Territory">Edit</button>
-              <button class="btn btn-sm" style="background:#0284C7; color:#FFFFFF; border:none; padding:4px 8px; font-size:11px; font-weight:700; border-radius:4px; cursor:pointer;" onclick="openTreeAddModal('${escapeHtml(row.activeCode || row.latestPrevCode)}', event)" title="Add Child under this territory">+ Child</button>
-              <button class="btn btn-sm" style="background:#475569; color:#FFFFFF; border:none; padding:4px 8px; font-size:11px; font-weight:700; border-radius:4px; cursor:pointer;" onclick="openTreeRenameModal('${escapeHtml(row.activeCode || row.latestPrevCode)}')" title="Rename Territory Code">Rename</button>
-              <button class="btn btn-sm" style="background:#EF4444; color:#FFFFFF; border:none; padding:4px 8px; font-size:11px; font-weight:700; border-radius:4px; cursor:pointer;" onclick="openTreeDeleteModal('${escapeHtml(row.activeCode || row.latestPrevCode)}')" title="Delete Territory">Delete</button>
-              <button class="btn btn-sm btn-action-docs" title="View Doctors Covered by MedRep (${docCountNum})" onclick="openCoveredDoctorsModal(${index})">Docs (${docCountNum})</button>
-              <button class="btn btn-sm btn-action-audit" title="View Record Audit Trail" onclick="openAuditModal(${index})">Audit</button>
-            </div>
+          <td class="col-actions" style="width:110px; min-width:110px; max-width:110px; text-align:center;">
+            <button type="button" class="btn btn-sm btn-grid-action-trigger" onclick="toggleGridActionDropdown(event, ${index})" title="Actions for ${escapeHtml(row.activeCode || row.latestPrevCode)}">
+              <span>Actions</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-top:1px;">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
           </td>
         `;
         tbody.appendChild(tr);
@@ -10322,6 +10494,121 @@ const BASELINE_ERP_TERRITORIES = [
     showToast(`Employee "${fullName}" created and linked to Sales Person!`, 'success');
   }
 
+  
+  // --- TABLE GRID ACTIONS DROPDOWN LOGIC ---
+  let activeGridActionIndex = null;
+  let activeGridActionCode = null;
+
+  function toggleGridActionDropdown(event, index) {
+    if (event && typeof event.stopPropagation === 'function') {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+
+    const row = programTerritories[index];
+    if (!row) return;
+
+    const terrCode = row.activeCode || row.latestPrevCode || row.histCode;
+    const docCount = parseInt(row.docs, 10) || 0;
+
+    const menu = document.getElementById('gridRowActionsMenu');
+    if (!menu) return;
+
+    // Check if clicking same button to toggle close
+    if (menu.style.display === 'block' && activeGridActionIndex === index) {
+      closeGridActionDropdown();
+      return;
+    }
+
+    // Close any existing open dropdown
+    closeGridActionDropdown();
+
+    activeGridActionIndex = index;
+    activeGridActionCode = terrCode;
+
+    // Update header name and badge
+    const terrNameEl = document.getElementById('gridActionTerrName');
+    if (terrNameEl) terrNameEl.innerText = terrCode;
+    const docCountEl = document.getElementById('gridActionDocCount');
+    if (docCountEl) docCountEl.innerText = docCount;
+
+    // Mark current button active
+    const btn = event.currentTarget;
+    if (btn) btn.classList.add('active');
+
+    // Display & Position menu
+    menu.style.display = 'block';
+
+    const rect = btn.getBoundingClientRect();
+    const menuWidth = menu.offsetWidth || 240;
+    const menuHeight = menu.offsetHeight || 280;
+
+    let top = rect.bottom + 4;
+    // Flip up if bottom overflows viewport
+    if (top + menuHeight > window.innerHeight - 10) {
+      top = Math.max(10, rect.top - menuHeight - 4);
+    }
+
+    let left = rect.right - menuWidth;
+    if (left < 10) left = 10;
+    if (left + menuWidth > window.innerWidth - 10) {
+      left = window.innerWidth - menuWidth - 10;
+    }
+
+    menu.style.top = `${top}px`;
+    menu.style.left = `${left}px`;
+  }
+
+  function closeGridActionDropdown() {
+    const menu = document.getElementById('gridRowActionsMenu');
+    if (menu) menu.style.display = 'none';
+    document.querySelectorAll('.btn-grid-action-trigger.active').forEach(b => b.classList.remove('active'));
+    activeGridActionIndex = null;
+    activeGridActionCode = null;
+  }
+
+  function handleGridActionClick(actionType) {
+    const idx = activeGridActionIndex;
+    const code = activeGridActionCode;
+    closeGridActionDropdown();
+
+    if (idx === null || !code) return;
+
+    if (actionType === 'edit') {
+      openTreeEditModal(code);
+    } else if (actionType === 'add_child') {
+      openTreeAddModal(code);
+    } else if (actionType === 'rename') {
+      openTreeRenameModal(code);
+    } else if (actionType === 'delete') {
+      openTreeDeleteModal(code);
+    } else if (actionType === 'docs') {
+      openCoveredDoctorsModal(idx);
+    } else if (actionType === 'audit') {
+      openAuditModal(idx);
+    }
+  }
+
+  // Global listeners to automatically close dropdown on click outside, scroll, or Escape
+  window.addEventListener('click', (e) => {
+    const menu = document.getElementById('gridRowActionsMenu');
+    if (menu && menu.style.display === 'block') {
+      if (!menu.contains(e.target) && !e.target.closest('.btn-grid-action-trigger')) {
+        closeGridActionDropdown();
+      }
+    }
+  });
+
+  window.addEventListener('scroll', () => {
+    closeGridActionDropdown();
+  }, true);
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeGridActionDropdown();
+    }
+  });
+
   // --- TREE MODAL ACTIONS (Add, Edit, Rename, Delete) ---
 
   // 1. ADD CHILD
@@ -10337,6 +10624,9 @@ const BASELINE_ERP_TERRITORIES = [
       groupNodes.sort((a, b) => a.name.localeCompare(b.name));
       if (!groupNodes.some(g => g.name === 'All Territories')) {
         groupNodes.unshift({ name: 'All Territories' });
+      }
+      if (parent && !groupNodes.some(g => g.name === parent)) {
+        groupNodes.push({ name: parent });
       }
       groupNodes.forEach(g => {
         const opt = document.createElement('option');
@@ -10478,9 +10768,19 @@ const BASELINE_ERP_TERRITORIES = [
 
   // 2. EDIT
   function openTreeEditModal(name, event) {
-    if (event) event.stopPropagation();
-    const node = territoryTreeData.find(t => t.name === name);
-    if (!node) return;
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+    let node = territoryTreeData.find(t => t.name === name || t.territory_name === name);
+    if (!node) {
+      const row = programTerritories.find(p => (p.activeCode === name || p.histCode === name || p.latestPrevCode === name));
+      node = {
+        name: name,
+        territory_name: name,
+        parent_territory: row ? (row.district || 'All Territories') : 'All Territories',
+        is_group: 0,
+        territory_manager: row ? (row.rep ? row.rep.replace(/\s*\([^)]*\)/g, '').trim() : null) : null
+      };
+      territoryTreeData.push(node);
+    }
 
     document.getElementById('treeEditModalTitle').innerText = name;
     document.getElementById('treeEditOrigName').value = name;
@@ -12555,5 +12855,92 @@ const BASELINE_ERP_TERRITORIES = [
   </div>
 </div>
 
+<!-- GLOBAL FLOATING DROPDOWN FOR TABLE ROW ACTIONS -->
+<div id="gridRowActionsMenu" class="grid-actions-popover" style="display:none;" onclick="event.stopPropagation();">
+  <div class="grid-actions-header">
+    <span class="grid-actions-label">TERRITORY ACTIONS</span>
+    <span class="grid-actions-terr-name" id="gridActionTerrName">---</span>
+  </div>
+  <div class="grid-actions-list">
+    <button type="button" class="grid-action-item" id="gridActionEdit" onclick="handleGridActionClick('edit')">
+      <span class="grid-action-icon edit-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+      </span>
+      <div class="grid-action-texts">
+        <span class="grid-action-title">Edit</span>
+        <span class="grid-action-desc">Edit territory properties & manager</span>
+      </div>
+    </button>
+    <button type="button" class="grid-action-item" id="gridActionAddChild" onclick="handleGridActionClick('add_child')">
+      <span class="grid-action-icon add-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="16"></line>
+          <line x1="8" y1="12" x2="16" y2="12"></line>
+        </svg>
+      </span>
+      <div class="grid-action-texts">
+        <span class="grid-action-title">Add Child</span>
+        <span class="grid-action-desc">Create child territory under this node</span>
+      </div>
+    </button>
+    <button type="button" class="grid-action-item" id="gridActionRename" onclick="handleGridActionClick('rename')">
+      <span class="grid-action-icon rename-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+          <line x1="7" y1="7" x2="7.01" y2="7"></line>
+        </svg>
+      </span>
+      <div class="grid-action-texts">
+        <span class="grid-action-title">Rename</span>
+        <span class="grid-action-desc">Rename territory name in tree & ERPNext</span>
+      </div>
+    </button>
+    <button type="button" class="grid-action-item danger-item" id="gridActionDelete" onclick="handleGridActionClick('delete')">
+      <span class="grid-action-icon delete-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+      </span>
+      <div class="grid-action-texts">
+        <span class="grid-action-title">Delete</span>
+        <span class="grid-action-desc">Remove from tree and ERPNext</span>
+      </div>
+    </button>
+    
+    <div class="grid-actions-divider"></div>
+
+    <button type="button" class="grid-action-item" id="gridActionDocs" onclick="handleGridActionClick('docs')">
+      <span class="grid-action-icon docs-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      </span>
+      <div class="grid-action-texts" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+        <span class="grid-action-title">Covered Doctors</span>
+        <span class="grid-action-badge" id="gridActionDocCount">0</span>
+      </div>
+    </button>
+    <button type="button" class="grid-action-item" id="gridActionAudit" onclick="handleGridActionClick('audit')">
+      <span class="grid-action-icon audit-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </span>
+      <div class="grid-action-texts">
+        <span class="grid-action-title">Audit Trail</span>
+        <span class="grid-action-desc">View change history & logs</span>
+      </div>
+    </button>
+  </div>
+</div>
 </body>
 </html>
