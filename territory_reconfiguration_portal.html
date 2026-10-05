@@ -1404,6 +1404,150 @@
     }
   }
 
+
+  /* --- ERPNext-Style Searchable Select Dropdown & Modals --- */
+  .erp-search-container {
+    position: relative;
+    width: 100%;
+  }
+
+  .erp-search-input-box {
+    width: 100%;
+    height: 36px;
+    background: #27272A;
+    border: 1px solid #3F3F46;
+    border-radius: 6px;
+    padding: 0 32px 0 10px;
+    color: #FFFFFF;
+    font-size: 12.5px;
+    outline: none;
+    box-sizing: border-box;
+    cursor: text;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .erp-search-input-box:focus {
+    border-color: #38BDF8;
+    box-shadow: 0 0 0 1px #38BDF8;
+  }
+
+  .erp-search-chevron {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #A1A1AA;
+    font-size: 11px;
+    pointer-events: none;
+  }
+
+  .erp-clear-btn {
+    position: absolute;
+    right: 26px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #71717A;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    display: none;
+    padding: 2px 4px;
+  }
+
+  .erp-clear-btn:hover {
+    color: #EF4444;
+  }
+
+  .erp-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 100%;
+    max-height: 250px;
+    background: #18181B;
+    border: 1px solid #3F3F46;
+    border-radius: 8px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
+    overflow-y: auto;
+    z-index: 10500;
+    display: none;
+    padding: 4px 0;
+  }
+
+  .erp-dropdown-menu.active {
+    display: block;
+  }
+
+  .erp-dropdown-item {
+    padding: 8px 12px;
+    margin: 2px 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .erp-dropdown-item:hover, .erp-dropdown-item.focused {
+    background: #27272A;
+  }
+
+  .erp-dropdown-item-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #FFFFFF;
+    line-height: 1.3;
+  }
+
+  .erp-dropdown-item-sub {
+    font-size: 11px;
+    color: #A1A1AA;
+    margin-top: 2px;
+    line-height: 1.2;
+  }
+
+  .erp-dropdown-create-row {
+    border-top: 1px solid #27272A;
+    margin-top: 4px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #38BDF8;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 0 0 6px 6px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .erp-dropdown-create-row:hover {
+    background: #27272A;
+    color: #60A5FA;
+  }
+
+  .erp-dropdown-adv-search {
+    padding: 6px 12px 6px 12px;
+    font-size: 11px;
+    color: #71717A;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-top: 1px solid #27272A;
+  }
+
+  .erp-badge-not-saved {
+    background: #78350F;
+    color: #FBBF24;
+    border: 1px solid #B45309;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
 </style>
 </head>
 <body>
@@ -7565,7 +7709,20 @@ const BASELINE_ERP_TERRITORIES = [
       isStreamlitActive = true;
       const auth = event.data.args ? event.data.args.auth_response : null;
       const liveTerrs = event.data.args ? event.data.args.live_territories : null;
+      const liveSalesPersons = event.data.args ? event.data.args.live_sales_persons : null;
+      const liveEmployees = event.data.args ? event.data.args.live_employees : null;
       const treeSync = event.data.args ? event.data.args.tree_sync_event : null;
+
+      if (liveSalesPersons && Array.isArray(liveSalesPersons) && liveSalesPersons.length > 0) {
+        availableSalesPersons = liveSalesPersons;
+        localStorage.setItem('pims_sales_persons_v1', JSON.stringify(liveSalesPersons));
+        populateParentSalesPersonSelect();
+      }
+
+      if (liveEmployees && Array.isArray(liveEmployees) && liveEmployees.length > 0) {
+        availableEmployees = liveEmployees;
+        localStorage.setItem('pims_employees_v1', JSON.stringify(liveEmployees));
+      }
 
       if (auth) {
         const btn = document.getElementById('loginSubmitBtn');
@@ -8990,7 +9147,17 @@ const BASELINE_ERP_TERRITORIES = [
   let selectedTreeNode = 'Abbott DC Territories';
   let treeFilterQuery = '';
 
+  
+  // Baseline masterlists for Sales Person Tree and Employee DocType (Dev & Offline Fallback)
+  const BASELINE_SALES_PERSONS = [{"name":"Abegail Abaygar (VIV-03)","sales_person_name":"Abegail Abaygar (VIV-03)","parent_sales_person":"Sam Kabigting (VIV-1)","employee":"","is_group":0},{"name":"Adelaine Pe\u00f1a (EM8)","sales_person_name":"Adelaine Pe\u00f1a (EM8)","parent_sales_person":"Marilyn Rizon-Rey (District 3 - East GMA)","employee":"","is_group":0},{"name":"Admin","sales_person_name":"Admin","parent_sales_person":"Sales Team","employee":"","is_group":1},{"name":"Adrian Dacillo (BA6-06)","sales_person_name":"Adrian Dacillo (BA6-06)","parent_sales_person":"Christina Tangkay (BA6)","employee":"","is_group":0},{"name":"Adrian Halid Kimbel (BA8-06)","sales_person_name":"Adrian Halid Kimbel (BA8-06)","parent_sales_person":"Rey Bautista (BA8)","employee":"","is_group":0},{"name":"Adrian Mendoza (AD2)","sales_person_name":"Adrian Mendoza (AD2)","parent_sales_person":"Salve de Luna (PMII-NSM) + DSM (AD3)","employee":"","is_group":1},{"name":"ADRIAN MENDOZA (ADC Samples PHSR DM - AD2)","sales_person_name":"ADRIAN MENDOZA (ADC Samples PHSR DM - AD2)","parent_sales_person":"Salve de Luna (Abbott Samples PHSR Team GM)","employee":"","is_group":0},{"name":"Adrian Pagdanganan (BA2-03)","sales_person_name":"Adrian Pagdanganan (BA2-03)","parent_sales_person":"Gin Orcullo (BA2)","employee":"","is_group":0},{"name":"Aerielle Pacardo (BA7-05)","sales_person_name":"Aerielle Pacardo (BA7-05)","parent_sales_person":"Geramar Sazon OIC (BA7)","employee":"","is_group":0},{"name":"Aileen Areniego (EM1) (RESIGNED)","sales_person_name":"Aileen Areniego (EM1) (RESIGNED)","parent_sales_person":"Stella Valencia (District 3 - East GMA) (RESIGNED)","employee":"","is_group":0},{"name":"ALDRIN ESTORICO (AD0114)","sales_person_name":"ALDRIN ESTORICO (AD0114)","parent_sales_person":"Adrian Mendoza (AD2)","employee":"","is_group":0},{"name":"Aldrin John Ladores (BA3-06)","sales_person_name":"Aldrin John Ladores (BA3-06)","parent_sales_person":"Mark Kevin Carisma (BA3)","employee":"","is_group":0},{"name":"Aldrin Sasuman (Acting GM) (RESIGNED)","sales_person_name":"Aldrin Sasuman (Acting GM) (RESIGNED)","parent_sales_person":"Angelo Palma (EXELTIS GM)","employee":"","is_group":1},{"name":"Alexis Harvie Raymond (BAS-1-06)","sales_person_name":"Alexis Harvie Raymond (BAS-1-06)","parent_sales_person":"No Territory","employee":"","is_group":0},{"name":"Allyson Aldas Domingo (VIV-04) (RESIGNED, MOVED TO BAYER)","sales_person_name":"Allyson Aldas Domingo (VIV-04) (RESIGNED, MOVED TO BAYER)","parent_sales_person":"Sam Kabigting (VIV-1)","employee":"","is_group":0},{"name":"Allyson Rose Aldas (BA1-01) [RESIGNED]","sales_person_name":"Allyson Rose Aldas (BA1-01) [RESIGNED]","parent_sales_person":"Raymond Viray (BA1)","employee":"","is_group":0},{"name":"Almer Bautista (BA5-02)","sales_person_name":"Almer Bautista (BA5-02)","parent_sales_person":"Rico Dizon (BA5)","employee":"","is_group":0},{"name":"Alvin Ong (RM103)","sales_person_name":"Alvin Ong (RM103)","parent_sales_person":"Miriam Quinan","employee":"","is_group":0},{"name":"Amecile Elloran (L27)","sales_person_name":"Amecile Elloran (L27)","parent_sales_person":"Mary Jane Manalo (District 5 - South Luzon)","employee":"","is_group":0},{"name":"AMIVY VELASCO RUBIS (AD0112)","sales_person_name":"AMIVY VELASCO RUBIS (AD0112)","parent_sales_person":"Adrian Mendoza (AD2)","employee":"","is_group":0},{"name":"AMOR GUTIERREZ (V03)","sales_person_name":"AMOR GUTIERREZ (V03)","parent_sales_person":"Cesar Acasio (District 6 - Visayas)","employee":"","is_group":0},{"name":"Ana Marie Sabang (BA7-03)","sales_person_name":"Ana Marie Sabang (BA7-03)","parent_sales_person":"Geramar Sazon OIC (BA7)","employee":"","is_group":0},{"name":"Andrea Lapus (EM1-8099) (RESIGNED)","sales_person_name":"Andrea Lapus (EM1-8099) (RESIGNED)","parent_sales_person":"Stella Valencia (District 3 - East GMA) (RESIGNED)","employee":"","is_group":0},{"name":"Andrea Lapus (NM2-8089) (TRANSFERRED)","sales_person_name":"Andrea Lapus (NM2-8089) (TRANSFERRED)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"ANGEL NASIS (AD0118)","sales_person_name":"ANGEL NASIS (AD0118)","parent_sales_person":"SARAH YUCARAN (AD0105)","employee":"","is_group":0},{"name":"Angelo Matocyon (BAS-1-01)","sales_person_name":"Angelo Matocyon (BAS-1-01)","parent_sales_person":"Edel Cornejo (BAS-2) (RESIGNED)","employee":"","is_group":0},{"name":"Angelo Palma (EXELTIS GM)","sales_person_name":"Angelo Palma (EXELTIS GM)","parent_sales_person":"Sales Team","employee":"","is_group":1},{"name":"Angilyn Rebong (L21)","sales_person_name":"Angilyn Rebong (L21)","parent_sales_person":"Mary Jane Manalo (District 5 - South Luzon)","employee":"","is_group":0},{"name":"ANN JEZZERYL DEL ROSARIO (AD0108) (RESIGNED)","sales_person_name":"ANN JEZZERYL DEL ROSARIO (AD0108) (RESIGNED)","parent_sales_person":"Regalado Banasihan (AD1)","employee":"","is_group":0},{"name":"Anna Gail Almonicar (NM2)","sales_person_name":"Anna Gail Almonicar (NM2)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Anna Liza Conde (M01) (RESIGNED)","sales_person_name":"Anna Liza Conde (M01) (RESIGNED)","parent_sales_person":"Donato Rocacorba (District 7 - Mindanao)","employee":"","is_group":0},{"name":"Anselmo Brillantes (BA6-03)","sales_person_name":"Anselmo Brillantes (BA6-03)","parent_sales_person":"Christina Tangkay (BA6)","employee":"","is_group":0},{"name":"Antonette Lawas (BA7-01)","sales_person_name":"Antonette Lawas (BA7-01)","parent_sales_person":"Geramar Sazon OIC (BA7)","employee":"","is_group":0},{"name":"ARCENE PIANG (AD0116)","sales_person_name":"ARCENE PIANG (AD0116)","parent_sales_person":"SARAH YUCARAN (AD0105)","employee":"","is_group":0},{"name":"Argel Joseph Dacillo (BA3-04)","sales_person_name":"Argel Joseph Dacillo (BA3-04)","parent_sales_person":"Mark Kevin Carisma (BA3)","employee":"","is_group":0},{"name":"Argie Ian Lerit (RM106)","sales_person_name":"Argie Ian Lerit (RM106)","parent_sales_person":"Miriam Quinan","employee":"","is_group":0},{"name":"Arlane Ferraren (BA1-05)","sales_person_name":"Arlane Ferraren (BA1-05)","parent_sales_person":"Raymond Viray (BA1)","employee":"","is_group":0},{"name":"Arrianne Garcia (BA1-06)","sales_person_name":"Arrianne Garcia (BA1-06)","parent_sales_person":"Raymond Viray (BA1)","employee":"","is_group":0},{"name":"Ashley Dimaano (BAS-2)","sales_person_name":"Ashley Dimaano (BAS-2)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Ashly Ancheta (GMAVHSI-03)","sales_person_name":"Ashly Ancheta (GMAVHSI-03)","parent_sales_person":"Daniel Somera (VHSI NSM) (INACTIVE)","employee":"","is_group":0},{"name":"AUBREY JEANNE LOZADA (V05)","sales_person_name":"AUBREY JEANNE LOZADA (V05)","parent_sales_person":"Cesar Acasio (District 6 - Visayas)","employee":"","is_group":0},{"name":"Aura Ivy Royol (EM2) (RESIGNED)","sales_person_name":"Aura Ivy Royol (EM2) (RESIGNED)","parent_sales_person":"Marilyn Rizon-Rey (District 3 - East GMA)","employee":"","is_group":0},{"name":"Ayesa Delgado (L24)","sales_person_name":"Ayesa Delgado (L24)","parent_sales_person":"Mary Jane Manalo (District 5 - South Luzon)","employee":"","is_group":0},{"name":"Beauty Lyne Buragay (VIV-05)","sales_person_name":"Beauty Lyne Buragay (VIV-05)","parent_sales_person":"Sam Kabigting (VIV-1)","employee":"","is_group":0},{"name":"Bernard Gemone (AD4)","sales_person_name":"Bernard Gemone (AD4)","parent_sales_person":"Ruby Arceo (ADC-NSM)","employee":"","is_group":1},{"name":"Bongbong Madarang Garcia (BA6-04)","sales_person_name":"Bongbong Madarang Garcia (BA6-04)","parent_sales_person":"Christina Tangkay (BA6)","employee":"","is_group":0},{"name":"Carla Dela Cruz (NM3) (REPLACED)","sales_person_name":"Carla Dela Cruz (NM3) (REPLACED)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Carlo Maitem Pascual (BA3-01)","sales_person_name":"Carlo Maitem Pascual (BA3-01)","parent_sales_person":"Mark Kevin Carisma (BA3)","employee":"","is_group":0},{"name":"Carmel Videna (BA4-01)","sales_person_name":"Carmel Videna (BA4-01)","parent_sales_person":"Christopher Rinon (BA4)","employee":"","is_group":0},{"name":"Catherine Ann Geronimo (RM205) (RESIGNED)","sales_person_name":"Catherine Ann Geronimo (RM205) (RESIGNED)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"Cathlyn Rosell Ariola (RM105)","sales_person_name":"Cathlyn Rosell Ariola (RM105)","parent_sales_person":"Miriam Quinan","employee":"","is_group":0},{"name":"Cecile del Rosario (NM8)","sales_person_name":"Cecile del Rosario (NM8)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Cecilia Mariz Nofuente (RM112)","sales_person_name":"Cecilia Mariz Nofuente (RM112)","parent_sales_person":"Miriam Quinan","employee":"","is_group":0},{"name":"Cesar Acasio (District 6 - Visayas)","sales_person_name":"Cesar Acasio (District 6 - Visayas)","parent_sales_person":"Angelo Palma (EXELTIS GM)","employee":"","is_group":1},{"name":"Charisse Capulong (BA2-02)","sales_person_name":"Charisse Capulong (BA2-02)","parent_sales_person":"Gin Orcullo (BA2)","employee":"","is_group":0},{"name":"Charmaine Demegillo (M01-8095) (RESIGNED)","sales_person_name":"Charmaine Demegillo (M01-8095) (RESIGNED)","parent_sales_person":"Donato Rocacorba (District 7 - Mindanao)","employee":"","is_group":0},{"name":"Chastity Maghilum (RND04)","sales_person_name":"Chastity Maghilum (RND04)","parent_sales_person":"Giselle Pineda (RND01)","employee":"","is_group":0},{"name":"Cherry Pink Oliveros (BA8-04)","sales_person_name":"Cherry Pink Oliveros (BA8-04)","parent_sales_person":"Rey Bautista (BA8)","employee":"","is_group":0},{"name":"Cherub Carmel Ester De Mesa (L23)","sales_person_name":"Cherub Carmel Ester De Mesa (L23)","parent_sales_person":"Mary Jane Manalo (District 5 - South Luzon)","employee":"","is_group":0},{"name":"Cheryl Manuel (RND04) (RESIGNED)","sales_person_name":"Cheryl Manuel (RND04) (RESIGNED)","parent_sales_person":"Giselle Pineda (RND01)","employee":"","is_group":0},{"name":"Christian Aaron Tolentino (BA2-04) (RESIGNED)","sales_person_name":"Christian Aaron Tolentino (BA2-04) (RESIGNED)","parent_sales_person":"Gin Orcullo (BA2)","employee":"","is_group":0},{"name":"Christian Casper Ocan (BA7-02)","sales_person_name":"Christian Casper Ocan (BA7-02)","parent_sales_person":"Geramar Sazon OIC (BA7)","employee":"","is_group":0},{"name":"CHRISTIAN CUBO (AD0101) (RESIGNED)","sales_person_name":"CHRISTIAN CUBO (AD0101) (RESIGNED)","parent_sales_person":"Paul Perez (AD1) (RESIGNED)","employee":"","is_group":0},{"name":"Christian Flynn Fermin (L28)","sales_person_name":"Christian Flynn Fermin (L28)","parent_sales_person":"Mary Jane Manalo (District 5 - South Luzon)","employee":"","is_group":0},{"name":"CHRISTIAN MARTINEZ LINAO (AD0108)","sales_person_name":"CHRISTIAN MARTINEZ LINAO (AD0108)","parent_sales_person":"Adrian Mendoza (AD2)","employee":"","is_group":0},{"name":"CHRISTIE ANN MUHAL (V04)","sales_person_name":"CHRISTIE ANN MUHAL (V04)","parent_sales_person":"Cesar Acasio (District 6 - Visayas)","employee":"","is_group":0},{"name":"Christina Tangkay (BA6)","sales_person_name":"Christina Tangkay (BA6)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Christine Rachel Almiranez (NM6) (REPLACED)","sales_person_name":"Christine Rachel Almiranez (NM6) (REPLACED)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Christonette Corporal (BA4-05)","sales_person_name":"Christonette Corporal (BA4-05)","parent_sales_person":"Christopher Rinon (BA4)","employee":"","is_group":0},{"name":"Christopher Rinon (BA4)","sales_person_name":"Christopher Rinon (BA4)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Claire Annalaine Pahilan (BA8-05)","sales_person_name":"Claire Annalaine Pahilan (BA8-05)","parent_sales_person":"Rey Bautista (BA8)","employee":"","is_group":0},{"name":"CLAIRE PLAZA (V02)","sales_person_name":"CLAIRE PLAZA (V02)","parent_sales_person":"Cesar Acasio (District 6 - Visayas)","employee":"","is_group":0},{"name":"Cristine Tenila (SM5)","sales_person_name":"Cristine Tenila (SM5)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"Daniel Quiambao (NM7)","sales_person_name":"Daniel Quiambao (NM7)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Daniel Somera (VHSI NSM) (INACTIVE)","sales_person_name":"Daniel Somera (VHSI NSM) (INACTIVE)","parent_sales_person":"Sales Team","employee":"HR-EMP-01974","is_group":1},{"name":"DANILO DOMINGO (AD0120)","sales_person_name":"DANILO DOMINGO (AD0120)","parent_sales_person":"Regalado Banasihan (AD1)","employee":"","is_group":0},{"name":"Dante Mauricio (BAS-1)","sales_person_name":"Dante Mauricio (BAS-1)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Dareelyn L. Dalisay (BAS-1-04)","sales_person_name":"Dareelyn L. Dalisay (BAS-1-04)","parent_sales_person":"Dante Mauricio (BAS-1)","employee":"","is_group":0},{"name":"David Joseph Repato (BAS-2-05)","sales_person_name":"David Joseph Repato (BAS-2-05)","parent_sales_person":"Ashley Dimaano (BAS-2)","employee":"","is_group":0},{"name":"DELSIE BUBULI (V01) (RESIGNED)","sales_person_name":"DELSIE BUBULI (V01) (RESIGNED)","parent_sales_person":"Cesar Acasio (District 6 - Visayas)","employee":"","is_group":0},{"name":"Denigail Quilang (L06)","sales_person_name":"Denigail Quilang (L06)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Dennis Palce (RM201) (RESIGNED)","sales_person_name":"Dennis Palce (RM201) (RESIGNED)","parent_sales_person":"Nickie Roldan (Approver Acct) (RESIGNED)","employee":"","is_group":0},{"name":"Dennise Barbra Arellano (RM108) (RESIGNED)","sales_person_name":"Dennise Barbra Arellano (RM108) (RESIGNED)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"Dharyn Sangel (BAS-1-06)","sales_person_name":"Dharyn Sangel (BAS-1-06)","parent_sales_person":"Edel Cornejo (BAS-2) (RESIGNED)","employee":"","is_group":0},{"name":"Diana Capistrano (NM1)","sales_person_name":"Diana Capistrano (NM1)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Diana Jean Laguardia (BA2-03)","sales_person_name":"Diana Jean Laguardia (BA2-03)","parent_sales_person":"Gin Orcullo (BA2)","employee":"","is_group":0},{"name":"Diane Paga (RM106) (RESIGNED)","sales_person_name":"Diane Paga (RM106) (RESIGNED)","parent_sales_person":"Nickie Roldan (Approver Acct) (RESIGNED)","employee":"","is_group":0},{"name":"Dimple Mozo (BA1-02)","sales_person_name":"Dimple Mozo (BA1-02)","parent_sales_person":"Raymond Viray (BA1)","employee":"","is_group":0},{"name":"Dionne Policarpio (BA2-07)","sales_person_name":"Dionne Policarpio (BA2-07)","parent_sales_person":"Gin Orcullo (BA2)","employee":"","is_group":0},{"name":"Donato J B. Delos Santos (NGMA/NLZ/VIZ) (REPLACED)","sales_person_name":"Donato J B. Delos Santos (NGMA/NLZ/VIZ) (REPLACED)","parent_sales_person":"RITEMED GM","employee":"","is_group":1},{"name":"Donato Rocacorba (District 7 - Mindanao)","sales_person_name":"Donato Rocacorba (District 7 - Mindanao)","parent_sales_person":"Angelo Palma (EXELTIS GM)","employee":"","is_group":1},{"name":"Dorene Gabijan (BA6-06) (RESIGNED)","sales_person_name":"Dorene Gabijan (BA6-06) (RESIGNED)","parent_sales_person":"No Territory","employee":"","is_group":0},{"name":"Edel Cornejo (BAS-2) (RESIGNED)","sales_person_name":"Edel Cornejo (BAS-2) (RESIGNED)","parent_sales_person":"No Territory","employee":"","is_group":1},{"name":"Edralin Bayona (VHSI GM)","sales_person_name":"Edralin Bayona (VHSI GM)","parent_sales_person":"Sales Team","employee":"HR-EMP-01186","is_group":1},{"name":"Eduardo Vasquez (RM109) (RESIGNED)","sales_person_name":"Eduardo Vasquez (RM109) (RESIGNED)","parent_sales_person":"Nickie Roldan (Approver Acct) (RESIGNED)","employee":"","is_group":0},{"name":"Eileen Tagalicud (NM2) (RESIGNED)","sales_person_name":"Eileen Tagalicud (NM2) (RESIGNED)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Elena Catiempo (NM6)","sales_person_name":"Elena Catiempo (NM6)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Elma Echivere (RM109) (RESIGNED)","sales_person_name":"Elma Echivere (RM109) (RESIGNED)","parent_sales_person":"Nickie Roldan (Approver Acct) (RESIGNED)","employee":"","is_group":0},{"name":"Emerine Plandez (BA1-03)","sales_person_name":"Emerine Plandez (BA1-03)","parent_sales_person":"Raymond Viray (BA1)","employee":"","is_group":0},{"name":"Enrico Rosas (District 2 - North GMA)","sales_person_name":"Enrico Rosas (District 2 - North GMA)","parent_sales_person":"Angelo Palma (EXELTIS GM)","employee":"","is_group":1},{"name":"Eriane Jane Cortez (BA6-03) (RESIGNED)","sales_person_name":"Eriane Jane Cortez (BA6-03) (RESIGNED)","parent_sales_person":"Christina Tangkay (BA6)","employee":"","is_group":0},{"name":"Ernie Jabez Dando (L02)","sales_person_name":"Ernie Jabez Dando (L02)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Errica Jul Bruce (L03)","sales_person_name":"Errica Jul Bruce (L03)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Ervin John Collado (BAS-1-05)","sales_person_name":"Ervin John Collado (BAS-1-05)","parent_sales_person":"Edel Cornejo (BAS-2) (RESIGNED)","employee":"","is_group":0},{"name":"Ethel Jerrah Lazarte (BA8-08)","sales_person_name":"Ethel Jerrah Lazarte (BA8-08)","parent_sales_person":"Rey Bautista (BA8)","employee":"","is_group":0},{"name":"Eugene Delo Santos (L01)","sales_person_name":"Eugene Delo Santos (L01)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Evangilyn Dugayo (EM3)","sales_person_name":"Evangilyn Dugayo (EM3)","parent_sales_person":"Marilyn Rizon-Rey (District 3 - East GMA)","employee":"","is_group":0},{"name":"Evanlyndon Bautista (BAS-1-03)","sales_person_name":"Evanlyndon Bautista (BAS-1-03)","parent_sales_person":"Edel Cornejo (BAS-2) (RESIGNED)","employee":"","is_group":0},{"name":"Ferdinand Frayco (SM2-8076) (RESIGNED)","sales_person_name":"Ferdinand Frayco (SM2-8076) (RESIGNED)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"Ferdinand Litang (RM204) (RESIGNED)","sales_person_name":"Ferdinand Litang (RM204) (RESIGNED)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"Frelyn Kristine Medina (BAS-1-02)","sales_person_name":"Frelyn Kristine Medina (BAS-1-02)","parent_sales_person":"No Territory","employee":"","is_group":0},{"name":"Frenzel Ann Carmela Blanco (BA5-07)","sales_person_name":"Frenzel Ann Carmela Blanco (BA5-07)","parent_sales_person":"Rico Dizon (BA5)","employee":"","is_group":0},{"name":"Geddy Javier (BAS-2-07)","sales_person_name":"Geddy Javier (BAS-2-07)","parent_sales_person":"Ashley Dimaano (BAS-2)","employee":"","is_group":0},{"name":"Geramar Sazon (BA7-05)","sales_person_name":"Geramar Sazon (BA7-05)","parent_sales_person":"Geramar Sazon OIC (BA7)","employee":"","is_group":0},{"name":"Geramar Sazon OIC (BA7)","sales_person_name":"Geramar Sazon OIC (BA7)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Gilbert Joaquin (BA3-03) (PROMOTED)","sales_person_name":"Gilbert Joaquin (BA3-03) (PROMOTED)","parent_sales_person":"Mark Kevin Carisma (BA3)","employee":"","is_group":0},{"name":"Gilbert Joaquin (BAS-2) (RESIGNED)","sales_person_name":"Gilbert Joaquin (BAS-2) (RESIGNED)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Gin Orcullo (BA2)","sales_person_name":"Gin Orcullo (BA2)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Girano Arocena (BAS-1) (RESIGNED)","sales_person_name":"Girano Arocena (BAS-1) (RESIGNED)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Giselle Grace Francisco (SM3-8038) (RESIGNED)","sales_person_name":"Giselle Grace Francisco (SM3-8038) (RESIGNED)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"Giselle Pineda (RND01)","sales_person_name":"Giselle Pineda (RND01)","parent_sales_person":"Salve de Luna (Abbott Samples RND Team GM)","employee":"","is_group":1},{"name":"Glynis Hope Torres (BA8-02)","sales_person_name":"Glynis Hope Torres (BA8-02)","parent_sales_person":"Rey Bautista (BA8)","employee":"","is_group":0},{"name":"Grace Daplin (M04)","sales_person_name":"Grace Daplin (M04)","parent_sales_person":"Donato Rocacorba (District 7 - Mindanao)","employee":"","is_group":0},{"name":"GRAZIEL RIVO (AD0101)","sales_person_name":"GRAZIEL RIVO (AD0101)","parent_sales_person":"Regalado Banasihan (AD1)","employee":"","is_group":0},{"name":"GRETHA CARLOS (AD0103)","sales_person_name":"GRETHA CARLOS (AD0103)","parent_sales_person":"Regalado Banasihan (AD1)","employee":"","is_group":0},{"name":"Hannah Faith Gabinete (BAS-2-03)","sales_person_name":"Hannah Faith Gabinete (BAS-2-03)","parent_sales_person":"Ashley Dimaano (BAS-2)","employee":"","is_group":0},{"name":"IMEE ROBLE (V06)","sales_person_name":"IMEE ROBLE (V06)","parent_sales_person":"Cesar Acasio (District 6 - Visayas)","employee":"","is_group":0},{"name":"Inhouse PMII-Vivaro (VIV-06)","sales_person_name":"Inhouse PMII-Vivaro (VIV-06)","parent_sales_person":"Sam Kabigting (VIV-1)","employee":"","is_group":0},{"name":"Irish Gail Mangurali (SM5-8084) (RESIGNED)","sales_person_name":"Irish Gail Mangurali (SM5-8084) (RESIGNED)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"Ivy Marie Mateo (BA2-05)","sales_person_name":"Ivy Marie Mateo (BA2-05)","parent_sales_person":"Gin Orcullo (BA2)","employee":"","is_group":0},{"name":"Jackeline Narciso (M01)","sales_person_name":"Jackeline Narciso (M01)","parent_sales_person":"Donato Rocacorba (District 7 - Mindanao)","employee":"","is_group":0},{"name":"Jacob Figueroa (RM104) (RESIGNED)","sales_person_name":"Jacob Figueroa (RM104) (RESIGNED)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"Jacob Layco (SM2) (RESIGNED)","sales_person_name":"Jacob Layco (SM2) (RESIGNED)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"JAMES ANTHONY SOLIMAN (ADC02)","sales_person_name":"JAMES ANTHONY SOLIMAN (ADC02)","parent_sales_person":"Bernard Gemone (AD4)","employee":"","is_group":0},{"name":"Jamil Villanueva (BA1-04)","sales_person_name":"Jamil Villanueva (BA1-04)","parent_sales_person":"Raymond Viray (BA1)","employee":"","is_group":0},{"name":"Jan Michael Casupanan (BA5-06)","sales_person_name":"Jan Michael Casupanan (BA5-06)","parent_sales_person":"Rico Dizon (BA5)","employee":"","is_group":0},{"name":"Jannice Quijano (BA7-06)","sales_person_name":"Jannice Quijano (BA7-06)","parent_sales_person":"Geramar Sazon OIC (BA7)","employee":"","is_group":0},{"name":"Janos Fritz Metillo (M05) (RESIGNED)","sales_person_name":"Janos Fritz Metillo (M05) (RESIGNED)","parent_sales_person":"Donato Rocacorba (District 7 - Mindanao)","employee":"","is_group":0},{"name":"Jasmin Maliwat (RM104)","sales_person_name":"Jasmin Maliwat (RM104)","parent_sales_person":"Miriam Quinan","employee":"","is_group":0},{"name":"Jasmin Marie Jam Gloria (L03-8110) (RESIGNED)","sales_person_name":"Jasmin Marie Jam Gloria (L03-8110) (RESIGNED)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Jaymee Dimanarig (BA3-07)","sales_person_name":"Jaymee Dimanarig (BA3-07)","parent_sales_person":"Mark Kevin Carisma (BA3)","employee":"","is_group":0},{"name":"Jayson Garingo (L20)","sales_person_name":"Jayson Garingo (L20)","parent_sales_person":"Mary Jane Manalo (District 5 - South Luzon)","employee":"","is_group":0},{"name":"Jeffrey Villanueva (District 2 - North GMA) (REPLACED)","sales_person_name":"Jeffrey Villanueva (District 2 - North GMA) (REPLACED)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":1},{"name":"Jejel Bruzula (BAS-1-03)","sales_person_name":"Jejel Bruzula (BAS-1-03)","parent_sales_person":"Dante Mauricio (BAS-1)","employee":"","is_group":0},{"name":"Jelai Palasique (SM9)","sales_person_name":"Jelai Palasique (SM9)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"Jenelyn Gamilla (L07)","sales_person_name":"Jenelyn Gamilla (L07)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Jennifer Ferrer Meso (RM102)","sales_person_name":"Jennifer Ferrer Meso (RM102)","parent_sales_person":"Miriam Quinan","employee":"","is_group":0},{"name":"Jennifer Luna (ADC-NSM)","sales_person_name":"Jennifer Luna (ADC-NSM)","parent_sales_person":"Sales Team","employee":"","is_group":1},{"name":"Jennifer Medina (RM106) (RESIGNED)","sales_person_name":"Jennifer Medina (RM106) (RESIGNED)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"Jenny Apura (SGMA/SLZ/MIN) (REPLACED)","sales_person_name":"Jenny Apura (SGMA/SLZ/MIN) (REPLACED)","parent_sales_person":"RITEMED GM","employee":"","is_group":1},{"name":"Jeoffrey Alfonse Maguigad (BA3-03)","sales_person_name":"Jeoffrey Alfonse Maguigad (BA3-03)","parent_sales_person":"Mark Kevin Carisma (BA3)","employee":"","is_group":0},{"name":"Jericho Dela Guerra (L26)","sales_person_name":"Jericho Dela Guerra (L26)","parent_sales_person":"Mary Jane Manalo (District 5 - South Luzon)","employee":"","is_group":0},{"name":"Jericho Mercado Agapito (BA4-08)","sales_person_name":"Jericho Mercado Agapito (BA4-08)","parent_sales_person":"Christopher Rinon (BA4)","employee":"","is_group":0},{"name":"Jerry Sanchez (EM4) (RESIGNED)","sales_person_name":"Jerry Sanchez (EM4) (RESIGNED)","parent_sales_person":"Stella Valencia (District 3 - East GMA) (RESIGNED)","employee":"","is_group":0},{"name":"Jesiel Borja (RND08)","sales_person_name":"Jesiel Borja (RND08)","parent_sales_person":"Giselle Pineda (RND01)","employee":"","is_group":0},{"name":"Jhoan Dimalanta (BA5-05)","sales_person_name":"Jhoan Dimalanta (BA5-05)","parent_sales_person":"Rico Dizon (BA5)","employee":"","is_group":0},{"name":"Jhonas Dizon (L04) (RESIGNED)","sales_person_name":"Jhonas Dizon (L04) (RESIGNED)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Jocelyn Dickinson (BA2-01)","sales_person_name":"Jocelyn Dickinson (BA2-01)","parent_sales_person":"Gin Orcullo (BA2)","employee":"","is_group":0},{"name":"Jocy Ross De Guzman (RM106) (RESIGNED)","sales_person_name":"Jocy Ross De Guzman (RM106) (RESIGNED)","parent_sales_person":"Nickie Roldan (Approver Acct) (RESIGNED)","employee":"","is_group":0},{"name":"Joel Marc Ros (SM3)","sales_person_name":"Joel Marc Ros (SM3)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"Joel Marc Ross (M01-8095) (MOVED TO SM3-8038)","sales_person_name":"Joel Marc Ross (M01-8095) (MOVED TO SM3-8038)","parent_sales_person":"Donato Rocacorba (District 7 - Mindanao)","employee":"","is_group":0},{"name":"John Joseph Caballas (District 2 - North GMA) (PROMOTED-REMOVED)","sales_person_name":"John Joseph Caballas (District 2 - North GMA) (PROMOTED-REMOVED)","parent_sales_person":"Angelo Palma (EXELTIS GM)","employee":"","is_group":1},{"name":"John Lester Madelar (BAS-1-01)","sales_person_name":"John Lester Madelar (BAS-1-01)","parent_sales_person":"Dante Mauricio (BAS-1)","employee":"","is_group":0},{"name":"John Mark Zapanta (BAS-2-04)","sales_person_name":"John Mark Zapanta (BAS-2-04)","parent_sales_person":"Ashley Dimaano (BAS-2)","employee":"","is_group":0},{"name":"John Niko Galo (BA6-02)","sales_person_name":"John Niko Galo (BA6-02)","parent_sales_person":"Christina Tangkay (BA6)","employee":"","is_group":0},{"name":"John Patrick Peraren (BA7-08)","sales_person_name":"John Patrick Peraren (BA7-08)","parent_sales_person":"Geramar Sazon OIC (BA7)","employee":"","is_group":0},{"name":"John Paul Gutierrez (BAS-2-06)","sales_person_name":"John Paul Gutierrez (BAS-2-06)","parent_sales_person":"Ashley Dimaano (BAS-2)","employee":"","is_group":0},{"name":"JONEL APSAY (AD0106)","sales_person_name":"JONEL APSAY (AD0106)","parent_sales_person":"SARAH YUCARAN (AD0105)","employee":"","is_group":0},{"name":"JONELYN BELEN (AD0110) (RESIGNED)","sales_person_name":"JONELYN BELEN (AD0110) (RESIGNED)","parent_sales_person":"Adrian Mendoza (AD2)","employee":"","is_group":0},{"name":"JORGE MENGORIO (AD0110)","sales_person_name":"JORGE MENGORIO (AD0110)","parent_sales_person":"Adrian Mendoza (AD2)","employee":"HR-EMP-03228","is_group":0},{"name":"Joshua Lazir Tungul (BA5-04)","sales_person_name":"Joshua Lazir Tungul (BA5-04)","parent_sales_person":"Rico Dizon (BA5)","employee":"","is_group":0},{"name":"Jossalyn Cochon (L10)","sales_person_name":"Jossalyn Cochon (L10)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"JOY BALMEO (V07)","sales_person_name":"JOY BALMEO (V07)","parent_sales_person":"Cesar Acasio (District 6 - Visayas)","employee":"","is_group":0},{"name":"JOY REYES (ADC01)","sales_person_name":"JOY REYES (ADC01)","parent_sales_person":"Bernard Gemone (AD4)","employee":"","is_group":0},{"name":"JP GONZALES (AD0113)","sales_person_name":"JP GONZALES (AD0113)","parent_sales_person":"Regalado Banasihan (AD1)","employee":"","is_group":0},{"name":"Judee Omar (RND05)","sales_person_name":"Judee Omar (RND05)","parent_sales_person":"Giselle Pineda (RND01)","employee":"","is_group":0},{"name":"Justine Gabriel Quong (RND11)","sales_person_name":"Justine Gabriel Quong (RND11)","parent_sales_person":"Giselle Pineda (RND01)","employee":"","is_group":0},{"name":"Karen Cruz (VIV-02)","sales_person_name":"Karen Cruz (VIV-02)","parent_sales_person":"Sam Kabigting (VIV-1)","employee":"","is_group":0},{"name":"Karen Vanessa Sandoval (SM7)","sales_person_name":"Karen Vanessa Sandoval (SM7)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"Karissa Dilag Bautista (BAS-1-04)","sales_person_name":"Karissa Dilag Bautista (BAS-1-04)","parent_sales_person":"Edel Cornejo (BAS-2) (RESIGNED)","employee":"","is_group":0},{"name":"Kate Lee Macalos (RND09)","sales_person_name":"Kate Lee Macalos (RND09)","parent_sales_person":"Giselle Pineda (RND01)","employee":"","is_group":0},{"name":"Katherine Mae Banasihan (BAS-1-06)","sales_person_name":"Katherine Mae Banasihan (BAS-1-06)","parent_sales_person":"Dante Mauricio (BAS-1)","employee":"","is_group":0},{"name":"KC Cassandra Enriquez (BA1-01)","sales_person_name":"KC Cassandra Enriquez (BA1-01)","parent_sales_person":"Raymond Viray (BA1)","employee":"HR-EMP-03168","is_group":0},{"name":"Keisha Mae Subaldo (RND02)","sales_person_name":"Keisha Mae Subaldo (RND02)","parent_sales_person":"Giselle Pineda (RND01)","employee":"","is_group":0},{"name":"Kenneth Christer Luna (L06) (RESIGNED)","sales_person_name":"Kenneth Christer Luna (L06) (RESIGNED)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Kenneth Jhon Sarmiento (NM7) (REPLACED)","sales_person_name":"Kenneth Jhon Sarmiento (NM7) (REPLACED)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Kenneth John Mateo (RM207) (RESIGNED)","sales_person_name":"Kenneth John Mateo (RM207) (RESIGNED)","parent_sales_person":"Nickie Roldan (Approver Acct) (RESIGNED)","employee":"","is_group":0},{"name":"Kesley Zapanta (BAS-3-01)","sales_person_name":"Kesley Zapanta (BAS-3-01)","parent_sales_person":"No Territory","employee":"","is_group":0},{"name":"KEVIN CABELTIS (V02) (RESIGNED)","sales_person_name":"KEVIN CABELTIS (V02) (RESIGNED)","parent_sales_person":"Cesar Acasio (District 6 - Visayas)","employee":"","is_group":0},{"name":"Kevin Poscablo (L03-8110) (RESIGNED)","sales_person_name":"Kevin Poscablo (L03-8110) (RESIGNED)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Khrisna Rodriguez Tuliao (BAS-2-01)","sales_person_name":"Khrisna Rodriguez Tuliao (BAS-2-01)","parent_sales_person":"Ashley Dimaano (BAS-2)","employee":"","is_group":0},{"name":"Kimberly Tajonera (RM201) (RESIGNED)","sales_person_name":"Kimberly Tajonera (RM201) (RESIGNED)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"King Al John Derano Diva","sales_person_name":"King Al John Derano Diva","parent_sales_person":"Sales Team","employee":"HR-EMP-04138","is_group":0},{"name":"Klyndon Genson (M05)","sales_person_name":"Klyndon Genson (M05)","parent_sales_person":"Donato Rocacorba (District 7 - Mindanao)","employee":"","is_group":0},{"name":"Kriselle Mae Tendilla (EM5)","sales_person_name":"Kriselle Mae Tendilla (EM5)","parent_sales_person":"Marilyn Rizon-Rey (District 3 - East GMA)","employee":"","is_group":0},{"name":"Kristine Abejoro Robles (M03)","sales_person_name":"Kristine Abejoro Robles (M03)","parent_sales_person":"Donato Rocacorba (District 7 - Mindanao)","employee":"","is_group":0},{"name":"Kristine Carino  (BA6-04) (RESIGNED)","sales_person_name":"Kristine Carino  (BA6-04) (RESIGNED)","parent_sales_person":"No Territory","employee":"","is_group":0},{"name":"LAARNI AQUINO (V07) (RESIGNED)","sales_person_name":"LAARNI AQUINO (V07) (RESIGNED)","parent_sales_person":"Cesar Acasio (District 6 - Visayas)","employee":"","is_group":0},{"name":"LAIZA PLACER (AD0115)","sales_person_name":"LAIZA PLACER (AD0115)","parent_sales_person":"Adrian Mendoza (AD2)","employee":"","is_group":0},{"name":"Laiza Villarosa (BAYER GM)","sales_person_name":"Laiza Villarosa (BAYER GM)","parent_sales_person":"Sales Team","employee":"HR-EMP-02078","is_group":1},{"name":"LARA ABEGAIL GABAISEN (AD0115) (RESIGNED)","sales_person_name":"LARA ABEGAIL GABAISEN (AD0115) (RESIGNED)","parent_sales_person":"Adrian Mendoza (AD2)","employee":"","is_group":0},{"name":"LAURO PANTOJA (AD0111)","sales_person_name":"LAURO PANTOJA (AD0111)","parent_sales_person":"Adrian Mendoza (AD2)","employee":"HR-EMP-01799","is_group":0},{"name":"Leefe Llemit (EM2)","sales_person_name":"Leefe Llemit (EM2)","parent_sales_person":"Marilyn Rizon-Rey (District 3 - East GMA)","employee":"","is_group":0},{"name":"Lemmor Protacio (BAS-1-06)","sales_person_name":"Lemmor Protacio (BAS-1-06)","parent_sales_person":"No Territory","employee":"","is_group":0},{"name":"Lita Rogelio (SM1)","sales_person_name":"Lita Rogelio (SM1)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"LIZA ROXAS (AD0102)","sales_person_name":"LIZA ROXAS (AD0102)","parent_sales_person":"Regalado Banasihan (AD1)","employee":"","is_group":0},{"name":"LOUIE GLENN MINABES (AD0107)","sales_person_name":"LOUIE GLENN MINABES (AD0107)","parent_sales_person":"SARAH YUCARAN (AD0105)","employee":"","is_group":0},{"name":"Ma. Angella Antonio (BA2-04)","sales_person_name":"Ma. Angella Antonio (BA2-04)","parent_sales_person":"Gin Orcullo (BA2)","employee":"","is_group":0},{"name":"Ma. Carmina de Borja (BA1-04) (RESIGNED?)","sales_person_name":"Ma. Carmina de Borja (BA1-04) (RESIGNED?)","parent_sales_person":"No Territory","employee":"","is_group":0},{"name":"Ma. Katrina Balag (SM2)","sales_person_name":"Ma. Katrina Balag (SM2)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"Ma. Rhean Loi Alonzo (BAS-1-02)","sales_person_name":"Ma. Rhean Loi Alonzo (BAS-1-02)","parent_sales_person":"No Territory","employee":"","is_group":0},{"name":"Ma. Rosario Gonzales (BAS-1-05)","sales_person_name":"Ma. Rosario Gonzales (BAS-1-05)","parent_sales_person":"Dante Mauricio (BAS-1)","employee":"","is_group":0},{"name":"MAE PESTANO (AD0106) (RESIGNED)","sales_person_name":"MAE PESTANO (AD0106) (RESIGNED)","parent_sales_person":"Salve de Luna (PMII-NSM) + DSM (AD3)","employee":"","is_group":0},{"name":"Mae Tacud (NM1) (REPLACED)","sales_person_name":"Mae Tacud (NM1) (REPLACED)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Maila Fernandez (L10) (RESIGNED)","sales_person_name":"Maila Fernandez (L10) (RESIGNED)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Maila Fernandez (RM107) (RESIGNED)","sales_person_name":"Maila Fernandez (RM107) (RESIGNED)","parent_sales_person":"Nickie Roldan (Approver Acct) (RESIGNED)","employee":"","is_group":0},{"name":"Manuel Nikko Lim (L07) (RESIGNED)","sales_person_name":"Manuel Nikko Lim (L07) (RESIGNED)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Marc Greggory Legaspina (BA5-07)","sales_person_name":"Marc Greggory Legaspina (BA5-07)","parent_sales_person":"Rico Dizon (BA5)","employee":"","is_group":0},{"name":"Marella Messa Belle Neo (BA8-07)","sales_person_name":"Marella Messa Belle Neo (BA8-07)","parent_sales_person":"Rey Bautista (BA8)","employee":"","is_group":0},{"name":"Maria Bidasari Antiporta (L22)","sales_person_name":"Maria Bidasari Antiporta (L22)","parent_sales_person":"Mary Jane Manalo (District 5 - South Luzon)","employee":"","is_group":0},{"name":"Maria Katrina Montecalvo (M02)","sales_person_name":"Maria Katrina Montecalvo (M02)","parent_sales_person":"Donato Rocacorba (District 7 - Mindanao)","employee":"","is_group":0},{"name":"Maria Magdalina Gonzales (BAS-1-02)","sales_person_name":"Maria Magdalina Gonzales (BAS-1-02)","parent_sales_person":"Dante Mauricio (BAS-1)","employee":"","is_group":0},{"name":"Maria Victoria Frias (SM8)","sales_person_name":"Maria Victoria Frias (SM8)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"Marianne Pandato (SM6)","sales_person_name":"Marianne Pandato (SM6)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"Maricel Hernandez (L25)","sales_person_name":"Maricel Hernandez (L25)","parent_sales_person":"Mary Jane Manalo (District 5 - South Luzon)","employee":"","is_group":0},{"name":"Marie Joy Sadia (BA2-08)","sales_person_name":"Marie Joy Sadia (BA2-08)","parent_sales_person":"Gin Orcullo (BA2)","employee":"","is_group":0},{"name":"MARIEL APPLE SASON (AD0109)","sales_person_name":"MARIEL APPLE SASON (AD0109)","parent_sales_person":"Regalado Banasihan (AD1)","employee":"","is_group":0},{"name":"Marilyn Rizo (EM1-8099) (PROMOTED)","sales_person_name":"Marilyn Rizo (EM1-8099) (PROMOTED)","parent_sales_person":"Stella Valencia (District 3 - East GMA) (RESIGNED)","employee":"","is_group":0},{"name":"Marilyn Rizon-Rey (District 3 - East GMA)","sales_person_name":"Marilyn Rizon-Rey (District 3 - East GMA)","parent_sales_person":"Angelo Palma (EXELTIS GM)","employee":"","is_group":1},{"name":"Marilyn Rizon-Rey (District 4 - South GMA)","sales_person_name":"Marilyn Rizon-Rey (District 4 - South GMA)","parent_sales_person":"Angelo Palma (EXELTIS GM)","employee":"","is_group":1},{"name":"Marjoseph Agojo (BA2-06)","sales_person_name":"Marjoseph Agojo (BA2-06)","parent_sales_person":"Gin Orcullo (BA2)","employee":"","is_group":0},{"name":"Mark Joshua Tuazon (BA5-03)","sales_person_name":"Mark Joshua Tuazon (BA5-03)","parent_sales_person":"Rico Dizon (BA5)","employee":"","is_group":0},{"name":"Mark Kevin Carisma (BA3)","sales_person_name":"Mark Kevin Carisma (BA3)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Mark Kevin Gonzales (BA4-06)","sales_person_name":"Mark Kevin Gonzales (BA4-06)","parent_sales_person":"Christopher Rinon (BA4)","employee":"","is_group":0},{"name":"Marla Jennix Dismaya (L03) (RESIGNED)","sales_person_name":"Marla Jennix Dismaya (L03) (RESIGNED)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Marlon Roncales (RM101) (RESIGNED)","sales_person_name":"Marlon Roncales (RM101) (RESIGNED)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"MARY GRACE DIPASUPIL (ADC Samples PHSR AA - AA1ADC)","sales_person_name":"MARY GRACE DIPASUPIL (ADC Samples PHSR AA - AA1ADC)","parent_sales_person":"Salve de Luna (Abbott Samples PHSR Team GM)","employee":"","is_group":0},{"name":"Mary Grace Inovero (RM101) (RESIGNED)","sales_person_name":"Mary Grace Inovero (RM101) (RESIGNED)","parent_sales_person":"Nickie Roldan (Approver Acct) (RESIGNED)","employee":"","is_group":0},{"name":"Mary Jane Manalo (District 5 - South Luzon)","sales_person_name":"Mary Jane Manalo (District 5 - South Luzon)","parent_sales_person":"Angelo Palma (EXELTIS GM)","employee":"","is_group":1},{"name":"Mary Junnel Perez (BAS-1) (RESIGNED)","sales_person_name":"Mary Junnel Perez (BAS-1) (RESIGNED)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Mary Rose Mago (RND07)","sales_person_name":"Mary Rose Mago (RND07)","parent_sales_person":"Giselle Pineda (RND01)","employee":"","is_group":0},{"name":"Maureen Jimenez (BA4-04)","sales_person_name":"Maureen Jimenez (BA4-04)","parent_sales_person":"Christopher Rinon (BA4)","employee":"","is_group":0},{"name":"MEILIN MAE ELEMENTO (V02) (RESIGNED)","sales_person_name":"MEILIN MAE ELEMENTO (V02) (RESIGNED)","parent_sales_person":"Cesar Acasio (District 6 - Visayas)","employee":"","is_group":0},{"name":"Melissa Joy Lisas (BA7-04)","sales_person_name":"Melissa Joy Lisas (BA7-04)","parent_sales_person":"Geramar Sazon OIC (BA7)","employee":"","is_group":0},{"name":"Michelle Nedic (RND03)","sales_person_name":"Michelle Nedic (RND03)","parent_sales_person":"Giselle Pineda (RND01)","employee":"","is_group":0},{"name":"Minie Roa Jaring (L05)","sales_person_name":"Minie Roa Jaring (L05)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Miriam Quinan","sales_person_name":"Miriam Quinan","parent_sales_person":"RITEMED GM","employee":"","is_group":1},{"name":"MONETTE ENCISO (ADC03)","sales_person_name":"MONETTE ENCISO (ADC03)","parent_sales_person":"Bernard Gemone (AD4)","employee":"","is_group":0},{"name":"MONICA BONDAD (AD0103) (RESIGNED)","sales_person_name":"MONICA BONDAD (AD0103) (RESIGNED)","parent_sales_person":"Adrian Mendoza (AD2)","employee":"","is_group":0},{"name":"Nardita Salaguinto (Acting GM)","sales_person_name":"Nardita Salaguinto (Acting GM)","parent_sales_person":"Angelo Palma (EXELTIS GM)","employee":"","is_group":1},{"name":"Nelson Rivera (BA4-03)","sales_person_name":"Nelson Rivera (BA4-03)","parent_sales_person":"Christopher Rinon (BA4)","employee":"","is_group":0},{"name":"Nestor Monsanto Jr. (RM201) (RESIGNED)","sales_person_name":"Nestor Monsanto Jr. (RM201) (RESIGNED)","parent_sales_person":"Nickie Roldan (Approver Acct) (RESIGNED)","employee":"","is_group":0},{"name":"Nickie Roldan (Approver Acct) (RESIGNED)","sales_person_name":"Nickie Roldan (Approver Acct) (RESIGNED)","parent_sales_person":"RITEMED GM","employee":"","is_group":1},{"name":"Nicko Penullar (VIV-05) (RESIGNED)","sales_person_name":"Nicko Penullar (VIV-05) (RESIGNED)","parent_sales_person":"Sam Kabigting (VIV-1)","employee":"","is_group":0},{"name":"Nico Joey Casi\u00f1o (RND12)","sales_person_name":"Nico Joey Casi\u00f1o (RND12)","parent_sales_person":"Giselle Pineda (RND01)","employee":"","is_group":0},{"name":"Ninoy Santiago (EM7)","sales_person_name":"Ninoy Santiago (EM7)","parent_sales_person":"Marilyn Rizon-Rey (District 3 - East GMA)","employee":"","is_group":0},{"name":"No Territory","sales_person_name":"No Territory","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Noah Rosal (BA2-01) (RESIGNED)","sales_person_name":"Noah Rosal (BA2-01) (RESIGNED)","parent_sales_person":"Gin Orcullo (BA2)","employee":"","is_group":0},{"name":"Noemi Magusib (L04)","sales_person_name":"Noemi Magusib (L04)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Norman Jay Jacinto (L04-8080) (RESIGNED)","sales_person_name":"Norman Jay Jacinto (L04-8080) (RESIGNED)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Orville Prado (BAS-2-07)","sales_person_name":"Orville Prado (BAS-2-07)","parent_sales_person":"No Territory","employee":"","is_group":0},{"name":"Paul Perez (AD1) (RESIGNED)","sales_person_name":"Paul Perez (AD1) (RESIGNED)","parent_sales_person":"Salve de Luna (PMII-NSM) + DSM (AD3)","employee":"","is_group":1},{"name":"PAUL PEREZ (ADC Samples PHSR DM - AD1) (RESIGNED)","sales_person_name":"PAUL PEREZ (ADC Samples PHSR DM - AD1) (RESIGNED)","parent_sales_person":"Salve de Luna (Abbott Samples PHSR Team GM)","employee":"","is_group":0},{"name":"Paul Rafael Valenzuela (RM105) (RESIGNED)","sales_person_name":"Paul Rafael Valenzuela (RM105) (RESIGNED)","parent_sales_person":"Nickie Roldan (Approver Acct) (RESIGNED)","employee":"","is_group":0},{"name":"Paulo Buena (RM201) (RESIGNED)","sales_person_name":"Paulo Buena (RM201) (RESIGNED)","parent_sales_person":"Nickie Roldan (Approver Acct) (RESIGNED)","employee":"","is_group":0},{"name":"Pharmline Medforce Inc (ADM001)","sales_person_name":"Pharmline Medforce Inc (ADM001)","parent_sales_person":"Admin","employee":"","is_group":0},{"name":"PMI In-house Account (RM109)","sales_person_name":"PMI In-house Account (RM109)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"Rafael Francisco (BA4-07) (RESIGNED)","sales_person_name":"Rafael Francisco (BA4-07) (RESIGNED)","parent_sales_person":"Christopher Rinon (BA4)","employee":"","is_group":0},{"name":"Ralph Ison (EM6)","sales_person_name":"Ralph Ison (EM6)","parent_sales_person":"Marilyn Rizon-Rey (District 3 - East GMA)","employee":"","is_group":0},{"name":"Raymond Viray (BA1)","sales_person_name":"Raymond Viray (BA1)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Razel Bayotas (RM109) (RESIGNED)","sales_person_name":"Razel Bayotas (RM109) (RESIGNED)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"Raziel S. Donaire (M07)","sales_person_name":"Raziel S. Donaire (M07)","parent_sales_person":"Donato Rocacorba (District 7 - Mindanao)","employee":"","is_group":0},{"name":"Rebecca Mae Apayat (BA5-01)","sales_person_name":"Rebecca Mae Apayat (BA5-01)","parent_sales_person":"Rico Dizon (BA5)","employee":"","is_group":0},{"name":"REGALADO BANASIHAN (Abbott Samples PHSR DM)","sales_person_name":"REGALADO BANASIHAN (Abbott Samples PHSR DM)","parent_sales_person":"Salve de Luna (Abbott Samples PHSR Team GM)","employee":"","is_group":0},{"name":"Regalado Banasihan (AD1)","sales_person_name":"Regalado Banasihan (AD1)","parent_sales_person":"Salve de Luna (PMII-NSM) + DSM (AD3)","employee":"","is_group":1},{"name":"Remgie Benedicto (NM7) (RESIGNED)","sales_person_name":"Remgie Benedicto (NM7) (RESIGNED)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Rene Heart Omolon (RM108) (RESIGNED)","sales_person_name":"Rene Heart Omolon (RM108) (RESIGNED)","parent_sales_person":"Nickie Roldan (Approver Acct) (RESIGNED)","employee":"","is_group":0},{"name":"Reste Pereira - (District 1 - North Luzon)","sales_person_name":"Reste Pereira - (District 1 - North Luzon)","parent_sales_person":"Angelo Palma (EXELTIS GM)","employee":"","is_group":1},{"name":"Rexy Darling Timbang (BA8-01)","sales_person_name":"Rexy Darling Timbang (BA8-01)","parent_sales_person":"Rey Bautista (BA8)","employee":"","is_group":0},{"name":"Rey Bautista (BA8)","sales_person_name":"Rey Bautista (BA8)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Rey Maravillas (NM5) (RESIGNED)","sales_person_name":"Rey Maravillas (NM5) (RESIGNED)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Rhea Nebres (SM4)","sales_person_name":"Rhea Nebres (SM4)","parent_sales_person":"Marilyn Rizon-Rey (District 4 - South GMA)","employee":"","is_group":0},{"name":"Rhoda Gem Franco (BA3-05)","sales_person_name":"Rhoda Gem Franco (BA3-05)","parent_sales_person":"Mark Kevin Carisma (BA3)","employee":"","is_group":0},{"name":"Rhoda Rica Bautista (L09)","sales_person_name":"Rhoda Rica Bautista (L09)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Ricardo Radam Ii (L08)","sales_person_name":"Ricardo Radam Ii (L08)","parent_sales_person":"Reste Pereira - (District 1 - North Luzon)","employee":"","is_group":0},{"name":"Richard Antipolo (BA6-01)","sales_person_name":"Richard Antipolo (BA6-01)","parent_sales_person":"Christina Tangkay (BA6)","employee":"","is_group":0},{"name":"Richard Gaspan Manuel (BA1-01) [RESIGNED]","sales_person_name":"Richard Gaspan Manuel (BA1-01) [RESIGNED]","parent_sales_person":"Raymond Viray (BA1)","employee":"","is_group":0},{"name":"RICHELLE BERIMOY (AD0117)","sales_person_name":"RICHELLE BERIMOY (AD0117)","parent_sales_person":"SARAH YUCARAN (AD0105)","employee":"","is_group":0},{"name":"Richelyn Dimaunahan (BA4-02)","sales_person_name":"Richelyn Dimaunahan (BA4-02)","parent_sales_person":"Christopher Rinon (BA4)","employee":"","is_group":0},{"name":"Rico Dizon (BA5)","sales_person_name":"Rico Dizon (BA5)","parent_sales_person":"Laiza Villarosa (BAYER GM)","employee":"","is_group":1},{"name":"Riegel Gajo (RM101)","sales_person_name":"Riegel Gajo (RM101)","parent_sales_person":"Miriam Quinan","employee":"","is_group":0},{"name":"RITEMED GM","sales_person_name":"RITEMED GM","parent_sales_person":"Sales Team","employee":"","is_group":1},{"name":"Riza Lim (NM4)","sales_person_name":"Riza Lim (NM4)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Rocette Pila Francisco (BAS-2-04)","sales_person_name":"Rocette Pila Francisco (BAS-2-04)","parent_sales_person":"No Territory","employee":"","is_group":0},{"name":"Rochelle Riza Malabanan (RM206) (RESIGNED)","sales_person_name":"Rochelle Riza Malabanan (RM206) (RESIGNED)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"Rodalie Lopez (NM2-8089) (RESIGNED)","sales_person_name":"Rodalie Lopez (NM2-8089) (RESIGNED)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Rodney Lao (L27) (RESIGNED)","sales_person_name":"Rodney Lao (L27) (RESIGNED)","parent_sales_person":"Mary Jane Manalo (District 5 - South Luzon)","employee":"","is_group":0},{"name":"Rodolfo Cosente (BA5-06) (RESIGNED)","sales_person_name":"Rodolfo Cosente (BA5-06) (RESIGNED)","parent_sales_person":"Rico Dizon (BA5)","employee":"","is_group":0},{"name":"Rogelio Rifareal (GMAVHSI-02)","sales_person_name":"Rogelio Rifareal (GMAVHSI-02)","parent_sales_person":"Daniel Somera (VHSI NSM) (INACTIVE)","employee":"","is_group":0},{"name":"Rolando Ilumin Galo (BAS-2-05) (RESIGNED)","sales_person_name":"Rolando Ilumin Galo (BAS-2-05) (RESIGNED)","parent_sales_person":"No Territory","employee":"","is_group":0},{"name":"Romana dela Cuesta (BA4-07)","sales_person_name":"Romana dela Cuesta (BA4-07)","parent_sales_person":"Christopher Rinon (BA4)","employee":"","is_group":0},{"name":"Romel Pacana (NM4) (REPLACED)","sales_person_name":"Romel Pacana (NM4) (REPLACED)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Ronald Llagas (RM208) (RESIGNED)","sales_person_name":"Ronald Llagas (RM208) (RESIGNED)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"Rose Descuatan (RND10)","sales_person_name":"Rose Descuatan (RND10)","parent_sales_person":"Giselle Pineda (RND01)","employee":"","is_group":0},{"name":"Rovi Marcelo (NM3)","sales_person_name":"Rovi Marcelo (NM3)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Ruben Pocholo Acompanada (NM6) (RESIGNED)","sales_person_name":"Ruben Pocholo Acompanada (NM6) (RESIGNED)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"Ruby Arceo (ADC-NSM)","sales_person_name":"Ruby Arceo (ADC-NSM)","parent_sales_person":"Jennifer Luna (ADC-NSM)","employee":"","is_group":1},{"name":"Ruth Joy Bombita (BA3-02)","sales_person_name":"Ruth Joy Bombita (BA3-02)","parent_sales_person":"Mark Kevin Carisma (BA3)","employee":"","is_group":0},{"name":"Ryan Floralde (BAS-1-07)","sales_person_name":"Ryan Floralde (BAS-1-07)","parent_sales_person":"Dante Mauricio (BAS-1)","employee":"","is_group":0},{"name":"Rynkie Dionisio (RM203) (RESIGNED)","sales_person_name":"Rynkie Dionisio (RM203) (RESIGNED)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"Sales Team","sales_person_name":"Sales Team","parent_sales_person":"","employee":"","is_group":1},{"name":"Salve de Luna (Abbott Samples PHSR Team GM)","sales_person_name":"Salve de Luna (Abbott Samples PHSR Team GM)","parent_sales_person":"Sales Team","employee":"HR-EMP-01381","is_group":1},{"name":"Salve de Luna (Abbott Samples RND Team GM)","sales_person_name":"Salve de Luna (Abbott Samples RND Team GM)","parent_sales_person":"Sales Team","employee":"","is_group":1},{"name":"Salve de Luna (PMII-NSM) + DSM (AD3)","sales_person_name":"Salve de Luna (PMII-NSM) + DSM (AD3)","parent_sales_person":"Jennifer Luna (ADC-NSM)","employee":"","is_group":1},{"name":"Sam Kabigting (VIV-1)","sales_person_name":"Sam Kabigting (VIV-1)","parent_sales_person":"Edralin Bayona (VHSI GM)","employee":"","is_group":1},{"name":"SARAH YUCARAN (AD0105)","sales_person_name":"SARAH YUCARAN (AD0105)","parent_sales_person":"Salve de Luna (PMII-NSM) + DSM (AD3)","employee":"","is_group":1},{"name":"SARAH YUCARAN (ADC Samples PHSR DM - AD3)","sales_person_name":"SARAH YUCARAN (ADC Samples PHSR DM - AD3)","parent_sales_person":"Salve de Luna (Abbott Samples PHSR Team GM)","employee":"","is_group":0},{"name":"Shara Mae Pagsuyuin (RND06)","sales_person_name":"Shara Mae Pagsuyuin (RND06)","parent_sales_person":"Giselle Pineda (RND01)","employee":"","is_group":0},{"name":"Sharmaine Gorme (BA8-03)","sales_person_name":"Sharmaine Gorme (BA8-03)","parent_sales_person":"Rey Bautista (BA8)","employee":"","is_group":0},{"name":"Sherezer Gabi (EM1)","sales_person_name":"Sherezer Gabi (EM1)","parent_sales_person":"Marilyn Rizon-Rey (District 3 - East GMA)","employee":"","is_group":0},{"name":"Sherwin Bautista (District 1 - North Luzon) (RESIGNED)","sales_person_name":"Sherwin Bautista (District 1 - North Luzon) (RESIGNED)","parent_sales_person":"Angelo Palma (EXELTIS GM)","employee":"","is_group":1},{"name":"Sheryl Molejon","sales_person_name":"Sheryl Molejon","parent_sales_person":"RITEMED GM","employee":"","is_group":1},{"name":"Sophia Mae Redula (M06) (RESIGNED)","sales_person_name":"Sophia Mae Redula (M06) (RESIGNED)","parent_sales_person":"Donato Rocacorba (District 7 - Mindanao)","employee":"","is_group":0},{"name":"Stella Valencia (District 3 - East GMA) (RESIGNED)","sales_person_name":"Stella Valencia (District 3 - East GMA) (RESIGNED)","parent_sales_person":"Angelo Palma (EXELTIS GM)","employee":"","is_group":1},{"name":"Test District Manager","sales_person_name":"Test District Manager","parent_sales_person":"Test General Manager","employee":"","is_group":1},{"name":"Test General Manager","sales_person_name":"Test General Manager","parent_sales_person":"Sales Team","employee":"","is_group":1},{"name":"Test Med Rep (TD1-MR2)","sales_person_name":"Test Med Rep (TD1-MR2)","parent_sales_person":"Test District Manager","employee":"","is_group":0},{"name":"Theresa Ann Colasito (EM4)","sales_person_name":"Theresa Ann Colasito (EM4)","parent_sales_person":"Marilyn Rizon-Rey (District 3 - East GMA)","employee":"","is_group":0},{"name":"Therese Ann Montano (BA6-05)","sales_person_name":"Therese Ann Montano (BA6-05)","parent_sales_person":"Christina Tangkay (BA6)","employee":"","is_group":0},{"name":"Tin Ruadap (GMAVHSI-01)","sales_person_name":"Tin Ruadap (GMAVHSI-01)","parent_sales_person":"Daniel Somera (VHSI NSM) (INACTIVE)","employee":"","is_group":0},{"name":"TRISTAN CATAYOC (V02) (RESIGNED)","sales_person_name":"TRISTAN CATAYOC (V02) (RESIGNED)","parent_sales_person":"Cesar Acasio (District 6 - Visayas)","employee":"","is_group":0},{"name":"Vern Dolino (BA7-07)","sales_person_name":"Vern Dolino (BA7-07)","parent_sales_person":"Geramar Sazon OIC (BA7)","employee":"","is_group":0},{"name":"Vhon Eduard Guivencan (NM5)","sales_person_name":"Vhon Eduard Guivencan (NM5)","parent_sales_person":"Enrico Rosas (District 2 - North GMA)","employee":"","is_group":0},{"name":"VINA TAMAYO (AD0104)","sales_person_name":"VINA TAMAYO (AD0104)","parent_sales_person":"Adrian Mendoza (AD2)","employee":"","is_group":0},{"name":"Xyrus Jerrold Baltazar (BA3-05) (RESIGNED)","sales_person_name":"Xyrus Jerrold Baltazar (BA3-05) (RESIGNED)","parent_sales_person":"Mark Kevin Carisma (BA3)","employee":"","is_group":0},{"name":"Yannah Nicole De Guzman (RM107) (RESIGNED)","sales_person_name":"Yannah Nicole De Guzman (RM107) (RESIGNED)","parent_sales_person":"Sheryl Molejon","employee":"","is_group":0},{"name":"Yvan Jhoy Aguas (BAS-2-02)","sales_person_name":"Yvan Jhoy Aguas (BAS-2-02)","parent_sales_person":"Gin Orcullo (BA2)","employee":"","is_group":0},{"name":"ZAH ERICA ABELLA (V01)","sales_person_name":"ZAH ERICA ABELLA (V01)","parent_sales_person":"Cesar Acasio (District 6 - Visayas)","employee":"","is_group":0}];
+  const BASELINE_EMPLOYEES = [{"name":"HR-EMP-01051","employee_name":"Steffi Atadero Abalajon","first_name":"Steffi","last_name":"Abalajon","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01053","employee_name":"Abegail - Abaygar","first_name":"Abegail","last_name":"Abaygar","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01056","employee_name":"Mary Anne Perina Abejo","first_name":"Mary Anne","last_name":"Abejo","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01057","employee_name":"Welmer De Felix Abenir","first_name":"Welmer","last_name":"Abenir","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01083","employee_name":"Cornelio Magsino Alcaraz Jr","first_name":"Cornelio","last_name":"Alcaraz Jr","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01089","employee_name":"Randall Villena Alfonso","first_name":"Randall","last_name":"Alfonso","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01090","employee_name":"Dante Almanon Alfonso","first_name":"Dante","last_name":"Alfonso","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01093","employee_name":"Anna Mayeth Castro Almeda","first_name":"Anna Mayeth","last_name":"Almeda","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01100","employee_name":"Faith Altubar Cabillon","first_name":"Faith","last_name":"Cabillon","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01106","employee_name":"Renalyn Montalbo Amedo","first_name":"Renalyn","last_name":"Amedo","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01113","employee_name":"Catherine Del Rosario Andres-Gamo","first_name":"Catherine","last_name":"Andres-Gamo","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01114","employee_name":"John Michael Mocamad Angeles","first_name":"John Michael","last_name":"Angeles","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01124","employee_name":"Jennifer Brito Aquilizan","first_name":"Jennifer","last_name":"Aquilizan","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01129","employee_name":"Rhodalyn Montenegro Arboleda","first_name":"Rhodalyn","last_name":"Arboleda","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01143","employee_name":"Jona Jepsani Aying","first_name":"Jona","last_name":"Aying","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01148","employee_name":"Antonietta Estrellanes Badon","first_name":"Antonietta","last_name":"Badon","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01173","employee_name":"Marjorie Lianza Batallon","first_name":"Marjorie","last_name":"Batallon","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01174","employee_name":"Mary Jane Lianza Batallon","first_name":"Mary Jane","last_name":"Batallon","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01196","employee_name":"Arlie Royce Bernales","first_name":"Arlie Royce","last_name":"Bernales","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01203","employee_name":"Joevane Abinoja Bitad","first_name":"Joevane","last_name":"Bitad","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01210","employee_name":"Charles Peter Capaning Bolonos","first_name":"Charles Peter","last_name":"Bolonos","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01212","employee_name":"Monica Veloria Bondad","first_name":"Monica","last_name":"Bondad","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01215","employee_name":"Michelle Gonzales Borcelis","first_name":"Michelle","last_name":"Borcelis","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01216","employee_name":"Jayson De Los Reyes Botones","first_name":"Jayson","last_name":"Botones","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01222","employee_name":"Mikelle Grande Bulawan","first_name":"Mikelle","last_name":"Bulawan","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01226","employee_name":"Raul Jr. Ayson Buot","first_name":"Raul Jr.","last_name":"Buot","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01233","employee_name":"Therese Anne Camille Abiog Caabay","first_name":"Therese Anne Camille","last_name":"Caabay","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01242","employee_name":"Ramil Angeles Cabisada","first_name":"Ramil","last_name":"Cabisada","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01247","employee_name":"Chales Domineque Mansano Cacananta","first_name":"Chales Domineque","last_name":"Cacananta","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01263","employee_name":"Jasper Carl Panonce Campos","first_name":"Jasper Carl","last_name":"Campos","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01269","employee_name":"Ma. Dela Paz Tangonan Cano","first_name":"Ma. Dela Paz","last_name":"Cano","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01272","employee_name":"Renifel Dizon Cantos","first_name":"Renifel","last_name":"Cantos","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01275","employee_name":"Charisse Gallegos Capulong","first_name":"Charisse","last_name":"Capulong","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01278","employee_name":"Crisanto Cesar Carillaga","first_name":"Crisanto","last_name":"Carillaga","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01281","employee_name":"Gretha Pioquinto Carlos","first_name":"Gretha","last_name":"Carlos","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01287","employee_name":"Bobby Jake Benoza Castillo","first_name":"Bobby Jake","last_name":"Castillo","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01291","employee_name":"Bernadette Wandang Castro","first_name":"Bernadette","last_name":"Castro","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01294","employee_name":"Rodrigo Sayson Catabay Jr.","first_name":"Rodrigo","last_name":"Catabay Jr.","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01298","employee_name":"Rollie Berraro Catason","first_name":"Rollie","last_name":"Catason","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01301","employee_name":"Ann Nicole Alemania Cavero","first_name":"Ann Nicole","last_name":"Cavero","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01310","employee_name":"Joanna Tabi Chipre","first_name":"Joanna","last_name":"Chipre","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01313","employee_name":"Lemuel Asas Cinco","first_name":"Lemuel","last_name":"Cinco","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01316","employee_name":"Ernesto Jr Perez Clarin","first_name":"Ernesto Jr","last_name":"Clarin","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01317","employee_name":"Arlene Ramos Closas","first_name":"Arlene","last_name":"Closas","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01321","employee_name":"Matthew Randall Tejada Collada","first_name":"Matthew Randall","last_name":"Collada","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01327","employee_name":"April Danica Jaudines Consad","first_name":"April Danica","last_name":"Consad","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01329","employee_name":"Rizalyn Penalosa Cordova","first_name":"Rizalyn","last_name":"Cordova","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01333","employee_name":"Christionette Majal Ecal Corporal","first_name":"Christionette Majal","last_name":"Corporal","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01334","employee_name":"Mary Rose Adriano Corpuz","first_name":"Mary Rose","last_name":"Corpuz","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01341","employee_name":"Rhoar Ian Anastacio Costelo","first_name":"Rhoar Ian","last_name":"Costelo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01350","employee_name":"Glaiza Abad Cruz","first_name":"Glaiza","last_name":"Cruz","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01352","employee_name":"Edgie Alwa Cuervo","first_name":"Edgie","last_name":"Cuervo","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01354","employee_name":"Chi Chi Brozas Cuevas","first_name":"Chi Chi","last_name":"Cuevas","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01373","employee_name":"Kennedy Austria De Guzman","first_name":"Kennedy","last_name":"De Guzman","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01374","employee_name":"Redentor Eusebio De Guzman","first_name":"Redentor","last_name":"De Guzman","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01375","employee_name":"Melba Aquino De Guzman","first_name":"Melba","last_name":"De Guzman","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01380","employee_name":"Lourdes Mateo De Leon","first_name":"Lourdes","last_name":"De Leon","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01391","employee_name":"Neo Gregori Dejeron","first_name":"Neo","last_name":"Dejeron","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01402","employee_name":"Kristine Joy Garcia Delos Reyes","first_name":"Kristine Joy","last_name":"Delos Reyes","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01405","employee_name":"Donato Jose Benipayo Delos Santos","first_name":"Donato Jose","last_name":"Delos Santos","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01408","employee_name":"Karen Ann Bonita Deloso","first_name":"Karen Ann","last_name":"Deloso","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01420","employee_name":"Dhesa Marie Sanvictores Dio","first_name":"Dhesa Marie","last_name":"Dio","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01423","employee_name":"Rynkie Rodriguez Dionisio","first_name":"Rynkie","last_name":"Dionisio","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01424","employee_name":"Catherine Tubo Diorico","first_name":"Catherine","last_name":"Diorico","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01427","employee_name":"Efrem Lopez Dizon","first_name":"Efrem","last_name":"Dizon","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01436","employee_name":"Johana Jane Vergabera Dorado","first_name":"Johana Jane","last_name":"Dorado","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01453","employee_name":"Jerry Arcilla Ejandra","first_name":"Jerry","last_name":"Ejandra","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01455","employee_name":"Erlinda Villanueva Embang","first_name":"Erlinda","last_name":"Embang","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01457","employee_name":"Janeuary Pablo Enolva","first_name":"Janeuary","last_name":"Enolva","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01459","employee_name":"Eileen Sisante Eroles","first_name":"Eileen","last_name":"Eroles","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01462","employee_name":"Reign Francis Tatel Espinosa","first_name":"Reign Francis","last_name":"Espinosa","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01463","employee_name":"Charizza Suarez Espinosa","first_name":"Charizza","last_name":"Espinosa","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01488","employee_name":"Mel Ochoco Ferrer","first_name":"Mel","last_name":"Ferrer","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01490","employee_name":"John Jacob Macasojot Figueroa","first_name":"John Jacob","last_name":"Figueroa","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01491","employee_name":"Jeremias Josol Figura","first_name":"Jeremias","last_name":"Figura","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01492","employee_name":"Maridel Lugasan Flor","first_name":"Maridel","last_name":"Flor","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01494","employee_name":"Renz Adrian Manalo Fontamillas","first_name":"Renz Adrian","last_name":"Fontamillas","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01515","employee_name":"Riegel Bernardino Gajo","first_name":"Riegel","last_name":"Gajo","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01522","employee_name":"Reynard Macapagal Gamo","first_name":"Reynard","last_name":"Gamo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01523","employee_name":"Maria Angeline Beatrice Diaz Gamo","first_name":"Maria Angeline Beatrice","last_name":"Gamo","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01524","employee_name":"Ivan Cristopher Diaz Gamo","first_name":"Ivan Cristopher","last_name":"Gamo","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01531","employee_name":"Dwight Garciano","first_name":"Dwight","last_name":"Garciano","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01532","employee_name":"Maria Leonora Morado Gardose","first_name":"Maria Leonora","last_name":"Gardose","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01535","employee_name":"Richard Perico Henson Lim Gauani","first_name":"Richard Perico Henson","last_name":"Gauani","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01537","employee_name":"Patrick Angelo Parre\u00f1o Gayo","first_name":"Patrick Angelo","last_name":"Gayo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01545","employee_name":"Edgar Gonzales","first_name":"Edgar","last_name":"Gonzales","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01552","employee_name":"Vergel Andrew Azarcon Guazon","first_name":"Vergel Andrew","last_name":"Guazon","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01554","employee_name":"Jessie Alcantara Alcantara Jr.","first_name":"Jessie","last_name":"Alcantara Jr.","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01565","employee_name":"Roel Ordaniza Hermosa Jr","first_name":"Roel","last_name":"Hermosa Jr","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01571","employee_name":"Dexter Abaigar Huinda","first_name":"Dexter","last_name":"Huinda","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01574","employee_name":"Jordan Imutan","first_name":"Jordan","last_name":"Imutan","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01580","employee_name":"John Rhey Labanar Jaime","first_name":"John Rhey","last_name":"Jaime","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01585","employee_name":"Mary Joy Arreglo Japon","first_name":"Mary Joy","last_name":"Japon","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01593","employee_name":"Joven Tingson Jonas","first_name":"Joven","last_name":"Jonas","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01598","employee_name":"Moonzen Flores Justiniano","first_name":"Moonzen","last_name":"Justiniano","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01615","employee_name":"Mary Grace Valloyas Landas","first_name":"Mary Grace","last_name":"Landas","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01636","employee_name":"Alberto Ramos Liwanag","first_name":"Alberto","last_name":"Liwanag","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01646","employee_name":"Mellisa Econg Lucena","first_name":"Mellisa","last_name":"Lucena","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01647","employee_name":"Nestor Servino Lucena","first_name":"Nestor","last_name":"Lucena","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01648","employee_name":"Nolito Servino Lucena","first_name":"Nolito","last_name":"Lucena","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01657","employee_name":"Emmilie Lastimoso Macabinguil","first_name":"Emmilie","last_name":"Macabinguil","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01660","employee_name":"Jeffrey Dayrit Macusi","first_name":"Jeffrey","last_name":"Macusi","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01661","employee_name":"Marcela Nicolas Madrid","first_name":"Marcela","last_name":"Madrid","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01663","employee_name":"Frederick Rana Magdayo","first_name":"Frederick","last_name":"Magdayo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01667","employee_name":"Janice Virey Magsino","first_name":"Janice","last_name":"Magsino","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01676","employee_name":"Jasmin Jetomo Maliwat","first_name":"Jasmin","last_name":"Maliwat","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01677","employee_name":"Genuel Novio Mallorca","first_name":"Genuel","last_name":"Mallorca","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01681","employee_name":"Arnold Bautista Manalili","first_name":"Arnold","last_name":"Manalili","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01687","employee_name":"Jayson Cruz Manuel","first_name":"Jayson","last_name":"Manuel","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01688","employee_name":"John Christopher Bargamento Manzano","first_name":"John Christopher","last_name":"Manzano","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01692","employee_name":"Rovi Anne Bingco Marcelo","first_name":"Rovi Anne","last_name":"Marcelo","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01701","employee_name":"Arvin Morada Mateo","first_name":"Arvin","last_name":"Mateo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01702","employee_name":"Kenneth John Morada Mateo","first_name":"Kenneth John","last_name":"Mateo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01707","employee_name":"Dante De Guzman Mauricio","first_name":"Dante","last_name":"Mauricio","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01708","employee_name":"Ma. Cecilia Caballero Mauro","first_name":"Ma. Cecilia","last_name":"Mauro","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01714","employee_name":"Mary Jane Sayo Mendoza","first_name":"Mary Jane","last_name":"Mendoza","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01715","employee_name":"Gloria Acabong Mendoza","first_name":"Gloria","last_name":"Mendoza","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01717","employee_name":"Christine Delos Reyes Mercado","first_name":"Christine","last_name":"Mercado","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01718","employee_name":"Charles Timothy Bernal Mercado","first_name":"Charles Timothy","last_name":"Mercado","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01719","employee_name":"Julie Fe Buendia Merencillo","first_name":"Julie Fe","last_name":"Merencillo","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01721","employee_name":"Jennifer Ferrer Meso","first_name":"Jennifer","last_name":"Meso","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01723","employee_name":"Johnrey Niduaza Milana","first_name":"Johnrey","last_name":"Milana","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01725","employee_name":"Allen Paul Mapalo Miole","first_name":"Allen Paul","last_name":"Miole","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01728","employee_name":"Mark Dagohoy Monares","first_name":"Mark","last_name":"Monares","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01731","employee_name":"Maricris Neis Monroid","first_name":"Maricris","last_name":"Monroid","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01732","employee_name":"Nestor Balingit Monsanto Jr.","first_name":"Nestor","last_name":"Monsanto Jr.","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01736","employee_name":"Amabelle Aveyro Morgado","first_name":"Amabelle","last_name":"Morgado","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01739","employee_name":"Ceslyn Dela Cruz Moulic","first_name":"Ceslyn","last_name":"Moulic","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01753","employee_name":"Jocelyn Sepocado Nunez","first_name":"Jocelyn","last_name":"Nunez","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01760","employee_name":"Raymond Joseph Ramirez Olivera","first_name":"Raymond Joseph","last_name":"Olivera","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01764","employee_name":"Alvin Gadin Ong","first_name":"Alvin","last_name":"Ong","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01768","employee_name":"Voltaire Billones Oracoy","first_name":"Voltaire","last_name":"Oracoy","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01770","employee_name":"Rose Bee Valencia Ordiales","first_name":"Rose Bee","last_name":"Ordiales","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01774","employee_name":"Wilen Naculangga Ortega","first_name":"Wilen","last_name":"Ortega","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01782","employee_name":"Ramil Aquino Padolina","first_name":"Ramil","last_name":"Padolina","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01786","employee_name":"Myra Hazel Samonte Paguirigan","first_name":"Myra Hazel","last_name":"Paguirigan","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01794","employee_name":"Marie Yvonne Sy Palang","first_name":"Marie Yvonne","last_name":"Palang","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01801","employee_name":"Czarina Mae Trajano Parial","first_name":"Czarina Mae","last_name":"Parial","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01817","employee_name":"Adelaine Pelagio Pena","first_name":"Adelaine","last_name":"Pena","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01830","employee_name":"Russel Brian Patalinghug Pernia","first_name":"Russel Brian","last_name":"Pernia","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01838","employee_name":"Maricel Dela Cruz Pizarro","first_name":"Maricel","last_name":"Pizarro","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01842","employee_name":"Lady Lyn Bartolo Plaza","first_name":"Lady Lyn","last_name":"Plaza","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01848","employee_name":"Sarah Jane Dominguez Posada","first_name":"Sarah Jane","last_name":"Posada","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01851","employee_name":"Benjamin Jr. Cantoria Privaldos","first_name":"Benjamin Jr.","last_name":"Privaldos","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01854","employee_name":"Melanie Lim Punongbayan","first_name":"Melanie","last_name":"Punongbayan","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01860","employee_name":"Tyra Ann Marie Manuel Rabaya","first_name":"Tyra Ann Marie","last_name":"Rabaya","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01864","employee_name":"Val Losa Ramilo","first_name":"Val","last_name":"Ramilo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01884","employee_name":"Kristina Nacpil Rivera","first_name":"Kristina","last_name":"Rivera","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01886","employee_name":"Nisa Jhoy De Guinto Rivero","first_name":"Nisa Jhoy","last_name":"Rivero","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01890","employee_name":"Michelle Torno Rodriguez","first_name":"Michelle","last_name":"Rodriguez","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01899","employee_name":"Marco Brandon Rosaroso","first_name":"Marco Brandon","last_name":"Rosaroso","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01901","employee_name":"Enrico Cortez Rosas","first_name":"Enrico","last_name":"Rosas","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01907","employee_name":"Kristine Condinato Ruadap","first_name":"Kristine","last_name":"Ruadap","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01914","employee_name":"Francis Victor Rociento Salando","first_name":"Francis Victor","last_name":"Salando","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01919","employee_name":"Jonathan Cristobal Salinas","first_name":"Jonathan","last_name":"Salinas","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01920","employee_name":"Judemar Samillano Salmorin","first_name":"Judemar","last_name":"Salmorin","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01925","employee_name":"James Aaron Molato Salvania","first_name":"James Aaron","last_name":"Salvania","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01927","employee_name":"Rachel Almazan San Antonio","first_name":"Rachel","last_name":"San Antonio","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01941","employee_name":"Jonina Jane Miranda Santos","first_name":"Jonina Jane","last_name":"Santos","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01943","employee_name":"Ma Theresa Anlacan Santos","first_name":"Ma Theresa","last_name":"Santos","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01944","employee_name":"Catherine Belan Santos","first_name":"Catherine","last_name":"Santos","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01950","employee_name":"Dindo Aguilar Sayago","first_name":"Dindo","last_name":"Sayago","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01953","employee_name":"Nerissa Urbano Sedano","first_name":"Nerissa","last_name":"Sedano","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01954","employee_name":"Roland Paul Salonga Segismundo","first_name":"Roland Paul","last_name":"Segismundo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01959","employee_name":"Melvic Dioniso Serrano","first_name":"Melvic","last_name":"Serrano","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01960","employee_name":"April Kristine Valencia Serrano","first_name":"April Kristine","last_name":"Serrano","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-01964","employee_name":"Danielle Galvez Silvestre","first_name":"Danielle","last_name":"Silvestre","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01967","employee_name":"Carlo Pepito Singson","first_name":"Carlo","last_name":"Singson","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01969","employee_name":"Angela Montalvo Sison","first_name":"Angela","last_name":"Sison","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01989","employee_name":"Evelyn Rocha Surara","first_name":"Evelyn","last_name":"Surara","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01992","employee_name":"Reagan Lozada Tabujara","first_name":"Reagan","last_name":"Tabujara","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-01998","employee_name":"Paul Joshua Debolgado Tahum","first_name":"Paul Joshua","last_name":"Tahum","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02000","employee_name":"Larry Yap Tajonera","first_name":"Larry","last_name":"Tajonera","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02001","employee_name":"Aleli Venturina Talabis","first_name":"Aleli","last_name":"Talabis","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02002","employee_name":"Jerito Quizon Talatayod","first_name":"Jerito","last_name":"Talatayod","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02010","employee_name":"Ivy Claire Natad Tangub","first_name":"Ivy Claire","last_name":"Tangub","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02016","employee_name":"Jennelyn Cortez Teanila","first_name":"Jennelyn","last_name":"Teanila","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02025","employee_name":"Cherry Ann Villasenor Tiozon","first_name":"Cherry Ann","last_name":"Tiozon","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02049","employee_name":"Chona Guinsan Valdez","first_name":"Chona","last_name":"Valdez","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02052","employee_name":"Paul Rafael Mendoza Valenzuela","first_name":"Paul Rafael","last_name":"Valenzuela","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02054","employee_name":"Ma Rocel Villa Valiente","first_name":"Ma Rocel","last_name":"Valiente","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02057","employee_name":"Christoper Gringo Susano Vasquez","first_name":"Christoper Gringo","last_name":"Vasquez","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02058","employee_name":"Rolando Cabaca Velasquez Jr","first_name":"Rolando","last_name":"Velasquez Jr","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02063","employee_name":"Bernly Dejan Veran","first_name":"Bernly","last_name":"Veran","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02073","employee_name":"Neil Hisona Villamil","first_name":"Neil","last_name":"Villamil","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02075","employee_name":"Alberto Rodrigo Marciano Patalagsa Villanueva","first_name":"Alberto Rodrigo Marciano","last_name":"Villanueva","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02077","employee_name":"Eleonor Bautista Villanueva","first_name":"Eleonor","last_name":"Villanueva","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02083","employee_name":"Eva Maureen Serrano Violanta","first_name":"Eva Maureen","last_name":"Violanta","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02086","employee_name":"Erwin Cubao Wahing","first_name":"Erwin","last_name":"Wahing","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02088","employee_name":"Suzette Gapultos Wycoco","first_name":"Suzette","last_name":"Wycoco","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02179","employee_name":"Roel Ordaniza Hermosa Jr","first_name":"Roel","last_name":"Hermosa Jr","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02180","employee_name":"Marco Brandon Rosaroso","first_name":"Marco Brandon","last_name":"Rosaroso","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02181","employee_name":"Mary Rose Adriano Corpuz","first_name":"Mary Rose","last_name":"Corpuz","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02183","employee_name":"Karen Ann Bonita Deloso","first_name":"Karen Ann","last_name":"Deloso","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02184","employee_name":"Russel Brian Patalinghug Pernia","first_name":"Russel Brian","last_name":"Pernia","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02185","employee_name":"Sheree Ann Arjona Deterala","first_name":"Sheree Ann","last_name":"Deterala","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02187","employee_name":"Jerry Arcilla Ejandra","first_name":"Jerry","last_name":"Ejandra","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02188","employee_name":"Paelo Austria De Guzman","first_name":"Paelo","last_name":"De Guzman","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02189","employee_name":"Mary Grace Valloyas Landas","first_name":"Mary Grace","last_name":"Landas","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02190","employee_name":"Sarah Jane Dominguez Posada","first_name":"Sarah Jane","last_name":"Posada","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02191","employee_name":"Adelaine Pelagio Pe\u00f1a","first_name":"Adelaine","last_name":"Pe\u00f1a","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02192","employee_name":"Cornelio Magsino Alcaraz Jr","first_name":"Cornelio","last_name":"Alcaraz Jr","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02193","employee_name":"Patrick Angelo Parre\u00f1o Gayo","first_name":"Patrick Angelo","last_name":"Gayo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02194","employee_name":"Chona Guinsan Valdez","first_name":"Chona","last_name":"Valdez","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02197","employee_name":"Paolo Galang Buena","first_name":"Paolo","last_name":"Buena","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02198","employee_name":"Ferdinand Esmeria Litang","first_name":"Ferdinand","last_name":"Litang","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02199","employee_name":"Maila Poquiz Fernandez","first_name":"Maila","last_name":"Fernandez","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02200","employee_name":"Argie Ian Adaptar Lerit","first_name":"Argie Ian","last_name":"Lerit","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02201","employee_name":"Ronna Laygan Blanco","first_name":"Ronna","last_name":"Blanco","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02202","employee_name":"Mark Cris Colubio Paler","first_name":"Mark Cris","last_name":"Paler","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02203","employee_name":"Mark Jhudiel Valenciano Abion","first_name":"Mark Jhudiel","last_name":"Abion","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02207","employee_name":"Marlon Picana Roncales","first_name":"Marlon","last_name":"Roncales","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02208","employee_name":"Jenny, Jr. Lacson Apura","first_name":"Jenny, Jr.","last_name":"Apura","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02209","employee_name":"Cathryn Ann Rose Cerellano Geronimo","first_name":"Cathryn Ann Rose","last_name":"Geronimo","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02210","employee_name":"Rene Heart Baunsit Omolon","first_name":"Rene Heart","last_name":"Omolon","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02211","employee_name":"Mary Grace Odi Abad","first_name":"Mary Grace","last_name":"Abad","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02212","employee_name":"Elma Estrada Echivere","first_name":"Elma","last_name":"Echivere","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02213","employee_name":"Ronald Requilme Llagas","first_name":"Ronald","last_name":"Llagas","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02215","employee_name":"Aura Ivory Flores Royol","first_name":"Aura Ivory","last_name":"Royol","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02218","employee_name":"Karen Pancho Fillaro","first_name":"Karen","last_name":"Fillaro","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02219","employee_name":"Emilito Talibsao Factoriza","first_name":"Emilito","last_name":"Factoriza","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02220","employee_name":"Jonafher Cruz Contiling","first_name":"Jonafher","last_name":"Contiling","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02221","employee_name":"Kenneth John Morada Mateo","first_name":"Kenneth John","last_name":"Mateo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02222","employee_name":"Jocy Ross Beredo De Guzman","first_name":"Jocy Ross","last_name":"De Guzman","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02268","employee_name":"Carmencita Zafra Mercado","first_name":"Carmencita","last_name":"Mercado","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02269","employee_name":"Jewel-Anne Grafe Sta Maria","first_name":"Jewel-Anne","last_name":"Sta Maria","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02270","employee_name":"Jayson Cruz Manuel","first_name":"Jayson","last_name":"Manuel","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02271","employee_name":"Meryl Angelu Francisco Diaz","first_name":"Meryl Angelu","last_name":"Diaz","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02272","employee_name":"Julie Anne Junio Binua","first_name":"Julie Anne","last_name":"Binua","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02273","employee_name":"Nylyn Wagan Inventado","first_name":"Nylyn","last_name":"Inventado","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02274","employee_name":"Mary Millany Christine Rose Ferrer Domingo","first_name":"Mary Millany Christine Rose","last_name":"Domingo","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02275","employee_name":"Angelica Marie Gonzales Montinola","first_name":"Angelica Marie","last_name":"Montinola","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02277","employee_name":"Cherry Gruz Eduarte","first_name":"Cherry","last_name":"Eduarte","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02278","employee_name":"Cherry Gruz Eduarte","first_name":"Cherry","last_name":"Eduarte","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02279","employee_name":"Eduardo III Bartolome Vasquez","first_name":"Eduardo III","last_name":"Vasquez","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02290","employee_name":"Sonny Boy Valdez Andres","first_name":"Sonny Boy","last_name":"Andres","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02291","employee_name":"Charles John Yamzon Patungan","first_name":"Charles John","last_name":"Patungan","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02292","employee_name":"Jonah Laurel Destura","first_name":"Jonah","last_name":"Destura","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02293","employee_name":"Ferdinand  Quijano Martin Jr","first_name":"Ferdinand ","last_name":"Martin Jr","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02294","employee_name":"Rochelle Riza Perez Malabanan","first_name":"Rochelle Riza","last_name":"Malabanan","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02295","employee_name":"John Paul Lacanilao Solis","first_name":"John Paul","last_name":"Solis","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02296","employee_name":"Thea-Joy Vallejo Obien","first_name":"Thea-Joy","last_name":"Obien","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02367","employee_name":"Darryll Hannah Buenaventura Reyes","first_name":"Darryll Hannah","last_name":"Reyes","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02396","employee_name":"Wendy Mae Lagura Elegio","first_name":"Wendy Mae","last_name":"Elegio","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02424","employee_name":"Kimberly Pescasio De Guia","first_name":"Kimberly","last_name":"De Guia","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02425","employee_name":"Clarita Marcos Sugaste","first_name":"Clarita","last_name":"Sugaste","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02427","employee_name":"Jerome Castillo Martinez","first_name":"Jerome","last_name":"Martinez","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02428","employee_name":"Joyzel Ehurango Avenido","first_name":"Joyzel","last_name":"Avenido","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02430","employee_name":"Harvey Pasco Aba","first_name":"Harvey","last_name":"Aba","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02463","employee_name":"Cherryl Ann Pineda Almodal","first_name":"Cherryl Ann","last_name":"Almodal","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02465","employee_name":"Carla Firaza Ramirez","first_name":"Carla","last_name":"Ramirez","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02466","employee_name":"Riza Rosanto Lim","first_name":"Riza","last_name":"Lim","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02467","employee_name":"Jonard Empuesto Regnim","first_name":"Jonard","last_name":"Regnim","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02468","employee_name":"Miriam Cantoria Quinan","first_name":"Miriam","last_name":"Quinan","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02470","employee_name":"Marissa Nery  Alto","first_name":"Marissa","last_name":"Alto","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02478","employee_name":"Marie Ann Villegas Caysido","first_name":"Marie Ann","last_name":"Caysido","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02479","employee_name":"Jaylord Tagao Necio","first_name":"Jaylord","last_name":"Necio","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02480","employee_name":"Dario Canja Pernis","first_name":"Dario","last_name":"Pernis","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02492","employee_name":"Sheryl Ann Macapas Molejon","first_name":"Sheryl Ann","last_name":"Molejon","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02509","employee_name":"Marissa Nery Alto","first_name":"Marissa","last_name":"Alto","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02515","employee_name":"Sheryl Ann Macapas Molejon","first_name":"Sheryl Ann","last_name":"Molejon","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02517","employee_name":"Maureen Aceboche Amaro","first_name":"Maureen","last_name":"Amaro","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02519","employee_name":"Leah Grafil Himor","first_name":"Leah","last_name":"Himor","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02520","employee_name":"Jojie Albangco Perey","first_name":"Jojie","last_name":"Perey","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02522","employee_name":"Conrad Andres","first_name":"Conrad","last_name":"Andres","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02523","employee_name":"Ruben Ambasan Saludes","first_name":"Ruben","last_name":"Saludes","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02527","employee_name":"Lourd Heart Aly Aguila Mitra","first_name":"Lourd Heart Aly","last_name":"Mitra","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02528","employee_name":"Salome Bueno Oaquilina","first_name":"Salome","last_name":"Oaquilina","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02534","employee_name":"King Al John Derano Diva","first_name":"King Al John","last_name":"Diva","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02544","employee_name":"Cleofe Cipriano Domulot","first_name":"Cleofe","last_name":"Domulot","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02545","employee_name":"Mary Millany Christine-Rose Ferrer Domingo","first_name":"Mary Millany Christine-Rose","last_name":"Domingo","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02548","employee_name":"Jonard Empuesto Regnim","first_name":"Jonard","last_name":"Regnim","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02558","employee_name":"Kathrine Jean Cabig Tarucan","first_name":"Kathrine Jean","last_name":"Tarucan","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02581","employee_name":"Cathlyn Rosell Dionco Ariola","first_name":"Cathlyn Rosell","last_name":"Ariola","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02582","employee_name":"Jacquelyne Reyes Ferrer","first_name":"Jacquelyne","last_name":"Ferrer","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02588","employee_name":"Lalaine Villegas Mijares","first_name":"Lalaine","last_name":"Mijares","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02589","employee_name":"Armando Jr. Robles Habacon","first_name":"Armando Jr.","last_name":"Habacon","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02590","employee_name":"Jacquelyne Reyes Ferrer","first_name":"Jacquelyne","last_name":"Ferrer","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02592","employee_name":"Jennifer Soriano Medina","first_name":"Jennifer","last_name":"Medina","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02618","employee_name":"Anna Shenee Na\u00f1ola Marquez","first_name":"Anna Shenee","last_name":"Marquez","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02628","employee_name":"Julienne Ascano","first_name":"Julienne","last_name":"Ascano","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02635","employee_name":"Gladys Romarate Delos Reyes","first_name":"Gladys","last_name":"Delos Reyes","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02636","employee_name":"Glenn Canete Casimiro","first_name":"Glenn","last_name":"Casimiro","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02637","employee_name":"Eloisa Marchadesch Villamil","first_name":"Eloisa","last_name":"Villamil","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02638","employee_name":"Noel Servino Lucena","first_name":"Noel","last_name":"Lucena","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02639","employee_name":"Rolando Jr. Gumabao Caisip","first_name":"Rolando Jr.","last_name":"Caisip","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02640","employee_name":"Margarita Matias Gibson","first_name":"Margarita","last_name":"Gibson","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02650","employee_name":"Ma. Victoria Flores Wenceslao","first_name":"Ma. Victoria","last_name":"Wenceslao","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02652","employee_name":"Masanori Carlo Lanto Okamura","first_name":"Masanori Carlo","last_name":"Okamura","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02653","employee_name":"Richard Justin Cedo Hernandez","first_name":"Richard Justin","last_name":"Hernandez","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02654","employee_name":"Roland Paul Salonga Segismundo","first_name":"Roland Paul","last_name":"Segismundo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02690","employee_name":"Ken Marvin Batocabe Cabrera","first_name":"Ken Marvin","last_name":"Cabrera","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02698","employee_name":"Therese Anne Orpilla Montano","first_name":"Therese Anne","last_name":"Montano","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02699","employee_name":"Jean Marie Edmund Kairuz","first_name":"Jean Marie","last_name":"Kairuz","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02700","employee_name":"Rina Culanag Montefalcon","first_name":"Rina","last_name":"Montefalcon","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02711","employee_name":"April Jane Toribio Quezon","first_name":"April Jane","last_name":"Quezon","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02728","employee_name":"Dennise Barbra Boniao Arellano","first_name":"Dennise Barbra","last_name":"Arellano","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02732","employee_name":"Flora Belle Mae Abellana Roxas","first_name":"Flora Belle Mae","last_name":"Roxas","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02733","employee_name":"Jeanne Cosipag Opaco","first_name":"Jeanne","last_name":"Opaco","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02734","employee_name":"Jeovita Billones","first_name":"Jeovita","last_name":"Billones","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02735","employee_name":"Gladys Denum Lanestosa","first_name":"Gladys","last_name":"Lanestosa","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02736","employee_name":"Arlene Vocal Ulang","first_name":"Arlene","last_name":"Ulang","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02737","employee_name":"Cheeska Base Texon","first_name":"Cheeska","last_name":"Texon","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02738","employee_name":"Lyndee Barerra Espartero","first_name":"Lyndee","last_name":"Espartero","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02739","employee_name":"Mariejoy Esperanza Taparan","first_name":"Mariejoy","last_name":"Taparan","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02740","employee_name":"Uvienne Celine Carandang Punzalan","first_name":"Uvienne Celine","last_name":"Punzalan","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02741","employee_name":"Angelica Adie Velez","first_name":"Angelica","last_name":"Velez","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02781","employee_name":"Jonathan Dizon Mallari","first_name":"Jonathan","last_name":"Mallari","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02794","employee_name":"Sylvia Tamba Asuncion","first_name":"Sylvia","last_name":"Asuncion","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02807","employee_name":"Gracielle Malabanan Saavedra","first_name":"Gracielle","last_name":"Saavedra","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02808","employee_name":"Cherie Lou Valencia Casimiro","first_name":"Cherie Lou","last_name":"Casimiro","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02812","employee_name":"Jeffrey Javier Tagala","first_name":"Jeffrey","last_name":"Tagala","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02813","employee_name":"Jasmine Magallanes Gadaingan","first_name":"Jasmine","last_name":"Gadaingan","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02819","employee_name":"Jhersy Racasa","first_name":"Jhersy","last_name":"Racasa","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02820","employee_name":"Dennis Salcedo Palce","first_name":"Dennis","last_name":"Palce","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02821","employee_name":"Samantha Jace Sobrepena Balangue","first_name":"Samantha Jace","last_name":"Balangue","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02823","employee_name":"Marry Joy Galarosa Aguilar","first_name":"Marry Joy","last_name":"Aguilar","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02836","employee_name":"Delsey Dela Cruz Downing","first_name":"Delsey","last_name":"Downing","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02838","employee_name":"Joanna Molina Gallardo","first_name":"Joanna","last_name":"Gallardo","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02839","employee_name":"Ryza Mae Panganiban Garcia","first_name":"Ryza Mae","last_name":"Garcia","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02845","employee_name":"John Rey Dela Luna Ramos","first_name":"John Rey","last_name":"Ramos","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02852","employee_name":"Jane Buenaventura Albania","first_name":"Jane","last_name":"Albania","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02859","employee_name":"Desiree Canja Pernes","first_name":"Desiree","last_name":"Pernes","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02862","employee_name":"Marichu Siapno Gundran","first_name":"Marichu","last_name":"Gundran","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02866","employee_name":"Ann Tamami Ignacio Andres","first_name":"Ann Tamami","last_name":"Andres","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-02868","employee_name":"Razel Pacino Bayotas","first_name":"Razel","last_name":"Bayotas","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02869","employee_name":"Yannah Nicole Trebeles De Guzman","first_name":"Yannah Nicole","last_name":"De Guzman","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02898","employee_name":"Ma. Paola Kristina Desepeda Parayaoan","first_name":"Ma. Paola Kristina","last_name":"Parayaoan","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02899","employee_name":"Marilyn Cabatuando Mohamed Kazi","first_name":"Marilyn","last_name":"Mohamed Kazi","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02904","employee_name":"Jao Abram Pobeda Mendoza","first_name":"Jao Abram","last_name":"Mendoza","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02965","employee_name":"Regie Orellano Alo\u00f1a","first_name":"Regie","last_name":"Alo\u00f1a","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02966","employee_name":"Ma. Paola Kristina Desepeda Parayaoan","first_name":"Ma. Paola Kristina","last_name":"Parayaoan","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02967","employee_name":"Marilyn Cabatuando Mohamed Kazi","first_name":"Marilyn","last_name":"Mohamed Kazi","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02984","employee_name":"Mark Kenneth Marcos Vizmanos","first_name":"Mark Kenneth","last_name":"Vizmanos","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-02988","employee_name":"Rebecca Mae Roco Apayat","first_name":"Rebecca Mae","last_name":"Apayat","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03000","employee_name":"John Vincent Clavo Remo","first_name":"John Vincent","last_name":"Remo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03001","employee_name":"Roland Almueda Del Rosario","first_name":"Roland","last_name":"Del Rosario","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03002","employee_name":"Abegail Cadiz Esteban","first_name":"Abegail","last_name":"Esteban","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03035","employee_name":"Jay-ann Rose Tapales Wasay","first_name":"Jay-ann Rose","last_name":"Wasay","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03036","employee_name":"Eliza Jane Aseron Galangco","first_name":"Eliza Jane","last_name":"Galangco","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03038","employee_name":"Sarah Justine Ordillio Montegrande","first_name":"Sarah Justine","last_name":"Montegrande","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03065","employee_name":"Regine Mae Magbanua Subong","first_name":"Regine Mae","last_name":"Subong","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03067","employee_name":"Mark Glenn Refugio Daarol","first_name":"Mark Glenn","last_name":"Daarol","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03113","employee_name":"Ma. Mheca Tubongbanua Regalado","first_name":"Ma. Mheca","last_name":"Regalado","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03124","employee_name":"Lordgenie Hermoso Feranil","first_name":"Lordgenie","last_name":"Feranil","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03126","employee_name":"Era Pabon Po","first_name":"Era","last_name":"Po","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03127","employee_name":"John Wilbert De Ausen Lastimosa","first_name":"John Wilbert","last_name":"Lastimosa","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03128","employee_name":"Ariel Melchor Magsombol Abu","first_name":"Ariel Melchor","last_name":"Abu","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03135","employee_name":"Spiegel Sison Gallana","first_name":"Spiegel","last_name":"Gallana","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03136","employee_name":"Sherly Arcega Galang","first_name":"Sherly","last_name":"Galang","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03137","employee_name":"Arche Diaz Magallanes","first_name":"Arche","last_name":"Magallanes","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03138","employee_name":"Rufo Renie Jr. Gucor Membreve","first_name":"Rufo Renie Jr.","last_name":"Membreve","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03140","employee_name":"Genelisa Lato Mata","first_name":"Genelisa","last_name":"Mata","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03143","employee_name":"Ike Ramon II Castillo Virtudez","first_name":"Ike Ramon II","last_name":"Virtudez","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03167","employee_name":"Madelyn Gultiano Bayocot","first_name":"Madelyn","last_name":"Bayocot","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03174","employee_name":"Dharen Berden Navajas","first_name":"Dharen","last_name":"Navajas","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03191","employee_name":"Yaranija Orioste Merginio","first_name":"Yaranija","last_name":"Merginio","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03192","employee_name":"Ricaflor Ignacio Valdez","first_name":"Ricaflor","last_name":"Valdez","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03193","employee_name":"Leah May Pagunsan Andaya","first_name":"Leah May","last_name":"Andaya","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03194","employee_name":"Apple Joy Ligad Moldon","first_name":"Apple Joy","last_name":"Moldon","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03195","employee_name":"Mary Grace Matinong","first_name":"Mary Grace","last_name":"Matinong","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03197","employee_name":"Marry Joy Galarosa Aguilar","first_name":"Marry Joy","last_name":"Aguilar","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03200","employee_name":"Regie Orellano Alo\u00f1a","first_name":"Regie","last_name":"Alo\u00f1a","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03204","employee_name":"Ken Marvin Batocabe Cabrera","first_name":"Ken Marvin","last_name":"Cabrera","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03205","employee_name":"Joanna Tabi Chipre","first_name":"Joanna","last_name":"Chipre","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03211","employee_name":"Steven Tamalla Camacho","first_name":"Steven","last_name":"Camacho","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03221","employee_name":"Haidy Mutya Dabalos","first_name":"Haidy","last_name":"Dabalos","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03222","employee_name":"Linette Borja Sigua","first_name":"Linette","last_name":"Sigua","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03223","employee_name":"Eduardo III Bartolome Vasquez","first_name":"Eduardo III","last_name":"Vasquez","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03227","employee_name":"PIMS Information Technology","first_name":"PIMS Information","last_name":"Technology","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03237","employee_name":"Gene Paul Mananquil Cruz","first_name":"Gene Paul","last_name":"Cruz","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03244","employee_name":"Jacqueline Charvet Bucho","first_name":"Jacqueline","last_name":"Bucho","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03245","employee_name":"Abigail Cabales Limpot","first_name":"Abigail","last_name":"Limpot","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03246","employee_name":"Zienah Sales Dela Cruz","first_name":"Zienah","last_name":"Dela Cruz","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03350","employee_name":"Kimberly Martinez Tajonera","first_name":"Kimberly","last_name":"Tajonera","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03366","employee_name":"Bryan Rada Biltz","first_name":"Bryan","last_name":"Biltz","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03420","employee_name":"Allen Paul Mapalo Miole","first_name":"Allen Paul","last_name":"Miole","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-03519","employee_name":"Mary Jane Martinez Olavario","first_name":"Mary Jane","last_name":"Olavario","gender":"Female","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-03586","employee_name":"Trickxy Zabala Dapilan","first_name":"Trickxy","last_name":"Dapilan","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-03634","employee_name":"Tanya Legayada Valderrama","first_name":"Tanya","last_name":"Valderrama","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03635","employee_name":"Mark Angelo Macam Albania","first_name":"Mark Angelo","last_name":"Albania","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-03636","employee_name":"Raiza Cardeno Pusing","first_name":"Raiza","last_name":"Pusing","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03664","employee_name":"Eileen Sisante Eroles","first_name":"Eileen","last_name":"Eroles","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03676","employee_name":"Leonniel Estores Santos","first_name":"Leonniel","last_name":"Santos","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-03678","employee_name":"Chona Guinsan Valdez","first_name":"Chona","last_name":"Valdez","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03679","employee_name":"Marie Yvonne Sy Palang","first_name":"Marie Yvonne","last_name":"Palang","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03680","employee_name":"Mark Glenn Refugio Daarol","first_name":"Mark Glenn","last_name":"Daarol","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03681","employee_name":"Giemhar Ayodtod Ambalong","first_name":"Giemhar","last_name":"Ambalong","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03682","employee_name":"Mary Kristine Diones Macasarte","first_name":"Mary Kristine","last_name":"Macasarte","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03725","employee_name":"Roland Paul Salonga Segismundo","first_name":"Roland Paul","last_name":"Segismundo","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03738","employee_name":"Juan Dela Cruz","first_name":"Juan","last_name":"Dela Cruz","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03741","employee_name":"Johnny Matthew Doe","first_name":"Johnny","last_name":"Doe","gender":"Male","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-03750","employee_name":"Ma. Crisanta Marquez Guiao","first_name":"Ma. Crisanta","last_name":"Guiao","gender":"Female","company":"Professional Insights Marketing Services","status":"Inactive"},{"name":"HR-EMP-04132","employee_name":"Dexter Abaigar Huinda (Gmail)","first_name":"Dexter","last_name":"Huinda (Gmail)","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"},{"name":"HR-EMP-04138","employee_name":"King Al John Derano Diva","first_name":"King Al John","last_name":"Derano Diva","gender":"Male","company":"Professional Insights Marketing Services","status":"Active"}];
+
+  let availableSalesPersons = [];
+  let availableEmployees = [];
+  let activeErpDropdown = null;
+
   function initTerritoryTree() {
+    initSalesPersonsAndEmployees();
     const saved = localStorage.getItem('pims_territory_tree_v1');
     if (saved) {
       try {
@@ -9004,6 +9171,7 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   async function syncTreeWithERPNext() {
+    syncSalesPersonsAndEmployeesWithERPNext();
     if (isStreamlitActive || (window.parent && window.parent !== window)) {
       try {
         window.parent.postMessage({
@@ -9324,6 +9492,549 @@ const BASELINE_ERP_TERRITORIES = [
     }
   }
 
+  
+  // =========================================================================
+  // 🌟 SALES PERSON & EMPLOYEE CASCADE ENGINE (ERPNext Tree Synchronization)
+  // =========================================================================
+
+  function initSalesPersonsAndEmployees() {
+    try {
+      const savedSps = localStorage.getItem('pims_sales_persons_v1');
+      if (savedSps) {
+        availableSalesPersons = JSON.parse(savedSps);
+      } else {
+        availableSalesPersons = JSON.parse(JSON.stringify(BASELINE_SALES_PERSONS));
+      }
+    } catch (_) {
+      availableSalesPersons = JSON.parse(JSON.stringify(BASELINE_SALES_PERSONS));
+    }
+
+    try {
+      const savedEmps = localStorage.getItem('pims_employees_v1');
+      if (savedEmps) {
+        availableEmployees = JSON.parse(savedEmps);
+      } else {
+        availableEmployees = JSON.parse(JSON.stringify(BASELINE_EMPLOYEES));
+      }
+    } catch (_) {
+      availableEmployees = JSON.parse(JSON.stringify(BASELINE_EMPLOYEES));
+    }
+
+    populateParentSalesPersonSelect();
+  }
+
+  function populateParentSalesPersonSelect() {
+    const sel = document.getElementById('newSpParentSelect');
+    if (!sel) return;
+    const currentVal = sel.value || 'Sales Team';
+    sel.innerHTML = '';
+
+    const rootOpt = document.createElement('option');
+    rootOpt.value = 'Sales Team';
+    rootOpt.innerText = 'Sales Team (Root)';
+    sel.appendChild(rootOpt);
+
+    const groupPersons = availableSalesPersons.filter(s => s.name !== 'Sales Team' && (s.is_group || s.name.includes('GM') || s.name.includes('DM') || s.name.includes('NSM')));
+    groupPersons.sort((a, b) => (a.sales_person_name || a.name).localeCompare(b.sales_person_name || b.name));
+
+    groupPersons.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.name;
+      opt.innerText = p.sales_person_name || p.name;
+      if (p.name === currentVal) opt.selected = true;
+      sel.appendChild(opt);
+    });
+
+    // Also append remaining sales persons
+    const otherPersons = availableSalesPersons.filter(s => s.name !== 'Sales Team' && !groupPersons.some(g => g.name === s.name));
+    otherPersons.sort((a, b) => (a.sales_person_name || a.name).localeCompare(b.sales_person_name || b.name));
+    otherPersons.slice(0, 50).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.name;
+      opt.innerText = p.sales_person_name || p.name;
+      if (p.name === currentVal) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function syncSalesPersonsAndEmployeesWithERPNext() {
+    // 1. Fetch Sales Persons
+    try {
+      const res = await fetch('/api/resource/Sales%20Person?fields=["name","sales_person_name","parent_sales_person","employee","is_group","enabled"]&limit_page_length=500', {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        const body = await res.json();
+        const live = body.data || [];
+        if (live.length > 0) {
+          availableSalesPersons = live;
+          localStorage.setItem('pims_sales_persons_v1', JSON.stringify(live));
+          populateParentSalesPersonSelect();
+        }
+      }
+    } catch (_) {}
+
+    // 2. Fetch Employees
+    try {
+      const res = await fetch('/api/resource/Employee?fields=["name","employee_name","first_name","last_name","gender","company","status"]&limit_page_length=500', {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        const body = await res.json();
+        const live = body.data || [];
+        if (live.length > 0) {
+          availableEmployees = live;
+          localStorage.setItem('pims_employees_v1', JSON.stringify(live));
+        }
+      }
+    } catch (_) {}
+  }
+
+  // --- ERPNext Searchable Select Controller ---
+  function openErpDropdown(fieldId) {
+    activeErpDropdown = fieldId;
+    renderErpDropdownMenu(fieldId, '');
+    const menu = document.getElementById(fieldId + 'Menu');
+    if (menu) menu.classList.add('active');
+  }
+
+  function closeAllErpDropdowns() {
+    document.querySelectorAll('.erp-dropdown-menu').forEach(m => m.classList.remove('active'));
+    activeErpDropdown = null;
+  }
+
+  function onErpSearchInput(fieldId) {
+    const disp = document.getElementById(fieldId + 'Display');
+    const q = disp ? disp.value.trim() : '';
+    const clr = document.getElementById(fieldId + 'Clear');
+    if (clr) clr.style.display = q ? 'block' : 'none';
+    renderErpDropdownMenu(fieldId, q);
+    const menu = document.getElementById(fieldId + 'Menu');
+    if (menu) menu.classList.add('active');
+  }
+
+  function clearErpSelection(fieldId) {
+    const inp = document.getElementById(fieldId + 'Input');
+    const disp = document.getElementById(fieldId + 'Display');
+    const clr = document.getElementById(fieldId + 'Clear');
+    if (inp) inp.value = '';
+    if (disp) {
+      disp.value = '';
+      disp.focus();
+    }
+    if (clr) clr.style.display = 'none';
+    renderErpDropdownMenu(fieldId, '');
+  }
+
+  function selectErpItem(fieldId, value, displayLabel, extraData) {
+    const inp = document.getElementById(fieldId + 'Input');
+    const disp = document.getElementById(fieldId + 'Display');
+    const clr = document.getElementById(fieldId + 'Clear');
+    if (inp) inp.value = value;
+    if (disp) disp.value = displayLabel;
+    if (clr) clr.style.display = 'block';
+
+    // If selecting employee in New Sales Person modal, auto-fill Sales Person Name if blank
+    if (fieldId === 'newSpEmployee' && extraData && extraData.employee_name) {
+      const spNameInp = document.getElementById('newSpNameInput');
+      if (spNameInp && !spNameInp.value.trim()) {
+        spNameInp.value = extraData.employee_name;
+      }
+    }
+
+    closeAllErpDropdowns();
+  }
+
+  function renderErpDropdownMenu(fieldId, query) {
+    const menu = document.getElementById(fieldId + 'Menu');
+    if (!menu) return;
+    menu.innerHTML = '';
+    const q = (query || '').toLowerCase();
+
+    if (fieldId === 'treeAddManager' || fieldId === 'treeEditManager') {
+      // Filter Sales Persons
+      let matches = availableSalesPersons.filter(s => {
+        const name = (s.sales_person_name || s.name || '').toLowerCase();
+        const parent = (s.parent_sales_person || '').toLowerCase();
+        return !q || name.includes(q) || parent.includes(q);
+      });
+
+      if (matches.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.cssText = 'padding: 8px 12px; color: #71717A; font-size: 11.5px;';
+        emptyDiv.innerText = q ? `No Sales Person matching "${query}"` : 'No Sales Persons available';
+        menu.appendChild(emptyDiv);
+      } else {
+        matches.slice(0, 40).forEach(s => {
+          const item = document.createElement('div');
+          item.className = 'erp-dropdown-item';
+          const name = s.sales_person_name || s.name;
+          const parent = s.parent_sales_person ? s.parent_sales_person : (s.employee ? `Employee: ${s.employee}` : '');
+          
+          item.innerHTML = `
+            <div class="erp-dropdown-item-title">${escapeHtml(name)}</div>
+            ${parent ? `<div class="erp-dropdown-item-sub">${escapeHtml(parent)}</div>` : ''}
+          `;
+          item.onclick = () => selectErpItem(fieldId, s.name, name, s);
+          menu.appendChild(item);
+        });
+      }
+
+      // Bottom Row: + Create a new Sales Person (matching Image 2)
+      const createRow = document.createElement('div');
+      createRow.className = 'erp-dropdown-create-row';
+      createRow.innerHTML = `<span>+</span> <span>Create a new Sales Person</span>`;
+      createRow.onclick = (e) => {
+        e.stopPropagation();
+        closeAllErpDropdowns();
+        openNewSalesPersonModal(query);
+      };
+      menu.appendChild(createRow);
+
+      const advRow = document.createElement('div');
+      advRow.className = 'erp-dropdown-adv-search';
+      advRow.innerHTML = `<span>🔍</span> <span>Advanced Search</span>`;
+      menu.appendChild(advRow);
+
+    } else if (fieldId === 'newSpEmployee') {
+      // Filter Employees (matching Image 3)
+      let matches = availableEmployees.filter(e => {
+        const id = (e.name || '').toLowerCase();
+        const fullName = (e.employee_name || `${e.first_name || ''} ${e.last_name || ''}`).toLowerCase();
+        return !q || id.includes(q) || fullName.includes(q);
+      });
+
+      if (matches.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.cssText = 'padding: 8px 12px; color: #71717A; font-size: 11.5px;';
+        emptyDiv.innerText = q ? `No Employee matching "${query}"` : 'No Employees available';
+        menu.appendChild(emptyDiv);
+      } else {
+        matches.slice(0, 40).forEach(e => {
+          const item = document.createElement('div');
+          item.className = 'erp-dropdown-item';
+          const empId = e.name;
+          const fullName = e.employee_name || `${e.first_name || ''} ${e.last_name || ''}`.trim() || empId;
+          
+          item.innerHTML = `
+            <div class="erp-dropdown-item-title">${escapeHtml(empId)}</div>
+            <div class="erp-dropdown-item-sub">${escapeHtml(fullName)}</div>
+          `;
+          item.onclick = () => selectErpItem(fieldId, empId, `${empId} - ${fullName}`, e);
+          menu.appendChild(item);
+        });
+      }
+
+      // Bottom Row: + Create a new Employee (matching Image 3)
+      const createRow = document.createElement('div');
+      createRow.className = 'erp-dropdown-create-row';
+      createRow.innerHTML = `<span>+</span> <span>Create a new Employee</span>`;
+      createRow.onclick = (e) => {
+        e.stopPropagation();
+        closeAllErpDropdowns();
+        openNewEmployeeModal(query);
+      };
+      menu.appendChild(createRow);
+
+      const advRow = document.createElement('div');
+      advRow.className = 'erp-dropdown-adv-search';
+      advRow.innerHTML = `<span>🔍</span> <span>Advanced Search</span>`;
+      menu.appendChild(advRow);
+    }
+  }
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.erp-search-container')) {
+      closeAllErpDropdowns();
+    }
+  });
+
+  // --- MODAL: New Sales Person (Image 1 & 2) ---
+  function openNewSalesPersonModal(prefillName) {
+    const nameInp = document.getElementById('newSpNameInput');
+    if (nameInp) nameInp.value = prefillName || '';
+    
+    // Clear Employee selection
+    clearErpSelection('newSpEmployee');
+    
+    // Set parent sales person
+    populateParentSalesPersonSelect();
+    const sel = document.getElementById('newSpParentSelect');
+    if (sel) sel.value = 'Sales Team';
+
+    const commInp = document.getElementById('newSpCommissionInput');
+    if (commInp) commInp.value = '';
+
+    const isGrp = document.getElementById('newSpIsGroup');
+    if (isGrp) isGrp.checked = false;
+
+    const enabled = document.getElementById('newSpEnabled');
+    if (enabled) enabled.checked = true;
+
+    document.getElementById('newSalesPersonModalOverlay').classList.add('active');
+    setTimeout(() => { if (nameInp) nameInp.focus(); }, 100);
+  }
+
+  function closeNewSalesPersonModal() {
+    document.getElementById('newSalesPersonModalOverlay').classList.remove('active');
+  }
+
+  async function submitNewSalesPerson() {
+    const spName = document.getElementById('newSpNameInput').value.trim();
+    if (!spName) {
+      showToast('Please enter a Sales Person Name!', 'error');
+      return;
+    }
+
+    const empId = document.getElementById('newSpEmployeeInput').value.trim();
+    const parentSp = document.getElementById('newSpParentSelect').value.trim() || 'Sales Team';
+    const commRate = parseFloat(document.getElementById('newSpCommissionInput').value) || 0;
+    const isGrp = document.getElementById('newSpIsGroup').checked ? 1 : 0;
+    const isEnabled = document.getElementById('newSpEnabled').checked ? 1 : 0;
+
+    const newSpRecord = {
+      name: spName,
+      sales_person_name: spName,
+      parent_sales_person: parentSp,
+      is_group: isGrp,
+      enabled: isEnabled,
+      employee: empId || null
+    };
+
+    // Update local list
+    const existingIdx = availableSalesPersons.findIndex(s => s.name === spName);
+    if (existingIdx >= 0) {
+      availableSalesPersons[existingIdx] = newSpRecord;
+    } else {
+      availableSalesPersons.unshift(newSpRecord);
+    }
+    localStorage.setItem('pims_sales_persons_v1', JSON.stringify(availableSalesPersons));
+    populateParentSalesPersonSelect();
+
+    // Streamlit bidirectional dispatch
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "sales_person_create",
+            sales_person_name: spName,
+            parent_sales_person: parentSp,
+            is_group: isGrp,
+            enabled: isEnabled,
+            employee: empId || null,
+            commission_rate: commRate,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
+
+    // Direct ERPNext API call
+    try {
+      const payload = {
+        sales_person_name: spName,
+        parent_sales_person: parentSp,
+        is_group: isGrp,
+        enabled: isEnabled
+      };
+      if (empId) payload.employee = empId;
+      if (commRate) payload.commission_rate = commRate;
+
+      fetch('/api/resource/Sales%20Person', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(async res => {
+        if (res.ok) {
+          console.log(`[ERPNext] Created Sales Person "${spName}" online`);
+          showToast(`Sales Person "${spName}" created and added to Sales Person Tree!`, 'success');
+        } else {
+          try {
+            const err = await res.json();
+            const msg = err.exception || err.message || (err._server_messages ? JSON.parse(err._server_messages)[0] : 'Server Error');
+            showToast(`ERPNext Warning: ${msg}`, 'warning');
+          } catch (_) {}
+        }
+      }).catch(err => {
+        console.warn(`[ERPNext Sales Person Warning] ${err.message}`);
+      });
+    } catch (_) {}
+
+    closeNewSalesPersonModal();
+
+    // Auto-select in the active calling modal
+    if (document.getElementById('treeAddModalOverlay').classList.contains('active')) {
+      selectErpItem('treeAddManager', spName, spName, newSpRecord);
+    } else if (document.getElementById('treeEditModalOverlay').classList.contains('active')) {
+      selectErpItem('treeEditManager', spName, spName, newSpRecord);
+    }
+
+    showToast(`Sales Person "${spName}" selected for Territory!`, 'success');
+  }
+
+  // --- MODAL: New Employee (Image 3 Flow) ---
+  function openNewEmployeeModal(prefillName) {
+    const fnInp = document.getElementById('newEmpFirstName');
+    const mnInp = document.getElementById('newEmpMiddleName');
+    const lnInp = document.getElementById('newEmpLastName');
+
+    if (prefillName) {
+      const parts = prefillName.trim().split(/\s+/);
+      if (parts.length === 1) {
+        if (fnInp) fnInp.value = parts[0];
+        if (lnInp) lnInp.value = '';
+      } else {
+        if (fnInp) fnInp.value = parts[0];
+        if (lnInp) lnInp.value = parts.slice(1).join(' ');
+      }
+    } else {
+      if (fnInp) fnInp.value = '';
+      if (lnInp) lnInp.value = '';
+    }
+    if (mnInp) mnInp.value = '';
+
+    const dojInp = document.getElementById('newEmpDoj');
+    if (dojInp && !dojInp.value) {
+      dojInp.value = new Date().toISOString().split('T')[0];
+    }
+
+    document.getElementById('newEmployeeModalOverlay').classList.add('active');
+    setTimeout(() => { if (fnInp) fnInp.focus(); }, 100);
+  }
+
+  function closeNewEmployeeModal() {
+    document.getElementById('newEmployeeModalOverlay').classList.remove('active');
+  }
+
+  async function submitNewEmployee() {
+    const fn = document.getElementById('newEmpFirstName').value.trim();
+    if (!fn) {
+      showToast('Please enter Employee First Name!', 'error');
+      return;
+    }
+
+    const mn = document.getElementById('newEmpMiddleName').value.trim();
+    const ln = document.getElementById('newEmpLastName').value.trim();
+    const gender = document.getElementById('newEmpGender').value;
+    const dob = document.getElementById('newEmpDob').value;
+    const doj = document.getElementById('newEmpDoj').value || new Date().toISOString().split('T')[0];
+    const company = document.getElementById('newEmpCompany').value || 'Professional Insights Marketing Services';
+    const status = document.getElementById('newEmpStatus').value || 'Active';
+    const designation = document.getElementById('newEmpDesignation').value.trim();
+
+    if (!dob) {
+      showToast('Please select Employee Date of Birth!', 'error');
+      return;
+    }
+
+    const fullName = `${fn} ${mn ? mn + ' ' : ''}${ln}`.trim();
+    // Generate deterministic or temporary HR-EMP ID until server confirms
+    const tempEmpId = `HR-EMP-${Math.floor(10000 + Math.random() * 90000)}`;
+
+    const newEmpRecord = {
+      name: tempEmpId,
+      employee_name: fullName,
+      first_name: fn,
+      last_name: ln,
+      gender: gender,
+      date_of_birth: dob,
+      date_of_joining: doj,
+      company: company,
+      status: status
+    };
+
+    availableEmployees.unshift(newEmpRecord);
+    localStorage.setItem('pims_employees_v1', JSON.stringify(availableEmployees));
+
+    // Streamlit bidirectional dispatch
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "employee_create",
+            first_name: fn,
+            middle_name: mn,
+            last_name: ln,
+            gender: gender,
+            date_of_birth: dob,
+            date_of_joining: doj,
+            company: company,
+            status: status,
+            designation: designation,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
+
+    // Direct ERPNext API call
+    try {
+      const payload = {
+        first_name: fn,
+        gender: gender,
+        date_of_birth: dob,
+        date_of_joining: doj,
+        company: company,
+        status: status
+      };
+      if (ln) payload.last_name = ln;
+      if (mn) payload.middle_name = mn;
+      if (designation) payload.designation = designation;
+
+      fetch('/api/resource/Employee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(async res => {
+        if (res.ok) {
+          const body = await res.json();
+          const serverDoc = body.data || {};
+          const serverId = serverDoc.name || tempEmpId;
+          const serverName = serverDoc.employee_name || fullName;
+          newEmpRecord.name = serverId;
+          newEmpRecord.employee_name = serverName;
+          localStorage.setItem('pims_employees_v1', JSON.stringify(availableEmployees));
+          console.log(`[ERPNext] Created Employee "${serverName}" (${serverId}) online`);
+          showToast(`Employee "${serverName}" (${serverId}) created live on dev.pmii-marketing.com!`, 'success');
+          
+          // Re-update display in sales person form if open
+          const spEmpInp = document.getElementById('newSpEmployeeInput');
+          if (spEmpInp && spEmpInp.value === tempEmpId) {
+            spEmpInp.value = serverId;
+            document.getElementById('newSpEmployeeDisplay').value = `${serverId} - ${serverName}`;
+          }
+        } else {
+          try {
+            const err = await res.json();
+            const msg = err.exception || err.message || 'Server error';
+            showToast(`ERPNext Warning: ${msg}`, 'warning');
+          } catch (_) {}
+        }
+      }).catch(err => {
+        console.warn(`[ERPNext Employee Warning] ${err.message}`);
+      });
+    } catch (_) {}
+
+    closeNewEmployeeModal();
+
+    // Auto-select this newly created employee in the New Sales Person modal
+    selectErpItem('newSpEmployee', tempEmpId, `${tempEmpId} - ${fullName}`, newEmpRecord);
+    
+    // Auto-fill Sales Person Name if empty
+    const spNameInp = document.getElementById('newSpNameInput');
+    if (spNameInp && !spNameInp.value.trim()) {
+      spNameInp.value = fullName;
+    }
+
+    showToast(`Employee "${fullName}" created and linked to Sales Person!`, 'success');
+  }
+
+
   // --- TREE MODAL ACTIONS (Add, Edit, Rename, Delete) ---
 
   // 1. ADD CHILD
@@ -9335,6 +10046,7 @@ const BASELINE_ERP_TERRITORIES = [
     document.getElementById('treeAddIsGroup').checked = false;
     const nameInp = document.getElementById('treeAddNameInput');
     nameInp.value = '';
+    clearErpSelection('treeAddManager');
     document.getElementById('treeAddModalOverlay').classList.add('active');
     setTimeout(() => nameInp.focus(), 100);
   }
@@ -9358,12 +10070,13 @@ const BASELINE_ERP_TERRITORIES = [
       return;
     }
 
+    const mgr = document.getElementById('treeAddManagerInput').value.trim();
     const newNode = {
       name: name,
       territory_name: name,
       parent_territory: parent,
       is_group: isGroup,
-      territory_manager: null
+      territory_manager: mgr || null
     };
 
     territoryTreeData.push(newNode);
@@ -9403,6 +10116,7 @@ const BASELINE_ERP_TERRITORIES = [
             territory_name: name,
             parent_territory: parent,
             is_group: isGroup,
+            territory_manager: mgr || null,
             timestamp: Date.now()
           }
         }, "*");
@@ -9417,7 +10131,8 @@ const BASELINE_ERP_TERRITORIES = [
         body: JSON.stringify({
           territory_name: name,
           parent_territory: parent,
-          is_group: isGroup
+          is_group: isGroup,
+          ...(mgr ? { territory_manager: mgr } : {})
         })
       }).then(async res => {
         if (res.ok) {
@@ -9453,7 +10168,11 @@ const BASELINE_ERP_TERRITORIES = [
 
     document.getElementById('treeEditModalTitle').innerText = name;
     document.getElementById('treeEditOrigName').value = name;
-    document.getElementById('treeEditManagerInput').value = node.territory_manager || '';
+    const currentMgr = node.territory_manager || '';
+    document.getElementById('treeEditManagerInput').value = currentMgr;
+    document.getElementById('treeEditManagerDisplay').value = currentMgr;
+    const editClr = document.getElementById('treeEditManagerClear');
+    if (editClr) editClr.style.display = currentMgr ? 'block' : 'none';
     document.getElementById('treeEditIsGroup').checked = Boolean(node.is_group);
 
     const descendants = getDescendantNames(name);
@@ -11013,6 +11732,20 @@ const BASELINE_ERP_TERRITORIES = [
       </div>
     </div>
 
+    <!-- Territory Manager Searchable Dropdown matching Image 2 -->
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px; font-weight:700; color:#FFFFFF; display:block; margin-bottom:6px;">
+        Territory Manager
+      </label>
+      <div class="erp-search-container" id="treeAddManagerContainer">
+        <input type="hidden" id="treeAddManagerInput" value="">
+        <input type="text" id="treeAddManagerDisplay" class="erp-search-input-box" placeholder="Search or select Sales Person..." autocomplete="off" onfocus="openErpDropdown('treeAddManager')" oninput="onErpSearchInput('treeAddManager')">
+        <button type="button" class="erp-clear-btn" id="treeAddManagerClear" onclick="clearErpSelection('treeAddManager')">✕</button>
+        <span class="erp-search-chevron">▼</span>
+        <div class="erp-dropdown-menu" id="treeAddManagerMenu"></div>
+      </div>
+    </div>
+
     <!-- Territory Name Field -->
     <div style="margin-bottom:20px;">
       <label style="font-size:12px; font-weight:700; color:#FFFFFF; display:block; margin-bottom:6px;">
@@ -11062,7 +11795,13 @@ const BASELINE_ERP_TERRITORIES = [
       </div>
       <div>
         <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Territory Manager</label>
-        <input type="text" id="treeEditManagerInput" placeholder="For reference (e.g. Jennifer Luna (ADC-NSM))" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px;">
+        <div class="erp-search-container" id="treeEditManagerContainer">
+          <input type="hidden" id="treeEditManagerInput" value="">
+          <input type="text" id="treeEditManagerDisplay" class="erp-search-input-box" placeholder="Search or select Sales Person..." autocomplete="off" onfocus="openErpDropdown('treeEditManager')" oninput="onErpSearchInput('treeEditManager')">
+          <button type="button" class="erp-clear-btn" id="treeEditManagerClear" onclick="clearErpSelection('treeEditManager')">✕</button>
+          <span class="erp-search-chevron">▼</span>
+          <div class="erp-dropdown-menu" id="treeEditManagerMenu"></div>
+        </div>
       </div>
     </div>
 
@@ -11089,6 +11828,218 @@ const BASELINE_ERP_TERRITORIES = [
       <span>Covered Doctor Masterlist Links:</span>
       <span style="font-weight:700; color:#38BDF8;" id="treeEditDocCount">0 Doctors Assigned</span>
     </div>
+  </div>
+</div>
+
+
+<!-- ========================================================================= -->
+<!-- MODAL: New Sales Person (Image 1 & 2)                                      -->
+<!-- ========================================================================= -->
+<div class="modal-overlay" id="newSalesPersonModalOverlay" style="z-index: 10001;">
+  <div class="modal-card" style="background:#18181B; border:1px solid #27272A; color:#FFFFFF; max-width:640px; border-radius:12px; padding:24px; box-shadow:0 24px 64px rgba(0,0,0,0.75);">
+    
+    <!-- Header with Breadcrumb and Not Saved Badge matching Image 1 -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; border-bottom:1px solid #27272A; padding-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="color:#A1A1AA; font-size:12px; font-weight:600;">Sales Person &gt;</span>
+        <h3 style="font-size:16px; font-weight:800; color:#FFFFFF; margin:0;">New Sales Person</h3>
+        <span class="erp-badge-not-saved">Not Saved</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button type="button" onclick="submitNewSalesPerson()" style="background:#FFFFFF; border:none; color:#0F172A; font-size:12.5px; font-weight:700; padding:6px 18px; border-radius:6px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
+          Save
+        </button>
+        <button type="button" onclick="closeNewSalesPersonModal()" style="background:none; border:none; color:#A1A1AA; font-size:18px; cursor:pointer; line-height:1;">✕</button>
+      </div>
+    </div>
+
+    <!-- Section 1: Name and Employee ID -->
+    <div style="margin-bottom:18px;">
+      <h4 style="font-size:13px; font-weight:700; color:#E4E4E7; margin:0 0 12px 0;">Name and Employee ID</h4>
+      
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+        <!-- Left: Sales Person Name -->
+        <div>
+          <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+            Sales Person Name <span style="color:#EF4444;">*</span>
+          </label>
+          <input type="text" id="newSpNameInput" placeholder="e.g. John Doe (District 1)" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
+        </div>
+
+        <!-- Right: Employee Link Dropdown matching Image 3 -->
+        <div>
+          <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+            Employee
+          </label>
+          <div class="erp-search-container" id="newSpEmployeeContainer">
+            <input type="hidden" id="newSpEmployeeInput" value="">
+            <input type="text" id="newSpEmployeeDisplay" class="erp-search-input-box" placeholder="Search employee..." autocomplete="off" onfocus="openErpDropdown('newSpEmployee')" oninput="onErpSearchInput('newSpEmployee')">
+            <button type="button" class="erp-clear-btn" id="newSpEmployeeClear" onclick="clearErpSelection('newSpEmployee')">✕</button>
+            <span class="erp-search-chevron">▼</span>
+            <div class="erp-dropdown-menu" id="newSpEmployeeMenu"></div>
+          </div>
+        </div>
+
+        <!-- Left: Parent Sales Person -->
+        <div>
+          <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+            Parent Sales Person
+          </label>
+          <select id="newSpParentSelect" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box; cursor:pointer;">
+            <option value="Sales Team" selected>Sales Team</option>
+          </select>
+          <div style="font-size:10.5px; color:#71717A; margin-top:4px;">Parent node in Sales Person Tree</div>
+        </div>
+
+        <!-- Right: Commission Rate -->
+        <div>
+          <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+            Commission Rate
+          </label>
+          <input type="number" step="0.01" id="newSpCommissionInput" placeholder="0.0" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
+        </div>
+      </div>
+
+      <!-- Checkboxes -->
+      <div style="display:flex; gap:24px; align-items:center; margin-top:14px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:#E4E4E7; cursor:pointer;">
+          <input type="checkbox" id="newSpIsGroup" style="width:15px; height:15px; accent-color:#0066FF; cursor:pointer;">
+          <span>Is Group</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:#E4E4E7; cursor:pointer;">
+          <input type="checkbox" id="newSpEnabled" checked style="width:15px; height:15px; accent-color:#0066FF; cursor:pointer;">
+          <span>Enabled</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Section 2: Sales Person Targets matching Image 1 -->
+    <div style="margin-top:18px; border-top:1px solid #27272A; padding-top:14px;">
+      <h4 style="font-size:13px; font-weight:700; color:#E4E4E7; margin:0 0 4px 0;">Sales Person Targets</h4>
+      <div style="font-size:11px; color:#A1A1AA; margin-bottom:12px;">Set targets Item Group-wise for this Sales Person.</div>
+      <div style="background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:18px; text-align:center; color:#71717A; font-size:12px;">
+        📋 Targets will be automatically synchronized with current fiscal year.
+      </div>
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+      <button type="button" onclick="closeNewSalesPersonModal()" style="background:#27272A; border:1px solid #3F3F46; color:#E4E4E7; font-size:12px; font-weight:600; padding:7px 16px; border-radius:6px; cursor:pointer;">
+        Cancel
+      </button>
+      <button type="button" onclick="submitNewSalesPerson()" style="background:#FFFFFF; border:none; color:#0F172A; font-size:12.5px; font-weight:700; padding:7px 20px; border-radius:6px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
+        Save Sales Person
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: New Employee (Image 3 Flow)                                         -->
+<!-- ========================================================================= -->
+<div class="modal-overlay" id="newEmployeeModalOverlay" style="z-index: 10003;">
+  <div class="modal-card" style="background:#18181B; border:1px solid #27272A; color:#FFFFFF; max-width:580px; border-radius:12px; padding:24px; box-shadow:0 28px 72px rgba(0,0,0,0.85);">
+    
+    <!-- Header with Breadcrumb and Not Saved Badge -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; border-bottom:1px solid #27272A; padding-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="color:#A1A1AA; font-size:12px; font-weight:600;">Employee &gt;</span>
+        <h3 style="font-size:16px; font-weight:800; color:#FFFFFF; margin:0;">New Employee</h3>
+        <span class="erp-badge-not-saved">Not Saved</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button type="button" onclick="submitNewEmployee()" style="background:#FFFFFF; border:none; color:#0F172A; font-size:12.5px; font-weight:700; padding:6px 18px; border-radius:6px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
+          Save
+        </button>
+        <button type="button" onclick="closeNewEmployeeModal()" style="background:none; border:none; color:#A1A1AA; font-size:18px; cursor:pointer; line-height:1;">✕</button>
+      </div>
+    </div>
+
+    <!-- Employee Form Fields -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+      <div>
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+          First Name <span style="color:#EF4444;">*</span>
+        </label>
+        <input type="text" id="newEmpFirstName" placeholder="e.g. King Al John" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
+      </div>
+
+      <div>
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+          Middle Name
+        </label>
+        <input type="text" id="newEmpMiddleName" placeholder="e.g. Derano" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
+      </div>
+
+      <div>
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+          Last Name
+        </label>
+        <input type="text" id="newEmpLastName" placeholder="e.g. Diva" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
+      </div>
+
+      <div>
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+          Gender <span style="color:#EF4444;">*</span>
+        </label>
+        <select id="newEmpGender" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box; cursor:pointer;">
+          <option value="Male" selected>Male</option>
+          <option value="Female">Female</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+          Date of Birth <span style="color:#EF4444;">*</span>
+        </label>
+        <input type="date" id="newEmpDob" value="1995-05-15" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
+      </div>
+
+      <div>
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+          Date of Joining <span style="color:#EF4444;">*</span>
+        </label>
+        <input type="date" id="newEmpDoj" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
+      </div>
+
+      <div style="grid-column: span 2;">
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+          Company <span style="color:#EF4444;">*</span>
+        </label>
+        <input type="text" id="newEmpCompany" value="Professional Insights Marketing Services" readonly style="width:100%; height:36px; background:#1E1E22; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#9CA3AF; font-size:12px; outline:none; box-sizing:border-box;">
+      </div>
+
+      <div>
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+          Designation
+        </label>
+        <input type="text" id="newEmpDesignation" placeholder="e.g. Territory Manager" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
+      </div>
+
+      <div>
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+          Status
+        </label>
+        <select id="newEmpStatus" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box; cursor:pointer;">
+          <option value="Active" selected>Active</option>
+          <option value="Inactive">Inactive</option>
+          <option value="Suspended">Suspended</option>
+          <option value="Left">Left</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:22px;">
+      <button type="button" onclick="closeNewEmployeeModal()" style="background:#27272A; border:1px solid #3F3F46; color:#E4E4E7; font-size:12px; font-weight:600; padding:7px 16px; border-radius:6px; cursor:pointer;">
+        Cancel
+      </button>
+      <button type="button" onclick="submitNewEmployee()" style="background:#FFFFFF; border:none; color:#0F172A; font-size:12.5px; font-weight:700; padding:7px 20px; border-radius:6px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
+        Save Employee
+      </button>
+    </div>
+
   </div>
 </div>
 
