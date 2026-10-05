@@ -324,9 +324,15 @@ def execute_tree_action(opener, action, payload):
             }
             if emp:
                 body["employee"] = emp
+            dept = payload.get("department", "").strip()
+            if dept:
+                body["department"] = dept
             comm = payload.get("commission_rate")
             if comm:
                 body["commission_rate"] = comm
+            targets = payload.get("targets")
+            if targets and isinstance(targets, list) and len(targets) > 0:
+                body["targets"] = targets
 
             data = json.dumps(body).encode("utf-8")
             req = urllib.request.Request(
@@ -364,6 +370,12 @@ def execute_tree_action(opener, action, payload):
                 body["designation"] = payload.get("designation").strip()
             if payload.get("department"):
                 body["department"] = payload.get("department").strip()
+            if payload.get("reports_to"):
+                body["reports_to"] = payload.get("reports_to").strip()
+            if payload.get("cell_number"):
+                body["cell_number"] = payload.get("cell_number").strip()
+            if payload.get("company_email"):
+                body["company_email"] = payload.get("company_email").strip()
 
             data = json.dumps(body).encode("utf-8")
             req = urllib.request.Request(
