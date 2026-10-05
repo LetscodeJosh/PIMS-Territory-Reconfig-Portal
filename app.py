@@ -6,6 +6,7 @@ import urllib.request
 import urllib.parse
 import ssl
 import http.cookiejar
+import concurrent.futures
 
 # 1. Enterprise Streamlit Page Configuration
 st.set_page_config(
@@ -473,9 +474,17 @@ if component_val and isinstance(component_val, dict):
             st.session_state["auth_response"] = res
             if res.get("authorized") and opener:
                 st.session_state["opener"] = opener
-                st.session_state["live_territories"] = fetch_live_territories(opener)
-                st.session_state["live_sales_persons"] = fetch_live_sales_persons(opener)
-                st.session_state["live_employees"] = fetch_live_employees(opener)
+                try:
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                        f_terrs = executor.submit(fetch_live_territories, opener)
+                        f_sps = executor.submit(fetch_live_sales_persons, opener)
+                        f_emps = executor.submit(fetch_live_employees, opener)
+                        st.session_state["live_territories"] = f_terrs.result()
+                        st.session_state["live_sales_persons"] = f_sps.result()
+                        st.session_state["live_employees"] = f_emps.result()
+                except Exception as ex:
+                    print(f"[Streamlit Data Fetch Warning] {ex}")
+                    st.session_state["live_territories"] = fetch_live_territories(opener)
             # Immediately scrub credentials from memory and component payload
             if "pwd" in component_val:
                 component_val["pwd"] = ""

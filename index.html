@@ -7702,72 +7702,117 @@ const BASELINE_ERP_TERRITORIES = [
     sendStreamlitFrameHeight();
   });
 
+  let streamlitLoginWatchdog = null;
+
+  function populateParentSalesPersonSelect() {
+    const select = document.getElementById('newSpParentSelect');
+    if (select && Array.isArray(availableSalesPersons)) {
+      select.innerHTML = '';
+      const defOpt = document.createElement('option');
+      defOpt.value = 'Sales Team';
+      defOpt.textContent = 'Sales Team';
+      select.appendChild(defOpt);
+      availableSalesPersons.forEach(sp => {
+        const name = typeof sp === 'string' ? sp : (sp.sales_person_name || sp.name);
+        if (name && name !== 'Sales Team') {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        }
+      });
+    }
+  }
+
   // Streamlit inbound message handler (Gated to prevent repetitive popups on zoom in/out or window resizing)
   window.addEventListener('message', function(event) {
     if (!event.data) return;
     if (event.data.type === 'streamlit:render') {
       isStreamlitActive = true;
-      const auth = event.data.args ? event.data.args.auth_response : null;
-      const liveTerrs = event.data.args ? event.data.args.live_territories : null;
-      const liveSalesPersons = event.data.args ? event.data.args.live_sales_persons : null;
-      const liveEmployees = event.data.args ? event.data.args.live_employees : null;
-      const treeSync = event.data.args ? event.data.args.tree_sync_event : null;
+      try {
+        const auth = event.data.args ? event.data.args.auth_response : null;
+        const liveTerrs = event.data.args ? event.data.args.live_territories : null;
+        const liveSalesPersons = event.data.args ? event.data.args.live_sales_persons : null;
+        const liveEmployees = event.data.args ? event.data.args.live_employees : null;
+        const treeSync = event.data.args ? event.data.args.tree_sync_event : null;
 
-      if (liveSalesPersons && Array.isArray(liveSalesPersons) && liveSalesPersons.length > 0) {
-        availableSalesPersons = liveSalesPersons;
-        localStorage.setItem('pims_sales_persons_v1', JSON.stringify(liveSalesPersons));
-        populateParentSalesPersonSelect();
-      }
+        if (liveSalesPersons && Array.isArray(liveSalesPersons) && liveSalesPersons.length > 0) {
+          availableSalesPersons = liveSalesPersons;
+          try {
+            localStorage.setItem('pims_sales_persons_v1', JSON.stringify(liveSalesPersons));
+          } catch (_) {}
+          try {
+            populateParentSalesPersonSelect();
+          } catch (_) {}
+        }
 
-      if (liveEmployees && Array.isArray(liveEmployees) && liveEmployees.length > 0) {
-        availableEmployees = liveEmployees;
-        localStorage.setItem('pims_employees_v1', JSON.stringify(liveEmployees));
-      }
+        if (liveEmployees && Array.isArray(liveEmployees) && liveEmployees.length > 0) {
+          availableEmployees = liveEmployees;
+          try {
+            localStorage.setItem('pims_employees_v1', JSON.stringify(liveEmployees));
+          } catch (_) {}
+        }
 
-      if (auth) {
-        const btn = document.getElementById('loginSubmitBtn');
-        const btnText = document.getElementById('loginBtnText');
-        if (btn) btn.disabled = false;
-        if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
-
-        if (auth.success && auth.authorized && auth.user) {
-          const isFirstLogin = !authenticatedUser || (authenticatedUser.email !== auth.user.email) || !loginNotificationShown;
-          sessionStorage.removeItem('sfe_portal_logged_out');
-          sessionStorage.setItem('sfe_portal_user', JSON.stringify(auth.user));
-          
-          // Apply authenticated state; only show bottom-right notification on true first login
-          applyAuthenticatedUser(auth.user, isFirstLogin);
-
-          // Only display welcome toast once on initial login, never on zoom/resize rerenders
-          if (isFirstLogin) {
-            loginNotificationShown = true;
-            showToast(`Welcome back, ${auth.user.full_name || auth.user.email}! Signed in as ${auth.user.role_title}.`);
+        if (auth) {
+          if (streamlitLoginWatchdog) {
+            clearTimeout(streamlitLoginWatchdog);
+            streamlitLoginWatchdog = null;
           }
-        } else {
-          showLoginError(auth.message || 'Invalid username or password. Please verify your credentials registered in https://dev.pmii-marketing.com/app/user.');
-        }
-      }
 
-      // Live territory tree updates from ERPNext via Streamlit
-      if (liveTerrs && Array.isArray(liveTerrs) && liveTerrs.length > 0) {
-        if (!liveTerrs.some(t => t.name === 'All Territories')) {
-          liveTerrs.unshift({
-            name: 'All Territories',
-            territory_name: 'All Territories',
-            parent_territory: '',
-            is_group: 1,
-            territory_manager: null
-          });
-        }
-        territoryTreeData = liveTerrs;
-        localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
-        if (typeof renderTree === 'function') renderTree();
-      }
+          const btn = document.getElementById('loginSubmitBtn');
+          const btnText = document.getElementById('loginBtnText');
+          if (btn) btn.disabled = false;
+          if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
 
-      // Two-way server feedback toasts
-      if (treeSync && treeSync.timestamp && treeSync.timestamp > lastProcessedTreeEventTs) {
-        lastProcessedTreeEventTs = treeSync.timestamp;
-        showToast(treeSync.message, treeSync.status || 'info');
+          if (auth.success && auth.authorized && auth.user) {
+            const errBox = document.getElementById('loginErrorBox');
+            if (errBox) {
+              errBox.style.display = 'none';
+              errBox.innerHTML = '';
+            }
+
+            const isFirstLogin = !authenticatedUser || (authenticatedUser.email !== auth.user.email) || !loginNotificationShown;
+            sessionStorage.removeItem('sfe_portal_logged_out');
+            sessionStorage.setItem('sfe_portal_user', JSON.stringify(auth.user));
+            
+            // Apply authenticated state; only show bottom-right notification on true first login
+            applyAuthenticatedUser(auth.user, isFirstLogin);
+
+            // Only display welcome toast once on initial login, never on zoom/resize rerenders
+            if (isFirstLogin) {
+              loginNotificationShown = true;
+              showToast(`Welcome back, ${auth.user.full_name || auth.user.email}! Signed in as ${auth.user.role_title}.`);
+            }
+          } else {
+            showLoginError(auth.message || 'Invalid username or password. Please verify your credentials registered in https://dev.pmii-marketing.com/app/user.');
+          }
+        }
+
+        // Live territory tree updates from ERPNext via Streamlit
+        if (liveTerrs && Array.isArray(liveTerrs) && liveTerrs.length > 0) {
+          if (!liveTerrs.some(t => t.name === 'All Territories')) {
+            liveTerrs.unshift({
+              name: 'All Territories',
+              territory_name: 'All Territories',
+              parent_territory: '',
+              is_group: 1,
+              territory_manager: null
+            });
+          }
+          territoryTreeData = liveTerrs;
+          try {
+            localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
+          } catch (_) {}
+          if (typeof renderTree === 'function') renderTree();
+        }
+
+        // Two-way server feedback toasts
+        if (treeSync && treeSync.timestamp && treeSync.timestamp > lastProcessedTreeEventTs) {
+          lastProcessedTreeEventTs = treeSync.timestamp;
+          showToast(treeSync.message, treeSync.status || 'info');
+        }
+      } catch (renderErr) {
+        console.error('[Streamlit Message Handler Error]', renderErr);
       }
     }
   });
@@ -7816,22 +7861,23 @@ const BASELINE_ERP_TERRITORIES = [
         }, "*");
       } catch (_) {}
 
-      // Strict 6-second watchdog timeout so user is NEVER stuck on "Signing in..."
-      setTimeout(() => {
+      // Resilient 20-second watchdog timeout for public cloud / ERPNext roundtrip
+      if (streamlitLoginWatchdog) clearTimeout(streamlitLoginWatchdog);
+      streamlitLoginWatchdog = setTimeout(() => {
         if (btn && btn.disabled) {
           btn.disabled = false;
           if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
           if (!authenticatedUser) {
-            showLoginError('Authentication response timed out (6s). Please verify your connection to https://dev.pmii-marketing.com and try again.');
+            showLoginError('Authentication response timed out (20s). Please verify your connection to https://dev.pmii-marketing.com and try again.');
           }
         }
-      }, 6000);
+      }, 20000);
       return;
     }
 
-    // 2. Standalone / local server.py environment (with strict 6s AbortController timeout):
+    // 2. Standalone / local server.py environment (with 15s AbortController timeout):
     const abortController = new AbortController();
-    const timeoutHandle = setTimeout(() => abortController.abort(), 6000);
+    const timeoutHandle = setTimeout(() => abortController.abort(), 15000);
 
     try {
       const res = await fetch('/api/login', {
@@ -12032,61 +12078,6 @@ const BASELINE_ERP_TERRITORIES = [
         <button type="button" style="background:#27272A; border:1px solid #3F3F46; color:#E4E4E7; font-size:11px; font-weight:600; padding:4px 12px; border-radius:4px; cursor:pointer;">
           + Add Row
         </button>
-      </div>
-    </div>
-
-    <!-- Modal Footer Actions -->
-    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-      <button type="button" onclick="closeNewSalesPersonModal()" style="background:#27272A; border:1px solid #3F3F46; color:#E4E4E7; font-size:12px; font-weight:600; padding:7px 16px; border-radius:6px; cursor:pointer;">
-        Cancel
-      </button>
-      <button type="button" onclick="submitNewSalesPerson()" style="background:#FFFFFF; border:none; color:#0F172A; font-size:12.5px; font-weight:700; padding:7px 20px; border-radius:6px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
-        Save Sales Person
-      </button>
-    </div>
-
-  </div>
-</div>
-
-        <!-- Left: Parent Sales Person -->
-        <div>
-          <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
-            Parent Sales Person
-          </label>
-          <select id="newSpParentSelect" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box; cursor:pointer;">
-            <option value="Sales Team" selected>Sales Team</option>
-          </select>
-          <div style="font-size:10.5px; color:#71717A; margin-top:4px;">Parent node in Sales Person Tree</div>
-        </div>
-
-        <!-- Right: Commission Rate -->
-        <div>
-          <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
-            Commission Rate
-          </label>
-          <input type="number" step="0.01" id="newSpCommissionInput" placeholder="0.0" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
-        </div>
-      </div>
-
-      <!-- Checkboxes -->
-      <div style="display:flex; gap:24px; align-items:center; margin-top:14px;">
-        <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:#E4E4E7; cursor:pointer;">
-          <input type="checkbox" id="newSpIsGroup" style="width:15px; height:15px; accent-color:#0066FF; cursor:pointer;">
-          <span>Is Group</span>
-        </label>
-        <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:#E4E4E7; cursor:pointer;">
-          <input type="checkbox" id="newSpEnabled" checked style="width:15px; height:15px; accent-color:#0066FF; cursor:pointer;">
-          <span>Enabled</span>
-        </label>
-      </div>
-    </div>
-
-    <!-- Section 2: Sales Person Targets matching Image 1 -->
-    <div style="margin-top:18px; border-top:1px solid #27272A; padding-top:14px;">
-      <h4 style="font-size:13px; font-weight:700; color:#E4E4E7; margin:0 0 4px 0;">Sales Person Targets</h4>
-      <div style="font-size:11px; color:#A1A1AA; margin-bottom:12px;">Set targets Item Group-wise for this Sales Person.</div>
-      <div style="background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:18px; text-align:center; color:#71717A; font-size:12px;">
-        📋 Targets will be automatically synchronized with current fiscal year.
       </div>
     </div>
 
