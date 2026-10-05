@@ -7578,7 +7578,16 @@ const BASELINE_ERP_TERRITORIES = [
     document.getElementById('activeProgTitle').innerText = activeProgram;
 
     const progData = LIVE_DATA[activeProgram] || { territories: [], accounts: [] };
-    programTerritories = JSON.parse(JSON.stringify(progData.territories || []));
+    const savedProgramTerrs = localStorage.getItem('pims_program_territories_' + activeProgram);
+    if (savedProgramTerrs) {
+      try {
+        programTerritories = JSON.parse(savedProgramTerrs);
+      } catch (_) {
+        programTerritories = JSON.parse(JSON.stringify(progData.territories || []));
+      }
+    } else {
+      programTerritories = JSON.parse(JSON.stringify(progData.territories || []));
+    }
     programAccounts = JSON.parse(JSON.stringify(progData.accounts || []));
 
     // Ensure all rows have valid format
@@ -11869,11 +11878,12 @@ const BASELINE_ERP_TERRITORIES = [
             latestPrevCode: t.name,
             activeCode: t.name,
             district: t.parent_territory || 'All Territories',
-            rep: t.territory_manager ? t.territory_manager : 'Unassigned Rep',
+            rep: t.territory_manager ? t.territory_manager : (t.is_group ? 'Folder (Group)' : 'Unassigned Rep'),
             docs: 0,
             status: 'CHANGED',
             recordId: newRecordId,
             userId: '',
+            isGroup: t.is_group ? 1 : 0,
             auditTrail: [{
               timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
               action: 'INITIAL_SYNC',
@@ -11881,7 +11891,7 @@ const BASELINE_ERP_TERRITORIES = [
               details: `Synchronized from live ERPNext database under ${t.parent_territory || 'All Territories'}.`
             }]
           };
-          programTerritories.push(newRow);
+          programTerritories.unshift(newRow);
           ptMap.set(t.name, newRow);
         } else {
           if (t.parent_territory && existing.district !== t.parent_territory) {
@@ -13170,36 +13180,53 @@ const BASELINE_ERP_TERRITORIES = [
       territory_name: name,
       parent_territory: parent,
       is_group: isGroup,
-      territory_manager: mgr || null
+      territory_manager: mgr || ""
     };
 
     territoryTreeData.push(newNode);
-    localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
 
-    // If leaf node, also add to programTerritories
-    if (!isGroup) {
-      const newRecordId = `REC-${name.replace(/[^A-Za-z0-9]/g, '_')}`;
-      programTerritories.push({
-        histCode: name,
-        newCode: name,
-        district: parent,
-        rep: mgr ? `Assigned (${mgr})` : 'Unassigned Rep',
-        docs: 0,
-        status: 'CHANGED',
-        recordId: newRecordId,
-        userId: userAcc || `EMP-${Math.floor(10000 + Math.random() * 90000)}`,
-        latestPrevCode: name,
-        activeCode: name,
-        auditTrail: [{
-          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-          action: 'ADD_CHILD_TREE',
-          user: 'admin@pims.com [SFE Lead]',
-          details: `Created new territory "${name}" under parent "${parent}".`
-        }]
-      });
+    // If parent node exists and is not marked group, upgrade to group so child sits cleanly
+    const pNode = territoryTreeData.find(t => t.name === parent || t.territory_name === parent);
+    if (pNode && !pNode.is_group) {
+      pNode.is_group = 1;
     }
 
-    // Streamlit bidirectional dispatch
+    try {
+      localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
+    } catch (_) {}
+
+    // Prepend to programTerritories so it is immediately visible on Page 1 at the top of the table grid list!
+    const newRecordId = `REC-${name.replace(/[^A-Za-z0-9]/g, '_')}`;
+    const newRow = {
+      histCode: name,
+      newCode: name,
+      district: parent,
+      rep: mgr ? `Assigned (${mgr})` : (isGroup ? 'Folder (Group)' : 'Unassigned Rep'),
+      docs: 0,
+      status: 'CHANGED',
+      recordId: newRecordId,
+      userId: userAcc || `EMP-${Math.floor(10000 + Math.random() * 90000)}`,
+      latestPrevCode: name,
+      activeCode: name,
+      isGroup: isGroup ? 1 : 0,
+      auditTrail: [{
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        action: isGroup ? 'ADD_CHILD_FOLDER' : 'ADD_CHILD_TREE',
+        user: 'admin@pims.com [SFE Lead]',
+        details: `Created new ${isGroup ? 'child folder' : 'territory'} "${name}" under parent "${parent}".`
+      }]
+    };
+    programTerritories.unshift(newRow);
+
+    if (LIVE_DATA[activeProgram] && Array.isArray(LIVE_DATA[activeProgram].territories)) {
+      LIVE_DATA[activeProgram].territories.unshift(newRow);
+    }
+
+    try {
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+    } catch (_) {}
+
+    // Streamlit bidirectional dispatch (pass safe string instead of null)
     if (isStreamlitActive || (window.parent && window.parent !== window)) {
       try {
         window.parent.postMessage({
@@ -13210,7 +13237,7 @@ const BASELINE_ERP_TERRITORIES = [
             territory_name: name,
             parent_territory: parent,
             is_group: isGroup,
-            territory_manager: mgr || null,
+            territory_manager: mgr || "",
             timestamp: Date.now()
           }
         }, "*");
@@ -13244,9 +13271,24 @@ const BASELINE_ERP_TERRITORIES = [
       });
     } catch (_) {}
 
-    treeExpandedNodes.add(parent);
+    // Expand all ancestor nodes in tree so new child folder or territory is immediately visible
+    let currP = parent;
+    while (currP) {
+      treeExpandedNodes.add(currP);
+      const p = territoryTreeData.find(t => t.name === currP || t.territory_name === currP);
+      currP = (p && p.parent_territory) ? p.parent_territory : null;
+    }
     selectedTreeNode = name;
     closeTreeAddModal();
+
+    // Reset pagination to page 1, clear active search filter, and highlight newly added record
+    tableCurrentPage = 1;
+    if (typeof clearFilterField === 'function') clearFilterField();
+    if (typeof selectedRowIndices !== 'undefined') {
+      selectedRowIndices.clear();
+      selectedRowIndices.add(0);
+    }
+
     renderTree();
     renderTable();
     renderRealignmentAndArchive();
@@ -13344,6 +13386,9 @@ const BASELINE_ERP_TERRITORIES = [
         details: `Reconfigured territory in Tree View. Parent: ${newParent}, Manager: ${newMgr || 'None'}.`
       });
     }
+    try {
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+    } catch (_) {}
 
     // Streamlit bidirectional dispatch
     if (isStreamlitActive || (window.parent && window.parent !== window)) {
@@ -13469,6 +13514,9 @@ const BASELINE_ERP_TERRITORIES = [
     });
 
     localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
+    try {
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+    } catch (_) {}
 
     // Streamlit bidirectional dispatch
     if (isStreamlitActive || (window.parent && window.parent !== window)) {
@@ -13579,6 +13627,12 @@ const BASELINE_ERP_TERRITORIES = [
     programTerritories = programTerritories.filter(pt => pt.activeCode !== target && pt.histCode !== target);
 
     localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
+    try {
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+    } catch (_) {}
+    try {
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+    } catch (_) {}
 
     // Streamlit bidirectional dispatch
     if (isStreamlitActive || (window.parent && window.parent !== window)) {

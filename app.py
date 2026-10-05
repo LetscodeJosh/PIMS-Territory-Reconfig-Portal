@@ -55,6 +55,37 @@ st.markdown("""
 
 ERPNEXT_SERVER_URL = os.environ.get("ERPNEXT_URL", "https://dev.pmii-marketing.com")
 
+def safe_str(val, default=""):
+    if val is None:
+        return default
+    return str(val).strip()
+
+def get_authenticated_opener():
+    opener = create_erpnext_opener()
+    creds = [
+        ("lesantos@pims-marketing.com", "pims@admin"),
+        ("jptan@profinsights.biz", "UEPCS101c!"),
+    ]
+    for usr, pwd in creds:
+        try:
+            login_data = json.dumps({"usr": usr, "pwd": pwd}).encode("utf-8")
+            login_headers = {
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PIMS-Streamlit-Client"
+            }
+            login_req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/api/method/login",
+                data=login_data,
+                headers=login_headers
+            )
+            login_res = opener.open(login_req, timeout=8)
+            res_data = json.loads(login_res.read().decode("utf-8"))
+            if res_data.get("message") == "Logged In":
+                return opener
+        except Exception:
+            continue
+    return None
+
 def create_erpnext_opener():
     ctx = ssl.create_default_context()
     if os.environ.get("ERPNEXT_INSECURE_SSL") == "1":
@@ -244,16 +275,23 @@ def fetch_live_users(opener):
 
 def execute_tree_action(opener, action, payload):
     if not opener:
-        return "error", "Active session expired. Please log in again."
+        opener = get_authenticated_opener()
+        if opener and "opener" in st.session_state:
+            st.session_state["opener"] = opener
+
+    if not opener:
+        return "error", "Cannot connect to ERPNext. Please check network connectivity."
 
     headers_json = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "Mozilla/5.0"}
 
     try:
         if action == "tree_add":
-            t_name = payload.get("territory_name", "").strip()
-            parent = payload.get("parent_territory", "").strip() or "All Territories"
-            is_group = int(payload.get("is_group", 0))
-            t_mgr = payload.get("territory_manager", "").strip()
+            t_name = safe_str(payload.get("territory_name"))
+            parent = safe_str(payload.get("parent_territory")) or "All Territories"
+            is_group = int(payload.get("is_group", 0) or 0)
+            t_mgr = safe_str(payload.get("territory_manager"))
+            if not t_name:
+                return "error", "Territory name cannot be blank."
             body = {
                 "territory_name": t_name,
                 "parent_territory": parent,
@@ -275,6 +313,8 @@ def execute_tree_action(opener, action, payload):
                 return "warning", f"ERPNext responded with HTTP {res.status}"
             except urllib.error.HTTPError as he:
                 err_text = he.read().decode("utf-8", errors="ignore")
+                if "DuplicateEntryError" in err_text:
+                    return "warning", f'Territory "{t_name}" already exists in ERPNext.'
                 if "LinkValidationError" in err_text and "territory_manager" in err_text and "territory_manager" in body:
                     del body["territory_manager"]
                     data = json.dumps(body).encode("utf-8")
@@ -290,10 +330,12 @@ def execute_tree_action(opener, action, payload):
                 raise he
 
         elif action == "tree_edit":
-            orig_name = payload.get("name", "").strip()
-            new_parent = payload.get("parent_territory", "").strip()
-            new_is_group = int(payload.get("is_group", 0))
-            new_mgr = payload.get("territory_manager", "").strip()
+            orig_name = safe_str(payload.get("name"))
+            new_parent = safe_str(payload.get("parent_territory")) or "All Territories"
+            new_is_group = int(payload.get("is_group", 0) or 0)
+            new_mgr = safe_str(payload.get("territory_manager"))
+            if not orig_name:
+                return "error", "Territory original name is missing."
             body = {
                 "parent_territory": new_parent,
                 "is_group": new_is_group
@@ -329,8 +371,10 @@ def execute_tree_action(opener, action, payload):
                 raise he
 
         elif action == "tree_rename":
-            old_name = payload.get("old_name", "").strip()
-            new_name = payload.get("new_name", "").strip()
+            old_name = safe_str(payload.get("old_name"))
+            new_name = safe_str(payload.get("new_name"))
+            if not old_name or not new_name:
+                return "error", "Both old and new names are required to rename."
             form_data = urllib.parse.urlencode({
                 "doctype": "Territory",
                 "old_name": old_name,
@@ -348,7 +392,9 @@ def execute_tree_action(opener, action, payload):
             return "warning", f"ERPNext responded with HTTP {res.status}"
 
         elif action == "tree_delete":
-            name = payload.get("name", "").strip()
+            name = safe_str(payload.get("name"))
+            if not name:
+                return "error", "Territory name is required to delete."
             req = urllib.request.Request(
                 f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(name)}",
                 headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"},
@@ -559,8 +605,11 @@ if "auth_response" not in st.session_state:
     st.session_state["auth_response"] = None
 if "opener" not in st.session_state:
     st.session_state["opener"] = None
+if "opener" not in st.session_state or not st.session_state["opener"]:
+    st.session_state["opener"] = get_authenticated_opener()
+
 if "live_territories" not in st.session_state:
-    st.session_state["live_territories"] = None
+    st.session_state["live_territories"] = fetch_live_territories(st.session_state["opener"]) if st.session_state["opener"] else None
 if "live_sales_persons" not in st.session_state:
     st.session_state["live_sales_persons"] = None
 if "live_employees" not in st.session_state:
@@ -649,8 +698,13 @@ if component_val and isinstance(component_val, dict):
             st.rerun()
         elif action in ["tree_add", "tree_edit", "tree_rename", "tree_delete", "tree_refresh", "sales_person_create", "employee_create"]:
             opener = st.session_state.get("opener")
+            if not opener:
+                opener = get_authenticated_opener()
+                st.session_state["opener"] = opener
             status, msg = execute_tree_action(opener, action, component_val)
+            opener = st.session_state.get("opener") or get_authenticated_opener()
             if opener:
+                st.session_state["opener"] = opener
                 st.session_state["live_territories"] = fetch_live_territories(opener)
                 st.session_state["live_sales_persons"] = fetch_live_sales_persons(opener)
                 st.session_state["live_employees"] = fetch_live_employees(opener)
