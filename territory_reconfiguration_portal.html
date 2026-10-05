@@ -7456,15 +7456,6 @@ const BASELINE_ERP_TERRITORIES = [
     sessionStorage.removeItem('sfe_portal_logged_out');
     authenticatedUser = null;
     showLoginView();
-    if (window.parent && window.parent !== window) {
-      try {
-        window.parent.postMessage({
-          isStreamlitMessage: true,
-          type: "streamlit:setComponentValue",
-          value: { action: "logout", timestamp: Date.now() }
-        }, "*");
-      } catch (_) {}
-    }
     return false;
   }
 
@@ -7790,14 +7781,7 @@ const BASELINE_ERP_TERRITORIES = [
 
         if (auth) {
           if (!isActivelyLoggingIn) {
-            // Browser refreshed or reloaded: ignore cached session and enforce relogin
-            try {
-              window.parent.postMessage({
-                isStreamlitMessage: true,
-                type: "streamlit:setComponentValue",
-                value: { action: "logout", timestamp: Date.now() }
-              }, "*");
-            } catch (_) {}
+            // Browser refreshed or reloaded: ignore stale cached session and remain on login screen
             return;
           }
           isActivelyLoggingIn = false;
