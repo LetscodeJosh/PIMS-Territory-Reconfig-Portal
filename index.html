@@ -1998,17 +1998,6 @@
             </div>
 
             <!-- Column Visibility Filter Dropdown (When unchecked, column is hidden; when checked, displayed!) -->
-            <!-- Archived Territory Dropdown in Grid Toolbar -->
-            <div id="gridArchivedDropdownWrapper" style="display:inline-flex; align-items:center; gap:6px; background:#FEF2F2; padding:2px 8px; border-radius:6px; border:1.5px solid #FECACA; height:34px; flex-shrink:0;">
-              <label for="gridArchivedDropdown" style="font-size:11px; font-weight:800; color:#991B1B; text-transform:uppercase; letter-spacing:0.3px; display:inline-flex; align-items:center; gap:4px; margin:0; cursor:pointer; white-space:nowrap;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                Archived:
-              </label>
-              <select id="gridArchivedDropdown" class="crm-filter-select" onchange="handleArchivedDropdownChange(this.value, 'grid')" style="height:26px; font-size:11.5px; font-weight:700; border-radius:4px; border:1px solid #FCA5A5; background:#FFFFFF; color:#991B1B; cursor:pointer; min-width:170px; max-width:250px;">
-                <!-- Populated dynamically -->
-              </select>
-            </div>
-
             <div id="columnVisibilityDropdownWrapper"  class="col-visibility-dropdown" style="flex-shrink:0;">
               <button type="button" id="btnColumnFilter" onclick="toggleColumnVisibilityMenu()" class="btn btn-sm" style="height:34px; font-size:12px; font-weight:700; color:#334155; display:inline-flex; align-items:center; gap:6px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; padding:0 12px; cursor:pointer;" title="Show or hide table columns">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
@@ -2120,16 +2109,6 @@
               </span>
             </div>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-              <!-- Dedicated Archived Territory Dropdown -->
-              <div id="treeArchivedDropdownWrapper" style="display:inline-flex; align-items:center; gap:6px; background:#FEF2F2; padding:2px 8px; border-radius:6px; border:1.5px solid #FECACA; height:32px;">
-                <label for="treeArchivedDropdown" style="font-size:11px; font-weight:800; color:#991B1B; text-transform:uppercase; letter-spacing:0.3px; display:inline-flex; align-items:center; gap:4px; margin:0; cursor:pointer; white-space:nowrap;">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                  Archived:
-                </label>
-                <select id="treeArchivedDropdown" class="crm-filter-select" onchange="handleArchivedDropdownChange(this.value, 'tree')" style="height:26px; font-size:11.5px; font-weight:700; border-radius:4px; border:1px solid #FCA5A5; background:#FFFFFF; color:#991B1B; cursor:pointer; min-width:180px; max-width:260px;">
-                  <!-- Populated dynamically -->
-                </select>
-              </div>
               <input type="text" id="treeFilterInput" placeholder="Filter territory tree..."  oninput="onTreeFilterInput(this.value)" style="height:32px; padding:0 10px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; color:#0F172A; font-size:12px; width:210px; font-weight:600;">
               <button class="btn btn-sm btn-outline" onclick="expandAllTreeNodes()" style="font-size:11.5px;">Expand All</button>
               <button class="btn btn-sm btn-outline" onclick="collapseAllTreeNodes()" style="font-size:11.5px;">Collapse All</button>
@@ -2167,124 +2146,166 @@
           <!-- Populated dynamically -->
         </div>
 
-        <!-- Decommissioned / Archive Vault (Folder Card with Dropdown) -->
-        <div style="margin-top:28px; border:1.5px solid #CBD5E1; border-radius:10px; background:#FFFFFF; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);" id="archiveVaultCard">
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; background:#F8FAFC; border-bottom:1.5px solid #E2E8F0; cursor:pointer; flex-wrap:wrap; gap:10px;" onclick="toggleArchiveVaultFolder()">
-            <div style="display:flex; align-items:center; gap:10px;">
-              <span id="arcVaultFolderToggleIcon" style="font-size:14px; color:#475569; user-select:none; font-weight:bold;">▼</span>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-              <div>
-                <h3 style="font-size:13.5px; font-weight:800; color:#0F172A; text-transform:uppercase; letter-spacing:0.5px; margin:0;">
-                  Previous Reconfiguration Archive Folder
-                </h3>
-                <span style="font-size:11.5px; color:#64748B;">Archived &amp; decommissioned territory vault from previous cycles (Zero physician data loss)</span>
-              </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;" onclick="event.stopPropagation();">
-              <div id="vaultArchivedDropdownWrapper" style="display:inline-flex; align-items:center; gap:6px;">
-                <label for="vaultArchivedDropdown" style="font-size:11px; font-weight:800; color:#991B1B; text-transform:uppercase; letter-spacing:0.3px; margin:0; cursor:pointer; white-space:nowrap;">Jump to Archived:</label>
-                <select id="vaultArchivedDropdown" class="crm-filter-select" onchange="handleArchivedDropdownChange(this.value, 'vault')" style="height:30px; font-size:11.5px; font-weight:700; border-radius:6px; border:1.5px solid #FCA5A5; background:#FFFFFF; color:#991B1B; cursor:pointer; min-width:180px;">
-                  <!-- Populated dynamically -->
-                </select>
-              </div>
-              <span class="badge badge-archive" id="archivedPillCount">0 Archived Records</span>
-            </div>
-          </div>
-
-          <div id="archiveVaultContent" style="padding:16px;">
-            <!-- Archive Vault Search Toolbar -->
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:#F8FAFC; padding:8px 14px; border-radius:8px; border:1.5px solid #E2E8F0; flex-wrap:wrap; gap:10px;">
-            <div style="font-size:12px; color:#64748B; font-weight:600; display:flex; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0;">
-              <span>Showing <strong style="color:#EF4444;" id="archivedVisibleCount">0</strong> of <strong id="archivedTotalCount" style="color:#0F172A;">0</strong> archived records</span>
-            </div>
-
-            <div style="display:inline-flex; align-items:center; gap:8px; flex-wrap:nowrap;">
-              <label for="arcFilterField" style="font-size:11px; color:#475569; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap; margin:0; line-height:1; flex-shrink:0; cursor:pointer;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#64748B;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                Filter Vault:
-              </label>
-              <select id="arcFilterField" class="crm-filter-select" style="min-width:150px; width:auto; height:32px; padding:0 24px 0 8px; font-weight:700; border-radius:6px; border:1.5px solid #CBD5E1; background:#FFFFFF; font-size:11.5px; color:#0F172A; cursor:pointer; flex-shrink:0;" onchange="onArcFilterFieldChange()">
-                <option value="all">All Columns</option>
-                <option value="histCode">Historical Code</option>
-                <option value="recordId">Record ID</option>
-                <option value="rep">Last Assigned MedRep</option>
-                <option value="reason">Archive Reason</option>
-              </select>
-              <div style="position:relative; display:inline-flex; align-items:center; flex-shrink:0;">
-                <input type="text" id="arcFilterValue" class="crm-filter-input" placeholder="Search archive records..." style="height:32px; min-width:210px; padding:0 26px 0 8px; border-radius:6px; border:1.5px solid #CBD5E1; font-size:11.5px; font-weight:600;" oninput="onArcFilterInput(this)" onkeyup="applyArcFilter()">
-                <button type="button" id="btnArcFilterClear" onclick="clearArcFilter()" title="Clear archive search (✕)" style="position:absolute; right:6px; background:none; border:none; color:#94A3B8; font-size:13px; font-weight:bold; cursor:pointer; padding:2px 5px; border-radius:4px; line-height:1; display:none; align-items:center; justify-content:center; transition:color 0.15s ease;" onmouseover="this.style.color='#DC2626'" onmouseout="this.style.color='#94A3B8'">
-                  ✕
-                </button>
-              </div>
-
-              <!-- Tab 2 Column Visibility Filter Dropdown -->
-              <div id="arcColVisibilityWrapper" class="col-visibility-dropdown" style="flex-shrink:0;">
-                <button type="button" id="btnArcColumnFilter" onclick="toggleArcColumnVisibilityMenu()" class="btn btn-sm" style="height:32px; font-size:11.5px; font-weight:700; color:#334155; display:inline-flex; align-items:center; gap:5px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; padding:0 10px; cursor:pointer;" title="Show or hide archive columns">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                  <span>Columns (<span id="arcVisibleColCount">7</span>/7)</span>
-                  <span style="font-size:9px; color:#64748B;">▼</span>
-                </button>
-                <div id="arcColumnVisibilityMenu" class="col-visibility-menu">
-                  <div class="col-menu-header">
-                    <span class="col-menu-title">Archive Columns</span>
-                    <div style="font-size:11px;">
-                      <a href="javascript:void(0)" onclick="setAllArcColumnsVisibility(true)" style="color:#0066FF; font-weight:700; text-decoration:none; margin-right:8px;">All</a>
-                      <a href="javascript:void(0)" onclick="setAllArcColumnsVisibility(false)" style="color:#DC2626; font-weight:700; text-decoration:none; margin-right:8px;">None</a>
-                      <a href="javascript:void(0)" onclick="resetArcColumnsVisibility()" style="color:#64748B; font-weight:600; text-decoration:none;">Reset</a>
-                    </div>
+        <!-- TAB 2: ARCHIVE FOLDER DROPDOWN & VAULT COMPONENT -->
+        <div style="margin-top:28px;" id="archiveFolderDropdownContainer">
+          <div class="archive-folder-dropdown-card" id="archiveFolderCard" style="border:1.5px solid #CBD5E1; border-radius:10px; background:#FFFFFF; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.04); transition:border-color 0.2s ease;">
+            
+            <!-- 📁 ARCHIVE FOLDER TRIGGER / HEADER (BEHAVES AS A DROPDOWN) -->
+            <div id="archiveFolderTrigger" onclick="toggleArchiveFolderDropdown()" style="display:flex; justify-content:space-between; align-items:center; padding:14px 18px; background:#F8FAFC; border-bottom:1.5px solid transparent; cursor:pointer; user-select:none; flex-wrap:wrap; gap:12px; transition:background 0.15s ease;" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='#F8FAFC'">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:24px; line-height:1;">📁</span>
+                <div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <h3 style="font-size:14px; font-weight:800; color:#0F172A; text-transform:uppercase; letter-spacing:0.5px; margin:0;">
+                      Archived Territories Folder
+                    </h3>
+                    <span class="badge badge-archive" id="archivedPillCount">0 Archived Records</span>
                   </div>
-                  <div style="display:flex; flex-direction:column; gap:4px;">
-                    <label class="col-menu-item">
-                      <input type="checkbox" id="arcColToggle_date" checked onchange="toggleArcColumnVisibility('date', this.checked)">
-                      <span>Archive Date</span>
-                    </label>
-                    <label class="col-menu-item">
-                      <input type="checkbox" id="arcColToggle_id" checked onchange="toggleArcColumnVisibility('id', this.checked)">
-                      <span>Record ID</span>
-                    </label>
-                    <label class="col-menu-item">
-                      <input type="checkbox" id="arcColToggle_code" checked onchange="toggleArcColumnVisibility('code', this.checked)">
-                      <span>Historical Code</span>
-                    </label>
-                    <label class="col-menu-item">
-                      <input type="checkbox" id="arcColToggle_rep" checked onchange="toggleArcColumnVisibility('rep', this.checked)">
-                      <span>Last Assigned MedRep</span>
-                    </label>
-                    <label class="col-menu-item">
-                      <input type="checkbox" id="arcColToggle_docs" checked onchange="toggleArcColumnVisibility('docs', this.checked)">
-                      <span>Preserved Doctors</span>
-                    </label>
-                    <label class="col-menu-item">
-                      <input type="checkbox" id="arcColToggle_reason" checked onchange="toggleArcColumnVisibility('reason', this.checked)">
-                      <span>Archive Reason</span>
-                    </label>
-                    <label class="col-menu-item">
-                      <input type="checkbox" id="arcColToggle_action" checked onchange="toggleArcColumnVisibility('action', this.checked)">
-                      <span>Action</span>
-                    </label>
-                  </div>
+                  <span style="font-size:11.5px; color:#64748B; margin-top:2px; display:block;">
+                    Click this folder to drop down archived territory reconfigurations from previous cycles (Zero physician data loss)
+                  </span>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div id="folderDropdownIndicator" style="display:inline-flex; align-items:center; gap:6px; background:#FEF2F2; color:#DC2626; font-size:11.5px; font-weight:800; padding:6px 14px; border-radius:6px; border:1px solid #FECACA; letter-spacing:0.3px;">
+                  <span>Dropdown Archive</span>
+                  <span id="folderArrowChar" style="font-size:11px; font-weight:900; transition:transform 0.2s ease;">▼</span>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="table-responsive">
-            <table id="archivedTable">
-              <thead>
-                <tr>
-                  <th class="col-arc-date">Archive Date</th>
-                  <th class="col-arc-id">Record ID</th>
-                  <th class="col-arc-code">Historical Code</th>
-                  <th class="col-arc-rep">Last Assigned MedRep</th>
-                  <th class="col-arc-docs" style="text-align:center;">Preserved Doctors</th>
-                  <th class="col-arc-reason">Archive Reason</th>
-                  <th class="col-arc-action" style="text-align:center;">Action</th>
-                </tr>
-              </thead>
-              <tbody id="archivedTableBody">
-                <!-- Populated dynamically -->
-              </tbody>
-            </table>
+            <!-- 📂 DROPDOWN CONTENT (DROPS DOWN ON CLICK, ACTIVE REGARDLESS OF RECORD COUNT) -->
+            <div id="archiveFolderDropdownContent" style="display:none; padding:18px; background:#FFFFFF; border-top:1.5px solid #E2E8F0;">
+              
+              <!-- Toolbar Inside Dropped-Down Folder -->
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; background:#F8FAFC; padding:10px 14px; border-radius:8px; border:1.5px solid #E2E8F0; flex-wrap:wrap; gap:12px;">
+                <!-- Dedicated Dropdown Selector for Archived Territories -->
+                <div style="display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <label for="archivedTerritoryDropdownSelect" style="font-size:11px; font-weight:800; color:#991B1B; text-transform:uppercase; letter-spacing:0.3px; margin:0; display:inline-flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                    Archived Dropdown Selector:
+                  </label>
+                  <select id="archivedTerritoryDropdownSelect" class="crm-filter-select" onchange="onArchiveFolderSelectChange(this.value)" style="height:32px; font-size:12px; font-weight:700; border-radius:6px; border:1.5px solid #FCA5A5; background:#FFFFFF; color:#991B1B; cursor:pointer; min-width:260px; max-width:380px;">
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+
+                <!-- Action Buttons in Dropped-Down Folder -->
+                <div style="display:inline-flex; align-items:center; gap:8px;">
+                  <button type="button" id="btnRestoreAllArchived" class="btn btn-sm btn-outline" onclick="restoreAllArchivedRecords(event)" style="font-size:11.5px; font-weight:700; color:#10B981; border-color:#10B981; display:none;">
+                    Restore All to Active
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline" onclick="toggleArchiveVaultTableView()" style="font-size:11.5px; font-weight:700; color:#475569;">
+                    <span id="btnVaultToggleText">Switch to Table Grid View</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- VIEW A: Item Cards Dropdown View (Default Clean View) -->
+              <div id="archiveFolderCardsView" style="display:block;">
+                <div id="archiveFolderCardsList" style="display:flex; flex-direction:column; gap:8px;">
+                  <!-- Populated dynamically -->
+                </div>
+              </div>
+
+              <!-- VIEW B: Detailed Archive Vault Table with Column Visibility & Search -->
+              <div id="archiveFolderTableView" style="display:none; margin-top:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:#F8FAFC; padding:8px 14px; border-radius:8px; border:1.5px solid #E2E8F0; flex-wrap:wrap; gap:10px;">
+                  <div style="font-size:12px; color:#64748B; font-weight:600; display:flex; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0;">
+                    <span>Showing <strong style="color:#EF4444;" id="archivedVisibleCount">0</strong> of <strong id="archivedTotalCount" style="color:#0F172A;">0</strong> archived records</span>
+                  </div>
+
+                  <div style="display:inline-flex; align-items:center; gap:8px; flex-wrap:nowrap;">
+                    <label for="arcFilterField" style="font-size:11px; color:#475569; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; display:inline-flex; align-items:center; gap:4px; white-space:nowrap; margin:0; line-height:1; flex-shrink:0; cursor:pointer;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#64748B;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                      Filter Vault:
+                    </label>
+                    <select id="arcFilterField" class="crm-filter-select" style="min-width:150px; width:auto; height:32px; padding:0 24px 0 8px; font-weight:700; border-radius:6px; border:1.5px solid #CBD5E1; background:#FFFFFF; font-size:11.5px; color:#0F172A; cursor:pointer; flex-shrink:0;" onchange="onArcFilterFieldChange()">
+                      <option value="all">All Columns</option>
+                      <option value="histCode">Historical Code</option>
+                      <option value="recordId">Record ID</option>
+                      <option value="rep">Last Assigned MedRep</option>
+                      <option value="reason">Archive Reason</option>
+                    </select>
+                    <div style="position:relative; display:inline-flex; align-items:center; flex-shrink:0;">
+                      <input type="text" id="arcFilterValue" class="crm-filter-input" placeholder="Search archive records..." style="height:32px; min-width:210px; padding:0 26px 0 8px; border-radius:6px; border:1.5px solid #CBD5E1; font-size:11.5px; font-weight:600;" oninput="onArcFilterInput(this)" onkeyup="applyArcFilter()">
+                      <button type="button" id="btnArcFilterClear" onclick="clearArcFilter()" title="Clear archive search (✕)" style="position:absolute; right:6px; background:none; border:none; color:#94A3B8; font-size:13px; font-weight:bold; cursor:pointer; padding:2px 5px; border-radius:4px; line-height:1; display:none; align-items:center; justify-content:center; transition:color 0.15s ease;" onmouseover="this.style.color='#DC2626'" onmouseout="this.style.color='#94A3B8'">
+                        ✕
+                      </button>
+                    </div>
+
+                    <div id="arcColVisibilityWrapper" class="col-visibility-dropdown" style="flex-shrink:0;">
+                      <button type="button" id="btnArcColumnFilter" onclick="toggleArcColumnVisibilityMenu()" class="btn btn-sm" style="height:32px; font-size:11.5px; font-weight:700; color:#334155; display:inline-flex; align-items:center; gap:5px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; padding:0 10px; cursor:pointer;" title="Show or hide archive columns">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        <span>Columns (<span id="arcVisibleColCount">7</span>/7)</span>
+                        <span style="font-size:9px; color:#64748B;">▼</span>
+                      </button>
+                      <div id="arcColumnVisibilityMenu" class="col-visibility-menu">
+                        <div class="col-menu-header">
+                          <span class="col-menu-title">Archive Columns</span>
+                          <div style="font-size:11px;">
+                            <a href="javascript:void(0)" onclick="setAllArcColumnsVisibility(true)" style="color:#0066FF; font-weight:700; text-decoration:none; margin-right:8px;">All</a>
+                            <a href="javascript:void(0)" onclick="setAllArcColumnsVisibility(false)" style="color:#DC2626; font-weight:700; text-decoration:none; margin-right:8px;">None</a>
+                            <a href="javascript:void(0)" onclick="resetArcColumnsVisibility()" style="color:#64748B; font-weight:600; text-decoration:none;">Reset</a>
+                          </div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                          <label class="col-menu-item">
+                            <input type="checkbox" id="arcColToggle_date" checked onchange="toggleArcColumnVisibility('date', this.checked)">
+                            <span>Archive Date</span>
+                          </label>
+                          <label class="col-menu-item">
+                            <input type="checkbox" id="arcColToggle_id" checked onchange="toggleArcColumnVisibility('id', this.checked)">
+                            <span>Record ID</span>
+                          </label>
+                          <label class="col-menu-item">
+                            <input type="checkbox" id="arcColToggle_code" checked onchange="toggleArcColumnVisibility('code', this.checked)">
+                            <span>Historical Code</span>
+                          </label>
+                          <label class="col-menu-item">
+                            <input type="checkbox" id="arcColToggle_rep" checked onchange="toggleArcColumnVisibility('rep', this.checked)">
+                            <span>Last Assigned MedRep</span>
+                          </label>
+                          <label class="col-menu-item">
+                            <input type="checkbox" id="arcColToggle_docs" checked onchange="toggleArcColumnVisibility('docs', this.checked)">
+                            <span>Preserved Doctors</span>
+                          </label>
+                          <label class="col-menu-item">
+                            <input type="checkbox" id="arcColToggle_reason" checked onchange="toggleArcColumnVisibility('reason', this.checked)">
+                            <span>Archive Reason</span>
+                          </label>
+                          <label class="col-menu-item">
+                            <input type="checkbox" id="arcColToggle_action" checked onchange="toggleArcColumnVisibility('action', this.checked)">
+                            <span>Action</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="table-responsive">
+                  <table id="archivedTable">
+                    <thead>
+                      <tr>
+                        <th class="col-arc-date">Archive Date</th>
+                        <th class="col-arc-id">Record ID</th>
+                        <th class="col-arc-code">Historical Code</th>
+                        <th class="col-arc-rep">Last Assigned MedRep</th>
+                        <th class="col-arc-docs" style="text-align:center;">Preserved Doctors</th>
+                        <th class="col-arc-reason">Archive Reason</th>
+                        <th class="col-arc-action" style="text-align:center;">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="archivedTableBody">
+                      <!-- Populated dynamically -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
 
@@ -7772,7 +7793,7 @@ const BASELINE_ERP_TERRITORIES = [
       updateEditorViewModeUI();
     }
     if (typeof populateArchivedDropdowns === 'function') {
-      populateArchivedDropdowns();
+      renderArchiveFolderDropdown();
     }
   }
 
@@ -12469,7 +12490,7 @@ const BASELINE_ERP_TERRITORIES = [
       initTerritoryTree();
     }
 
-    // Build parent -> children map
+    // Build parent -> children map (strictly active territories in Editor)
     const childrenMap = {};
     territoryTreeData.forEach(t => {
       const p = t.parent_territory || 'ROOT';
@@ -12477,35 +12498,9 @@ const BASELINE_ERP_TERRITORIES = [
       childrenMap[p].push(t);
     });
 
-    // Ensure dedicated Archive Folder node under 'All Territories'
-    if (!childrenMap['All Territories']) childrenMap['All Territories'] = [];
-    if (!childrenMap['All Territories'].some(t => t.name === 'Archived Territories')) {
-      childrenMap['All Territories'].push({
-        name: 'Archived Territories',
-        territory_name: 'Archived Territories',
-        parent_territory: 'All Territories',
-        is_group: 1,
-        territory_manager: 'Previous Reconfiguration Archives',
-        is_archive_folder: true
-      });
-    }
-
-    // Populate Archive Folder children from archivedRecords
-    childrenMap['Archived Territories'] = (archivedRecords || []).map(arc => ({
-      name: arc.histCode || arc.activeCode || arc.recordId,
-      territory_name: arc.histCode || arc.activeCode || arc.recordId,
-      parent_territory: 'Archived Territories',
-      is_group: 0,
-      territory_manager: arc.assignedRep || arc.rep || 'Unassigned',
-      is_archived: true,
-      archiveRecord: arc
-    }));
-
-    // Sort children alphabetically, groups first (keep Archive Folder visible under root)
+    // Sort children alphabetically, groups first
     Object.keys(childrenMap).forEach(k => {
       childrenMap[k].sort((a, b) => {
-        if (a.is_archive_folder) return 1; // place archive folder neatly at the bottom of groups
-        if (b.is_archive_folder) return -1;
         if (a.is_group !== b.is_group) return b.is_group - a.is_group;
         return a.name.localeCompare(b.name);
       });
@@ -12525,22 +12520,6 @@ const BASELINE_ERP_TERRITORIES = [
         }
       });
 
-      // Also check archived records
-      (archivedRecords || []).forEach(arc => {
-        const code = arc.histCode || arc.activeCode || arc.recordId;
-        const rep = arc.assignedRep || arc.rep || '';
-        if (code.toLowerCase().includes(treeFilterQuery) || rep.toLowerCase().includes(treeFilterQuery)) {
-          matchingNames.add(code);
-          matchingAncestors.add('Archived Territories');
-          matchingAncestors.add('All Territories');
-        }
-      });
-
-      if (treeFilterQuery.includes('archive')) {
-        matchingNames.add('Archived Territories');
-        matchingAncestors.add('All Territories');
-      }
-
       matchingNames.forEach(name => {
         let curr = parentLookup[name];
         while (curr) {
@@ -12550,24 +12529,9 @@ const BASELINE_ERP_TERRITORIES = [
       });
     }
 
-    // Recursive Branch Renderer
+    // Recursive Branch Renderer for Active Masterlist Hierarchy
     function renderBranch(parentName, depth = 0) {
       const children = childrenMap[parentName] || [];
-
-      // Empty state placeholder if archive folder is open but has no records
-      if (parentName === 'Archived Territories' && children.length === 0) {
-        const emptyWrapper = document.createElement('div');
-        emptyWrapper.className = 'erp-tree-children';
-        emptyWrapper.innerHTML = `
-          <div class="erp-tree-node">
-            <div class="erp-tree-row" style="padding-left:${depth * 20 + 20}px; color:#94A3B8; font-style:italic; font-size:11.5px; cursor:default;">
-              📁 No archived territories from previous reconfigurations in this program.
-            </div>
-          </div>
-        `;
-        return emptyWrapper;
-      }
-
       if (children.length === 0) return null;
 
       const branchWrapper = document.createElement('div');
@@ -12589,8 +12553,6 @@ const BASELINE_ERP_TERRITORIES = [
         nodeDiv.className = 'erp-tree-node';
 
         const isGroup = Boolean(t.is_group);
-        const isArchiveFolder = Boolean(t.is_archive_folder || t.name === 'Archived Territories');
-        const isArchivedLeaf = Boolean(t.is_archived || parentName === 'Archived Territories');
         const isExpanded = matchingNames ? true : treeExpandedNodes.has(t.name);
         const isSelected = selectedTreeNode === t.name;
 
@@ -12606,19 +12568,9 @@ const BASELINE_ERP_TERRITORIES = [
           toggleHtml = `<span class="erp-tree-spacer"></span>`;
         }
 
-        // 2. Icon: FOLDER for group, CIRCLE for leaf, ARCHIVE icon for archived nodes
+        // 2. Icon: FOLDER for group, CIRCLE for leaf
         let iconHtml = '';
-        if (isArchiveFolder) {
-          iconHtml = `
-            <span class="erp-tree-icon erp-folder-icon" title="Archived Territories Folder (Previous Reconfigurations)" style="color:#DC2626;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-            </span>`;
-        } else if (isArchivedLeaf) {
-          iconHtml = `
-            <span class="erp-tree-icon erp-leaf-icon" title="Archived Territory Node">
-              <span class="erp-leaf-bullet" style="background:#EF4444; box-shadow:0 0 0 2px #FCA5A5;"></span>
-            </span>`;
-        } else if (isGroup) {
+        if (isGroup) {
           iconHtml = `
             <span class="erp-tree-icon erp-folder-icon" title="Group Territory (Can add child)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E2E8F0" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
@@ -12631,47 +12583,20 @@ const BASELINE_ERP_TERRITORIES = [
         }
 
         // 3. Label & Details
-        let labelHtml = `<span class="erp-tree-label">${escapeHtml(t.name)}</span>`;
-        let mgrHtml = '';
-        let docBadge = '';
-        let extraTag = '';
+        const mgrClean = t.territory_manager ? t.territory_manager : '';
+        const mgrHtml = mgrClean ? `<span class="erp-tree-mgr">[${escapeHtml(mgrClean)}]</span>` : '';
 
-        if (isArchiveFolder) {
-          labelHtml = `<span class="erp-tree-label" style="font-weight:800; color:#DC2626;">📁 Archived Territories (Folder)</span>`;
-          mgrHtml = `<span class="erp-tree-mgr" style="color:#EF4444; font-weight:700;">[Previous Reconfigurations]</span>`;
-          docBadge = `<span class="badge badge-archive" style="margin-left:8px; font-size:11px; font-weight:800; background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5; padding:2px 8px; border-radius:12px;">${archivedRecords.length} Archived</span>`;
-        } else if (isArchivedLeaf) {
-          labelHtml = `<span class="erp-tree-label" style="font-weight:700; color:#991B1B;">${escapeHtml(t.name)}</span>`;
-          const mgrClean = t.territory_manager ? t.territory_manager : '';
-          mgrHtml = mgrClean ? `<span class="erp-tree-mgr" style="color:#64748B;">[${escapeHtml(mgrClean)}]</span>` : '';
-          const arcDocCount = (t.archiveRecord && (t.archiveRecord.doctorsCovered || t.archiveRecord.docs)) || 0;
-          docBadge = `<span class="erp-tree-badge" style="background:#FEE2E2; color:#B91C1C; border-color:#FCA5A5; font-weight:700;">${arcDocCount} Docs Preserved</span>`;
-          const reasonText = (t.archiveRecord && t.archiveRecord.reason) || 'Archived';
-          extraTag = `<span style="font-size:11px; color:#64748B; margin-left:6px; font-style:italic;">(${escapeHtml(reasonText)})</span>`;
-        } else {
-          const mgrClean = t.territory_manager ? t.territory_manager : '';
-          mgrHtml = mgrClean ? `<span class="erp-tree-mgr">[${escapeHtml(mgrClean)}]</span>` : '';
-          const matchedProg = programTerritories.find(pt => pt.activeCode === t.name || pt.histCode === t.name);
-          if (matchedProg && matchedProg.docs) {
-            docBadge = `<span class="erp-tree-badge">${matchedProg.docs} Docs</span>`;
-          }
+        // Doctor count badge if mapped in program
+        let docBadge = '';
+        const matchedProg = programTerritories.find(pt => pt.activeCode === t.name || pt.histCode === t.name);
+        if (matchedProg && matchedProg.docs) {
+          docBadge = `<span class="erp-tree-badge">${matchedProg.docs} Docs</span>`;
         }
 
         // 4. Action Pill Buttons:
         const isRoot = t.name === 'All Territories';
         let actionsHtml = '';
-        if (isArchiveFolder) {
-          actionsHtml = `
-            <span class="erp-tree-actions">
-              ${archivedRecords.length > 0 ? `<button type="button" class="erp-tree-btn" onclick="restoreAllArchivedRecords(event)" style="color:#10B981; font-weight:700; border-color:#10B981;" title="Restore all archived territories back to active tree">Restore All</button>` : ''}
-            </span>`;
-        } else if (isArchivedLeaf) {
-          actionsHtml = `
-            <span class="erp-tree-actions">
-              <button type="button" class="erp-tree-btn" style="background:#10B981; color:#fff; border-color:#059669; font-weight:700;" onclick="restoreArchivedRecordByName('${escapeHtml(t.name)}', event)" title="Restore territory to active masterlist">Restore</button>
-              <button type="button" class="erp-tree-btn" onclick="openArchivedRecordPreviewByName('${escapeHtml(t.name)}', event)" title="View archived details">Details</button>
-            </span>`;
-        } else if (isRoot) {
+        if (isRoot) {
           actionsHtml = `
             <span class="erp-tree-actions">
               <button type="button" class="erp-tree-btn" onclick="openTreeAddModal('${escapeHtml(t.name)}', event)">Add Child</button>
@@ -12689,19 +12614,14 @@ const BASELINE_ERP_TERRITORIES = [
         row.innerHTML = `
           ${toggleHtml}
           ${iconHtml}
-          ${labelHtml}
+          <span class="erp-tree-label">${escapeHtml(t.name)}</span>
           ${mgrHtml}
           ${docBadge}
-          ${extraTag}
           ${actionsHtml}
         `;
 
         row.onclick = (e) => {
           if (e.target.closest('.erp-tree-actions')) return;
-          if (isArchivedLeaf) {
-            openArchivedRecordPreviewByName(t.name, e);
-            return;
-          }
           selectedTreeNode = t.name;
           if (isGroup && !e.target.closest('.erp-tree-toggle')) {
             if (treeExpandedNodes.has(t.name)) {
@@ -12785,11 +12705,6 @@ const BASELINE_ERP_TERRITORIES = [
     } else {
       const branch = renderBranch('ROOT', 0);
       if (branch) container.appendChild(branch);
-    }
-
-    // Always keep archived dropdowns updated
-    if (typeof populateArchivedDropdowns === 'function') {
-      populateArchivedDropdowns();
     }
   }
 
@@ -14460,7 +14375,7 @@ const BASELINE_ERP_TERRITORIES = [
     renderTree();
     renderRealignmentAndArchive();
     renderSummaryReport();
-    populateArchivedDropdowns();
+    renderArchiveFolderDropdown();
     showToast(`Archived territory ${row.activeCode} moved to Archive Folder!`);
   }
 
@@ -14826,86 +14741,169 @@ const BASELINE_ERP_TERRITORIES = [
     if (arcVisEl) arcVisEl.innerText = visibleArcCount;
     const arcTotEl = document.getElementById('archivedTotalCount');
     if (arcTotEl) arcTotEl.innerText = archivedRecords.length;
-    if (typeof populateArchivedDropdowns === 'function') populateArchivedDropdowns();
+    renderArchiveFolderDropdown();
   }
 
-  // --- ARCHIVED TERRITORY DROPDOWN & PREVIEW CONTROLLERS ---
+  // --- TAB 2: ARCHIVED TERRITORIES FOLDER DROPDOWN & VAULT CONTROLLER ---
 
-  function populateArchivedDropdowns() {
-    const dropdownIds = ['treeArchivedDropdown', 'gridArchivedDropdown', 'vaultArchivedDropdown'];
-    dropdownIds.forEach(id => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.innerHTML = '';
+  let isArchiveVaultTableViewActive = false;
+
+  function toggleArchiveFolderDropdown() {
+    const content = document.getElementById('archiveFolderDropdownContent');
+    const arrow = document.getElementById('folderArrowChar');
+    if (!content) return;
+
+    if (content.style.display === 'none' || content.style.display === '') {
+      content.style.display = 'block';
+      if (arrow) arrow.innerText = '▲';
+      renderArchiveFolderDropdown();
+    } else {
+      content.style.display = 'none';
+      if (arrow) arrow.innerText = '▼';
+    }
+  }
+
+  function toggleArchiveVaultTableView() {
+    isArchiveVaultTableViewActive = !isArchiveVaultTableViewActive;
+    const cardsView = document.getElementById('archiveFolderCardsView');
+    const tableView = document.getElementById('archiveFolderTableView');
+    const btnText = document.getElementById('btnVaultToggleText');
+
+    if (isArchiveVaultTableViewActive) {
+      if (cardsView) cardsView.style.display = 'none';
+      if (tableView) tableView.style.display = 'block';
+      if (btnText) btnText.innerText = 'Switch to Dropdown Cards View';
+    } else {
+      if (cardsView) cardsView.style.display = 'block';
+      if (tableView) tableView.style.display = 'none';
+      if (btnText) btnText.innerText = 'Switch to Table Grid View';
+    }
+  }
+
+  function renderArchiveFolderDropdown() {
+    const pill = document.getElementById('archivedPillCount');
+    if (pill) pill.innerText = `${archivedRecords.length} Archived Records`;
+
+    const selectEl = document.getElementById('archivedTerritoryDropdownSelect');
+    const cardsList = document.getElementById('archiveFolderCardsList');
+    const btnRestoreAll = document.getElementById('btnRestoreAllArchived');
+
+    // 1. Populate Dropdown Selector (Active even if empty, ready for future SFE deployments)
+    if (selectEl) {
+      selectEl.innerHTML = '';
+      selectEl.disabled = false;
+      selectEl.style.opacity = '1';
+      selectEl.style.cursor = 'pointer';
+
       if (!archivedRecords || archivedRecords.length === 0) {
-        el.disabled = true;
-        el.style.opacity = '0.65';
-        el.style.cursor = 'not-allowed';
         const opt = document.createElement('option');
         opt.value = '';
-        opt.innerText = '📁 Archived Territories (0)';
-        el.appendChild(opt);
+        opt.innerText = '📁 Archived Territories Folder (0 Available • Active for Future SFE Deployments)';
+        selectEl.appendChild(opt);
+        if (btnRestoreAll) btnRestoreAll.style.display = 'none';
       } else {
-        el.disabled = false;
-        el.style.opacity = '1';
-        el.style.cursor = 'pointer';
         const defOpt = document.createElement('option');
         defOpt.value = '';
-        defOpt.innerText = `📁 Archived Territories (${archivedRecords.length})...`;
-        el.appendChild(defOpt);
+        defOpt.innerText = `📁 Select Archived Territory (${archivedRecords.length} available)...`;
+        selectEl.appendChild(defOpt);
 
         archivedRecords.forEach(arc => {
           const opt = document.createElement('option');
           const code = arc.histCode || arc.activeCode || arc.recordId;
-          const rep = arc.assignedRep || arc.rep || 'Unassigned';
+          const rep = arc.assignedRep || arc.rep || 'Unassigned / Reserved';
           const docs = arc.doctorsCovered || arc.docs || 0;
           opt.value = code;
-          opt.innerText = `📁 ${code} — ${rep} (${docs} Docs)`;
-          el.appendChild(opt);
+          opt.innerText = `📁 ${code} — ${rep} (${docs} Docs Preserved)`;
+          selectEl.appendChild(opt);
+        });
+
+        if (btnRestoreAll) btnRestoreAll.style.display = 'inline-flex';
+      }
+    }
+
+    // 2. Render Dropdown Item Cards
+    if (cardsList) {
+      cardsList.innerHTML = '';
+
+      if (!archivedRecords || archivedRecords.length === 0) {
+        cardsList.innerHTML = `
+          <div style="padding:28px 20px; text-align:center; background:#F8FAFC; border:1.5px dashed #CBD5E1; border-radius:8px;">
+            <div style="font-size:28px; margin-bottom:8px;">📁</div>
+            <div style="font-size:14px; font-weight:800; color:#0F172A; margin-bottom:4px;">Archived Territories Folder (Empty)</div>
+            <div style="font-size:12px; color:#64748B; max-width:480px; margin:0 auto; line-height:1.5;">
+              Active and ready for future SFE commercial realignments. Any territories decommissioned during SFE cycle planning will automatically appear in this archive dropdown folder with full physician preservation.
+            </div>
+          </div>
+        `;
+      } else {
+        archivedRecords.forEach((arc, idx) => {
+          const code = arc.histCode || arc.activeCode || arc.recordId;
+          const rep = arc.assignedRep || arc.rep || 'Unassigned / Reserved';
+          const userId = arc.userId || 'EMP-39782';
+          const docs = arc.doctorsCovered || arc.docs || 0;
+          const date = arc.archiveDate || 'Previous Cycle';
+          const reason = arc.reason || 'Decommissioned by SFE during realignment';
+          const dist = arc.district || 'Unassigned Cluster';
+
+          const card = document.createElement('div');
+          card.className = 'archive-item-card';
+          card.id = `arcCard_${code}`;
+          card.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#F8FAFC; border:1.5px solid #E2E8F0; border-radius:8px; gap:12px; transition:all 0.15s ease;';
+          card.onmouseover = () => { card.style.borderColor = '#FCA5A5'; card.style.background = '#FFF5F5'; };
+          card.onmouseout = () => { card.style.borderColor = '#E2E8F0'; card.style.background = '#F8FAFC'; };
+
+          card.innerHTML = `
+            <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+              <span style="font-size:20px; line-height:1; flex-shrink:0;">📄</span>
+              <div style="min-width:0;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <strong style="color:#0066FF; font-size:13.5px; font-family:monospace;">${escapeHtml(code)}</strong>
+                  <span class="badge badge-archive" style="font-size:10.5px; font-weight:800;">${docs} Docs Preserved</span>
+                  <span style="font-size:11.5px; color:#0F172A; font-weight:700;">${escapeHtml(rep)}</span>
+                  <span class="badge badge-user-id" style="font-size:10px;">${escapeHtml(userId)}</span>
+                  <span style="font-size:11px; color:#64748B;">&bull; ${escapeHtml(dist)}</span>
+                </div>
+                <div style="font-size:11.5px; color:#64748B; margin-top:3px;">
+                  Archived on: <strong style="color:#334155;">${escapeHtml(date)}</strong> &bull; Reason: <em style="color:#475569;">${escapeHtml(reason)}</em>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+              <button type="button" class="btn btn-sm btn-outline" style="font-size:11.5px; font-weight:600; padding:4px 10px;" onclick="openArchivedRecordPreviewByName('${escapeHtml(code)}', event)">
+                Details
+              </button>
+              <button type="button" class="btn btn-sm btn-success" style="font-size:11.5px; font-weight:700; background:#10B981; border-color:#059669; color:#FFFFFF; padding:4px 12px;" onclick="restoreArchivedRecord(${idx})">
+                Restore
+              </button>
+            </div>
+          `;
+          cardsList.appendChild(card);
         });
       }
-    });
+    }
   }
 
-  function handleArchivedDropdownChange(val, source) {
-    if (!val) return;
-    const arc = archivedRecords.find(r => (r.histCode || r.activeCode || r.recordId) === val);
+  function onArchiveFolderSelectChange(code) {
+    if (!code) return;
+    const arc = archivedRecords.find(r => (r.histCode || r.activeCode || r.recordId) === code);
     if (!arc) return;
 
-    const targetCode = arc.histCode || arc.activeCode || arc.recordId;
-
-    if (source === 'tree' || window.activeEditorViewMode === 'tree') {
-      treeExpandedNodes.add('All Territories');
-      treeExpandedNodes.add('Archived Territories');
-      renderTree();
-
+    // Highlight card
+    const targetCard = document.getElementById(`arcCard_${code}`);
+    if (targetCard) {
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      targetCard.style.outline = '2px solid #DC2626';
+      targetCard.style.background = '#FEE2E2';
       setTimeout(() => {
-        const rows = document.querySelectorAll('#interactiveTreeContainer .erp-tree-row');
-        rows.forEach(r => {
-          if (r.innerText.includes(targetCode)) {
-            r.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            r.classList.add('selected');
-            r.classList.add('erp-tree-row-highlight');
-            setTimeout(() => {
-              r.classList.remove('erp-tree-row-highlight');
-            }, 3500);
-          }
-        });
-      }, 120);
-    } else if (source === 'vault' || (document.getElementById('tab-realignment') && document.getElementById('tab-realignment').classList.contains('active'))) {
-      const trs = document.querySelectorAll('#archivedTableBody tr');
-      trs.forEach(tr => {
-        if (tr.innerText.includes(targetCode)) {
-          tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          tr.style.background = '#FEF2F2';
-          setTimeout(() => { tr.style.background = ''; }, 3500);
-        }
-      });
+        targetCard.style.outline = '';
+        targetCard.style.background = '#F8FAFC';
+      }, 3000);
     }
 
     openArchivedRecordPreviewModal(arc);
 
-    const selectEl = document.getElementById(source === 'tree' ? 'treeArchivedDropdown' : (source === 'grid' ? 'gridArchivedDropdown' : 'vaultArchivedDropdown'));
+    const selectEl = document.getElementById('archivedTerritoryDropdownSelect');
     if (selectEl) selectEl.value = '';
   }
 
@@ -14955,19 +14953,6 @@ const BASELINE_ERP_TERRITORIES = [
     if (overlay) overlay.classList.remove('active');
   }
 
-  function toggleArchiveVaultFolder() {
-    const content = document.getElementById('archiveVaultContent');
-    const icon = document.getElementById('arcVaultFolderToggleIcon');
-    if (!content) return;
-    if (content.style.display === 'none') {
-      content.style.display = 'block';
-      if (icon) icon.innerText = '▼';
-    } else {
-      content.style.display = 'none';
-      if (icon) icon.innerText = '▶';
-    }
-  }
-
   function restoreArchivedRecord(idx) {
     const arc = archivedRecords[idx];
     if (!arc) return;
@@ -15000,7 +14985,6 @@ const BASELINE_ERP_TERRITORIES = [
     renderTree();
     renderRealignmentAndArchive();
     renderSummaryReport();
-    populateArchivedDropdowns();
     showToast(`Territory ${restoredCode} restored from Archive Folder back to active masterlist!`);
   }
 
@@ -15049,7 +15033,6 @@ const BASELINE_ERP_TERRITORIES = [
     renderTree();
     renderRealignmentAndArchive();
     renderSummaryReport();
-    populateArchivedDropdowns();
     showToast(`All archived territories restored to active masterlist!`);
   }
 
