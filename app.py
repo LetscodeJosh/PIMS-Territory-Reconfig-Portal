@@ -250,11 +250,27 @@ def fetch_live_employees(opener):
         return None
     try:
         fields = json.dumps(["name", "employee_name", "first_name", "last_name", "gender", "company", "status", "department", "designation"])
-        url = f"{ERPNEXT_SERVER_URL}/api/resource/Employee?fields={urllib.parse.quote(fields)}&limit_page_length=5000"
-        req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
-        res = opener.open(req, timeout=12)
-        data = json.loads(res.read().decode("utf-8")).get("data", [])
-        return data
+        filters = json.dumps([["Employee", "status", "=", "Active"]])
+        all_emps = []
+        limit_start = 0
+        limit_page_length = 500
+        while True:
+            url = (
+                f"{ERPNEXT_SERVER_URL}/api/resource/Employee"
+                f"?fields={urllib.parse.quote(fields)}"
+                f"&filters={urllib.parse.quote(filters)}"
+                f"&limit_start={limit_start}&limit_page_length={limit_page_length}"
+            )
+            req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+            res = opener.open(req, timeout=15)
+            batch = json.loads(res.read().decode("utf-8")).get("data", [])
+            if not batch:
+                break
+            all_emps.extend(batch)
+            if len(batch) < limit_page_length:
+                break
+            limit_start += limit_page_length
+        return all_emps
     except Exception as e:
         print(f"[Streamlit Proxy] Failed to fetch live employees: {e}")
         return None
