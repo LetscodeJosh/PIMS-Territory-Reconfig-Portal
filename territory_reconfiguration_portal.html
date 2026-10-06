@@ -1897,7 +1897,7 @@
             <button class="btn btn-outline" id="btnBatchCodeRename" style="border-color:var(--accent); color:var(--accent); display:none;" onclick="openBatchRenameModal()">
               Batch Code Rename
             </button>
-            <button class="btn btn-outline" id="btnToggleView" onclick="toggleEditorView()" style="border-color:#0066FF; color:#0066FF; font-weight:700;">
+            <button type="button" class="btn btn-outline" id="btnToggleView" onclick="toggleEditorView()" style="border-color:#0066FF; color:#0066FF; font-weight:700;">
               View as Table Grid
             </button>
             <button class="btn btn-outline" id="btnExportCsv" onclick="exportReconfigurationCsv()">
@@ -7560,14 +7560,38 @@ const BASELINE_ERP_TERRITORIES = [
   let archivedRecords = [];
   let globalAuditLogs = [];
   let isTreeViewActive = true;
+  try {
+    const savedActiveView = localStorage.getItem('pims_territory_active_view');
+    if (savedActiveView === 'grid') {
+      isTreeViewActive = false;
+    } else if (savedActiveView === 'tree') {
+      isTreeViewActive = true;
+    }
+  } catch (_) {}
+
+  function initPortalViewMode() {
+    try {
+      const savedActiveView = localStorage.getItem('pims_territory_active_view');
+      if (savedActiveView === 'grid') {
+        isTreeViewActive = false;
+      } else if (savedActiveView === 'tree') {
+        isTreeViewActive = true;
+      }
+    } catch (_) {}
+    if (typeof updateEditorViewModeUI === 'function') {
+      updateEditorViewModeUI();
+    }
+  }
 
   // Initialize
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
+      initPortalViewMode();
       checkAuthSession();
       initStreamlitComponent();
     });
   } else {
+    initPortalViewMode();
     checkAuthSession();
     initStreamlitComponent();
   }
@@ -7736,7 +7760,8 @@ const BASELINE_ERP_TERRITORIES = [
     rebuildGlobalAuditLogs();
     renderTable();
     renderTree();
-    if (typeof syncTreeWithERPNext === 'function') syncTreeWithERPNext();
+    updateEditorViewModeUI();
+    if (typeof syncTreeWithERPNext === 'function') syncTreeWithERPNext(false);
     renderRealignmentAndArchive();
     renderSummaryReport();
   }
@@ -7907,7 +7932,11 @@ const BASELINE_ERP_TERRITORIES = [
     applyAuthenticatedUser(targetUser, false);
   }
 
+  let initialPortalLoaded = false;
+
   function applyAuthenticatedUser(user, showNotification = true) {
+    if (!user) return;
+    const isFirstLogin = !authenticatedUser || !initialPortalLoaded;
     authenticatedUser = user;
 
     // Hide login screen
@@ -7950,17 +7979,34 @@ const BASELINE_ERP_TERRITORIES = [
       badgeTextEl.innerHTML = `User: <strong>${escapeHtml(user.email)}</strong> [${escapeHtml(user.role_title || user.role_profile || 'SFE')}]`;
     }
 
-    // Default viewing mode strictly set to Territory Tree (matches ERPNext 1:1)
-    isTreeViewActive = true;
-    selectedTreeNode = selectedTreeNode || 'Abbott DC Territories';
-    updateEditorViewModeUI();
+    if (isFirstLogin) {
+      initialPortalLoaded = true;
 
-    // Initialize and render data with program isolation strictly enforced
-    switchProgram();
+      // Restore user's preferred view mode (Table Grid vs Territory Tree)
+      try {
+        const savedView = localStorage.getItem('pims_territory_active_view');
+        if (savedView === 'grid') {
+          isTreeViewActive = false;
+        } else if (savedView === 'tree') {
+          isTreeViewActive = true;
+        } else {
+          isTreeViewActive = true;
+        }
+      } catch (_) {
+        isTreeViewActive = true;
+      }
+
+      selectedTreeNode = selectedTreeNode || 'Abbott DC Territories';
+      updateEditorViewModeUI();
+
+      // Initialize and render data with program isolation strictly enforced
+      switchProgram();
+    }
   }
 
   function showLoginView() {
     loginNotificationShown = false;
+    initialPortalLoaded = false;
     hideActiveUserSessionNotification();
     authenticatedUser = null;
     localStorage.removeItem('sfe_portal_user');
@@ -8168,6 +8214,7 @@ const BASELINE_ERP_TERRITORIES = [
           syncProgramTerritoriesWithTree();
           if (typeof renderTree === 'function') renderTree();
           if (typeof renderTable === 'function') renderTable();
+          if (typeof updateEditorViewModeUI === 'function') updateEditorViewModeUI();
           if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
           if (typeof renderSummaryReport === 'function') renderSummaryReport();
         }
@@ -8349,7 +8396,10 @@ const BASELINE_ERP_TERRITORIES = [
     const tabEl = document.getElementById(tabId);
     if (tabEl) tabEl.classList.add('active');
 
-    if (tabId === 'tab-editor') document.getElementById('btn-tab-editor').classList.add('active');
+    if (tabId === 'tab-editor') {
+      document.getElementById('btn-tab-editor').classList.add('active');
+      if (typeof updateEditorViewModeUI === 'function') updateEditorViewModeUI();
+    }
     if (tabId === 'tab-realignment') {
       document.getElementById('btn-tab-realignment').classList.add('active');
       renderRealignmentAndArchive();
@@ -12085,9 +12135,9 @@ const BASELINE_ERP_TERRITORIES = [
     }
   }
 
-  async function syncTreeWithERPNext() {
+  async function syncTreeWithERPNext(triggerServerRefresh = false) {
     syncSalesPersonsAndEmployeesWithERPNext();
-    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+    if (triggerServerRefresh && (isStreamlitActive || (window.parent && window.parent !== window))) {
       try {
         window.parent.postMessage({
           isStreamlitMessage: true,
@@ -12121,6 +12171,7 @@ const BASELINE_ERP_TERRITORIES = [
           syncProgramTerritoriesWithTree();
           renderTree();
           renderTable();
+          if (typeof updateEditorViewModeUI === 'function') updateEditorViewModeUI();
           renderRealignmentAndArchive();
           renderSummaryReport();
         }
@@ -12158,9 +12209,33 @@ const BASELINE_ERP_TERRITORIES = [
     }
   }
 
-  function toggleEditorView() {
-    isTreeViewActive = !isTreeViewActive;
+  function setEditorViewMode(mode) {
+    if (mode === 'grid') {
+      isTreeViewActive = false;
+    } else if (mode === 'tree') {
+      isTreeViewActive = true;
+    } else {
+      isTreeViewActive = !isTreeViewActive;
+    }
+    try {
+      localStorage.setItem('pims_territory_active_view', isTreeViewActive ? 'tree' : 'grid');
+    } catch (_) {}
     updateEditorViewModeUI();
+  }
+
+  function toggleEditorView() {
+    const btn = document.getElementById('btnToggleView');
+    if (btn) {
+      const txt = (btn.innerText || '').toLowerCase();
+      if (txt.includes('table grid')) {
+        setEditorViewMode('grid');
+        return;
+      } else if (txt.includes('territory tree')) {
+        setEditorViewMode('tree');
+        return;
+      }
+    }
+    setEditorViewMode(isTreeViewActive ? 'grid' : 'tree');
   }
 
   function onTreeFilterInput(val) {
@@ -12183,7 +12258,7 @@ const BASELINE_ERP_TERRITORIES = [
 
   function renderTree() {
     const pagEl = document.getElementById('tablePaginationWrapper');
-    if (pagEl) pagEl.style.display = 'none';
+    if (pagEl && isTreeViewActive) pagEl.style.display = 'none';
     const container = document.getElementById('interactiveTreeContainer');
     if (!container) return;
     container.innerHTML = '';
