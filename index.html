@@ -7636,8 +7636,15 @@ const BASELINE_ERP_TERRITORIES = [
     if (titleEl) titleEl.innerText = activeProgram;
 
     const progData = LIVE_DATA[activeProgram] || { territories: [], accounts: [] };
+    const baseMap = new Map();
+    if (Array.isArray(progData.territories)) {
+      progData.territories.forEach(b => {
+        baseMap.set(b.histCode, b);
+        baseMap.set(b.activeCode, b);
+      });
+    }
+
     const savedProgramTerrs = localStorage.getItem('pims_program_territories_' + activeProgram);
-    
     let loaded = null;
     if (savedProgramTerrs) {
       try {
@@ -7647,25 +7654,61 @@ const BASELINE_ERP_TERRITORIES = [
       }
     }
 
-    // Strictly enforce program isolation: purge any cross-program territories (e.g. Vivaro in ADC)
     const allowed = getProgramTerritoryNames(activeProgram);
+    const userActions = new Set(["ADD_CHILD_TREE", "EDIT_TREE", "RENAME_TREE", "REASSIGN_REP", "BATCH_RENAME", "TRANSFER_DOCS"]);
+
     if (loaded && Array.isArray(loaded) && loaded.length > 0) {
-      const sanitized = loaded.filter(t => {
-        const code = t.activeCode || t.histCode || t.newCode || t.latestPrevCode;
-        return allowed.has(code);
+      const sanitized = [];
+      loaded.forEach(row => {
+        const code = row.activeCode || row.histCode || row.newCode || row.latestPrevCode;
+        if (!allowed.has(code)) return; // Exclude cross-program territories
+
+        const base = baseMap.get(code);
+        // Exclude container folders that are not part of baseline medrep territories
+        if (row.isGroup && !base) return;
+        if (code === 'Abbott DC Territories' || code === 'All Territories' || code === progData.territoryBranch) return;
+        if (code === 'AD1 - GMA/NORTH LUZON/CENTRAL LUZON' || code === 'AD2 - GMA/SOUTH LUZON') return;
+
+        if (base) {
+          // Check if user genuinely modified this territory
+          const hasUserAction = Array.isArray(row.auditTrail) && row.auditTrail.some(log => userActions.has(log.action));
+          const isCodeChanged = (row.activeCode && row.activeCode !== base.histCode) || (row.newCode && row.newCode !== base.histCode);
+          const isRepChanged = row.rep && row.rep !== base.rep && !row.rep.includes('Unassigned') && !row.rep.includes('Folder');
+          const isDistrictChanged = row.district && row.district !== base.district;
+
+          if (!hasUserAction && !isCodeChanged && !isRepChanged && !isDistrictChanged) {
+            // Unchanged territory: restore accurate baseline status and doctor counts
+            row.status = 'UNCHANGED';
+            row.docs = base.docs || 0;
+            row.rep = base.rep;
+            row.district = base.district;
+          } else if (!hasUserAction && !isCodeChanged) {
+            // Keep unchanged if not explicitly reconfigured
+            row.status = 'UNCHANGED';
+            row.docs = base.docs || 0;
+          }
+        }
+        sanitized.push(row);
       });
-      if (sanitized.length > 0) {
-        programTerritories = sanitized;
-      } else {
-        programTerritories = JSON.parse(JSON.stringify(progData.territories || []));
+
+      // Ensure all baseline territories from progData.territories exist in programTerritories
+      const existingCodes = new Set(sanitized.map(r => r.activeCode || r.histCode));
+      if (Array.isArray(progData.territories)) {
+        progData.territories.forEach(b => {
+          if (!existingCodes.has(b.histCode) && !existingCodes.has(b.activeCode)) {
+            sanitized.push(JSON.parse(JSON.stringify(b)));
+          }
+        });
       }
+
+      programTerritories = sanitized;
     } else {
       programTerritories = JSON.parse(JSON.stringify(progData.territories || []));
     }
 
     programAccounts = JSON.parse(JSON.stringify(progData.accounts || []));
 
-    // Ensure all rows have valid format
+    // Ensure all rows have valid format and default to UNCHANGED if not modified
     programTerritories.forEach((t, i) => {
       if (!t.recordId) t.recordId = `REC-${(t.histCode || t.activeCode || 'T' + i).replace(/[^A-Za-z0-9]/g, '') || i+1}`;
       if (!t.userId) t.userId = `EMP-${10000 + i}`;
@@ -11933,10 +11976,24 @@ const BASELINE_ERP_TERRITORIES = [
     const allowedTerrNames = getProgramTerritoryNames(activeProgram);
     if (!allowedTerrNames || allowedTerrNames.size === 0) return;
 
-    // Purge any foreign territories that do not belong to activeProgram (e.g. Vivaro in ADC)
+    const progData = LIVE_DATA[activeProgram] || { territories: [], accounts: [] };
+    const baseMap = new Map();
+    if (Array.isArray(progData.territories)) {
+      progData.territories.forEach(b => {
+        baseMap.set(b.histCode, b);
+        baseMap.set(b.activeCode, b);
+      });
+    }
+
+    // Exclude foreign territories and container folders (branches)
     programTerritories = programTerritories.filter(pt => {
       const code = pt.activeCode || pt.histCode || pt.newCode || pt.latestPrevCode;
-      return allowedTerrNames.has(code);
+      if (!allowedTerrNames.has(code)) return false;
+      const node = territoryTreeData.find(t => t.name === code || t.territory_name === code);
+      if (node && node.is_group && !baseMap.has(code)) return false;
+      if (code === 'Abbott DC Territories' || code === 'All Territories' || code === progData.territoryBranch) return false;
+      if (code === 'AD1 - GMA/NORTH LUZON/CENTRAL LUZON' || code === 'AD2 - GMA/SOUTH LUZON') return false;
+      return true;
     });
 
     const ptMap = new Map();
@@ -11950,22 +12007,28 @@ const BASELINE_ERP_TERRITORIES = [
       if (t.name === 'All Territories') return;
       if (!allowedTerrNames.has(t.name)) return; // Strictly ignore territories belonging to other programs!
 
+      // Ignore container folders from medrep territory grid unless in baseline
+      if (t.is_group && !baseMap.has(t.name)) return;
+      if (t.name === 'Abbott DC Territories' || t.name === (LIVE_DATA[activeProgram]?.territoryBranch)) return;
+      if (t.name === 'AD1 - GMA/NORTH LUZON/CENTRAL LUZON' || t.name === 'AD2 - GMA/SOUTH LUZON') return;
+
       let existing = ptMap.get(t.name);
       if (!existing) {
+        const base = baseMap.get(t.name);
         const newRecordId = `REC-${t.name.replace(/[^A-Za-z0-9]/g, '_')}`;
         const newRow = {
           histCode: t.name,
           newCode: t.name,
           latestPrevCode: t.name,
           activeCode: t.name,
-          district: t.parent_territory || (LIVE_DATA[activeProgram]?.territoryBranch || 'All Territories'),
-          rep: t.territory_manager ? t.territory_manager : (t.is_group ? 'Folder (Group)' : 'Unassigned Rep'),
-          docs: 0,
-          status: 'CHANGED',
+          district: t.parent_territory || (base ? base.district : (LIVE_DATA[activeProgram]?.territoryBranch || 'All Territories')),
+          rep: t.territory_manager ? t.territory_manager : (base ? base.rep : 'Unassigned Rep'),
+          docs: base ? (base.docs || 0) : 0,
+          status: base ? (base.status || 'UNCHANGED') : 'UNCHANGED',
           recordId: newRecordId,
-          userId: '',
+          userId: base ? (base.userId || '') : '',
           isGroup: t.is_group ? 1 : 0,
-          auditTrail: [{
+          auditTrail: base ? (base.auditTrail || []) : [{
             timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
             action: 'INITIAL_SYNC',
             user: 'admin@pims.com [SFE Lead]',
