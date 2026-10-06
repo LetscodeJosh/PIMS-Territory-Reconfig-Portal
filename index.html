@@ -1763,6 +1763,55 @@
     letter-spacing: 0.5px;
   }
 
+  .erp-child-grid-input {
+    width: 100%;
+    height: 28px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 0 6px;
+    color: #FFFFFF;
+    font-size: 11.5px;
+    outline: none;
+    box-sizing: border-box;
+    transition: all 0.15s;
+  }
+  .erp-child-grid-input:hover {
+    border-color: #3F3F46;
+  }
+  .erp-child-grid-input:focus {
+    background: #202024;
+    border-color: #0066FF;
+    box-shadow: 0 0 0 1px #0066FF;
+  }
+  .erp-grid-add-row-btn {
+    background: #27272A;
+    border: 1px solid #3F3F46;
+    color: #E4E4E7;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+  }
+  .erp-grid-add-row-btn:hover {
+    background: #3F3F46;
+    color: #FFFFFF;
+  }
+  .erp-child-dropdown-menu::-webkit-scrollbar {
+    width: 5px;
+  }
+  .erp-child-dropdown-menu::-webkit-scrollbar-track {
+    background: #18181B;
+  }
+  .erp-child-dropdown-menu::-webkit-scrollbar-thumb {
+    background: #3F3F46;
+    border-radius: 3px;
+  }
 </style>
 </head>
 <body>
@@ -12944,10 +12993,6 @@ const BASELINE_ERP_TERRITORIES = [
       if (spNameInp && !spNameInp.value.trim() && empName) {
         spNameInp.value = empName;
       }
-      const depSelect = document.getElementById('newSpDepartmentSelect');
-      if (depSelect && extraData.department) {
-        depSelect.value = extraData.department;
-      }
     }
 
     closeAllErpDropdowns();
@@ -13013,15 +13058,14 @@ const BASELINE_ERP_TERRITORIES = [
       menu.appendChild(advRow);
 
     } else if (fieldId === 'treeAddManager' || fieldId === 'treeEditManager' || fieldId === 'editManager' || fieldId === 'addManager' || fieldId === 'newSpParent') {
-      // Filter Sales Persons across all fields (name, sales_person_name, parent_sales_person, employee, department)
+      // Filter Sales Persons across fields (name, sales_person_name, parent_sales_person, employee)
       let matches = availableSalesPersons.filter(s => {
         if (!tokens.length) return true;
         const searchable = [
           s.sales_person_name || '',
           s.name || '',
           s.parent_sales_person || '',
-          s.employee || '',
-          s.department || ''
+          s.employee || ''
         ].join(' ').toLowerCase();
 
         return tokens.every(tok => searchable.includes(tok));
@@ -13125,7 +13169,409 @@ const BASELINE_ERP_TERRITORIES = [
     if (!e.target.closest('.erp-search-container')) {
       closeAllErpDropdowns();
     }
+    if (!e.target.closest('.erp-child-dropdown-menu') && !e.target.classList.contains('erp-child-grid-input')) {
+      closeAllSpTargetMenus();
+    }
   });
+
+  // --- Sales Person Targets Child Table Engine (ERPNext Parity) ---
+  const ERP_ITEM_GROUPS = [
+    "ACCESSORIES",
+    "All Item Groups",
+    "Pharmaceuticals",
+    "Consumables",
+    "Diagnostic Equipment",
+    "Medical Devices",
+    "Oral Hypoglycemics",
+    "Insulin Delivery",
+    "Nutritional Supplements",
+    "Products",
+    "Services",
+    "Raw Material"
+  ];
+
+  const ERP_FISCAL_YEARS = ["2026", "2025", "2024", "2027", "2028"];
+
+  const ERP_DISTRIBUTIONS = [
+    "Evenly Distributed",
+    "Quarterly Seasonality",
+    "Q1 Heavy",
+    "Q2 Heavy",
+    "Q3 Heavy",
+    "Q4 Heavy",
+    "Monthly Spread",
+    "Seasonal Peak"
+  ];
+
+  let newSpTargetsList = [];
+  let openTargetMenuIndex = null;
+  let openTargetMenuType = null;
+
+  function renderSpTargetsTable() {
+    const container = document.getElementById('spTargetsTableContainer');
+    if (!container) return;
+
+    const delSelectedBtn = document.getElementById('spTargetDeleteSelectedBtn');
+    const summaryCount = document.getElementById('spTargetSummaryCount');
+    const selectedCount = newSpTargetsList.filter(r => r.selected).length;
+
+    if (delSelectedBtn) {
+      if (selectedCount > 0) {
+        delSelectedBtn.style.display = 'inline-flex';
+        delSelectedBtn.innerHTML = `✕ Delete (${selectedCount})`;
+      } else {
+        delSelectedBtn.style.display = 'none';
+      }
+    }
+
+    if (summaryCount) {
+      summaryCount.textContent = newSpTargetsList.length > 0 ? `${newSpTargetsList.length} row${newSpTargetsList.length > 1 ? 's' : ''}` : '';
+    }
+
+    const allSelected = newSpTargetsList.length > 0 && newSpTargetsList.every(r => r.selected);
+    const gridCols = '32px 34px 1.8fr 1.2fr 1.1fr 1.2fr 1.6fr 32px';
+
+    let html = `
+      <div style="display:grid; grid-template-columns: ${gridCols}; background:#18181B; padding:7px 10px; font-size:11px; font-weight:600; color:#8D99AE; border-bottom:1px solid #2D3139; align-items:center; gap:4px;">
+        <div>
+          <input type="checkbox" ${allSelected ? 'checked' : ''} onchange="toggleSelectAllSpTargets(this.checked)" style="accent-color:#0066FF; cursor:pointer; width:14px; height:14px;">
+        </div>
+        <div>No.</div>
+        <div>Item Group</div>
+        <div>Fiscal Year <span style="color:#EF4444; font-weight:bold;">*</span></div>
+        <div>Target Qty</div>
+        <div>Target Amount</div>
+        <div>Target Distribution <span style="color:#EF4444; font-weight:bold;">*</span></div>
+        <div style="text-align:center; color:#71717A; cursor:pointer;" onclick="toggleSpTargetGridGearMenu(event)" title="Grid Settings">⚙</div>
+      </div>
+    `;
+
+    if (newSpTargetsList.length === 0) {
+      html += `
+        <div style="padding:18px 16px; text-align:center; color:#71717A; font-size:12px; background:#18181B;">
+          <div style="font-weight:600; color:#A1A1AA; font-size:12px; margin-bottom:2px;">No Data</div>
+          <div style="font-size:11px; color:#71717A;">Click "Add Row" below to define target budgets.</div>
+        </div>
+      `;
+      container.innerHTML = html;
+      return;
+    }
+
+    html += `<div style="max-height:220px; overflow-y:auto; background:#18181B;" id="spTargetsTableScrollBody">`;
+
+    newSpTargetsList.forEach((row, idx) => {
+      const isLast = idx === newSpTargetsList.length - 1;
+      const borderB = isLast ? 'none' : '1px solid #27272A';
+      const bg = row.selected ? 'rgba(59,130,246,0.12)' : '#18181B';
+
+      html += `
+        <div style="display:grid; grid-template-columns: ${gridCols}; padding:5px 10px; border-bottom:${borderB}; align-items:center; background:${bg}; gap:4px; position:relative;" id="spTargetRowEl_${idx}">
+          <div>
+            <input type="checkbox" ${row.selected ? 'checked' : ''} onchange="toggleSpTargetSelected(${idx}, this.checked)" style="accent-color:#0066FF; cursor:pointer; width:14px; height:14px;">
+          </div>
+          <div style="font-size:11px; color:#A1A1AA; font-weight:700;">${idx + 1}</div>
+          
+          <!-- Column: Item Group with ERPNext Dropdown -->
+          <div style="position:relative;">
+            <input type="text" id="spTargetItemGroup_${idx}" class="erp-child-grid-input" value="${escapeHtml(row.item_group || '')}" placeholder="Item Group" autocomplete="off" onfocus="openSpItemGroupMenu(${idx})" oninput="onSpItemGroupInput(${idx}, this.value)" onkeydown="onSpItemGroupKeydown(event, ${idx})">
+            <div id="spItemGroupMenu_${idx}" class="erp-child-dropdown-menu" style="display:none; position:absolute; top:100%; left:0; width:220px; max-height:160px; overflow-y:auto; background:#18181B; border:1px solid #3F3F46; border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,0.85); z-index:10050; margin-top:2px;"></div>
+          </div>
+
+          <!-- Column: Fiscal Year with ERPNext Dropdown -->
+          <div style="position:relative;">
+            <input type="text" id="spTargetFiscalYear_${idx}" class="erp-child-grid-input" value="${escapeHtml(row.fiscal_year || '2026')}" placeholder="Fiscal Year" autocomplete="off" onfocus="openSpFiscalYearMenu(${idx})" oninput="updateSpTargetField(${idx}, 'fiscal_year', this.value)">
+            <div id="spFiscalYearMenu_${idx}" class="erp-child-dropdown-menu" style="display:none; position:absolute; top:100%; left:0; width:120px; max-height:140px; overflow-y:auto; background:#18181B; border:1px solid #3F3F46; border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,0.85); z-index:10050; margin-top:2px;"></div>
+          </div>
+
+          <!-- Column: Target Qty -->
+          <div>
+            <input type="number" step="any" class="erp-child-grid-input" value="${row.target_qty !== '' ? row.target_qty : ''}" placeholder="Target Qty" oninput="updateSpTargetField(${idx}, 'target_qty', this.value)">
+          </div>
+
+          <!-- Column: Target Amount -->
+          <div>
+            <input type="number" step="0.01" class="erp-child-grid-input" value="${row.target_amount !== '' ? row.target_amount : ''}" placeholder="Target Amount" oninput="updateSpTargetField(${idx}, 'target_amount', this.value)">
+          </div>
+
+          <!-- Column: Target Distribution with ERPNext Dropdown -->
+          <div style="position:relative;">
+            <input type="text" id="spTargetDist_${idx}" class="erp-child-grid-input" value="${escapeHtml(row.distribution_id || 'Evenly Distributed')}" placeholder="Target Distribution" autocomplete="off" onfocus="openSpDistMenu(${idx})" oninput="updateSpTargetField(${idx}, 'distribution_id', this.value)">
+            <div id="spDistMenu_${idx}" class="erp-child-dropdown-menu" style="display:none; position:absolute; top:100%; left:0; width:200px; max-height:160px; overflow-y:auto; background:#18181B; border:1px solid #3F3F46; border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,0.85); z-index:10050; margin-top:2px;"></div>
+          </div>
+
+          <!-- Column: Edit Pencil Icon (matches ERPNext Screenshot) -->
+          <div style="text-align:center;">
+            <button type="button" onclick="openSpTargetRowModal(${idx})" title="Edit Row #${idx + 1}" style="background:transparent; border:none; color:#71717A; font-size:13px; cursor:pointer; padding:2px; border-radius:4px; transition:color 0.15s;" onmouseover="this.style.color='#38BDF8'" onmouseout="this.style.color='#71717A'">✎</button>
+          </div>
+        </div>
+      `;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+  }
+
+  function openSpItemGroupMenu(idx) {
+    closeAllSpTargetMenus();
+    const menu = document.getElementById(`spItemGroupMenu_${idx}`);
+    const input = document.getElementById(`spTargetItemGroup_${idx}`);
+    if (!menu || !input) return;
+
+    openTargetMenuIndex = idx;
+    openTargetMenuType = 'item_group';
+
+    renderSpItemGroupMenu(idx, input.value);
+    menu.style.display = 'block';
+  }
+
+  function renderSpItemGroupMenu(idx, q) {
+    const menu = document.getElementById(`spItemGroupMenu_${idx}`);
+    if (!menu) return;
+    const query = (q || '').trim().toLowerCase();
+
+    let matches = ERP_ITEM_GROUPS.filter(g => !query || g.toLowerCase().includes(query));
+    if (matches.length === 0) {
+      menu.innerHTML = `<div style="padding:8px 12px; color:#71717A; font-size:11.5px;">No Item Groups found</div>`;
+      return;
+    }
+
+    menu.innerHTML = matches.map((g, i) => {
+      const isBold = i === 0 ? 'font-weight:700; color:#FFFFFF;' : 'font-weight:500; color:#E4E4E7;';
+      return `
+        <div class="erp-child-menu-item" style="padding:8px 12px; font-size:12px; ${isBold} cursor:pointer; transition:background 0.12s;" onmouseover="this.style.background='#27272A'" onmouseout="this.style.background='transparent'" onclick="selectSpItemGroup(${idx}, '${escapeHtml(g)}')">
+          ${escapeHtml(g)}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function onSpItemGroupInput(idx, val) {
+    updateSpTargetField(idx, 'item_group', val);
+    renderSpItemGroupMenu(idx, val);
+  }
+
+  function selectSpItemGroup(idx, val) {
+    updateSpTargetField(idx, 'item_group', val);
+    const input = document.getElementById(`spTargetItemGroup_${idx}`);
+    if (input) input.value = val;
+    closeAllSpTargetMenus();
+  }
+
+  function onSpItemGroupKeydown(e, idx) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const menu = document.getElementById(`spItemGroupMenu_${idx}`);
+      if (menu) {
+        const firstItem = menu.querySelector('.erp-child-menu-item');
+        if (firstItem) firstItem.click();
+      }
+    } else if (e.key === 'Escape') {
+      closeAllSpTargetMenus();
+    }
+  }
+
+  function openSpFiscalYearMenu(idx) {
+    closeAllSpTargetMenus();
+    const menu = document.getElementById(`spFiscalYearMenu_${idx}`);
+    if (!menu) return;
+    openTargetMenuIndex = idx;
+    openTargetMenuType = 'fiscal_year';
+
+    menu.innerHTML = ERP_FISCAL_YEARS.map(y => `
+      <div class="erp-child-menu-item" style="padding:7px 12px; font-size:11.5px; color:#E4E4E7; cursor:pointer;" onmouseover="this.style.background='#27272A'" onmouseout="this.style.background='transparent'" onclick="selectSpFiscalYear(${idx}, '${y}')">
+        ${y}
+      </div>
+    `).join('');
+    menu.style.display = 'block';
+  }
+
+  function selectSpFiscalYear(idx, val) {
+    updateSpTargetField(idx, 'fiscal_year', val);
+    const inp = document.getElementById(`spTargetFiscalYear_${idx}`);
+    if (inp) inp.value = val;
+    closeAllSpTargetMenus();
+  }
+
+  function openSpDistMenu(idx) {
+    closeAllSpTargetMenus();
+    const menu = document.getElementById(`spDistMenu_${idx}`);
+    if (!menu) return;
+    openTargetMenuIndex = idx;
+    openTargetMenuType = 'distribution';
+
+    menu.innerHTML = ERP_DISTRIBUTIONS.map(d => `
+      <div class="erp-child-menu-item" style="padding:7px 12px; font-size:11.5px; color:#E4E4E7; cursor:pointer;" onmouseover="this.style.background='#27272A'" onmouseout="this.style.background='transparent'" onclick="selectSpDist(${idx}, '${d}')">
+        ${d}
+      </div>
+    `).join('');
+    menu.style.display = 'block';
+  }
+
+  function selectSpDist(idx, val) {
+    updateSpTargetField(idx, 'distribution_id', val);
+    const inp = document.getElementById(`spTargetDist_${idx}`);
+    if (inp) inp.value = val;
+    closeAllSpTargetMenus();
+  }
+
+  function closeAllSpTargetMenus() {
+    document.querySelectorAll('.erp-child-dropdown-menu').forEach(m => { m.style.display = 'none'; });
+    openTargetMenuIndex = null;
+    openTargetMenuType = null;
+  }
+
+  function addSpTargetRow() {
+    newSpTargetsList.push({
+      item_group: '',
+      fiscal_year: '2026',
+      target_qty: '',
+      target_amount: '',
+      distribution_id: 'Evenly Distributed',
+      selected: false
+    });
+    const newIdx = newSpTargetsList.length - 1;
+    renderSpTargetsTable();
+    
+    // Auto-scroll table body if scrollable
+    const scrollBody = document.getElementById('spTargetsTableScrollBody');
+    if (scrollBody) scrollBody.scrollTop = scrollBody.scrollHeight;
+
+    // Immediately focus on Item Group input of newly added row and open the ERPNext dropdown (matching screenshot)
+    setTimeout(() => {
+      const input = document.getElementById(`spTargetItemGroup_${newIdx}`);
+      if (input) {
+        input.focus();
+        openSpItemGroupMenu(newIdx);
+      }
+    }, 40);
+  }
+
+  function deleteSpTargetRow(idx) {
+    if (idx >= 0 && idx < newSpTargetsList.length) {
+      newSpTargetsList.splice(idx, 1);
+      renderSpTargetsTable();
+    }
+  }
+
+  function deleteSelectedSpTargets() {
+    newSpTargetsList = newSpTargetsList.filter(r => !r.selected);
+    renderSpTargetsTable();
+  }
+
+  function toggleSelectAllSpTargets(checked) {
+    newSpTargetsList.forEach(r => { r.selected = checked; });
+    renderSpTargetsTable();
+  }
+
+  function toggleSpTargetSelected(idx, checked) {
+    if (newSpTargetsList[idx]) {
+      newSpTargetsList[idx].selected = checked;
+      renderSpTargetsTable();
+    }
+  }
+
+  function updateSpTargetField(idx, field, value) {
+    if (newSpTargetsList[idx]) {
+      newSpTargetsList[idx][field] = value;
+    }
+  }
+
+  function toggleSpTargetGridGearMenu(e) {
+    if (e) e.stopPropagation();
+    showToast(`Targets Child Table: ${newSpTargetsList.length} rows configured (ERPNext Frappe Grid)`, 'info');
+  }
+
+  // --- ERPNext Child Table Row Modal (Pencil Icon Parity) ---
+  function openSpTargetRowModal(idx) {
+    if (!newSpTargetsList[idx]) return;
+    const row = newSpTargetsList[idx];
+
+    document.getElementById('spTargetRowEditIndex').value = idx;
+    document.getElementById('spTargetRowModalTitle').textContent = `Editing Row #${idx + 1}`;
+    
+    const igSelect = document.getElementById('spTargetRowModalItemGroup');
+    if (igSelect) igSelect.value = row.item_group || 'All Item Groups';
+
+    const fySelect = document.getElementById('spTargetRowModalFiscalYear');
+    if (fySelect) fySelect.value = row.fiscal_year || '2026';
+
+    const qtyInp = document.getElementById('spTargetRowModalQty');
+    if (qtyInp) qtyInp.value = row.target_qty !== '' ? row.target_qty : '';
+
+    const amtInp = document.getElementById('spTargetRowModalAmount');
+    if (amtInp) amtInp.value = row.target_amount !== '' ? row.target_amount : '';
+
+    const distSelect = document.getElementById('spTargetRowModalDistribution');
+    if (distSelect) distSelect.value = row.distribution_id || 'Evenly Distributed';
+
+    document.getElementById('spTargetRowModalOverlay').classList.add('active');
+  }
+
+  function closeSpTargetRowModal() {
+    saveCurrentSpTargetRowModal();
+    document.getElementById('spTargetRowModalOverlay').classList.remove('active');
+    renderSpTargetsTable();
+  }
+
+  function saveCurrentSpTargetRowModal() {
+    const idx = parseInt(document.getElementById('spTargetRowEditIndex').value, 10);
+    if (isNaN(idx) || !newSpTargetsList[idx]) return;
+
+    newSpTargetsList[idx].item_group = document.getElementById('spTargetRowModalItemGroup').value;
+    newSpTargetsList[idx].fiscal_year = document.getElementById('spTargetRowModalFiscalYear').value;
+    newSpTargetsList[idx].target_qty = document.getElementById('spTargetRowModalQty').value;
+    newSpTargetsList[idx].target_amount = document.getElementById('spTargetRowModalAmount').value;
+    newSpTargetsList[idx].distribution_id = document.getElementById('spTargetRowModalDistribution').value;
+  }
+
+  function insertSpTargetRowAbove() {
+    saveCurrentSpTargetRowModal();
+    const idx = parseInt(document.getElementById('spTargetRowEditIndex').value, 10);
+    newSpTargetsList.splice(idx, 0, {
+      item_group: 'All Item Groups',
+      fiscal_year: '2026',
+      target_qty: '',
+      target_amount: '',
+      distribution_id: 'Evenly Distributed',
+      selected: false
+    });
+    openSpTargetRowModal(idx);
+    renderSpTargetsTable();
+  }
+
+  function insertSpTargetRowBelow() {
+    saveCurrentSpTargetRowModal();
+    const idx = parseInt(document.getElementById('spTargetRowEditIndex').value, 10);
+    newSpTargetsList.splice(idx + 1, 0, {
+      item_group: 'All Item Groups',
+      fiscal_year: '2026',
+      target_qty: '',
+      target_amount: '',
+      distribution_id: 'Evenly Distributed',
+      selected: false
+    });
+    openSpTargetRowModal(idx + 1);
+    renderSpTargetsTable();
+  }
+
+  function duplicateSpTargetRow() {
+    saveCurrentSpTargetRowModal();
+    const idx = parseInt(document.getElementById('spTargetRowEditIndex').value, 10);
+    const clone = Object.assign({}, newSpTargetsList[idx]);
+    clone.selected = false;
+    newSpTargetsList.splice(idx + 1, 0, clone);
+    openSpTargetRowModal(idx + 1);
+    renderSpTargetsTable();
+  }
+
+  function deleteSpTargetCurrentRow() {
+    const idx = parseInt(document.getElementById('spTargetRowEditIndex').value, 10);
+    if (!isNaN(idx) && newSpTargetsList[idx]) {
+      newSpTargetsList.splice(idx, 1);
+      document.getElementById('spTargetRowModalOverlay').classList.remove('active');
+      renderSpTargetsTable();
+    }
+  }
 
   // --- MODAL: New Sales Person (Image 1 & 2) ---
   function openNewSalesPersonModal(prefillName) {
@@ -13142,9 +13588,6 @@ const BASELINE_ERP_TERRITORIES = [
     if (parentInp) parentInp.value = 'Sales Team';
     if (parentDisp) parentDisp.value = 'Sales Team';
 
-    const depSel = document.getElementById('newSpDepartmentSelect');
-    if (depSel) depSel.value = '';
-
     const commInp = document.getElementById('newSpCommissionInput');
     if (commInp) commInp.value = '';
 
@@ -13153,6 +13596,10 @@ const BASELINE_ERP_TERRITORIES = [
 
     const enabled = document.getElementById('newSpEnabled');
     if (enabled) enabled.checked = true;
+
+    // Reset Sales Person Targets child table
+    newSpTargetsList = [];
+    renderSpTargetsTable();
 
     document.getElementById('newSalesPersonModalOverlay').classList.add('active');
     setTimeout(() => { if (nameInp) nameInp.focus(); }, 100);
@@ -13171,12 +13618,23 @@ const BASELINE_ERP_TERRITORIES = [
 
     const empId = document.getElementById('newSpEmployeeInput').value.trim();
     const parentSp = (document.getElementById('newSpParentInput') ? document.getElementById('newSpParentInput').value.trim() : '') || 'Sales Team';
-    const dep = document.getElementById('newSpDepartmentSelect') ? document.getElementById('newSpDepartmentSelect').value : '';
     const commRate = parseFloat(document.getElementById('newSpCommissionInput').value) || 0;
     const isGrp = document.getElementById('newSpIsGroup').checked ? 1 : 0;
     const isEnabled = document.getElementById('newSpEnabled').checked ? 1 : 0;
 
     const userAcc = document.getElementById('newSpUserAccountInput') ? document.getElementById('newSpUserAccountInput').value.trim() : '';
+
+    // Collect child table targets (ERPNext Target Detail parity)
+    const targets = newSpTargetsList
+      .filter(t => (t.item_group && t.item_group.trim()) || t.target_qty || t.target_amount)
+      .map(t => ({
+        item_group: (t.item_group || 'All Item Groups').trim(),
+        fiscal_year: t.fiscal_year || '2026',
+        target_qty: parseFloat(t.target_qty) || 0,
+        target_amount: parseFloat(t.target_amount) || 0,
+        distribution_id: t.distribution_id || 'Evenly Distributed'
+      }));
+
     const newSpRecord = {
       name: spName,
       sales_person_name: spName,
@@ -13184,8 +13642,9 @@ const BASELINE_ERP_TERRITORIES = [
       is_group: isGrp,
       enabled: isEnabled,
       employee: empId || null,
-      department: dep || null,
-      user_id: userAcc || null
+      user_id: userAcc || null,
+      commission_rate: commRate,
+      targets: targets
     };
 
     // Update local list
@@ -13210,8 +13669,8 @@ const BASELINE_ERP_TERRITORIES = [
             is_group: isGrp,
             enabled: isEnabled,
             employee: empId || null,
-            department: dep || null,
             commission_rate: commRate,
+            targets: targets,
             timestamp: Date.now()
           }
         }, "*");
@@ -13227,9 +13686,9 @@ const BASELINE_ERP_TERRITORIES = [
         enabled: isEnabled
       };
       if (empId) payload.employee = empId;
-      if (dep) payload.department = dep;
       if (commRate) payload.commission_rate = commRate;
       if (userAcc) payload.user_id = userAcc;
+      if (targets && targets.length > 0) payload.targets = targets;
 
       fetch('/api/resource/Sales%20Person', {
         method: 'POST',
@@ -13315,7 +13774,6 @@ const BASELINE_ERP_TERRITORIES = [
     const doj = document.getElementById('newEmpDoj').value || new Date().toISOString().split('T')[0];
     const company = document.getElementById('newEmpCompany').value || 'Professional Insights Marketing Services';
     const status = document.getElementById('newEmpStatus').value || 'Active';
-    const department = document.getElementById('newEmpDepartmentSelect') ? document.getElementById('newEmpDepartmentSelect').value : '';
     const designation = document.getElementById('newEmpDesignationSelect') ? document.getElementById('newEmpDesignationSelect').value : '';
     const reportsTo = document.getElementById('newEmpReportsToInput') ? document.getElementById('newEmpReportsToInput').value.trim() : '';
     const cellNumber = document.getElementById('newEmpCellNumber') ? document.getElementById('newEmpCellNumber').value.trim() : '';
@@ -13339,7 +13797,6 @@ const BASELINE_ERP_TERRITORIES = [
       date_of_joining: doj,
       company: company,
       status: status,
-      department: department,
       designation: designation,
       reports_to: reportsTo,
       cell_number: cellNumber,
@@ -13365,7 +13822,6 @@ const BASELINE_ERP_TERRITORIES = [
             date_of_joining: doj,
             company: company,
             status: status,
-            department: department,
             designation: designation,
             reports_to: reportsTo,
             cell_number: cellNumber,
@@ -13388,7 +13844,6 @@ const BASELINE_ERP_TERRITORIES = [
       };
       if (ln) payload.last_name = ln;
       if (mn) payload.middle_name = mn;
-      if (department) payload.department = department;
       if (designation) payload.designation = designation;
       if (reportsTo) payload.reports_to = reportsTo;
       if (cellNumber) payload.cell_number = cellNumber;
@@ -15803,7 +16258,7 @@ const BASELINE_ERP_TERRITORIES = [
 <!-- MODAL: New Sales Person (Image 1 & 2)                                      -->
 <!-- ========================================================================= -->
 <div class="modal-overlay" id="newSalesPersonModalOverlay" style="z-index: 10001;">
-  <div class="modal-card" style="background:#18181B; border:1px solid #27272A; color:#FFFFFF; max-width:680px; border-radius:12px; padding:24px; box-shadow:0 24px 64px rgba(0,0,0,0.75);">
+  <div class="modal-card" style="background:#18181B; border:1px solid #27272A; color:#FFFFFF; max-width:760px; width:100%; border-radius:12px; padding:24px; box-shadow:0 24px 64px rgba(0,0,0,0.75);">
     
     <!-- Header with Breadcrumb and Not Saved Badge matching Image 1 -->
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; border-bottom:1px solid #27272A; padding-bottom:12px;">
@@ -15820,34 +16275,36 @@ const BASELINE_ERP_TERRITORIES = [
       </div>
     </div>
 
-    <!-- Section 1: Name and Employee ID matching ERPNext v15 -->
-    <div style="margin-bottom:18px;">
-      <h4 style="font-size:13px; font-weight:700; color:#E4E4E7; margin:0 0 12px 0;">Name and Employee ID</h4>
+    <!-- Section 1: Sales Person Details (Department removed for clean usability) -->
+    <div style="margin-bottom:14px;">
+      <h4 style="font-size:13px; font-weight:700; color:#E4E4E7; margin:0 0 12px 0;">Details</h4>
       
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-        <!-- Left: Sales Person Name -->
+      <!-- Form Grid (Balanced Two-column layout matching ERPNext) -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        
+        <!-- Row 1 Left: Sales Person Name -->
         <div>
           <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
             Sales Person Name <span style="color:#EF4444;">*</span>
           </label>
-          <input type="text" id="newSpNameInput" placeholder="e.g. John Doe (District 1)" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
+          <input type="text" id="newSpNameInput" placeholder="e.g. Juan Dela Cruz" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
         </div>
 
-        <!-- Right: Employee Link Dropdown matching Image 2 -->
+        <!-- Row 1 Right: Employee (ERPNext Searchable Select) -->
         <div>
           <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
             Employee
           </label>
           <div class="erp-search-container" id="newSpEmployeeContainer">
             <input type="hidden" id="newSpEmployeeInput" value="">
-            <input type="text" id="newSpEmployeeDisplay" class="erp-search-input-box" placeholder="Search employee..." autocomplete="off" onfocus="openErpDropdown('newSpEmployee')" oninput="onErpSearchInput('newSpEmployee')">
+            <input type="text" id="newSpEmployeeDisplay" class="erp-search-input-box" placeholder="Search active employee..." autocomplete="off" onfocus="openErpDropdown('newSpEmployee')" oninput="onErpSearchInput('newSpEmployee')">
             <button type="button" class="erp-clear-btn" id="newSpEmployeeClear" onclick="clearErpSelection('newSpEmployee')">✕</button>
-            <span class="erp-search-chevron">▼</span>
+            <span class="erp-search-chevron">▾</span>
             <div class="erp-dropdown-menu" id="newSpEmployeeMenu"></div>
           </div>
         </div>
 
-        <!-- Left: Parent Sales Person (ERPNext Searchable Select) -->
+        <!-- Row 2 Left: Parent Sales Person (ERPNext Searchable Select) -->
         <div>
           <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
             Parent Sales Person
@@ -15856,23 +16313,13 @@ const BASELINE_ERP_TERRITORIES = [
             <input type="hidden" id="newSpParentInput" value="Sales Team">
             <input type="text" id="newSpParentDisplay" value="Sales Team" class="erp-search-input-box" placeholder="Search parent sales person..." autocomplete="off" onfocus="openErpDropdown('newSpParent')" oninput="onErpSearchInput('newSpParent')">
             <button type="button" class="erp-clear-btn" id="newSpParentClear" onclick="clearErpSelection('newSpParent')">✕</button>
-            <span class="erp-search-chevron">▼</span>
+            <span class="erp-search-chevron">▾</span>
             <div class="erp-dropdown-menu" id="newSpParentMenu"></div>
           </div>
           <div style="font-size:10.5px; color:#71717A; margin-top:4px;">Select parent sales person in tree.</div>
         </div>
 
-        <!-- Right: Department -->
-        <div>
-          <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
-            Department
-          </label>
-          <select id="newSpDepartmentSelect" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12px; outline:none; box-sizing:border-box; cursor:pointer;">
-            <option value="">Select Department...</option><option value="All Departments">All Departments</option><option value="CONJUG8 Monthly">CONJUG8 Monthly</option><option value="FLS Monthly">FLS Monthly</option><option value="FRONTIER  - PIMS">FRONTIER  - PIMS</option><option value="Kenvue Monthly - PIMS">Kenvue Monthly - PIMS</option><option value="NES Daily">NES Daily</option><option value="NES Monthly">NES Monthly</option><option value="PFIZER Monthly">PFIZER Monthly</option><option value="Pharmabest - PIMS">Pharmabest - PIMS</option><option value="PHILUSA Monthly - PIMS">PHILUSA Monthly - PIMS</option><option value="PIMS-ADMIN Monthly">PIMS-ADMIN Monthly</option><option value="PIMS-FS Monthly">PIMS-FS Monthly</option><option value="Ritemed Dental - PIMS">Ritemed Dental - PIMS</option><option value="RITEMED Monthly - PIMS">RITEMED Monthly - PIMS</option><option value="SANOFI FREE CLINICIAN Monthly - PIMS">SANOFI FREE CLINICIAN Monthly - PIMS</option><option value="SANOFI GEM Monthly - PIMS">SANOFI GEM Monthly - PIMS</option><option value="SANOFI MTR Monthly - PIMS">SANOFI MTR Monthly - PIMS</option><option value="SANOFI OPELLA Monthly - PIMS">SANOFI OPELLA Monthly - PIMS</option><option value="UL-UHP Derma Monthly - PIMS">UL-UHP Derma Monthly - PIMS</option><option value="UL-UHP OB Monthly - PIMS">UL-UHP OB Monthly - PIMS</option><option value="UL-UHP PEDIA Monthly - PIMS">UL-UHP PEDIA Monthly - PIMS</option><option value="WCME Monthly">WCME Monthly</option><option value="WCMM Monthly - PIMS">WCMM Monthly - PIMS</option><option value="WCMP Monthly - PIMS">WCMP Monthly - PIMS</option><option value="WCPD Monthly">WCPD Monthly</option>
-          </select>
-        </div>
-
-        <!-- Left: User ID (Labeled User ID to match ERPNext field label) -->
+        <!-- Row 2 Right: User ID (Labeled User ID to match ERPNext field label) -->
         <div>
           <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
             User ID
@@ -15881,12 +16328,12 @@ const BASELINE_ERP_TERRITORIES = [
             <input type="hidden" id="newSpUserAccountInput" value="">
             <input type="text" id="newSpUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User ID..." autocomplete="off" onfocus="openErpDropdown('newSpUserAccount')" oninput="onErpSearchInput('newSpUserAccount')">
             <button type="button" class="erp-clear-btn" id="newSpUserAccountClear" onclick="clearErpSelection('newSpUserAccount')">✕</button>
-            <span class="erp-search-chevron">▼</span>
+            <span class="erp-search-chevron">▾</span>
             <div class="erp-dropdown-menu" id="newSpUserAccountMenu"></div>
           </div>
         </div>
 
-        <!-- Right: Commission Rate -->
+        <!-- Row 3 Left: Commission Rate -->
         <div>
           <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
             Commission Rate
@@ -15894,7 +16341,7 @@ const BASELINE_ERP_TERRITORIES = [
           <input type="number" step="0.01" id="newSpCommissionInput" placeholder="0.0" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
         </div>
 
-        <!-- Right: Checkboxes -->
+        <!-- Row 3 Right: Checkboxes -->
         <div style="display:flex; gap:20px; align-items:center; padding-top:22px;">
           <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:#E4E4E7; cursor:pointer;">
             <input type="checkbox" id="newSpIsGroup" style="width:15px; height:15px; accent-color:#0066FF; cursor:pointer;">
@@ -15908,31 +16355,29 @@ const BASELINE_ERP_TERRITORIES = [
       </div>
     </div>
 
-    <!-- Section 2: Sales Person Targets matching ERPNext Screenshot 1 -->
-    <div style="margin-top:18px; border-top:1px solid #27272A; padding-top:14px;">
-      <h4 style="font-size:13px; font-weight:700; color:#E4E4E7; margin:0 0 4px 0;">Sales Person Targets</h4>
-      <div style="font-size:11px; color:#A1A1AA; margin-bottom:12px;">Set targets Item Group-wise for this Sales Person.</div>
+    <!-- Section 2: Sales Person Targets matching ERPNext Screenshot -->
+    <div style="margin-top:20px; border-top:1px solid #27272A; padding-top:16px;">
+      <h4 style="font-size:13.5px; font-weight:700; color:#FFFFFF; margin:0 0 4px 0;">Sales Person Targets</h4>
+      <div style="font-size:11px; color:#A1A1AA; margin-bottom:12px;">Set Item Group-wise budgets on this Sales Person. You can also include seasonality by setting the Distribution.</div>
       
-      <!-- Target Table Header -->
-      <div style="background:#202024; border:1px solid #3F3F46; border-radius:6px; overflow:hidden;">
-        <div style="display:grid; grid-template-columns:40px 1.5fr 1fr 1fr 1fr 1fr; background:#27272A; padding:8px 10px; font-size:11px; font-weight:700; color:#A1A1AA; border-bottom:1px solid #3F3F46;">
-          <div>No.</div>
-          <div>Item Group</div>
-          <div>Fiscal Year <span style="color:#EF4444;">*</span></div>
-          <div>Target Qty</div>
-          <div>Target Amount</div>
-          <div>Target Dist. <span style="color:#EF4444;">*</span></div>
-        </div>
-        <!-- No Data State matching Screenshot 1 -->
-        <div style="padding:24px 16px; text-align:center; color:#71717A; font-size:12px;">
-          <div style="font-size:22px; margin-bottom:6px;">📋</div>
-          <div>No Data</div>
-        </div>
+      <div style="font-size:11.5px; font-weight:700; color:#E4E4E7; margin-bottom:8px;">Targets</div>
+
+      <!-- Targets Table Container (ERPNext Child Table Parity) -->
+      <div id="spTargetsTableContainer" style="background:#18181B; border:1px solid #333741; border-radius:6px; overflow:visible;">
+        <!-- Dynamically rendered by renderSpTargetsTable() -->
       </div>
-      <div style="margin-top:8px;">
-        <button type="button" style="background:#27272A; border:1px solid #3F3F46; color:#E4E4E7; font-size:11px; font-weight:600; padding:4px 12px; border-radius:4px; cursor:pointer;">
-          + Add Row
-        </button>
+
+      <!-- Table Actions (Add Row matching ERPNext Screenshot) -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button type="button" onclick="addSpTargetRow()" class="erp-grid-add-row-btn" style="background:#27272A; border:1px solid #3F3F46; color:#E4E4E7; font-size:11.5px; font-weight:600; padding:5px 14px; border-radius:5px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.15s;" onmouseover="this.style.background='#3F3F46'; this.style.color='#FFFFFF'" onmouseout="this.style.background='#27272A'; this.style.color='#E4E4E7'">
+            Add Row
+          </button>
+          <button type="button" id="spTargetDeleteSelectedBtn" onclick="deleteSelectedSpTargets()" style="display:none; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#FCA5A5; font-size:11.5px; font-weight:600; padding:5px 12px; border-radius:5px; cursor:pointer; align-items:center; gap:6px;">
+            ✕ Delete Selected
+          </button>
+        </div>
+        <div id="spTargetSummaryCount" style="font-size:11px; color:#71717A;"></div>
       </div>
     </div>
 
@@ -15944,6 +16389,105 @@ const BASELINE_ERP_TERRITORIES = [
       <button type="button" onclick="submitNewSalesPerson()" style="background:#FFFFFF; border:none; color:#0F172A; font-size:12.5px; font-weight:700; padding:7px 20px; border-radius:6px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
         Save Sales Person
       </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: Editing Target Row (ERPNext Frappe Grid Parity)                     -->
+<!-- ========================================================================= -->
+<div class="modal-overlay" id="spTargetRowModalOverlay" style="z-index: 10005;">
+  <div class="modal-card" style="background:#18181B; border:1px solid #27272A; color:#FFFFFF; max-width:540px; width:100%; border-radius:12px; padding:22px; box-shadow:0 24px 64px rgba(0,0,0,0.85);">
+    
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #27272A; padding-bottom:10px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="color:#A1A1AA; font-size:12px; font-weight:600;">Sales Person Targets &gt;</span>
+        <h3 style="font-size:15px; font-weight:800; color:#FFFFFF; margin:0;" id="spTargetRowModalTitle">Editing Row #1</h3>
+      </div>
+      <button type="button" onclick="closeSpTargetRowModal()" style="background:none; border:none; color:#A1A1AA; font-size:18px; cursor:pointer; line-height:1;">✕</button>
+    </div>
+
+    <input type="hidden" id="spTargetRowEditIndex" value="0">
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px;">
+      
+      <div style="grid-column: span 2;">
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:5px;">
+          Item Group
+        </label>
+        <select id="spTargetRowModalItemGroup" style="width:100%; height:34px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12px; outline:none; box-sizing:border-box; cursor:pointer;">
+          <option value="ACCESSORIES">ACCESSORIES</option>
+          <option value="All Item Groups">All Item Groups</option>
+          <option value="Pharmaceuticals">Pharmaceuticals</option>
+          <option value="Consumables">Consumables</option>
+          <option value="Diagnostic Equipment">Diagnostic Equipment</option>
+          <option value="Medical Devices">Medical Devices</option>
+          <option value="Oral Hypoglycemics">Oral Hypoglycemics</option>
+          <option value="Insulin Delivery">Insulin Delivery</option>
+          <option value="Nutritional Supplements">Nutritional Supplements</option>
+          <option value="Products">Products</option>
+          <option value="Services">Services</option>
+          <option value="Raw Material">Raw Material</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:5px;">
+          Fiscal Year <span style="color:#EF4444;">*</span>
+        </label>
+        <select id="spTargetRowModalFiscalYear" style="width:100%; height:34px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12px; outline:none; box-sizing:border-box; cursor:pointer;">
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="2027">2027</option>
+          <option value="2028">2028</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:5px;">
+          Target Qty
+        </label>
+        <input type="number" step="any" id="spTargetRowModalQty" placeholder="Target Qty" style="width:100%; height:34px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12px; outline:none; box-sizing:border-box;">
+      </div>
+
+      <div>
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:5px;">
+          Target Amount
+        </label>
+        <input type="number" step="0.01" id="spTargetRowModalAmount" placeholder="Target Amount" style="width:100%; height:34px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12px; outline:none; box-sizing:border-box;">
+      </div>
+
+      <div>
+        <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:5px;">
+          Target Distribution <span style="color:#EF4444;">*</span>
+        </label>
+        <select id="spTargetRowModalDistribution" style="width:100%; height:34px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12px; outline:none; box-sizing:border-box; cursor:pointer;">
+          <option value="Evenly Distributed">Evenly Distributed</option>
+          <option value="Quarterly Seasonality">Quarterly Seasonality</option>
+          <option value="Q1 Heavy">Q1 Heavy</option>
+          <option value="Q2 Heavy">Q2 Heavy</option>
+          <option value="Q3 Heavy">Q3 Heavy</option>
+          <option value="Q4 Heavy">Q4 Heavy</option>
+          <option value="Monthly Spread">Monthly Spread</option>
+          <option value="Seasonal Peak">Seasonal Peak</option>
+        </select>
+      </div>
+
+    </div>
+
+    <!-- ERPNext Action Buttons: Insert Above, Insert Below, Duplicate, Delete, Done -->
+    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #27272A; padding-top:14px;">
+      <div style="display:flex; gap:6px;">
+        <button type="button" onclick="insertSpTargetRowAbove()" style="background:#27272A; border:1px solid #3F3F46; color:#D4D4D8; font-size:11px; font-weight:600; padding:6px 10px; border-radius:5px; cursor:pointer;">Insert Above</button>
+        <button type="button" onclick="insertSpTargetRowBelow()" style="background:#27272A; border:1px solid #3F3F46; color:#D4D4D8; font-size:11px; font-weight:600; padding:6px 10px; border-radius:5px; cursor:pointer;">Insert Below</button>
+        <button type="button" onclick="duplicateSpTargetRow()" style="background:#27272A; border:1px solid #3F3F46; color:#D4D4D8; font-size:11px; font-weight:600; padding:6px 10px; border-radius:5px; cursor:pointer;">Duplicate</button>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" onclick="deleteSpTargetCurrentRow()" style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#FCA5A5; font-size:11px; font-weight:600; padding:6px 12px; border-radius:5px; cursor:pointer;">Delete</button>
+        <button type="button" onclick="closeSpTargetRowModal()" style="background:#FFFFFF; border:none; color:#0F172A; font-size:11.5px; font-weight:700; padding:6px 16px; border-radius:5px; cursor:pointer;">Done</button>
+      </div>
     </div>
 
   </div>
@@ -16004,19 +16548,13 @@ const BASELINE_ERP_TERRITORIES = [
       </div>
     </div>
 
-    <!-- Section 2: Company & Department Details -->
+    <!-- Section 2: Company & Role Details (Department removed for clean usability) -->
     <div style="margin-bottom:16px;">
       <h4 style="font-size:12.5px; font-weight:700; color:#E4E4E7; margin:0 0 10px 0; border-bottom:1px solid #27272A; padding-bottom:4px;">2. Company & Role Details</h4>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-        <div style="grid-column: span 2;">
+        <div>
           <label style="font-size:11px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:4px;">Company <span style="color:#EF4444;">*</span></label>
           <input type="text" id="newEmpCompany" value="Professional Insights Marketing Services" readonly style="width:100%; height:34px; background:#1E1E22; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#9CA3AF; font-size:12px; outline:none; box-sizing:border-box;">
-        </div>
-        <div>
-          <label style="font-size:11px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:4px;">Department</label>
-          <select id="newEmpDepartmentSelect" style="width:100%; height:34px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12px; outline:none; box-sizing:border-box; cursor:pointer;">
-            <option value="">Select Department...</option><option value="All Departments">All Departments</option><option value="CONJUG8 Monthly">CONJUG8 Monthly</option><option value="FLS Monthly">FLS Monthly</option><option value="FRONTIER  - PIMS">FRONTIER  - PIMS</option><option value="Kenvue Monthly - PIMS">Kenvue Monthly - PIMS</option><option value="NES Daily">NES Daily</option><option value="NES Monthly">NES Monthly</option><option value="PFIZER Monthly">PFIZER Monthly</option><option value="Pharmabest - PIMS">Pharmabest - PIMS</option><option value="PHILUSA Monthly - PIMS">PHILUSA Monthly - PIMS</option><option value="PIMS-ADMIN Monthly">PIMS-ADMIN Monthly</option><option value="PIMS-FS Monthly">PIMS-FS Monthly</option><option value="Ritemed Dental - PIMS">Ritemed Dental - PIMS</option><option value="RITEMED Monthly - PIMS">RITEMED Monthly - PIMS</option><option value="SANOFI FREE CLINICIAN Monthly - PIMS">SANOFI FREE CLINICIAN Monthly - PIMS</option><option value="SANOFI GEM Monthly - PIMS">SANOFI GEM Monthly - PIMS</option><option value="SANOFI MTR Monthly - PIMS">SANOFI MTR Monthly - PIMS</option><option value="SANOFI OPELLA Monthly - PIMS">SANOFI OPELLA Monthly - PIMS</option><option value="UL-UHP Derma Monthly - PIMS">UL-UHP Derma Monthly - PIMS</option><option value="UL-UHP OB Monthly - PIMS">UL-UHP OB Monthly - PIMS</option><option value="UL-UHP PEDIA Monthly - PIMS">UL-UHP PEDIA Monthly - PIMS</option><option value="WCME Monthly">WCME Monthly</option><option value="WCMM Monthly - PIMS">WCMM Monthly - PIMS</option><option value="WCMP Monthly - PIMS">WCMP Monthly - PIMS</option><option value="WCPD Monthly">WCPD Monthly</option>
-          </select>
         </div>
         <div>
           <label style="font-size:11px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:4px;">Designation</label>
