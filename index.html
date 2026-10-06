@@ -9660,7 +9660,7 @@ const BASELINE_ERP_TERRITORIES = [
 
   let availableSalesPersons = [];
   let availableEmployees = [];
-  // Baseline User Accounts matching ERPNext live instance (dev.pmii-marketing.com)
+  // Baseline User IDs matching ERPNext live instance (dev.pmii-marketing.com)
   const BASELINE_USERS = [
   {
     "name": "lesantos@pims-marketing.com",
@@ -12794,7 +12794,7 @@ const BASELINE_ERP_TERRITORIES = [
     const tokens = rawQ.toLowerCase().split(/\s+/).filter(Boolean);
 
     if (fieldId === 'treeEditUserAccount' || fieldId === 'treeAddUserAccount' || fieldId === 'editUserAccount' || fieldId === 'addUserAccount' || fieldId === 'newSpUserAccount') {
-      // Filter User Accounts across email, full name, first name, last name (matching Image 1)
+      // Filter User IDs across email, full name, first name, last name (matching Image 1)
       let matches = availableUsers.filter(u => {
         if (!tokens.length) return true;
         const searchable = [
@@ -13982,7 +13982,7 @@ const BASELINE_ERP_TERRITORIES = [
     document.getElementById('editModalTitle').innerText = `Reconfigure Territory: ${row.activeCode || row.latestPrevCode}`;
     document.getElementById('editRecordId').value = row.recordId || '';
     
-    // User Account dropdown
+    // User ID dropdown
     const editUserIdVal = row.userId || '';
     const editUserInp = document.getElementById('editUserAccountInput');
     const editUserDisp = document.getElementById('editUserAccountDisplay');
@@ -15247,7 +15247,7 @@ const BASELINE_ERP_TERRITORIES = [
       </div>
     </div>
 
-    <!-- Account / Program & User Account Dropdown (matching Image 1) -->
+    <!-- Account / Program & User ID Dropdown (matching Image 1) -->
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
       <div>
         <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Account / Program</label>
