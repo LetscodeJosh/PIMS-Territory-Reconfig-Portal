@@ -1996,102 +1996,103 @@
           </div>
         </div>
 
-        <!-- ERPNext-style Search Filter & Row Count Toolbar -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; background:#F8FAFC; padding:10px 14px; border-radius:8px; border:1.5px solid #E2E8F0; flex-wrap:wrap; gap:12px;">
-          <!-- Left: Active Program & Row Counts -->
-          <div style="font-size:12.5px; color:#475569; font-weight:600; display:flex; align-items:center; gap:8px; white-space:nowrap; flex-shrink:0;">
-            <span>Active Program: <strong style="color:#0066FF;" id="activeProgTitle">Abbott Diabetes Care</strong></span>
-            <span style="color:#CBD5E1;">&bull;</span>
-            <span>Showing <strong style="color:#0066FF;" id="visibleRowCount">0</strong> of <strong id="totalRowCount" style="color:#0F172A;">0</strong> territories</span>
-          </div>
+        <!-- VIEW A: Interactive Table Grid with Checkbox Selector Column & Dedicated Pagination -->
+        <div id="gridTableView" style="display:none;">
 
-          <!-- Top-Right: ERPNext-style Search Filter & Column Visibility (Aligned horizontally) -->
-          <div style="display:inline-flex; align-items:center; gap:8px; flex-wrap:nowrap;">
-            <!-- Filter By: label always on single horizontal line -->
-            <label for="erpFilterField" style="font-size:11.5px; color:#475569; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; margin:0; line-height:1; flex-shrink:0; cursor:pointer;">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#64748B;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-              Filter By:
-            </label>
-
-            <!-- Field Selection Dropdown -->
-            <select id="erpFilterField" class="crm-filter-select" style="min-width:160px; width:auto; height:34px; padding:0 26px 0 10px; font-weight:700; border-radius:6px; border:1.5px solid #CBD5E1; background:#FFFFFF; font-size:12px; color:#0F172A; cursor:pointer; flex-shrink:0;" onchange="onFilterFieldChange()">
-              <option value="all">All Columns</option>
-              <option value="latestPrevCode">Last Previous Code</option>
-              <option value="activeCode">Active Code</option>
-              <option value="rep">Assigned MedRep</option>
-              <option value="docs">Doctor Count</option>
-              <option value="status">Status</option>
-            </select>
-
-            <!-- Text Search Filter Container with Integrated ✕ Clear Button -->
-            <div id="erpTextFilterContainer" style="position:relative; display:inline-flex; align-items:center; flex-shrink:0;">
-              <input type="text" id="erpFilterValue" class="crm-filter-input" placeholder="Search across all columns..." style="height:34px; min-width:220px; padding:0 28px 0 10px; border-radius:6px; border:1.5px solid #CBD5E1; font-size:12px; font-weight:600;" oninput="onFilterInput(this)" onkeyup="applyErpFilter()">
-              
-              <!-- ✕ Icon: deletes all encoded data and clears filter instantly -->
-              <button type="button" id="btnFilterClear" onclick="clearFilterField()" title="Clear search text (✕)" style="position:absolute; right:6px; background:none; border:none; color:#94A3B8; font-size:14px; font-weight:bold; cursor:pointer; padding:2px 6px; border-radius:4px; line-height:1; display:none; align-items:center; justify-content:center; transition:color 0.15s ease;" onmouseover="this.style.color='#DC2626'" onmouseout="this.style.color='#94A3B8'">
-                ✕
-              </button>
+          <!-- ERPNext-style Search Filter & Row Count Toolbar (Strictly visible only in Table Grid View) -->
+          <div id="erpGridFilterToolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; background:#F8FAFC; padding:10px 14px; border-radius:8px; border:1.5px solid #E2E8F0; flex-wrap:wrap; gap:12px;">
+            <!-- Left: Active Program & Row Counts -->
+            <div style="font-size:12.5px; color:#475569; font-weight:600; display:flex; align-items:center; gap:8px; white-space:nowrap; flex-shrink:0;">
+              <span>Active Program: <strong style="color:#0066FF;" id="activeProgTitle">Abbott Diabetes Care</strong></span>
+              <span style="color:#CBD5E1;">&bull;</span>
+              <span>Showing <strong style="color:#0066FF;" id="visibleRowCount">0</strong> of <strong id="totalRowCount" style="color:#0F172A;">0</strong> territories</span>
             </div>
 
-            <!-- Status Checkbox Filter Container: When unchecked, data is hidden; when checked, displayed! -->
-            <div id="erpStatusFilterContainer" style="display:none; align-items:center; gap:8px; height:34px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; padding:0 10px; flex-shrink:0;">
-              <label style="font-size:11.5px; font-weight:700; color:#15803D; display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0; user-select:none;" title="When checked: displays UNCHANGED data. When unchecked: hides UNCHANGED data.">
-                <input type="checkbox" id="statusCb_unchanged" checked onchange="onStatusCheckboxChange()" style="accent-color:#15803D; cursor:pointer; width:15px; height:15px;">
-                UNCHANGED
+            <!-- Top-Right: ERPNext-style Search Filter & Column Visibility (Aligned horizontally) -->
+            <div style="display:inline-flex; align-items:center; gap:8px; flex-wrap:nowrap;">
+              <!-- Filter By: label always on single horizontal line -->
+              <label for="erpFilterField" style="font-size:11.5px; color:#475569; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; margin:0; line-height:1; flex-shrink:0; cursor:pointer;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#64748B;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                Filter By:
               </label>
-              <span style="color:#CBD5E1;">|</span>
-              <label style="font-size:11.5px; font-weight:700; color:#B45309; display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0; user-select:none;" title="When checked: displays CHANGED data. When unchecked: hides CHANGED data.">
-                <input type="checkbox" id="statusCb_changed" checked onchange="onStatusCheckboxChange()" style="accent-color:#B45309; cursor:pointer; width:15px; height:15px;">
-                CHANGED
-              </label>
-            </div>
 
-            <!-- Column Visibility Filter Dropdown (When unchecked, column is hidden; when checked, displayed!) -->
-            <div id="columnVisibilityDropdownWrapper"  class="col-visibility-dropdown" style="flex-shrink:0;">
-              <button type="button" id="btnColumnFilter" onclick="toggleColumnVisibilityMenu()" class="btn btn-sm" style="height:34px; font-size:12px; font-weight:700; color:#334155; display:inline-flex; align-items:center; gap:6px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; padding:0 12px; cursor:pointer;" title="Show or hide table columns">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                <span>Columns (<span id="visibleColCount">5</span>/5)</span>
-                <span style="font-size:9px; color:#64748B;">▼</span>
-              </button>
-              <div id="columnVisibilityMenu" class="col-visibility-menu">
-                <div class="col-menu-header">
-                  <span class="col-menu-title">Table Columns</span>
-                  <div style="font-size:11px;">
-                    <a href="javascript:void(0)" onclick="setAllColumnsVisibility(true)" style="color:#0066FF; font-weight:700; text-decoration:none; margin-right:8px;">All</a>
-                    <a href="javascript:void(0)" onclick="setAllColumnsVisibility(false)" style="color:#DC2626; font-weight:700; text-decoration:none; margin-right:8px;">None</a>
-                    <a href="javascript:void(0)" onclick="resetColumnsVisibility()" style="color:#64748B; font-weight:600; text-decoration:none;">Reset</a>
+              <!-- Field Selection Dropdown -->
+              <select id="erpFilterField" class="crm-filter-select" style="min-width:160px; width:auto; height:34px; padding:0 26px 0 10px; font-weight:700; border-radius:6px; border:1.5px solid #CBD5E1; background:#FFFFFF; font-size:12px; color:#0F172A; cursor:pointer; flex-shrink:0;" onchange="onFilterFieldChange()">
+                <option value="all">All Columns</option>
+                <option value="latestPrevCode">Last Previous Code</option>
+                <option value="activeCode">Active Code</option>
+                <option value="rep">Assigned MedRep</option>
+                <option value="docs">Doctor Count</option>
+                <option value="status">Status</option>
+              </select>
+
+              <!-- Text Search Filter Container with Integrated ✕ Clear Button -->
+              <div id="erpTextFilterContainer" style="position:relative; display:inline-flex; align-items:center; flex-shrink:0;">
+                <input type="text" id="erpFilterValue" class="crm-filter-input" placeholder="Search across all columns..." style="height:34px; min-width:220px; padding:0 28px 0 10px; border-radius:6px; border:1.5px solid #CBD5E1; font-size:12px; font-weight:600;" oninput="onFilterInput(this)" onkeyup="applyErpFilter()">
+                
+                <!-- ✕ Icon: deletes all encoded data and clears filter instantly -->
+                <button type="button" id="btnFilterClear" onclick="clearFilterField()" title="Clear search text (✕)" style="position:absolute; right:6px; background:none; border:none; color:#94A3B8; font-size:14px; font-weight:bold; cursor:pointer; padding:2px 6px; border-radius:4px; line-height:1; display:none; align-items:center; justify-content:center; transition:color 0.15s ease;" onmouseover="this.style.color='#DC2626'" onmouseout="this.style.color='#94A3B8'">
+                  ✕
+                </button>
+              </div>
+
+              <!-- Status Checkbox Filter Container: When unchecked, data is hidden; when checked, displayed! -->
+              <div id="erpStatusFilterContainer" style="display:none; align-items:center; gap:8px; height:34px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; padding:0 10px; flex-shrink:0;">
+                <label style="font-size:11.5px; font-weight:700; color:#15803D; display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0; user-select:none;" title="When checked: displays UNCHANGED data. When unchecked: hides UNCHANGED data.">
+                  <input type="checkbox" id="statusCb_unchanged" checked onchange="onStatusCheckboxChange()" style="accent-color:#15803D; cursor:pointer; width:15px; height:15px;">
+                  UNCHANGED
+                </label>
+                <span style="color:#CBD5E1;">|</span>
+                <label style="font-size:11.5px; font-weight:700; color:#B45309; display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0; user-select:none;" title="When checked: displays CHANGED data. When unchecked: hides CHANGED data.">
+                  <input type="checkbox" id="statusCb_changed" checked onchange="onStatusCheckboxChange()" style="accent-color:#B45309; cursor:pointer; width:15px; height:15px;">
+                  CHANGED
+                </label>
+              </div>
+
+              <!-- Column Visibility Filter Dropdown (When unchecked, column is hidden; when checked, displayed!) -->
+              <div id="columnVisibilityDropdownWrapper"  class="col-visibility-dropdown" style="flex-shrink:0;">
+                <button type="button" id="btnColumnFilter" onclick="toggleColumnVisibilityMenu()" class="btn btn-sm" style="height:34px; font-size:12px; font-weight:700; color:#334155; display:inline-flex; align-items:center; gap:6px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; padding:0 12px; cursor:pointer;" title="Show or hide table columns">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  <span>Columns (<span id="visibleColCount">5</span>/5)</span>
+                  <span style="font-size:9px; color:#64748B;">▼</span>
+                </button>
+                <div id="columnVisibilityMenu" class="col-visibility-menu">
+                  <div class="col-menu-header">
+                    <span class="col-menu-title">Table Columns</span>
+                    <div style="font-size:11px;">
+                      <a href="javascript:void(0)" onclick="setAllColumnsVisibility(true)" style="color:#0066FF; font-weight:700; text-decoration:none; margin-right:8px;">All</a>
+                      <a href="javascript:void(0)" onclick="setAllColumnsVisibility(false)" style="color:#DC2626; font-weight:700; text-decoration:none; margin-right:8px;">None</a>
+                      <a href="javascript:void(0)" onclick="resetColumnsVisibility()" style="color:#64748B; font-weight:600; text-decoration:none;">Reset</a>
+                    </div>
                   </div>
-                </div>
-                <div style="display:flex; flex-direction:column; gap:4px;">
-                  <label class="col-menu-item">
-                    <input type="checkbox" id="colToggle_prev" checked onchange="toggleColumnVisibility('prev', this.checked)">
-                    <span>Latest Previous Code</span>
-                  </label>
-                  <label class="col-menu-item">
-                    <input type="checkbox" id="colToggle_active" checked onchange="toggleColumnVisibility('active', this.checked)">
-                    <span>Active Code</span>
-                  </label>
-                  <label class="col-menu-item">
-                    <input type="checkbox" id="colToggle_rep" checked onchange="toggleColumnVisibility('rep', this.checked)">
-                    <span>Assigned MedRep</span>
-                  </label>
-                  <label class="col-menu-item">
-                    <input type="checkbox" id="colToggle_docs" checked onchange="toggleColumnVisibility('docs', this.checked)">
-                    <span>Doctor Count</span>
-                  </label>
-                  <label class="col-menu-item">
-                    <input type="checkbox" id="colToggle_status" checked onchange="toggleColumnVisibility('status', this.checked)">
-                    <span>Status</span>
-                  </label>
-                  
+                  <div style="display:flex; flex-direction:column; gap:4px;">
+                    <label class="col-menu-item">
+                      <input type="checkbox" id="colToggle_prev" checked onchange="toggleColumnVisibility('prev', this.checked)">
+                      <span>Latest Previous Code</span>
+                    </label>
+                    <label class="col-menu-item">
+                      <input type="checkbox" id="colToggle_active" checked onchange="toggleColumnVisibility('active', this.checked)">
+                      <span>Active Code</span>
+                    </label>
+                    <label class="col-menu-item">
+                      <input type="checkbox" id="colToggle_rep" checked onchange="toggleColumnVisibility('rep', this.checked)">
+                      <span>Assigned MedRep</span>
+                    </label>
+                    <label class="col-menu-item">
+                      <input type="checkbox" id="colToggle_docs" checked onchange="toggleColumnVisibility('docs', this.checked)">
+                      <span>Doctor Count</span>
+                    </label>
+                    <label class="col-menu-item">
+                      <input type="checkbox" id="colToggle_status" checked onchange="toggleColumnVisibility('status', this.checked)">
+                      <span>Status</span>
+                    </label>
+                    
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- VIEW A: Interactive Table Grid with Checkbox Selector Column & Dedicated Pagination -->
-        <div id="gridTableView" style="display:none;">
           <div class="table-responsive">
             <table id="editorTable">
               <thead>
@@ -2158,7 +2159,12 @@
               </span>
             </div>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-              <input type="text" id="treeFilterInput" placeholder="Filter territory tree..."  oninput="onTreeFilterInput(this.value)" style="height:32px; padding:0 10px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; color:#0F172A; font-size:12px; width:210px; font-weight:600;">
+              <div style="position:relative; display:inline-flex; align-items:center;">
+                <input type="text" id="treeFilterInput" placeholder="Filter territory tree..." oninput="onTreeFilterInput(this.value)" style="height:32px; padding:0 26px 0 10px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; color:#0F172A; font-size:12px; width:220px; font-weight:600;">
+                <button type="button" id="btnTreeFilterClear" onclick="clearTreeFilterInput()" title="Clear filter (✕)" style="position:absolute; right:6px; background:none; border:none; color:#94A3B8; font-size:13px; font-weight:bold; cursor:pointer; padding:2px 4px; border-radius:4px; line-height:1; display:none; align-items:center; justify-content:center; transition:color 0.15s ease;" onmouseover="this.style.color='#DC2626'" onmouseout="this.style.color='#94A3B8'">
+                  ✕
+                </button>
+              </div>
               <button class="btn btn-sm btn-outline" onclick="expandAllTreeNodes()" style="font-size:11.5px;">Expand All</button>
               <button class="btn btn-sm btn-outline" onclick="collapseAllTreeNodes()" style="font-size:11.5px;">Collapse All</button>
               <button class="btn btn-sm btn-success" onclick="openTreeAddModal('All Territories')" style="font-size:11.5px; font-weight:700;">+ New Territory</button>
@@ -12451,14 +12457,17 @@ const BASELINE_ERP_TERRITORIES = [
 
     const gridEl = document.getElementById('gridTableView');
     const treeEl = document.getElementById('territoryTreeView');
+    const filterToolbar = document.getElementById('erpGridFilterToolbar');
     const btn = document.getElementById('btnToggleView');
     const btnAdd = document.getElementById('btnAddTerritoryRecord');
     const btnBatch = document.getElementById('btnBatchCodeRename');
     const pagEl = document.getElementById('tablePaginationWrapper');
 
     if (isTree) {
-      // Tree View: Only 2 buttons visible: "View as Table Grid" & "Export CSV" (Image 2)
+      // Tree View: Only 2 buttons visible: "View as Table Grid" & "Export CSV"
+      // Filter By toolbar is completely hidden; only single search 'Filter territory tree...' is active
       if (gridEl) gridEl.style.display = 'none';
+      if (filterToolbar) filterToolbar.style.display = 'none';
       if (treeEl) treeEl.style.display = 'block';
       if (btnAdd) btnAdd.style.display = 'none';
       if (btnBatch) btnBatch.style.display = 'none';
@@ -12466,8 +12475,10 @@ const BASELINE_ERP_TERRITORIES = [
       if (pagEl) pagEl.style.display = 'none';
       renderTree();
     } else {
-      // Table Grid View: All 4 buttons visible: "+ Add Territory Record", "Batch Code Rename", "View as Territory Tree", "Export CSV" (Image 1)
+      // Table Grid View: All 4 buttons visible: "+ Add Territory Record", "Batch Code Rename", "View as Territory Tree", "Export CSV"
+      // Restore table grid and its Filter By toolbar
       if (gridEl) gridEl.style.display = 'block';
+      if (filterToolbar) filterToolbar.style.display = 'flex';
       if (treeEl) treeEl.style.display = 'none';
       if (btnAdd) btnAdd.style.display = 'inline-flex';
       if (btnBatch) btnBatch.style.display = 'inline-flex';
@@ -12512,7 +12523,25 @@ const BASELINE_ERP_TERRITORIES = [
 
   function onTreeFilterInput(val) {
     treeFilterQuery = (val || '').trim().toLowerCase();
+    const btnClear = document.getElementById('btnTreeFilterClear');
+    if (btnClear) {
+      btnClear.style.display = treeFilterQuery.length > 0 ? 'inline-flex' : 'none';
+    }
     renderTree();
+  }
+
+  function clearTreeFilterInput() {
+    const input = document.getElementById('treeFilterInput');
+    if (input) {
+      input.value = '';
+    }
+    treeFilterQuery = '';
+    const btnClear = document.getElementById('btnTreeFilterClear');
+    if (btnClear) {
+      btnClear.style.display = 'none';
+    }
+    renderTree();
+    if (input) input.focus();
   }
 
   function expandAllTreeNodes() {
