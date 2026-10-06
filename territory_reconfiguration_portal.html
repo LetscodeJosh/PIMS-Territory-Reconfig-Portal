@@ -2434,10 +2434,10 @@
         <input type="text" id="editRecordId" class="form-control" readonly>
       </div>
       <div class="form-group">
-        <label>User Account:</label>
+        <label>User ID:</label>
         <div class="erp-search-container" id="editUserAccountContainer">
           <input type="hidden" id="editUserAccountInput" value="">
-          <input type="text" id="editUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User Account..." autocomplete="off" onfocus="openErpDropdown('editUserAccount')" oninput="onErpSearchInput('editUserAccount')">
+          <input type="text" id="editUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User ID..." autocomplete="off" onfocus="openErpDropdown('editUserAccount')" oninput="onErpSearchInput('editUserAccount')">
           <button type="button" class="erp-clear-btn" id="editUserAccountClear" onclick="clearErpSelection('editUserAccount')">✕</button>
           <span class="erp-search-chevron">▼</span>
           <div class="erp-dropdown-menu" id="editUserAccountMenu"></div>
@@ -8902,7 +8902,7 @@ const BASELINE_ERP_TERRITORIES = [
             <td class="col-rep" style="${tableColumnVisibility.rep ? '' : 'display:none;'}">
               <div style="font-weight:600; color:#0F172A;">${escapeHtml(formattedAssignedMedRep)}</div>
               <div style="font-size:10.5px; color:#64748B; margin-top:2px;">
-                User Account: <span class="badge badge-user-id">${escapeHtml(row.userId || 'N/A')}</span>
+                User ID: <span class="badge badge-user-id">${escapeHtml(row.userId || 'N/A')}</span>
                 &bull; Record: <code style="font-size:10px;">${escapeHtml(row.recordId)}</code>
               </div>
             </td>
@@ -12811,7 +12811,7 @@ const BASELINE_ERP_TERRITORIES = [
       if (matches.length === 0) {
         const emptyDiv = document.createElement('div');
         emptyDiv.style.cssText = 'padding: 10px 14px; color: #71717A; font-size: 11.5px;';
-        emptyDiv.innerText = rawQ ? `No User matching "${query}"` : 'No User Accounts available';
+        emptyDiv.innerText = rawQ ? `No User matching "${query}"` : 'No User IDs available';
         menu.appendChild(emptyDiv);
       } else {
         matches.slice(0, 50).forEach(u => {
@@ -12836,7 +12836,7 @@ const BASELINE_ERP_TERRITORIES = [
       createRow.onclick = (e) => {
         e.stopPropagation();
         closeAllErpDropdowns();
-        showToast('User accounts are managed centrally in ERPNext Users & Permissions.', 'info');
+        showToast('User IDs are managed centrally in ERPNext Users & Permissions.', 'info');
       };
       menu.appendChild(createRow);
 
@@ -15073,7 +15073,7 @@ const BASELINE_ERP_TERRITORIES = [
     document.getElementById('coveredDocsModalSubtitle').innerHTML = `
       <strong>${escapeHtml(activeProgram)}</strong> &bull; 
       District: <span style="color:#CBD5E1;">${escapeHtml(row.district || 'N/A')}</span> &bull; 
-      User Account: <span class="badge badge-user-id">${escapeHtml(row.userId || 'N/A')}</span> &bull; 
+      User ID: <span class="badge badge-user-id">${escapeHtml(row.userId || 'N/A')}</span> &bull; 
       Record: <code>${escapeHtml(row.recordId)}</code>
     `;
 
@@ -15254,10 +15254,10 @@ const BASELINE_ERP_TERRITORIES = [
         <input type="text" id="treeAddProgramInput" placeholder="e.g. Abbott Diabetes Care" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px;">
       </div>
       <div>
-        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">User Account</label>
+        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">User ID</label>
         <div class="erp-search-container" id="treeAddUserAccountContainer">
           <input type="hidden" id="treeAddUserAccountInput" value="">
-          <input type="text" id="treeAddUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User Account..." autocomplete="off" onfocus="openErpDropdown('treeAddUserAccount')" oninput="onErpSearchInput('treeAddUserAccount')">
+          <input type="text" id="treeAddUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User ID..." autocomplete="off" onfocus="openErpDropdown('treeAddUserAccount')" oninput="onErpSearchInput('treeAddUserAccount')">
           <button type="button" class="erp-clear-btn" id="treeAddUserAccountClear" onclick="clearErpSelection('treeAddUserAccount')">✕</button>
           <span class="erp-search-chevron">▼</span>
           <div class="erp-dropdown-menu" id="treeAddUserAccountMenu"></div>
@@ -15335,10 +15335,10 @@ const BASELINE_ERP_TERRITORIES = [
         <input type="text" id="treeEditProgramInput" placeholder="e.g. Abbott Diabetes Care" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px;">
       </div>
       <div>
-        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">User Account</label>
+        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">User ID</label>
         <div class="erp-search-container" id="treeEditUserAccountContainer">
           <input type="hidden" id="treeEditUserAccountInput" value="">
-          <input type="text" id="treeEditUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User Account..." autocomplete="off" onfocus="openErpDropdown('treeEditUserAccount')" oninput="onErpSearchInput('treeEditUserAccount')">
+          <input type="text" id="treeEditUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User ID..." autocomplete="off" onfocus="openErpDropdown('treeEditUserAccount')" oninput="onErpSearchInput('treeEditUserAccount')">
           <button type="button" class="erp-clear-btn" id="treeEditUserAccountClear" onclick="clearErpSelection('treeEditUserAccount')">✕</button>
           <span class="erp-search-chevron">▼</span>
           <div class="erp-dropdown-menu" id="treeEditUserAccountMenu"></div>
@@ -15427,14 +15427,14 @@ const BASELINE_ERP_TERRITORIES = [
           </select>
         </div>
 
-        <!-- Left: User Account (Labeled User Account instead of User ID matching Image 1) -->
+        <!-- Left: User ID (Labeled User ID to match ERPNext field label) -->
         <div>
           <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
-            User Account
+            User ID
           </label>
           <div class="erp-search-container" id="newSpUserAccountContainer">
             <input type="hidden" id="newSpUserAccountInput" value="">
-            <input type="text" id="newSpUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User Account..." autocomplete="off" onfocus="openErpDropdown('newSpUserAccount')" oninput="onErpSearchInput('newSpUserAccount')">
+            <input type="text" id="newSpUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User ID..." autocomplete="off" onfocus="openErpDropdown('newSpUserAccount')" oninput="onErpSearchInput('newSpUserAccount')">
             <button type="button" class="erp-clear-btn" id="newSpUserAccountClear" onclick="clearErpSelection('newSpUserAccount')">✕</button>
             <span class="erp-search-chevron">▼</span>
             <div class="erp-dropdown-menu" id="newSpUserAccountMenu"></div>
