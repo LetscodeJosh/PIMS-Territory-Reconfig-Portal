@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>HCP Profiling &bull; Territory Reconfiguration Portal</title>
 <style>
   :root {
@@ -51,6 +54,35 @@
     max-height: 100vh;
     width: 100vw;
     overflow: hidden;
+  }
+
+  /* Deterministic Invariant View Mode Enforcement */
+  body[data-editor-view="grid"] #gridTableView {
+    display: block !important;
+  }
+  body[data-editor-view="grid"] #territoryTreeView {
+    display: none !important;
+  }
+  body[data-editor-view="grid"] #btnAddTerritoryRecord,
+  body[data-editor-view="grid"] #btnBatchCodeRename {
+    display: inline-flex !important;
+  }
+  body[data-editor-view="grid"] #tablePaginationWrapper {
+    display: flex !important;
+  }
+
+  body[data-editor-view="tree"] #gridTableView {
+    display: none !important;
+  }
+  body[data-editor-view="tree"] #territoryTreeView {
+    display: block !important;
+  }
+  body[data-editor-view="tree"] #btnAddTerritoryRecord,
+  body[data-editor-view="tree"] #btnBatchCodeRename {
+    display: none !important;
+  }
+  body[data-editor-view="tree"] #tablePaginationWrapper {
+    display: none !important;
   }
 
   /* Header (Matches HCP Profiling App Top AppBar) */
@@ -1897,7 +1929,7 @@
             <button class="btn btn-outline" id="btnBatchCodeRename" style="border-color:var(--accent); color:var(--accent); display:none;" onclick="openBatchRenameModal()">
               Batch Code Rename
             </button>
-            <button type="button" class="btn btn-outline" id="btnToggleView" onclick="toggleEditorView()" style="border-color:#0066FF; color:#0066FF; font-weight:700;">
+            <button type="button" class="btn btn-outline" id="btnToggleView" onclick="toggleEditorView(event)" style="border-color:#0066FF; color:#0066FF; font-weight:700;">
               View as Table Grid
             </button>
             <button class="btn btn-outline" id="btnExportCsv" onclick="exportReconfigurationCsv()">
@@ -7559,25 +7591,40 @@ const BASELINE_ERP_TERRITORIES = [
   let programAccounts = [];
   let archivedRecords = [];
   let globalAuditLogs = [];
-  let isTreeViewActive = true;
+
+  // Dedicated Invariant View Mode Controller (Tree vs Grid)
+  window.activeEditorViewMode = 'tree';
   try {
-    const savedActiveView = localStorage.getItem('pims_territory_active_view');
-    if (savedActiveView === 'grid') {
-      isTreeViewActive = false;
-    } else if (savedActiveView === 'tree') {
-      isTreeViewActive = true;
+    const sView = sessionStorage.getItem('pims_territory_active_view') || localStorage.getItem('pims_territory_active_view');
+    if (sView === 'grid' || sView === 'tree') {
+      window.activeEditorViewMode = sView;
     }
+  } catch (_) {}
+
+  let _isTreeViewActive = (window.activeEditorViewMode === 'tree');
+  try {
+    Object.defineProperty(window, 'isTreeViewActive', {
+      get() {
+        return window.activeEditorViewMode === 'tree';
+      },
+      set(val) {
+        window.activeEditorViewMode = val ? 'tree' : 'grid';
+        _isTreeViewActive = val;
+      },
+      configurable: true
+    });
   } catch (_) {}
 
   function initPortalViewMode() {
     try {
-      const savedActiveView = localStorage.getItem('pims_territory_active_view');
-      if (savedActiveView === 'grid') {
-        isTreeViewActive = false;
-      } else if (savedActiveView === 'tree') {
-        isTreeViewActive = true;
+      const sView = sessionStorage.getItem('pims_territory_active_view') || localStorage.getItem('pims_territory_active_view');
+      if (sView === 'grid' || sView === 'tree') {
+        window.activeEditorViewMode = sView;
       }
     } catch (_) {}
+    if (document.body) {
+      document.body.setAttribute('data-editor-view', window.activeEditorViewMode);
+    }
     if (typeof updateEditorViewModeUI === 'function') {
       updateEditorViewModeUI();
     }
@@ -7758,8 +7805,11 @@ const BASELINE_ERP_TERRITORIES = [
     }
     tableCurrentPage = 1;
     rebuildGlobalAuditLogs();
-    renderTable();
-    renderTree();
+    if (window.activeEditorViewMode === 'grid') {
+      renderTable();
+    } else {
+      renderTree();
+    }
     updateEditorViewModeUI();
     if (typeof syncTreeWithERPNext === 'function') syncTreeWithERPNext(false);
     renderRealignmentAndArchive();
@@ -7982,20 +8032,7 @@ const BASELINE_ERP_TERRITORIES = [
     if (isFirstLogin) {
       initialPortalLoaded = true;
 
-      // Restore user's preferred view mode (Table Grid vs Territory Tree)
-      try {
-        const savedView = localStorage.getItem('pims_territory_active_view');
-        if (savedView === 'grid') {
-          isTreeViewActive = false;
-        } else if (savedView === 'tree') {
-          isTreeViewActive = true;
-        } else {
-          isTreeViewActive = true;
-        }
-      } catch (_) {
-        isTreeViewActive = true;
-      }
-
+      initPortalViewMode();
       selectedTreeNode = selectedTreeNode || 'Abbott DC Territories';
       updateEditorViewModeUI();
 
@@ -8212,8 +8249,11 @@ const BASELINE_ERP_TERRITORIES = [
             localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
           } catch (_) {}
           syncProgramTerritoriesWithTree();
-          if (typeof renderTree === 'function') renderTree();
-          if (typeof renderTable === 'function') renderTable();
+          if (window.activeEditorViewMode === 'grid') {
+            if (typeof renderTable === 'function') renderTable();
+          } else {
+            if (typeof renderTree === 'function') renderTree();
+          }
           if (typeof updateEditorViewModeUI === 'function') updateEditorViewModeUI();
           if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
           if (typeof renderSummaryReport === 'function') renderSummaryReport();
@@ -8477,7 +8517,7 @@ const BASELINE_ERP_TERRITORIES = [
     const wrapper = document.getElementById('tablePaginationWrapper');
     if (!wrapper) return;
 
-    if (totalMatching === 0 || isTreeViewActive) {
+    if (totalMatching === 0 || window.activeEditorViewMode === 'tree') {
       wrapper.style.display = 'none';
       return;
     }
@@ -12169,8 +12209,11 @@ const BASELINE_ERP_TERRITORIES = [
           territoryTreeData = liveTerrs;
           localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
           syncProgramTerritoriesWithTree();
-          renderTree();
-          renderTable();
+          if (window.activeEditorViewMode === 'grid') {
+            renderTable();
+          } else {
+            renderTree();
+          }
           if (typeof updateEditorViewModeUI === 'function') updateEditorViewModeUI();
           renderRealignmentAndArchive();
           renderSummaryReport();
@@ -12181,6 +12224,13 @@ const BASELINE_ERP_TERRITORIES = [
 
   // --- TOGGLE VIEW (TABLE VS TREE) ---
   function updateEditorViewModeUI() {
+    const isTree = (window.activeEditorViewMode === 'tree');
+    const validMode = isTree ? 'tree' : 'grid';
+
+    if (document.body) {
+      document.body.setAttribute('data-editor-view', validMode);
+    }
+
     const gridEl = document.getElementById('gridTableView');
     const treeEl = document.getElementById('territoryTreeView');
     const btn = document.getElementById('btnToggleView');
@@ -12188,7 +12238,7 @@ const BASELINE_ERP_TERRITORIES = [
     const btnBatch = document.getElementById('btnBatchCodeRename');
     const pagEl = document.getElementById('tablePaginationWrapper');
 
-    if (isTreeViewActive) {
+    if (isTree) {
       // Tree View: Only 2 buttons visible: "View as Table Grid" & "Export CSV" (Image 2)
       if (gridEl) gridEl.style.display = 'none';
       if (treeEl) treeEl.style.display = 'block';
@@ -12210,32 +12260,36 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function setEditorViewMode(mode) {
-    if (mode === 'grid') {
-      isTreeViewActive = false;
-    } else if (mode === 'tree') {
-      isTreeViewActive = true;
-    } else {
-      isTreeViewActive = !isTreeViewActive;
+    const validMode = (mode === 'grid') ? 'grid' : 'tree';
+    window.activeEditorViewMode = validMode;
+    _isTreeViewActive = (validMode === 'tree');
+
+    if (document.body) {
+      document.body.setAttribute('data-editor-view', validMode);
     }
-    try {
-      localStorage.setItem('pims_territory_active_view', isTreeViewActive ? 'tree' : 'grid');
-    } catch (_) {}
+
+    try { sessionStorage.setItem('pims_territory_active_view', validMode); } catch (_) {}
+    try { localStorage.setItem('pims_territory_active_view', validMode); } catch (_) {}
+
     updateEditorViewModeUI();
   }
 
-  function toggleEditorView() {
-    const btn = document.getElementById('btnToggleView');
-    if (btn) {
-      const txt = (btn.innerText || '').toLowerCase();
-      if (txt.includes('table grid')) {
-        setEditorViewMode('grid');
-        return;
-      } else if (txt.includes('territory tree')) {
-        setEditorViewMode('tree');
-        return;
-      }
+  let lastToggleTimestamp = 0;
+  function toggleEditorView(e) {
+    if (e) {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
     }
-    setEditorViewMode(isTreeViewActive ? 'grid' : 'tree');
+    const now = Date.now();
+    if (now - lastToggleTimestamp < 350) {
+      return;
+    }
+    lastToggleTimestamp = now;
+
+    const currentMode = window.activeEditorViewMode || 'tree';
+    const targetMode = (currentMode === 'tree') ? 'grid' : 'tree';
+    setEditorViewMode(targetMode);
   }
 
   function onTreeFilterInput(val) {
@@ -12258,7 +12312,7 @@ const BASELINE_ERP_TERRITORIES = [
 
   function renderTree() {
     const pagEl = document.getElementById('tablePaginationWrapper');
-    if (pagEl && isTreeViewActive) pagEl.style.display = 'none';
+    if (pagEl && window.activeEditorViewMode === 'tree') pagEl.style.display = 'none';
     const container = document.getElementById('interactiveTreeContainer');
     if (!container) return;
     container.innerHTML = '';
