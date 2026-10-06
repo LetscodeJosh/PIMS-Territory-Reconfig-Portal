@@ -840,6 +840,15 @@
     border: 1px solid #FCD34D;
   }
 
+  /* Archived Territory Highlight Animation */
+  @keyframes arcPulseHighlight {
+    0% { background: #FEF2F2; box-shadow: inset 0 0 0 2px #EF4444; }
+    50% { background: #FEE2E2; box-shadow: inset 0 0 0 2px #DC2626; }
+    100% { background: transparent; box-shadow: none; }
+  }
+  .erp-tree-row-highlight {
+    animation: arcPulseHighlight 3s ease-out forwards !important;
+  }
   .badge-archive {
     background: #FEE2E2;
     color: #B91C1C;
@@ -1989,7 +1998,18 @@
             </div>
 
             <!-- Column Visibility Filter Dropdown (When unchecked, column is hidden; when checked, displayed!) -->
-            <div id="columnVisibilityDropdownWrapper" class="col-visibility-dropdown" style="flex-shrink:0;">
+            <!-- Archived Territory Dropdown in Grid Toolbar -->
+            <div id="gridArchivedDropdownWrapper" style="display:inline-flex; align-items:center; gap:6px; background:#FEF2F2; padding:2px 8px; border-radius:6px; border:1.5px solid #FECACA; height:34px; flex-shrink:0;">
+              <label for="gridArchivedDropdown" style="font-size:11px; font-weight:800; color:#991B1B; text-transform:uppercase; letter-spacing:0.3px; display:inline-flex; align-items:center; gap:4px; margin:0; cursor:pointer; white-space:nowrap;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                Archived:
+              </label>
+              <select id="gridArchivedDropdown" class="crm-filter-select" onchange="handleArchivedDropdownChange(this.value, 'grid')" style="height:26px; font-size:11.5px; font-weight:700; border-radius:4px; border:1px solid #FCA5A5; background:#FFFFFF; color:#991B1B; cursor:pointer; min-width:170px; max-width:250px;">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+
+            <div id="columnVisibilityDropdownWrapper"  class="col-visibility-dropdown" style="flex-shrink:0;">
               <button type="button" id="btnColumnFilter" onclick="toggleColumnVisibilityMenu()" class="btn btn-sm" style="height:34px; font-size:12px; font-weight:700; color:#334155; display:inline-flex; align-items:center; gap:6px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; padding:0 12px; cursor:pointer;" title="Show or hide table columns">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                 <span>Columns (<span id="visibleColCount">5</span>/5)</span>
@@ -2100,7 +2120,17 @@
               </span>
             </div>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-              <input type="text" id="treeFilterInput" placeholder="Filter territory tree..." oninput="onTreeFilterInput(this.value)" style="height:32px; padding:0 10px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; color:#0F172A; font-size:12px; width:210px; font-weight:600;">
+              <!-- Dedicated Archived Territory Dropdown -->
+              <div id="treeArchivedDropdownWrapper" style="display:inline-flex; align-items:center; gap:6px; background:#FEF2F2; padding:2px 8px; border-radius:6px; border:1.5px solid #FECACA; height:32px;">
+                <label for="treeArchivedDropdown" style="font-size:11px; font-weight:800; color:#991B1B; text-transform:uppercase; letter-spacing:0.3px; display:inline-flex; align-items:center; gap:4px; margin:0; cursor:pointer; white-space:nowrap;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                  Archived:
+                </label>
+                <select id="treeArchivedDropdown" class="crm-filter-select" onchange="handleArchivedDropdownChange(this.value, 'tree')" style="height:26px; font-size:11.5px; font-weight:700; border-radius:4px; border:1px solid #FCA5A5; background:#FFFFFF; color:#991B1B; cursor:pointer; min-width:180px; max-width:260px;">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <input type="text" id="treeFilterInput" placeholder="Filter territory tree..."  oninput="onTreeFilterInput(this.value)" style="height:32px; padding:0 10px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; color:#0F172A; font-size:12px; width:210px; font-weight:600;">
               <button class="btn btn-sm btn-outline" onclick="expandAllTreeNodes()" style="font-size:11.5px;">Expand All</button>
               <button class="btn btn-sm btn-outline" onclick="collapseAllTreeNodes()" style="font-size:11.5px;">Collapse All</button>
               <button class="btn btn-sm btn-success" onclick="openTreeAddModal('All Territories')" style="font-size:11.5px; font-weight:700;">+ New Territory</button>
@@ -2137,16 +2167,32 @@
           <!-- Populated dynamically -->
         </div>
 
-        <!-- Decommissioned / Archive Vault -->
-        <div style="margin-top:28px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
-            <h3 style="font-size:13px; color:#F87171; text-transform:uppercase; letter-spacing:0.5px; margin:0;">
-              Archived / Decommissioned Territory Vault (Previous Months)
-            </h3>
-            <span class="badge badge-archive" id="archivedPillCount">0 Archived Records</span>
+        <!-- Decommissioned / Archive Vault (Folder Card with Dropdown) -->
+        <div style="margin-top:28px; border:1.5px solid #CBD5E1; border-radius:10px; background:#FFFFFF; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);" id="archiveVaultCard">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; background:#F8FAFC; border-bottom:1.5px solid #E2E8F0; cursor:pointer; flex-wrap:wrap; gap:10px;" onclick="toggleArchiveVaultFolder()">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span id="arcVaultFolderToggleIcon" style="font-size:14px; color:#475569; user-select:none; font-weight:bold;">▼</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+              <div>
+                <h3 style="font-size:13.5px; font-weight:800; color:#0F172A; text-transform:uppercase; letter-spacing:0.5px; margin:0;">
+                  Previous Reconfiguration Archive Folder
+                </h3>
+                <span style="font-size:11.5px; color:#64748B;">Archived &amp; decommissioned territory vault from previous cycles (Zero physician data loss)</span>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;" onclick="event.stopPropagation();">
+              <div id="vaultArchivedDropdownWrapper" style="display:inline-flex; align-items:center; gap:6px;">
+                <label for="vaultArchivedDropdown" style="font-size:11px; font-weight:800; color:#991B1B; text-transform:uppercase; letter-spacing:0.3px; margin:0; cursor:pointer; white-space:nowrap;">Jump to Archived:</label>
+                <select id="vaultArchivedDropdown" class="crm-filter-select" onchange="handleArchivedDropdownChange(this.value, 'vault')" style="height:30px; font-size:11.5px; font-weight:700; border-radius:6px; border:1.5px solid #FCA5A5; background:#FFFFFF; color:#991B1B; cursor:pointer; min-width:180px;">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <span class="badge badge-archive" id="archivedPillCount">0 Archived Records</span>
+            </div>
           </div>
 
-          <!-- Archive Vault Search Toolbar -->
+          <div id="archiveVaultContent" style="padding:16px;">
+            <!-- Archive Vault Search Toolbar -->
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:#F8FAFC; padding:8px 14px; border-radius:8px; border:1.5px solid #E2E8F0; flex-wrap:wrap; gap:10px;">
             <div style="font-size:12px; color:#64748B; font-weight:600; display:flex; align-items:center; gap:6px; white-space:nowrap; flex-shrink:0;">
               <span>Showing <strong style="color:#EF4444;" id="archivedVisibleCount">0</strong> of <strong id="archivedTotalCount" style="color:#0F172A;">0</strong> archived records</span>
@@ -7589,7 +7635,104 @@ const BASELINE_ERP_TERRITORIES = [
   let activeProgram = 'Abbott Diabetes Care';
   let programTerritories = [];
   let programAccounts = [];
+  const BASELINE_ARCHIVED_TERRITORIES = {
+    "Abbott Diabetes Care": [
+      {
+        archiveDate: "2026-09-15 10:30:00",
+        recordId: "REC-AD0105",
+        histCode: "AD0105",
+        prevName: "AD0105 - Central Luzon Sub-Branch",
+        assignedRep: "Unassigned / Reserved",
+        rep: "Unassigned / Reserved",
+        doctorsCovered: 14,
+        docs: 14,
+        userId: "EMP-41029",
+        reason: "Decommissioned during previous SFE realignment cycle",
+        district: "AD1 - GMA/NORTH LUZON/CENTRAL LUZON",
+        program: "Abbott Diabetes Care",
+        action: "ARCHIVED",
+        details: "Territory AD0105 decommissioned and moved to Archive Folder with 14 doctors preserved."
+      },
+      {
+        archiveDate: "2026-09-01 09:00:00",
+        recordId: "REC-AD0106",
+        histCode: "AD0106",
+        prevName: "AD0106 - Pampanga Extension",
+        assignedRep: "Unassigned / Reserved",
+        rep: "Unassigned / Reserved",
+        doctorsCovered: 8,
+        docs: 8,
+        userId: "EMP-41030",
+        reason: "Previous month cycle reconfiguration downsizing",
+        district: "AD1 - GMA/NORTH LUZON/CENTRAL LUZON",
+        program: "Abbott Diabetes Care",
+        action: "ARCHIVED",
+        details: "Territory AD0106 archived from previous reconfiguration with 8 doctors preserved."
+      }
+    ],
+    "Bayer": [
+      {
+        archiveDate: "2026-09-10 14:15:00",
+        recordId: "REC-BY901",
+        histCode: "BY901",
+        prevName: "BY901 - South GMA Decommissioned",
+        assignedRep: "Unassigned / Inactive Rep",
+        rep: "Unassigned / Inactive Rep",
+        doctorsCovered: 18,
+        docs: 18,
+        userId: "EMP-90112",
+        reason: "Previous month cycle reconfiguration downsizing",
+        district: "BY - South GMA",
+        program: "Bayer",
+        action: "ARCHIVED",
+        details: "Territory BY901 archived from previous reconfiguration with 18 doctors preserved."
+      }
+    ],
+    "RiteMed": [
+      {
+        archiveDate: "2026-09-12 11:20:00",
+        recordId: "REC-RM204",
+        histCode: "RM204",
+        prevName: "RM204 - Davao Rural Archived",
+        assignedRep: "Unassigned / Reserved",
+        rep: "Unassigned / Reserved",
+        doctorsCovered: 11,
+        docs: 11,
+        userId: "EMP-77219",
+        reason: "Downsized during regional consolidation",
+        district: "Mindanao Cluster",
+        program: "RiteMed",
+        action: "ARCHIVED",
+        details: "Territory RM204 moved to Archive Folder with 11 doctors preserved."
+      }
+    ]
+  };
+
   let archivedRecords = [];
+
+  function loadArchivedRecordsForProgram() {
+    const key = 'pims_archived_territories_' + activeProgram;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          archivedRecords = parsed;
+          return;
+        }
+      } catch (_) {}
+    }
+    const base = BASELINE_ARCHIVED_TERRITORIES[activeProgram] || [];
+    archivedRecords = JSON.parse(JSON.stringify(base));
+    saveArchivedRecordsForProgram();
+  }
+
+  function saveArchivedRecordsForProgram() {
+    const key = 'pims_archived_territories_' + activeProgram;
+    try {
+      localStorage.setItem(key, JSON.stringify(archivedRecords));
+    } catch (_) {}
+  }
   let globalAuditLogs = [];
 
   // Dedicated Invariant View Mode Controller (Tree vs Grid)
@@ -7628,11 +7771,15 @@ const BASELINE_ERP_TERRITORIES = [
     if (typeof updateEditorViewModeUI === 'function') {
       updateEditorViewModeUI();
     }
+    if (typeof populateArchivedDropdowns === 'function') {
+      populateArchivedDropdowns();
+    }
   }
 
   // Initialize
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
+      loadArchivedRecordsForProgram();
       initPortalViewMode();
       checkAuthSession();
       initStreamlitComponent();
@@ -7804,6 +7951,7 @@ const BASELINE_ERP_TERRITORIES = [
       selectedRowIndices.clear();
     }
     tableCurrentPage = 1;
+    loadArchivedRecordsForProgram();
     rebuildGlobalAuditLogs();
     if (window.activeEditorViewMode === 'grid') {
       renderTable();
@@ -12329,9 +12477,35 @@ const BASELINE_ERP_TERRITORIES = [
       childrenMap[p].push(t);
     });
 
-    // Sort children alphabetically, groups first
+    // Ensure dedicated Archive Folder node under 'All Territories'
+    if (!childrenMap['All Territories']) childrenMap['All Territories'] = [];
+    if (!childrenMap['All Territories'].some(t => t.name === 'Archived Territories')) {
+      childrenMap['All Territories'].push({
+        name: 'Archived Territories',
+        territory_name: 'Archived Territories',
+        parent_territory: 'All Territories',
+        is_group: 1,
+        territory_manager: 'Previous Reconfiguration Archives',
+        is_archive_folder: true
+      });
+    }
+
+    // Populate Archive Folder children from archivedRecords
+    childrenMap['Archived Territories'] = (archivedRecords || []).map(arc => ({
+      name: arc.histCode || arc.activeCode || arc.recordId,
+      territory_name: arc.histCode || arc.activeCode || arc.recordId,
+      parent_territory: 'Archived Territories',
+      is_group: 0,
+      territory_manager: arc.assignedRep || arc.rep || 'Unassigned',
+      is_archived: true,
+      archiveRecord: arc
+    }));
+
+    // Sort children alphabetically, groups first (keep Archive Folder visible under root)
     Object.keys(childrenMap).forEach(k => {
       childrenMap[k].sort((a, b) => {
+        if (a.is_archive_folder) return 1; // place archive folder neatly at the bottom of groups
+        if (b.is_archive_folder) return -1;
         if (a.is_group !== b.is_group) return b.is_group - a.is_group;
         return a.name.localeCompare(b.name);
       });
@@ -12351,6 +12525,22 @@ const BASELINE_ERP_TERRITORIES = [
         }
       });
 
+      // Also check archived records
+      (archivedRecords || []).forEach(arc => {
+        const code = arc.histCode || arc.activeCode || arc.recordId;
+        const rep = arc.assignedRep || arc.rep || '';
+        if (code.toLowerCase().includes(treeFilterQuery) || rep.toLowerCase().includes(treeFilterQuery)) {
+          matchingNames.add(code);
+          matchingAncestors.add('Archived Territories');
+          matchingAncestors.add('All Territories');
+        }
+      });
+
+      if (treeFilterQuery.includes('archive')) {
+        matchingNames.add('Archived Territories');
+        matchingAncestors.add('All Territories');
+      }
+
       matchingNames.forEach(name => {
         let curr = parentLookup[name];
         while (curr) {
@@ -12363,6 +12553,21 @@ const BASELINE_ERP_TERRITORIES = [
     // Recursive Branch Renderer
     function renderBranch(parentName, depth = 0) {
       const children = childrenMap[parentName] || [];
+
+      // Empty state placeholder if archive folder is open but has no records
+      if (parentName === 'Archived Territories' && children.length === 0) {
+        const emptyWrapper = document.createElement('div');
+        emptyWrapper.className = 'erp-tree-children';
+        emptyWrapper.innerHTML = `
+          <div class="erp-tree-node">
+            <div class="erp-tree-row" style="padding-left:${depth * 20 + 20}px; color:#94A3B8; font-style:italic; font-size:11.5px; cursor:default;">
+              📁 No archived territories from previous reconfigurations in this program.
+            </div>
+          </div>
+        `;
+        return emptyWrapper;
+      }
+
       if (children.length === 0) return null;
 
       const branchWrapper = document.createElement('div');
@@ -12384,6 +12589,8 @@ const BASELINE_ERP_TERRITORIES = [
         nodeDiv.className = 'erp-tree-node';
 
         const isGroup = Boolean(t.is_group);
+        const isArchiveFolder = Boolean(t.is_archive_folder || t.name === 'Archived Territories');
+        const isArchivedLeaf = Boolean(t.is_archived || parentName === 'Archived Territories');
         const isExpanded = matchingNames ? true : treeExpandedNodes.has(t.name);
         const isSelected = selectedTreeNode === t.name;
 
@@ -12399,9 +12606,19 @@ const BASELINE_ERP_TERRITORIES = [
           toggleHtml = `<span class="erp-tree-spacer"></span>`;
         }
 
-        // 2. Icon: FOLDER for group, CIRCLE for leaf
+        // 2. Icon: FOLDER for group, CIRCLE for leaf, ARCHIVE icon for archived nodes
         let iconHtml = '';
-        if (isGroup) {
+        if (isArchiveFolder) {
+          iconHtml = `
+            <span class="erp-tree-icon erp-folder-icon" title="Archived Territories Folder (Previous Reconfigurations)" style="color:#DC2626;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </span>`;
+        } else if (isArchivedLeaf) {
+          iconHtml = `
+            <span class="erp-tree-icon erp-leaf-icon" title="Archived Territory Node">
+              <span class="erp-leaf-bullet" style="background:#EF4444; box-shadow:0 0 0 2px #FCA5A5;"></span>
+            </span>`;
+        } else if (isGroup) {
           iconHtml = `
             <span class="erp-tree-icon erp-folder-icon" title="Group Territory (Can add child)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E2E8F0" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
@@ -12414,21 +12631,47 @@ const BASELINE_ERP_TERRITORIES = [
         }
 
         // 3. Label & Details
-        const mgrClean = t.territory_manager ? t.territory_manager : '';
-        const mgrHtml = mgrClean ? `<span class="erp-tree-mgr">[${escapeHtml(mgrClean)}]</span>` : '';
-
-        // Doctor count badge if mapped in program
+        let labelHtml = `<span class="erp-tree-label">${escapeHtml(t.name)}</span>`;
+        let mgrHtml = '';
         let docBadge = '';
-        const matchedProg = programTerritories.find(pt => pt.activeCode === t.name || pt.histCode === t.name);
-        if (matchedProg && matchedProg.docs) {
-          docBadge = `<span class="erp-tree-badge">${matchedProg.docs} Docs</span>`;
+        let extraTag = '';
+
+        if (isArchiveFolder) {
+          labelHtml = `<span class="erp-tree-label" style="font-weight:800; color:#DC2626;">📁 Archived Territories (Folder)</span>`;
+          mgrHtml = `<span class="erp-tree-mgr" style="color:#EF4444; font-weight:700;">[Previous Reconfigurations]</span>`;
+          docBadge = `<span class="badge badge-archive" style="margin-left:8px; font-size:11px; font-weight:800; background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5; padding:2px 8px; border-radius:12px;">${archivedRecords.length} Archived</span>`;
+        } else if (isArchivedLeaf) {
+          labelHtml = `<span class="erp-tree-label" style="font-weight:700; color:#991B1B;">${escapeHtml(t.name)}</span>`;
+          const mgrClean = t.territory_manager ? t.territory_manager : '';
+          mgrHtml = mgrClean ? `<span class="erp-tree-mgr" style="color:#64748B;">[${escapeHtml(mgrClean)}]</span>` : '';
+          const arcDocCount = (t.archiveRecord && (t.archiveRecord.doctorsCovered || t.archiveRecord.docs)) || 0;
+          docBadge = `<span class="erp-tree-badge" style="background:#FEE2E2; color:#B91C1C; border-color:#FCA5A5; font-weight:700;">${arcDocCount} Docs Preserved</span>`;
+          const reasonText = (t.archiveRecord && t.archiveRecord.reason) || 'Archived';
+          extraTag = `<span style="font-size:11px; color:#64748B; margin-left:6px; font-style:italic;">(${escapeHtml(reasonText)})</span>`;
+        } else {
+          const mgrClean = t.territory_manager ? t.territory_manager : '';
+          mgrHtml = mgrClean ? `<span class="erp-tree-mgr">[${escapeHtml(mgrClean)}]</span>` : '';
+          const matchedProg = programTerritories.find(pt => pt.activeCode === t.name || pt.histCode === t.name);
+          if (matchedProg && matchedProg.docs) {
+            docBadge = `<span class="erp-tree-badge">${matchedProg.docs} Docs</span>`;
+          }
         }
 
         // 4. Action Pill Buttons:
-        // CRITICAL INVARIANT: ONLY THE FOLDER ICON (GROUP NODE) CAN ADD CHILD!
         const isRoot = t.name === 'All Territories';
         let actionsHtml = '';
-        if (isRoot) {
+        if (isArchiveFolder) {
+          actionsHtml = `
+            <span class="erp-tree-actions">
+              ${archivedRecords.length > 0 ? `<button type="button" class="erp-tree-btn" onclick="restoreAllArchivedRecords(event)" style="color:#10B981; font-weight:700; border-color:#10B981;" title="Restore all archived territories back to active tree">Restore All</button>` : ''}
+            </span>`;
+        } else if (isArchivedLeaf) {
+          actionsHtml = `
+            <span class="erp-tree-actions">
+              <button type="button" class="erp-tree-btn" style="background:#10B981; color:#fff; border-color:#059669; font-weight:700;" onclick="restoreArchivedRecordByName('${escapeHtml(t.name)}', event)" title="Restore territory to active masterlist">Restore</button>
+              <button type="button" class="erp-tree-btn" onclick="openArchivedRecordPreviewByName('${escapeHtml(t.name)}', event)" title="View archived details">Details</button>
+            </span>`;
+        } else if (isRoot) {
           actionsHtml = `
             <span class="erp-tree-actions">
               <button type="button" class="erp-tree-btn" onclick="openTreeAddModal('${escapeHtml(t.name)}', event)">Add Child</button>
@@ -12446,14 +12689,19 @@ const BASELINE_ERP_TERRITORIES = [
         row.innerHTML = `
           ${toggleHtml}
           ${iconHtml}
-          <span class="erp-tree-label">${escapeHtml(t.name)}</span>
+          ${labelHtml}
           ${mgrHtml}
           ${docBadge}
+          ${extraTag}
           ${actionsHtml}
         `;
 
         row.onclick = (e) => {
           if (e.target.closest('.erp-tree-actions')) return;
+          if (isArchivedLeaf) {
+            openArchivedRecordPreviewByName(t.name, e);
+            return;
+          }
           selectedTreeNode = t.name;
           if (isGroup && !e.target.closest('.erp-tree-toggle')) {
             if (treeExpandedNodes.has(t.name)) {
@@ -12538,9 +12786,13 @@ const BASELINE_ERP_TERRITORIES = [
       const branch = renderBranch('ROOT', 0);
       if (branch) container.appendChild(branch);
     }
+
+    // Always keep archived dropdowns updated
+    if (typeof populateArchivedDropdowns === 'function') {
+      populateArchivedDropdowns();
+    }
   }
 
-  
   // =========================================================================
   // 🌟 SALES PERSON & EMPLOYEE CASCADE ENGINE (ERPNext Tree Synchronization)
   // =========================================================================
@@ -14166,7 +14418,7 @@ const BASELINE_ERP_TERRITORIES = [
     const idx = parseInt(document.getElementById('editRecordIndex').value, 10);
     if (isNaN(idx) || !programTerritories[idx]) return;
 
-    if (!confirm('Are you sure you want to decommission and archive this territory code? All linked accounts will be preserved in the archive vault.')) return;
+    if (!confirm('Are you sure you want to decommission and archive this territory code? All linked accounts will be preserved in the archive folder.')) return;
 
     const row = programTerritories[idx];
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -14175,9 +14427,17 @@ const BASELINE_ERP_TERRITORIES = [
       archiveDate: nowStr,
       recordId: row.recordId,
       histCode: row.activeCode || row.latestPrevCode,
+      prevName: row.histName || `${row.activeCode || row.latestPrevCode} - Archived Area`,
+      assignedRep: row.rep,
       rep: row.rep,
+      doctorsCovered: row.docs,
       docs: row.docs,
-      reason: 'Decommissioned by SFE during realignment'
+      userId: row.userId || 'EMP-39782',
+      reason: 'Decommissioned by SFE during realignment',
+      district: row.district || 'Unassigned Cluster',
+      program: activeProgram,
+      action: 'ARCHIVED',
+      details: `Territory ${row.activeCode} decommissioned and moved to Archive Folder with ${row.docs} doctors preserved.`
     });
 
     globalAuditLogs.unshift({
@@ -14186,16 +14446,22 @@ const BASELINE_ERP_TERRITORIES = [
       action: 'ARCHIVED',
       territoryCode: row.activeCode,
       user: 'admin@pims.com [SFE Lead]',
-      details: `Territory ${row.activeCode} decommissioned and archived with ${row.docs} doctors preserved.`
+      details: `Territory ${row.activeCode} decommissioned and moved to Archive Folder with ${row.docs} doctors preserved.`
     });
 
     programTerritories.splice(idx, 1);
+    saveArchivedRecordsForProgram();
+    try {
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+    } catch (_) {}
+
     closeEditModal();
     renderTable();
     renderTree();
     renderRealignmentAndArchive();
     renderSummaryReport();
-    showToast(`Archived territory ${row.activeCode} successfully!`);
+    populateArchivedDropdowns();
+    showToast(`Archived territory ${row.activeCode} moved to Archive Folder!`);
   }
 
   // --- ADD NEW TERRITORY MODAL ---
@@ -14560,35 +14826,231 @@ const BASELINE_ERP_TERRITORIES = [
     if (arcVisEl) arcVisEl.innerText = visibleArcCount;
     const arcTotEl = document.getElementById('archivedTotalCount');
     if (arcTotEl) arcTotEl.innerText = archivedRecords.length;
+    if (typeof populateArchivedDropdowns === 'function') populateArchivedDropdowns();
+  }
+
+  // --- ARCHIVED TERRITORY DROPDOWN & PREVIEW CONTROLLERS ---
+
+  function populateArchivedDropdowns() {
+    const dropdownIds = ['treeArchivedDropdown', 'gridArchivedDropdown', 'vaultArchivedDropdown'];
+    dropdownIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerHTML = '';
+      if (!archivedRecords || archivedRecords.length === 0) {
+        el.disabled = true;
+        el.style.opacity = '0.65';
+        el.style.cursor = 'not-allowed';
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.innerText = '📁 Archived Territories (0)';
+        el.appendChild(opt);
+      } else {
+        el.disabled = false;
+        el.style.opacity = '1';
+        el.style.cursor = 'pointer';
+        const defOpt = document.createElement('option');
+        defOpt.value = '';
+        defOpt.innerText = `📁 Archived Territories (${archivedRecords.length})...`;
+        el.appendChild(defOpt);
+
+        archivedRecords.forEach(arc => {
+          const opt = document.createElement('option');
+          const code = arc.histCode || arc.activeCode || arc.recordId;
+          const rep = arc.assignedRep || arc.rep || 'Unassigned';
+          const docs = arc.doctorsCovered || arc.docs || 0;
+          opt.value = code;
+          opt.innerText = `📁 ${code} — ${rep} (${docs} Docs)`;
+          el.appendChild(opt);
+        });
+      }
+    });
+  }
+
+  function handleArchivedDropdownChange(val, source) {
+    if (!val) return;
+    const arc = archivedRecords.find(r => (r.histCode || r.activeCode || r.recordId) === val);
+    if (!arc) return;
+
+    const targetCode = arc.histCode || arc.activeCode || arc.recordId;
+
+    if (source === 'tree' || window.activeEditorViewMode === 'tree') {
+      treeExpandedNodes.add('All Territories');
+      treeExpandedNodes.add('Archived Territories');
+      renderTree();
+
+      setTimeout(() => {
+        const rows = document.querySelectorAll('#interactiveTreeContainer .erp-tree-row');
+        rows.forEach(r => {
+          if (r.innerText.includes(targetCode)) {
+            r.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            r.classList.add('selected');
+            r.classList.add('erp-tree-row-highlight');
+            setTimeout(() => {
+              r.classList.remove('erp-tree-row-highlight');
+            }, 3500);
+          }
+        });
+      }, 120);
+    } else if (source === 'vault' || (document.getElementById('tab-realignment') && document.getElementById('tab-realignment').classList.contains('active'))) {
+      const trs = document.querySelectorAll('#archivedTableBody tr');
+      trs.forEach(tr => {
+        if (tr.innerText.includes(targetCode)) {
+          tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          tr.style.background = '#FEF2F2';
+          setTimeout(() => { tr.style.background = ''; }, 3500);
+        }
+      });
+    }
+
+    openArchivedRecordPreviewModal(arc);
+
+    const selectEl = document.getElementById(source === 'tree' ? 'treeArchivedDropdown' : (source === 'grid' ? 'gridArchivedDropdown' : 'vaultArchivedDropdown'));
+    if (selectEl) selectEl.value = '';
+  }
+
+  let activePreviewArchivedRecord = null;
+
+  function openArchivedRecordPreviewModal(arc) {
+    if (!arc) return;
+    activePreviewArchivedRecord = arc;
+    const code = arc.histCode || arc.activeCode || arc.recordId;
+    const rep = arc.assignedRep || arc.rep || 'Unassigned / Reserved';
+    const docs = arc.doctorsCovered || arc.docs || 0;
+    const date = arc.archiveDate || 'Previous Cycle';
+    const reason = arc.reason || 'Decommissioned during previous reconfiguration cycle';
+
+    const codeEl = document.getElementById('arcPrevModalCode');
+    if (codeEl) codeEl.innerText = code;
+    const repEl = document.getElementById('arcPrevModalRep');
+    if (repEl) repEl.innerText = `${rep} • (${arc.userId || 'EMP-39782'})`;
+    const docsEl = document.getElementById('arcPrevModalDocs');
+    if (docsEl) docsEl.innerText = `${docs} Doctors Preserved`;
+    const dateEl = document.getElementById('arcPrevModalDate');
+    if (dateEl) dateEl.innerText = date;
+    const reasonEl = document.getElementById('arcPrevModalReason');
+    if (reasonEl) reasonEl.innerText = reason;
+
+    const btnRestore = document.getElementById('btnRestoreFromPreview');
+    if (btnRestore) {
+      btnRestore.onclick = () => {
+        closeArchivedRecordPreviewModal();
+        restoreArchivedRecordByName(code);
+      };
+    }
+
+    const overlay = document.getElementById('archivedRecordPreviewModalOverlay');
+    if (overlay) overlay.classList.add('active');
+  }
+
+  function openArchivedRecordPreviewByName(code, event) {
+    if (event) event.stopPropagation();
+    const arc = archivedRecords.find(r => (r.histCode || r.activeCode || r.recordId) === code);
+    if (arc) openArchivedRecordPreviewModal(arc);
+  }
+
+  function closeArchivedRecordPreviewModal() {
+    activePreviewArchivedRecord = null;
+    const overlay = document.getElementById('archivedRecordPreviewModalOverlay');
+    if (overlay) overlay.classList.remove('active');
+  }
+
+  function toggleArchiveVaultFolder() {
+    const content = document.getElementById('archiveVaultContent');
+    const icon = document.getElementById('arcVaultFolderToggleIcon');
+    if (!content) return;
+    if (content.style.display === 'none') {
+      content.style.display = 'block';
+      if (icon) icon.innerText = '▼';
+    } else {
+      content.style.display = 'none';
+      if (icon) icon.innerText = '▶';
+    }
   }
 
   function restoreArchivedRecord(idx) {
     const arc = archivedRecords[idx];
     if (!arc) return;
 
+    const restoredCode = arc.histCode || arc.activeCode || arc.recordId;
     programTerritories.push({
-      recordId: arc.recordId,
-      userId: `EMP-${Math.floor(10000 + Math.random() * 89999)}`,
-      latestPrevCode: arc.histCode,
-      activeCode: arc.histCode,
-      rep: arc.rep,
-      district: 'Restored Cluster',
-      docs: arc.docs,
+      recordId: arc.recordId || `REC-${restoredCode.replace(/[^A-Za-z0-9]/g, '')}`,
+      userId: arc.userId || `EMP-${Math.floor(10000 + Math.random() * 89999)}`,
+      latestPrevCode: restoredCode,
+      activeCode: restoredCode,
+      rep: arc.rep || arc.assignedRep || 'Unassigned / Reserved',
+      district: arc.district || 'Restored Cluster',
+      docs: arc.docs || arc.doctorsCovered || 0,
       status: 'CHANGED',
       auditTrail: [{
         timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
         action: 'REACTIVATED',
         user: 'admin@pims.com [SFE Lead]',
-        details: `Restored decommissioned territory ${arc.histCode} back into active masterlist.`
+        details: `Restored decommissioned territory ${restoredCode} from Archive Folder back into active masterlist.`
       }]
     });
 
     archivedRecords.splice(idx, 1);
+    saveArchivedRecordsForProgram();
+    try {
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+    } catch (_) {}
+
     renderTable();
     renderTree();
     renderRealignmentAndArchive();
     renderSummaryReport();
-    showToast(`Territory ${arc.histCode} reactivated!`);
+    populateArchivedDropdowns();
+    showToast(`Territory ${restoredCode} restored from Archive Folder back to active masterlist!`);
+  }
+
+  function restoreArchivedRecordByName(code, event) {
+    if (event) event.stopPropagation();
+    const idx = archivedRecords.findIndex(r => (r.histCode || r.activeCode || r.recordId) === code);
+    if (idx !== -1) {
+      restoreArchivedRecord(idx);
+    } else {
+      showToast(`Archived record "${code}" not found`, 'warning');
+    }
+  }
+
+  function restoreAllArchivedRecords(event) {
+    if (event) event.stopPropagation();
+    if (!archivedRecords || archivedRecords.length === 0) return;
+    if (!confirm(`Restore all ${archivedRecords.length} archived territories back to the active masterlist?`)) return;
+
+    while (archivedRecords.length > 0) {
+      const arc = archivedRecords.pop();
+      const restoredCode = arc.histCode || arc.activeCode || arc.recordId;
+      programTerritories.push({
+        recordId: arc.recordId || `REC-${restoredCode.replace(/[^A-Za-z0-9]/g, '')}`,
+        userId: arc.userId || `EMP-${Math.floor(10000 + Math.random() * 89999)}`,
+        latestPrevCode: restoredCode,
+        activeCode: restoredCode,
+        rep: arc.rep || arc.assignedRep || 'Unassigned / Reserved',
+        district: arc.district || 'Restored Cluster',
+        docs: arc.docs || arc.doctorsCovered || 0,
+        status: 'CHANGED',
+        auditTrail: [{
+          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          action: 'REACTIVATED',
+          user: 'admin@pims.com [SFE Lead]',
+          details: `Batch restored decommissioned territory ${restoredCode} from Archive Folder.`
+        }]
+      });
+    }
+
+    saveArchivedRecordsForProgram();
+    try {
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+    } catch (_) {}
+
+    renderTable();
+    renderTree();
+    renderRealignmentAndArchive();
+    renderSummaryReport();
+    populateArchivedDropdowns();
+    showToast(`All archived territories restored to active masterlist!`);
   }
 
   // --- TAB 3: SUMMARY REPORT & AUDIT TRAIL ---
@@ -15662,7 +16124,59 @@ const BASELINE_ERP_TERRITORIES = [
 </div>
 
 <!-- MODAL: Delete Territory -->
-<div class="modal-overlay" id="treeDeleteModalOverlay">
+<!-- ARCHIVED TERRITORY PREVIEW / RESTORE MODAL -->
+  <div class="modal-overlay" id="archivedRecordPreviewModalOverlay">
+    <div class="modal-card" style="background:#FFFFFF; border:1.5px solid #E2E8F0; color:#0F172A; max-width:480px; border-radius:12px; padding:22px; box-shadow:0 20px 48px rgba(0,0,0,0.18);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #E2E8F0; padding-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          <div>
+            <h3 style="font-size:15px; font-weight:800; color:#0F172A; margin:0;">Archived Territory Details</h3>
+            <span style="font-size:11.5px; color:#64748B;">Preserved from previous reconfiguration cycle</span>
+          </div>
+        </div>
+        <button type="button" onclick="closeArchivedRecordPreviewModal()" style="background:none; border:none; color:#64748B; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px; font-size:12.5px; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#F8FAFC; border-radius:6px; border:1px solid #E2E8F0;">
+          <span style="color:#64748B; font-weight:600;">Folder Location:</span>
+          <strong style="color:#DC2626; display:inline-flex; align-items:center; gap:5px;">📁 Archived Territories (Folder)</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#F8FAFC; border-radius:6px; border:1px solid #E2E8F0;">
+          <span style="color:#64748B; font-weight:600;">Territory Code:</span>
+          <strong id="arcPrevModalCode" style="color:#0066FF; font-family:monospace; font-size:13.5px;">---</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#F8FAFC; border-radius:6px; border:1px solid #E2E8F0;">
+          <span style="color:#64748B; font-weight:600;">Previous Rep / User ID:</span>
+          <span id="arcPrevModalRep" style="font-weight:700; color:#0F172A;">---</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#F8FAFC; border-radius:6px; border:1px solid #E2E8F0;">
+          <span style="color:#64748B; font-weight:600;">Preserved Doctors:</span>
+          <span id="arcPrevModalDocs" class="badge badge-archive" style="font-size:11.5px; font-weight:800;">0 Docs</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#F8FAFC; border-radius:6px; border:1px solid #E2E8F0;">
+          <span style="color:#64748B; font-weight:600;">Archive Date:</span>
+          <span id="arcPrevModalDate" style="color:#475569; font-weight:600;">---</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#F8FAFC; border-radius:6px; border:1px solid #E2E8F0;">
+          <span style="color:#64748B; font-weight:600;">Archive Reason:</span>
+          <span id="arcPrevModalReason" style="color:#475569; font-weight:600; text-align:right; max-width:240px;">---</span>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" onclick="closeArchivedRecordPreviewModal()" class="btn btn-outline" style="font-size:12px; font-weight:600;">
+          Close
+        </button>
+        <button type="button" id="btnRestoreFromPreview" class="btn btn-success" style="font-size:12px; font-weight:700; background:#10B981; border-color:#059669; color:#FFFFFF;">
+          Restore to Active Tree
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="treeDeleteModalOverlay">
   <div class="modal-card" style="background:#18181B; border:1px solid #27272A; color:#FFFFFF; max-width:440px; border-radius:12px; padding:22px; box-shadow:0 20px 48px rgba(0,0,0,0.6);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
       <h3 style="font-size:15px; font-weight:800; color:#EF4444; margin:0;" id="treeDeleteModalTitle">Delete Territory</h3>
