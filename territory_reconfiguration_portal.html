@@ -1645,7 +1645,13 @@
     transform: translateY(-50%);
     color: #A1A1AA;
     font-size: 11px;
-    pointer-events: none;
+    cursor: pointer;
+    pointer-events: auto;
+    user-select: none;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+  .erp-search-chevron:hover {
+    color: #38BDF8;
   }
 
   .erp-clear-btn {
@@ -2830,9 +2836,9 @@
         <label>User ID:</label>
         <div class="erp-search-container" id="editUserAccountContainer">
           <input type="hidden" id="editUserAccountInput" value="">
-          <input type="text" id="editUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User ID..." autocomplete="off" onfocus="openErpDropdown('editUserAccount')" oninput="onErpSearchInput('editUserAccount')">
+          <input type="text" id="editUserAccountDisplay" class="erp-search-input-box" placeholder="Unassigned" autocomplete="off" onfocus="openErpDropdown('editUserAccount', true)" onclick="toggleErpDropdown('editUserAccount', event)" oninput="onErpSearchInput('editUserAccount')">
           <button type="button" class="erp-clear-btn" id="editUserAccountClear" onclick="clearErpSelection('editUserAccount')">✕</button>
-          <span class="erp-search-chevron">▼</span>
+          <span class="erp-search-chevron" onclick="toggleErpDropdown('editUserAccount', event)">▼</span>
           <div class="erp-dropdown-menu" id="editUserAccountMenu"></div>
         </div>
       </div>
@@ -2854,9 +2860,9 @@
         <label>Territory Manager <span style="color:#EF4444;">*</span>:</label>
         <div class="erp-search-container" id="editManagerContainer">
           <input type="hidden" id="editManagerInput" value="">
-          <input type="text" id="editManagerDisplay" class="erp-search-input-box" placeholder="Search or select Sales Person..." autocomplete="off" onfocus="openErpDropdown('editManager')" oninput="onErpSearchInput('editManager')">
+          <input type="text" id="editManagerDisplay" class="erp-search-input-box" placeholder="Search or select Sales Person..." autocomplete="off" onfocus="openErpDropdown('editManager', true)" onclick="toggleErpDropdown('editManager', event)" oninput="onErpSearchInput('editManager')">
           <button type="button" class="erp-clear-btn" id="editManagerClear" onclick="clearErpSelection('editManager')">✕</button>
-          <span class="erp-search-chevron">▼</span>
+          <span class="erp-search-chevron" onclick="toggleErpDropdown('editManager', event)">▼</span>
           <div class="erp-dropdown-menu" id="editManagerMenu"></div>
         </div>
       </div>
@@ -8355,8 +8361,13 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   // Initialize
+  initSalesPersonsAndEmployees();
+  initTerritoryTree();
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
+      initSalesPersonsAndEmployees();
+      initTerritoryTree();
       loadArchivedRecordsForProgram();
       initPortalViewMode();
       checkAuthSession();
@@ -8507,7 +8518,21 @@ const BASELINE_ERP_TERRITORIES = [
     // Ensure all rows have valid format and default to UNCHANGED if not modified
     programTerritories.forEach((t, i) => {
       if (!t.recordId) t.recordId = `REC-${(t.histCode || t.activeCode || 'T' + i).replace(/[^A-Za-z0-9]/g, '') || i+1}`;
-      if (!t.userId) t.userId = `EMP-${10000 + i}`;
+      // Cleanse legacy fake employee IDs or unassigned reps
+      const isUnassignedRep = !t.rep || t.rep.toLowerCase().includes('unassigned');
+      if (isUnassignedRep) {
+        t.userId = '';
+      } else if (!t.userId || t.userId.startsWith('EMP-') || !t.userId.includes('@')) {
+        const cleanRepName = t.rep.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+        const matchedUser = (availableUsers && availableUsers.length > 0)
+          ? availableUsers.find(u => {
+              const fn = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
+              return fn && (fn === cleanRepName || fn.includes(cleanRepName) || cleanRepName.includes(fn));
+            })
+          : null;
+        t.userId = matchedUser ? (matchedUser.email || matchedUser.name) : '';
+      }
+      if (!t.userId) t.userId = '';
       if (!t.latestPrevCode) t.latestPrevCode = t.histCode || t.activeCode || '';
       if (!t.activeCode) t.activeCode = t.newCode || t.histCode || '';
       if (!t.status) t.status = 'UNCHANGED';
@@ -9628,7 +9653,7 @@ const BASELINE_ERP_TERRITORIES = [
             <td class="col-rep" style="${tableColumnVisibility.rep ? '' : 'display:none;'}">
               <div style="font-weight:600; color:#0F172A;">${escapeHtml(formattedAssignedMedRep)}</div>
               <div style="font-size:10.5px; color:#64748B; margin-top:2px;">
-                User ID: <span class="badge badge-user-id">${escapeHtml(row.userId || 'N/A')}</span>
+                User ID: <span class="badge badge-user-id" style="${(!row.userId || !row.userId.includes('@') || (row.rep && row.rep.toLowerCase().includes('unassigned'))) ? 'background:#F4F4F5; color:#71717A; border:1px solid #E4E4E7; font-weight:600;' : ''}">${escapeHtml((row.userId && row.userId.includes('@') && (!row.rep || !row.rep.toLowerCase().includes('unassigned'))) ? row.userId : 'Unassigned')}</span>
                 &bull; Record: <code style="font-size:10px;">${escapeHtml(row.recordId)}</code>
               </div>
             </td>
@@ -10312,7 +10337,7 @@ const BASELINE_ERP_TERRITORIES = [
 
     validCodesToAdd.forEach((code, i) => {
       const newRecordId = `TERR-${pfx}-${Math.floor(1000 + Math.random() * 8999)}`;
-      const userId = `EMP-${Math.floor(10000 + Math.random() * 89999)}`;
+      const userId = '';
 
       const newRecord = {
         histCode: code,
@@ -12882,7 +12907,12 @@ const BASELINE_ERP_TERRITORIES = [
     const savedUsers = localStorage.getItem('pims_user_accounts_v1');
     if (savedUsers) {
       try {
-        availableUsers = JSON.parse(savedUsers);
+        const parsed = JSON.parse(savedUsers);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          availableUsers = parsed;
+        } else {
+          availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
+        }
       } catch (_) {
         availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
       }
@@ -13493,13 +13523,37 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   // --- ERPNext Searchable Select Controller ---
-  function openErpDropdown(fieldId) {
+  function toggleErpDropdown(fieldId, event) {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    const menu = document.getElementById(fieldId + 'Menu');
+    const isOpen = menu && menu.classList.contains('active') && activeErpDropdown === fieldId;
+    if (isOpen) {
+      closeAllErpDropdowns();
+    } else {
+      openErpDropdown(fieldId, true);
+    }
+  }
+
+  function openErpDropdown(fieldId, forceShowAll = false) {
+    closeAllErpDropdowns();
     activeErpDropdown = fieldId;
     const disp = document.getElementById(fieldId + 'Display');
-    const q = disp ? disp.value.trim() : '';
+    let q = '';
+    if (!forceShowAll && disp) {
+      const v = disp.value.trim();
+      if (v.toLowerCase() !== 'unassigned' && !v.startsWith('EMP-')) {
+        q = v;
+      }
+    }
     renderErpDropdownMenu(fieldId, q);
     const menu = document.getElementById(fieldId + 'Menu');
     if (menu) menu.classList.add('active');
+    if (disp && forceShowAll) {
+      try { disp.select(); } catch (_) {}
+    }
   }
 
   function closeAllErpDropdowns() {
@@ -13509,9 +13563,10 @@ const BASELINE_ERP_TERRITORIES = [
 
   function onErpSearchInput(fieldId) {
     const disp = document.getElementById(fieldId + 'Display');
-    const q = disp ? disp.value.trim() : '';
+    let q = disp ? disp.value.trim() : '';
     const clr = document.getElementById(fieldId + 'Clear');
     if (clr) clr.style.display = q ? 'block' : 'none';
+    if (q.toLowerCase() === 'unassigned') q = '';
     
     renderErpDropdownMenu(fieldId, q);
     const menu = document.getElementById(fieldId + 'Menu');
@@ -13527,9 +13582,19 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   async function dispatchRemoteErpSearch(fieldId, query) {
-    const isSalesPerson = (fieldId === 'treeAddManager' || fieldId === 'treeEditManager' || fieldId === 'newSpParent');
-    const doctype = isSalesPerson ? 'Sales%20Person' : 'Employee';
-    const filterField = isSalesPerson ? 'sales_person_name' : 'employee_name';
+    const isSalesPerson = (fieldId === 'treeAddManager' || fieldId === 'treeEditManager' || fieldId === 'editManager' || fieldId === 'addManager' || fieldId === 'newSpParent');
+    const isUser = (fieldId === 'treeEditUserAccount' || fieldId === 'treeAddUserAccount' || fieldId === 'editUserAccount' || fieldId === 'addUserAccount' || fieldId === 'newSpUserAccount');
+    
+    let doctype = 'Employee';
+    let filterField = 'employee_name';
+    if (isSalesPerson) {
+      doctype = 'Sales%20Person';
+      filterField = 'sales_person_name';
+    } else if (isUser) {
+      doctype = 'User';
+      filterField = 'email';
+    }
+
     const tokens = (query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
 
     try {
@@ -13548,6 +13613,14 @@ const BASELINE_ERP_TERRITORIES = [
               }
             });
             localStorage.setItem('pims_sales_persons_v1', JSON.stringify(availableSalesPersons));
+          } else if (isUser) {
+            records.forEach(r => {
+              const uEmail = r.email || r.name;
+              if (uEmail && !availableUsers.some(u => (u.email === uEmail || u.name === uEmail))) {
+                availableUsers.push(r);
+              }
+            });
+            localStorage.setItem('pims_user_accounts_v1', JSON.stringify(availableUsers));
           } else {
             records.forEach(r => {
               if (!availableEmployees.some(e => e.name === r.name)) {
@@ -13574,6 +13647,7 @@ const BASELINE_ERP_TERRITORIES = [
     }
     if (disp) {
       disp.value = '';
+      disp.placeholder = 'Unassigned';
       disp.focus();
     }
     if (clr) clr.style.display = 'none';
@@ -13611,7 +13685,24 @@ const BASELINE_ERP_TERRITORIES = [
     const tokens = rawQ.toLowerCase().split(/\s+/).filter(Boolean);
 
     if (fieldId === 'treeEditUserAccount' || fieldId === 'treeAddUserAccount' || fieldId === 'editUserAccount' || fieldId === 'addUserAccount' || fieldId === 'newSpUserAccount') {
-      // Filter User IDs across email, full name, first name, last name (matching Image 1)
+      // Top Option: (Unassigned) option for User ID selection
+      if (!rawQ) {
+        const unassignedItem = document.createElement('div');
+        unassignedItem.className = 'erp-dropdown-item';
+        unassignedItem.style.borderBottom = '1px solid #3F3F46';
+        unassignedItem.style.background = '#27272A';
+        unassignedItem.innerHTML = `
+          <div class="erp-dropdown-item-title" style="color:#A1A1AA; font-style:italic;">(Unassigned)</div>
+          <div class="erp-dropdown-item-sub" style="color:#71717A;">Leave User ID unassigned</div>
+        `;
+        unassignedItem.onclick = () => {
+          clearErpSelection(fieldId);
+          closeAllErpDropdowns();
+        };
+        menu.appendChild(unassignedItem);
+      }
+
+      // Filter User IDs across email, full name, first name, last name
       let matches = availableUsers.filter(u => {
         if (!tokens.length) return true;
         const searchable = [
@@ -13631,15 +13722,15 @@ const BASELINE_ERP_TERRITORIES = [
         emptyDiv.innerText = rawQ ? `No User matching "${query}"` : 'No User IDs available';
         menu.appendChild(emptyDiv);
       } else {
-        matches.slice(0, 50).forEach(u => {
+        matches.slice(0, 80).forEach(u => {
           const item = document.createElement('div');
           item.className = 'erp-dropdown-item';
           const email = u.email || u.name;
           const fullName = u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || email;
           
           item.innerHTML = `
-            <div class="erp-dropdown-item-title">${escapeHtml(email)}</div>
-            <div class="erp-dropdown-item-sub">${escapeHtml(fullName)}</div>
+            <div class="erp-dropdown-item-title" style="color:#FFFFFF; font-weight:600;">${escapeHtml(email)}</div>
+            <div class="erp-dropdown-item-sub" style="color:#A1A1AA; font-size:11px;">${escapeHtml(fullName)}</div>
           `;
           item.onclick = () => selectErpItem(fieldId, email, email, u);
           menu.appendChild(item);
@@ -14695,6 +14786,16 @@ const BASELINE_ERP_TERRITORIES = [
       mgrDisp.value = '';
       mgrDisp.placeholder = 'Unassigned';
     }
+    const userInp = document.getElementById('treeAddUserAccountInput');
+    if (userInp) {
+      userInp.value = '';
+      delete userInp.dataset.userManuallySelected;
+    }
+    const userDisp = document.getElementById('treeAddUserAccountDisplay');
+    if (userDisp) {
+      userDisp.value = '';
+      userDisp.placeholder = 'Unassigned';
+    }
     
     const progInp = document.getElementById('treeAddProgramInput');
     if (progInp) progInp.value = activeProgram || 'Abbott Diabetes Care';
@@ -14849,7 +14950,7 @@ const BASELINE_ERP_TERRITORIES = [
       docs: 0,
       status: 'CHANGED',
       recordId: newRecordId,
-      userId: userAcc || `EMP-${Math.floor(10000 + Math.random() * 90000)}`,
+      userId: (userAcc && userAcc.includes('@')) ? userAcc : '',
       latestPrevCode: name,
       activeCode: name,
       isGroup: isGroup ? 1 : 0,
@@ -14958,10 +15059,16 @@ const BASELINE_ERP_TERRITORIES = [
 
     document.getElementById('treeEditModalTitle').innerText = name;
     document.getElementById('treeEditOrigName').value = name;
-    const currentMgr = node.territory_manager || '';
-    document.getElementById('treeEditManagerInput').value = currentMgr;
-    document.getElementById('treeEditManagerDisplay').value = currentMgr;
+    const rawMgr = node.territory_manager || '';
+    const currentMgr = (rawMgr && !rawMgr.toLowerCase().includes('unassigned')) ? rawMgr : '';
+    const mgrInp = document.getElementById('treeEditManagerInput');
+    const mgrDisp = document.getElementById('treeEditManagerDisplay');
     const editClr = document.getElementById('treeEditManagerClear');
+    if (mgrInp) mgrInp.value = currentMgr;
+    if (mgrDisp) {
+      mgrDisp.value = currentMgr;
+      mgrDisp.placeholder = 'Unassigned';
+    }
     if (editClr) editClr.style.display = currentMgr ? 'block' : 'none';
     document.getElementById('treeEditIsGroup').checked = Boolean(node.is_group);
 
@@ -14984,12 +15091,17 @@ const BASELINE_ERP_TERRITORIES = [
 
     const pt = programTerritories.find(p => p.activeCode === name || p.histCode === name);
     document.getElementById('treeEditProgramInput').value = activeProgram;
-    const currentUserId = pt ? (pt.userId || '') : '';
+    const isRepUnassigned = pt && (!pt.rep || pt.rep.toLowerCase().includes('unassigned'));
+    const rawUserId = pt ? (pt.userId || '') : '';
+    const currentUserId = (rawUserId && rawUserId.includes('@') && !isRepUnassigned) ? rawUserId : '';
     const userInp = document.getElementById('treeEditUserAccountInput');
     const userDisp = document.getElementById('treeEditUserAccountDisplay');
     const userClr = document.getElementById('treeEditUserAccountClear');
     if (userInp) userInp.value = currentUserId;
-    if (userDisp) userDisp.value = currentUserId;
+    if (userDisp) {
+      userDisp.value = currentUserId;
+      userDisp.placeholder = 'Unassigned';
+    }
     if (userClr) userClr.style.display = currentUserId ? 'block' : 'none';
     document.getElementById('treeEditDocCount').innerText = `${pt ? (pt.docs || 0) : 0} Doctors Assigned`;
 
@@ -15018,7 +15130,7 @@ const BASELINE_ERP_TERRITORIES = [
 
     const pt = programTerritories.find(p => p.activeCode === origName || p.histCode === origName);
     if (pt) {
-      if (newUserId) pt.userId = newUserId;
+      pt.userId = (newUserId && newUserId.includes('@')) ? newUserId : '';
       if (newMgr) pt.rep = newMgr;
       pt.district = newParent;
       pt.status = 'CHANGED';
@@ -15344,22 +15456,30 @@ const BASELINE_ERP_TERRITORIES = [
     document.getElementById('editRecordId').value = row.recordId || '';
     
     // User ID dropdown
-    const editUserIdVal = row.userId || '';
+    const isRepUnassigned = !row.rep || row.rep.toLowerCase().includes('unassigned');
+    const editUserIdVal = (row.userId && row.userId.includes('@') && !isRepUnassigned) ? row.userId : '';
     const editUserInp = document.getElementById('editUserAccountInput');
     const editUserDisp = document.getElementById('editUserAccountDisplay');
     const editUserClr = document.getElementById('editUserAccountClear');
     if (editUserInp) editUserInp.value = editUserIdVal;
-    if (editUserDisp) editUserDisp.value = editUserIdVal;
+    if (editUserDisp) {
+      editUserDisp.value = editUserIdVal;
+      editUserDisp.placeholder = 'Unassigned';
+    }
     if (editUserClr) editUserClr.style.display = editUserIdVal ? 'block' : 'none';
 
     // Territory Manager dropdown
     const treeNode = territoryTreeData.find(t => t.name === (row.activeCode || row.latestPrevCode));
-    const editMgrVal = treeNode ? (treeNode.territory_manager || '') : '';
+    const rawMgr = treeNode ? (treeNode.territory_manager || '') : '';
+    const editMgrVal = (rawMgr && !rawMgr.toLowerCase().includes('unassigned')) ? rawMgr : '';
     const editMgrInp = document.getElementById('editManagerInput');
     const editMgrDisp = document.getElementById('editManagerDisplay');
     const editMgrClr = document.getElementById('editManagerClear');
     if (editMgrInp) editMgrInp.value = editMgrVal;
-    if (editMgrDisp) editMgrDisp.value = editMgrVal;
+    if (editMgrDisp) {
+      editMgrDisp.value = editMgrVal;
+      editMgrDisp.placeholder = 'Unassigned';
+    }
     if (editMgrClr) editMgrClr.style.display = editMgrVal ? 'block' : 'none';
 
     // Parent Territory select
@@ -15423,12 +15543,22 @@ const BASELINE_ERP_TERRITORIES = [
     if (newRep && newRep.trim()) {
       const cleanName = newRep.trim().toUpperCase();
       document.getElementById('editRepName').value = cleanName;
-      // Generate new distinct User ID for new MedRep
-      const newUserId = `EMP-${Math.floor(10000 + Math.random() * 89999)}`;
+      // Lookup user email for new MedRep (or leave empty if unassigned)
+      const cleanRepName = cleanName.toLowerCase();
+      const matchedUser = (availableUsers && availableUsers.length > 0)
+        ? availableUsers.find(u => {
+            const fn = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
+            return fn && (fn === cleanRepName || fn.includes(cleanRepName) || cleanRepName.includes(fn));
+          })
+        : null;
+      const newUserId = matchedUser ? (matchedUser.email || matchedUser.name) : '';
       const userAccInp = document.getElementById('editUserAccountInput') || document.getElementById('editUserId');
       if (userAccInp) userAccInp.value = newUserId;
       const userAccDisp = document.getElementById('editUserAccountDisplay');
-      if (userAccDisp) userAccDisp.value = newUserId;
+      if (userAccDisp) {
+        userAccDisp.value = newUserId;
+        userAccDisp.placeholder = 'Unassigned';
+      }
       document.getElementById('editNotes').value = `Territory transferred to new MedRep: ${cleanName} (${newUserId})`;
       showToast(`Transferred to ${cleanName}! Remember to click Save Changes.`);
     }
@@ -15541,7 +15671,7 @@ const BASELINE_ERP_TERRITORIES = [
       rep: row.rep,
       doctorsCovered: row.docs,
       docs: row.docs,
-      userId: row.userId || 'EMP-39782',
+      userId: (row.userId && row.userId.includes('@')) ? row.userId : '',
       reason: 'Decommissioned by SFE during realignment',
       district: row.district || 'Unassigned Cluster',
       program: activeProgram,
@@ -15586,7 +15716,8 @@ const BASELINE_ERP_TERRITORIES = [
     const activeCode = document.getElementById('addActiveCode').value.trim();
     const prevCode = document.getElementById('addPrevCode').value.trim() || activeCode;
     const repName = document.getElementById('addRepName').value.trim() || 'Unassigned Rep';
-    const userId = document.getElementById('addUserId').value.trim() || `EMP-${Math.floor(10000 + Math.random() * 89999)}`;
+    const userAccVal = document.getElementById('addUserId') ? document.getElementById('addUserId').value.trim() : '';
+    const userId = (userAccVal && userAccVal.includes('@')) ? userAccVal : '';
     const district = document.getElementById('addDistrict').value.trim() || 'General Territory District';
     const docs = parseInt(document.getElementById('addDocs').value, 10) || 0;
 
@@ -16154,7 +16285,7 @@ const BASELINE_ERP_TERRITORIES = [
     const restoredCode = arc.histCode || arc.activeCode || arc.recordId;
     programTerritories.push({
       recordId: arc.recordId || `REC-${restoredCode.replace(/[^A-Za-z0-9]/g, '')}`,
-      userId: arc.userId || `EMP-${Math.floor(10000 + Math.random() * 89999)}`,
+      userId: (arc.userId && arc.userId.includes('@')) ? arc.userId : '',
       latestPrevCode: restoredCode,
       activeCode: restoredCode,
       rep: arc.rep || arc.assignedRep || 'Unassigned / Reserved',
@@ -16202,7 +16333,7 @@ const BASELINE_ERP_TERRITORIES = [
       const restoredCode = arc.histCode || arc.activeCode || arc.recordId;
       programTerritories.push({
         recordId: arc.recordId || `REC-${restoredCode.replace(/[^A-Za-z0-9]/g, '')}`,
-        userId: arc.userId || `EMP-${Math.floor(10000 + Math.random() * 89999)}`,
+        userId: (arc.userId && arc.userId.includes('@')) ? arc.userId : '',
         latestPrevCode: restoredCode,
         activeCode: restoredCode,
         rep: arc.rep || arc.assignedRep || 'Unassigned / Reserved',
@@ -16712,7 +16843,7 @@ const BASELINE_ERP_TERRITORIES = [
     document.getElementById('coveredDocsModalSubtitle').innerHTML = `
       <strong>${escapeHtml(activeProgram)}</strong> &bull; 
       District: <span style="color:#CBD5E1;">${escapeHtml(row.district || 'N/A')}</span> &bull; 
-      User ID: <span class="badge badge-user-id">${escapeHtml(row.userId || 'N/A')}</span> &bull; 
+      User ID: <span class="badge badge-user-id" style="${(!row.userId || !row.userId.includes('@') || (row.rep && row.rep.toLowerCase().includes('unassigned'))) ? 'background:#F4F4F5; color:#71717A; border:1px solid #E4E4E7; font-weight:600;' : ''}">${escapeHtml((row.userId && row.userId.includes('@') && (!row.rep || !row.rep.toLowerCase().includes('unassigned'))) ? row.userId : 'Unassigned')}</span> &bull; 
       Record: <code>${escapeHtml(row.recordId)}</code>
     `;
 
@@ -16919,7 +17050,10 @@ const BASELINE_ERP_TERRITORIES = [
     // Update Header Badges
     document.getElementById('targetRepDistrictLabel').innerText = `District: ${activeTransferTargetRow.district || 'N/A'}`;
     const targetUserIdEl = document.getElementById('targetRepUserIdLabel');
-    if (targetUserIdEl) targetUserIdEl.innerText = `User ID: ${activeTransferTargetRow.userId || 'N/A'}`;
+    if (targetUserIdEl) {
+      const validTgtEmail = (activeTransferTargetRow.userId && activeTransferTargetRow.userId.includes('@')) ? activeTransferTargetRow.userId : 'Unassigned';
+      targetUserIdEl.innerText = `User ID: ${validTgtEmail}`;
+    }
 
     document.getElementById('sourceRepDistrictLabel').innerText = `District: ${activeTransferSourceRow.district || 'N/A'}`;
     const sourceStatusEl = document.getElementById('sourceRepStatusLabel');
@@ -17515,9 +17649,9 @@ const BASELINE_ERP_TERRITORIES = [
         </label>
         <div class="erp-search-container" id="treeAddManagerContainer">
           <input type="hidden" id="treeAddManagerInput" value="">
-          <input type="text" id="treeAddManagerDisplay" class="erp-search-input-box" placeholder="Unassigned" autocomplete="off" onfocus="openErpDropdown('treeAddManager')" oninput="onErpSearchInput('treeAddManager')">
+          <input type="text" id="treeAddManagerDisplay" class="erp-search-input-box" placeholder="Unassigned" autocomplete="off" onfocus="openErpDropdown('treeAddManager', true)" onclick="toggleErpDropdown('treeAddManager', event)" oninput="onErpSearchInput('treeAddManager')">
           <button type="button" class="erp-clear-btn" id="treeAddManagerClear" onclick="clearErpSelection('treeAddManager')">✕</button>
-          <span class="erp-search-chevron">▼</span>
+          <span class="erp-search-chevron" onclick="toggleErpDropdown('treeAddManager', event)">▼</span>
           <div class="erp-dropdown-menu" id="treeAddManagerMenu"></div>
         </div>
       </div>
@@ -17552,9 +17686,9 @@ const BASELINE_ERP_TERRITORIES = [
         <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">User ID</label>
         <div class="erp-search-container" id="treeAddUserAccountContainer">
           <input type="hidden" id="treeAddUserAccountInput" value="">
-          <input type="text" id="treeAddUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User ID..." autocomplete="off" onfocus="openErpDropdown('treeAddUserAccount')" oninput="onErpSearchInput('treeAddUserAccount')">
+          <input type="text" id="treeAddUserAccountDisplay" class="erp-search-input-box" placeholder="Unassigned" autocomplete="off" onfocus="openErpDropdown('treeAddUserAccount', true)" onclick="toggleErpDropdown('treeAddUserAccount', event)" oninput="onErpSearchInput('treeAddUserAccount')">
           <button type="button" class="erp-clear-btn" id="treeAddUserAccountClear" onclick="clearErpSelection('treeAddUserAccount')">✕</button>
-          <span class="erp-search-chevron">▼</span>
+          <span class="erp-search-chevron" onclick="toggleErpDropdown('treeAddUserAccount', event)">▼</span>
           <div class="erp-dropdown-menu" id="treeAddUserAccountMenu"></div>
         </div>
       </div>
@@ -17608,9 +17742,9 @@ const BASELINE_ERP_TERRITORIES = [
         <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Territory Manager</label>
         <div class="erp-search-container" id="treeEditManagerContainer">
           <input type="hidden" id="treeEditManagerInput" value="">
-          <input type="text" id="treeEditManagerDisplay" class="erp-search-input-box" placeholder="Unassigned" autocomplete="off" onfocus="openErpDropdown('treeEditManager')" oninput="onErpSearchInput('treeEditManager')">
+          <input type="text" id="treeEditManagerDisplay" class="erp-search-input-box" placeholder="Unassigned" autocomplete="off" onfocus="openErpDropdown('treeEditManager', true)" onclick="toggleErpDropdown('treeEditManager', event)" oninput="onErpSearchInput('treeEditManager')">
           <button type="button" class="erp-clear-btn" id="treeEditManagerClear" onclick="clearErpSelection('treeEditManager')">✕</button>
-          <span class="erp-search-chevron">▼</span>
+          <span class="erp-search-chevron" onclick="toggleErpDropdown('treeEditManager', event)">▼</span>
           <div class="erp-dropdown-menu" id="treeEditManagerMenu"></div>
         </div>
       </div>
@@ -17633,9 +17767,9 @@ const BASELINE_ERP_TERRITORIES = [
         <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">User ID</label>
         <div class="erp-search-container" id="treeEditUserAccountContainer">
           <input type="hidden" id="treeEditUserAccountInput" value="">
-          <input type="text" id="treeEditUserAccountDisplay" class="erp-search-input-box" placeholder="Search or select User ID..." autocomplete="off" onfocus="openErpDropdown('treeEditUserAccount')" oninput="onErpSearchInput('treeEditUserAccount')">
+          <input type="text" id="treeEditUserAccountDisplay" class="erp-search-input-box" placeholder="Unassigned" autocomplete="off" onfocus="openErpDropdown('treeEditUserAccount', true)" onclick="toggleErpDropdown('treeEditUserAccount', event)" oninput="onErpSearchInput('treeEditUserAccount')">
           <button type="button" class="erp-clear-btn" id="treeEditUserAccountClear" onclick="clearErpSelection('treeEditUserAccount')">✕</button>
-          <span class="erp-search-chevron">▼</span>
+          <span class="erp-search-chevron" onclick="toggleErpDropdown('treeEditUserAccount', event)">▼</span>
           <div class="erp-dropdown-menu" id="treeEditUserAccountMenu"></div>
         </div>
       </div>
