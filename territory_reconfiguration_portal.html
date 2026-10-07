@@ -7,6 +7,60 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>HCP Profiling &bull; Territory Reconfiguration Portal</title>
+<script>
+  // Robust Streamlit Custom Component Handshake Engine
+  (function() {
+    var hasRendered = false;
+    var readyRetries = 0;
+    var maxRetries = 35; // 35 * 200ms = 7 seconds max
+    var retryTimer = null;
+
+    function sendReady() {
+      if (hasRendered) return;
+      if (window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:componentReady",
+            apiVersion: 1
+          }, "*");
+          var h = window.innerHeight || document.documentElement.clientHeight || 750;
+          window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setFrameHeight",
+            height: h
+          }, "*");
+        } catch (_) {}
+      }
+      readyRetries++;
+      if (readyRetries >= maxRetries && retryTimer) {
+        clearInterval(retryTimer);
+        retryTimer = null;
+      }
+    }
+
+    sendReady();
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', sendReady);
+    }
+    window.addEventListener('load', sendReady);
+
+    retryTimer = setInterval(sendReady, 200);
+
+    window.addEventListener('message', function(ev) {
+      if (ev && ev.data && ev.data.type === 'streamlit:render') {
+        hasRendered = true;
+        if (retryTimer) {
+          clearInterval(retryTimer);
+          retryTimer = null;
+        }
+      }
+    });
+
+    window.__streamlitSendReady = sendReady;
+  })();
+</script>
 <style>
   :root {
     --bg-page: #F4F6F9;
@@ -8861,7 +8915,9 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function initStreamlitComponent() {
-    if (window.parent && window.parent !== window) {
+    if (typeof window.__streamlitSendReady === 'function') {
+      window.__streamlitSendReady();
+    } else if (window.parent && window.parent !== window) {
       try {
         window.parent.postMessage({
           isStreamlitMessage: true,
@@ -8913,39 +8969,7 @@ const BASELINE_ERP_TERRITORIES = [
         const liveUsers = event.data.args ? event.data.args.live_users : null;
         const treeSync = event.data.args ? event.data.args.tree_sync_event : null;
 
-        if (liveUsers && Array.isArray(liveUsers) && liveUsers.length > 0) {
-          availableUsers = liveUsers;
-          try {
-            localStorage.setItem('pims_user_accounts_v1', JSON.stringify(liveUsers));
-          } catch (_) {}
-        }
-
-        if (liveSalesPersons && Array.isArray(liveSalesPersons) && liveSalesPersons.length > 0) {
-          availableSalesPersons = liveSalesPersons;
-          try {
-            localStorage.setItem('pims_sales_persons_v1', JSON.stringify(liveSalesPersons));
-          } catch (_) {}
-          try {
-            populateParentSalesPersonSelect();
-          } catch (_) {}
-        }
-
-        if (liveEmployees && Array.isArray(liveEmployees) && liveEmployees.length > 0) {
-          const empMap = new Map();
-          BASELINE_EMPLOYEES.forEach(e => empMap.set(e.name, e));
-          liveEmployees.forEach(e => {
-            if (!e.status || e.status === 'Active') {
-              empMap.set(e.name, Object.assign({}, empMap.get(e.name) || {}, e));
-            }
-          });
-          availableEmployees = Array.from(empMap.values());
-          try {
-            localStorage.setItem('pims_active_employees_v2', JSON.stringify(availableEmployees));
-            localStorage.setItem('pims_active_employees_v1', JSON.stringify(availableEmployees));
-            localStorage.setItem('pims_employees_v1', JSON.stringify(availableEmployees));
-          } catch (_) {}
-        }
-
+        // 1. Process Authentication State IMMEDIATELY
         if (auth) {
           if (streamlitLoginWatchdog) {
             clearTimeout(streamlitLoginWatchdog);
@@ -8985,32 +9009,85 @@ const BASELINE_ERP_TERRITORIES = [
           }
         }
 
-        if (liveTerrs && Array.isArray(liveTerrs) && liveTerrs.length > 0) {
-          if (!liveTerrs.some(t => t.name === 'All Territories')) {
-            liveTerrs.unshift({
-              name: 'All Territories',
-              territory_name: 'All Territories',
-              parent_territory: '',
-              is_group: 1,
-              territory_manager: null
-            });
+        // 2. Process Live Users Masterlist
+        try {
+          if (liveUsers && Array.isArray(liveUsers) && liveUsers.length > 0) {
+            availableUsers = liveUsers;
+            try {
+              localStorage.setItem('pims_user_accounts_v1', JSON.stringify(liveUsers));
+            } catch (_) {}
           }
-          territoryTreeData = liveTerrs;
-          try {
-            localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
-          } catch (_) {}
-          syncProgramTerritoriesWithTree();
-          if (window.activeEditorViewMode === 'grid') {
-            if (typeof renderTable === 'function') renderTable();
-          } else {
-            if (typeof renderTree === 'function') renderTree();
-          }
-          if (typeof updateEditorViewModeUI === 'function') updateEditorViewModeUI();
-          if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
-          if (typeof renderSummaryReport === 'function') renderSummaryReport();
+        } catch (uErr) {
+          console.warn('[Streamlit Live Users Warning]', uErr);
         }
 
-        // Two-way server feedback toasts
+        // 3. Process Live Sales Persons Masterlist
+        try {
+          if (liveSalesPersons && Array.isArray(liveSalesPersons) && liveSalesPersons.length > 0) {
+            availableSalesPersons = liveSalesPersons;
+            try {
+              localStorage.setItem('pims_sales_persons_v1', JSON.stringify(liveSalesPersons));
+            } catch (_) {}
+            try {
+              populateParentSalesPersonSelect();
+            } catch (_) {}
+          }
+        } catch (spErr) {
+          console.warn('[Streamlit Live Sales Persons Warning]', spErr);
+        }
+
+        // 4. Process Live Active Employees
+        try {
+          if (liveEmployees && Array.isArray(liveEmployees) && liveEmployees.length > 0) {
+            const empMap = new Map();
+            BASELINE_EMPLOYEES.forEach(e => empMap.set(e.name, e));
+            liveEmployees.forEach(e => {
+              if (!e.status || e.status === 'Active') {
+                empMap.set(e.name, Object.assign({}, empMap.get(e.name) || {}, e));
+              }
+            });
+            availableEmployees = Array.from(empMap.values());
+            try {
+              localStorage.setItem('pims_active_employees_v2', JSON.stringify(availableEmployees));
+              localStorage.setItem('pims_active_employees_v1', JSON.stringify(availableEmployees));
+              localStorage.setItem('pims_employees_v1', JSON.stringify(availableEmployees));
+            } catch (_) {}
+          }
+        } catch (empErr) {
+          console.warn('[Streamlit Live Employees Warning]', empErr);
+        }
+
+        // 5. Process Live Territories Tree
+        try {
+          if (liveTerrs && Array.isArray(liveTerrs) && liveTerrs.length > 0) {
+            if (!liveTerrs.some(t => t.name === 'All Territories')) {
+              liveTerrs.unshift({
+                name: 'All Territories',
+                territory_name: 'All Territories',
+                parent_territory: '',
+                is_group: 1,
+                territory_manager: null
+              });
+            }
+            territoryTreeData = liveTerrs;
+            try {
+              localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
+            } catch (_) {}
+            syncProgramTerritoriesWithTree();
+            if (window.activeEditorViewMode === 'grid') {
+              if (typeof renderTable === 'function') renderTable();
+            } else {
+              if (typeof renderTree === 'function') renderTree();
+            }
+            if (typeof updateEditorViewModeUI === 'function') updateEditorViewModeUI();
+            if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
+            if (typeof renderSummaryReport === 'function') renderSummaryReport();
+          }
+        } catch (terrErr) {
+          console.warn('[Streamlit Live Territories Warning]', terrErr);
+        }
+
+        // 6. Two-way server feedback toasts
         if (treeSync && treeSync.timestamp && treeSync.timestamp > lastProcessedTreeEventTs) {
           lastProcessedTreeEventTs = treeSync.timestamp;
           showToast(treeSync.message, treeSync.status || 'info');

@@ -12,6 +12,6 @@ gatherUsageStats = false
 headless = true
 enableCORS = false
 enableXsrfProtection = false
-enableStaticServing = true
+enableStaticServing = false
 enableWebsocketCompression = false
 

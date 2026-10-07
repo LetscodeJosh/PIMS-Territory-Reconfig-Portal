@@ -627,11 +627,17 @@ if "auth_response" not in st.session_state:
     st.session_state["auth_response"] = None
 if "opener" not in st.session_state:
     st.session_state["opener"] = None
-if "opener" not in st.session_state or not st.session_state["opener"]:
-    st.session_state["opener"] = get_authenticated_opener()
 
-if "live_territories" not in st.session_state:
-    st.session_state["live_territories"] = fetch_live_territories(st.session_state["opener"]) if st.session_state["opener"] else None
+# Only attempt authenticated opener and live fetch if an authorized session is active
+if st.session_state.get("auth_response") and st.session_state["auth_response"].get("authorized"):
+    if not st.session_state.get("opener"):
+        st.session_state["opener"] = get_authenticated_opener()
+    if "live_territories" not in st.session_state or not st.session_state["live_territories"]:
+        st.session_state["live_territories"] = fetch_live_territories(st.session_state["opener"]) if st.session_state["opener"] else None
+else:
+    if "live_territories" not in st.session_state:
+        st.session_state["live_territories"] = None
+
 if "live_sales_persons" not in st.session_state:
     st.session_state["live_sales_persons"] = None
 if "live_employees" not in st.session_state:
