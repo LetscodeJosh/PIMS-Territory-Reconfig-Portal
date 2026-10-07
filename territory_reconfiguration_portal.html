@@ -7,6 +7,38 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>HCP Profiling &bull; Territory Reconfiguration Portal</title>
+<script>
+  // Immediate Streamlit Handshake to prevent "having trouble loading component" timeout in Streamlit Cloud
+  (function() {
+    function sendReady() {
+      if (window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:componentReady",
+            apiVersion: 1
+          }, "*");
+          var h = window.innerHeight || document.documentElement.clientHeight || 750;
+          window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setFrameHeight",
+            height: h
+          }, "*");
+        } catch (_) {}
+      }
+    }
+    sendReady();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', sendReady);
+    }
+    var readyInterval = setInterval(sendReady, 200);
+    window.addEventListener('message', function(ev) {
+      if (ev.data && ev.data.type === 'streamlit:render') {
+        clearInterval(readyInterval);
+      }
+    });
+  })();
+</script>
 <style>
   :root {
     --bg-page: #F4F6F9;

@@ -10,6 +10,8 @@ gatherUsageStats = false
 
 [server]
 headless = true
-enableCORS = true
-enableXsrfProtection = true
-runOnSave = true
+enableCORS = false
+enableXsrfProtection = false
+enableStaticServing = true
+enableWebsocketCompression = false
+
