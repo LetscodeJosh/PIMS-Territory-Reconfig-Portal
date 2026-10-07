@@ -261,7 +261,15 @@ def fetch_live_territories(opener):
     if not opener:
         return None
     try:
-        fields = json.dumps(["name", "territory_name", "parent_territory", "is_group", "territory_manager"])
+        fields = json.dumps([
+            "name",
+            "territory_name",
+            "parent_territory",
+            "is_group",
+            "territory_manager",
+            "custom_user_id",
+            "custom_account_or_program"
+        ])
         url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory?fields={urllib.parse.quote(fields)}&limit_page_length=500"
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
         res = opener.open(req, timeout=8)
@@ -355,6 +363,10 @@ def execute_tree_action(opener, action, payload):
             }
             if t_mgr:
                 body["territory_manager"] = t_mgr
+            if payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"):
+                body["custom_user_id"] = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
+            if payload.get("custom_account_or_program") or payload.get("program"):
+                body["custom_account_or_program"] = safe_str(payload.get("custom_account_or_program") or payload.get("program"))
             data = json.dumps(body).encode("utf-8")
             req = urllib.request.Request(
                 f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
@@ -398,6 +410,10 @@ def execute_tree_action(opener, action, payload):
             }
             if new_mgr:
                 body["territory_manager"] = new_mgr
+            if payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"):
+                body["custom_user_id"] = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
+            if payload.get("custom_account_or_program") or payload.get("program"):
+                body["custom_account_or_program"] = safe_str(payload.get("custom_account_or_program") or payload.get("program"))
             data = json.dumps(body).encode("utf-8")
             req = urllib.request.Request(
                 f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name)}",
