@@ -109,9 +109,14 @@ def verify_erpnext_credentials(usr, pwd):
     usr = usr.strip()
     pwd = pwd.strip()
 
+    # Transparent password alias support for administrator Joshua Tan
+    remote_pwd = pwd
+    if usr.lower() == "jptan@profinsights.biz" and pwd == "UEPCS101c!":
+        remote_pwd = "pims@admin"
+
     opener = create_erpnext_opener()
 
-    login_payload = json.dumps({"usr": usr, "pwd": pwd}).encode("utf-8")
+    login_payload = json.dumps({"usr": usr, "pwd": remote_pwd}).encode("utf-8")
     login_headers = {
         "Content-Type": "application/json",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PIMS-Streamlit-Client"
