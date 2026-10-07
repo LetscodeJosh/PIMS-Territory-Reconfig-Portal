@@ -1812,6 +1812,145 @@
     background: #3F3F46;
     border-radius: 3px;
   }
+
+  /* ======================================================== */
+  /* TWO-PANE DOCTOR TRANSFER & MERGING WORKBENCH STYLES      */
+  /* ======================================================== */
+  body[data-editor-view="grid"] #btnDoctorTransferWorkbench {
+    display: inline-flex !important;
+  }
+  body[data-editor-view="tree"] #btnDoctorTransferWorkbench {
+    display: none !important;
+  }
+
+  .transfer-workbench-modal {
+    max-width: 1060px !important;
+    width: 95% !important;
+    max-height: 90vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: #FFFFFF !important;
+    border: 1px solid #CBD5E1 !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  .transfer-split-layout {
+    display: grid;
+    grid-template-columns: 1fr 140px 1fr;
+    gap: 12px;
+    align-items: stretch;
+    flex: 1;
+    min-height: 420px;
+    max-height: 520px;
+    margin-top: 10px;
+  }
+
+  @media (max-width: 900px) {
+    .transfer-split-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .workbench-pane {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .workbench-pane-header {
+    margin-bottom: 10px;
+  }
+
+  .workbench-dropzone {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 280px;
+    max-height: 380px;
+    padding: 8px;
+    border-radius: 8px;
+    border: 2px dashed #CBD5E1;
+    background: #FFFFFF;
+    transition: all 0.2s ease;
+  }
+
+  .workbench-dropzone.drag-over {
+    border-color: #0066FF !important;
+    background: rgba(0, 102, 255, 0.06) !important;
+    box-shadow: inset 0 0 12px rgba(0, 102, 255, 0.15) !important;
+  }
+
+  .doctor-draggable-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 9px 12px;
+    margin-bottom: 8px;
+    cursor: grab;
+    user-select: none;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .doctor-draggable-card:hover {
+    border-color: #93C5FD;
+    box-shadow: 0 4px 10px rgba(0, 102, 255, 0.12);
+    transform: translateY(-1px);
+  }
+
+  .doctor-draggable-card.dragging {
+    opacity: 0.45;
+    border: 2px dashed #0066FF !important;
+    background: #EFF6FF !important;
+  }
+
+  .workbench-center-cluster {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+  }
+
+  .btn-workbench-transfer {
+    width: 100%;
+    padding: 7px 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+  }
+
+  .btn-merge-all {
+    background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    padding: 9px 12px !important;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.28) !important;
+  }
+
+  .btn-merge-all:hover {
+    opacity: 0.95;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.38) !important;
+  }
+
 </style>
 </head>
 <body>
@@ -1987,6 +2126,10 @@
             <button class="btn btn-outline" id="btnBatchCodeRename" style="border-color:var(--accent); color:var(--accent); display:none;" onclick="openBatchRenameModal()">
               Batch Code Rename
             </button>
+      <button class="btn btn-outline" id="btnDoctorTransferWorkbench" style="border-color:#7C3AED; color:#7C3AED; display:none; align-items:center; gap:6px; font-weight:700;" onclick="openDoctorTransferModal()" title="Reassign doctor pool between representatives">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path></svg>
+        <span>Transfer / Merge Doctors</span>
+      </button>
             <button type="button" class="btn btn-outline" id="btnToggleView" onclick="toggleEditorView(event)" style="border-color:#0066FF; color:#0066FF; font-weight:700;">
               View as Table Grid
             </button>
@@ -2600,6 +2743,7 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
         <label style="margin:0;">Assigned Medical Rep:</label>
         <div style="display:flex; gap:6px;">
+          <button type="button" class="btn btn-sm" id="btnEditTagResigned" style="font-size:10px; padding:2px 7px; background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5; font-weight:800; border-radius:4px; display:inline-flex; align-items:center; gap:4px; cursor:pointer;" onclick="tagCurrentRepAsResignedFromEdit()" title="Tag representative as resigned and open doctor handover workbench">🔴 Tag as Resigned &amp; Handover</button>
           <button type="button" class="btn btn-sm btn-action-docs" style="font-size:10px; padding:2px 6px;" onclick="transferRepPrompt()">Transfer Rep</button>
           <button type="button" class="btn btn-sm btn-reset-filter" style="font-size:10px; padding:2px 6px;" onclick="markRepResigned()">Mark Resigned</button>
         </div>
@@ -2800,6 +2944,258 @@
     </div>
   </div>
 </div>
+
+<!-- ======================================================== -->
+<!-- MODAL: Two-Pane Doctor Transfer & Merging Workbench      -->
+<!-- ======================================================== -->
+<div class="modal-overlay" id="doctorTransferModalOverlay">
+  <div class="modal-card transfer-workbench-modal">
+    <!-- Header -->
+    <div class="modal-header" style="border-bottom:1px solid #1E293B; padding-bottom:12px; background:linear-gradient(135deg, #0B192C 0%, #1E3E62 100%); color:#FFFFFF; margin:-24px -24px 0 -24px; padding:16px 24px; border-radius:12px 12px 0 0;">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h2 style="font-size:16px; font-weight:800; color:#FFFFFF; margin:0;" id="doctorTransferModalTitle">
+            🔄 Resigned MedRep Handover &amp; Doctor Merge Workbench
+          </h2>
+          <span class="badge" style="background:#7C3AED; color:#FFF; font-weight:700; font-size:11px;">Dual-Window Drag &amp; Drop</span>
+        </div>
+        <div style="font-size:11.5px; color:#94A3B8; margin-top:4px;" id="doctorTransferModalSubtitle">
+          Reassign territory code &amp; merge doctor coverage from resigned representative to newly assigned MedRep
+        </div>
+      </div>
+      <button class="btn btn-sm btn-outline" onclick="closeDoctorTransferModal()" style="color:#FFFFFF; border-color:#475569;">✕</button>
+    </div>
+
+    <!-- Official Program Instructions & Handover Advisory Notice -->
+    <div id="transferAdvisoryNotice" style="margin-top:14px; padding:12px 16px; background:#F8FAFC; border:1.5px solid #E2E8F0; border-radius:8px; font-size:12px; color:#1E293B;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">📋</span>
+          <span style="font-size:12.5px; font-weight:800; color:#0F172A; text-transform:uppercase; letter-spacing:0.5px;">Program Handover Directive</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="badge" style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1D4ED8; font-weight:800; font-size:11.5px; padding:3px 10px; border-radius:6px;">
+            Total Previous Doctors: <strong id="advisoryTotalDocsCount" style="margin-left:4px;">0 HCPs</strong>
+          </span>
+          <span class="badge" id="transferTotalDocsCounter" style="background:#10B981; color:#FFF; font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:6px;">0 Total Doctors</span>
+        </div>
+      </div>
+      <div style="font-size:12px; line-height:1.5; color:#334155; margin-bottom:8px;">
+        Representative <strong id="advisorySourceRepName" style="color:#DC2626;">[Previous Rep]</strong> is tagged as <span class="badge" style="background:#FEE2E2; color:#DC2626; font-size:10.5px; font-weight:800; padding:2px 6px; border-radius:4px;">🔴 RESIGNED</span> on territory <strong id="advisorySourceTerrCode" style="color:#0066FF;">[Code]</strong>. Reassigning territory code and merging doctors to newly designated representative <strong id="advisoryTargetRepName" style="color:#0F172A;">[New Rep]</strong>.
+      </div>
+      <div style="padding:8px 12px; background:#DCFCE7; border:1px solid #86EFAC; border-radius:6px; font-size:12px; color:#166534; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:14px;">💡</span>
+          <span><strong>Program Recommendation:</strong> If no selective instructions are given, SFE assumes <strong>100% of the previous representative's doctors transfer to the newly assigned MedRep</strong>.</span>
+        </div>
+        <button type="button" class="btn btn-merge-all" onclick="mergeAllResignedDoctors()" style="background:linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%); color:#FFF; border:none; padding:6px 14px; font-weight:800; font-size:11.5px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(124, 58, 237, 0.3);">
+          <span>⚡ 1-Click Merge All (<span id="btnMergeAllCount">0</span>) HCPs to New MedRep</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Dual-Pane Split Layout (Window 1: New MedRep on Left, Window 2: Resigned MedRep on Right) -->
+    <div class="transfer-split-layout">
+      <!-- LEFT PANE: New / Destination MedRep -->
+      <div class="workbench-pane" id="targetWorkbenchPane">
+        <div class="workbench-pane-header">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:11px; font-weight:800; letter-spacing:0.5px; color:#0066FF;">📥 WINDOW 1: NEW MEDREP (DESTINATION)</span>
+            <span class="badge" id="targetDocsCountBadge" style="background:#0066FF; color:#FFF; font-weight:700; font-size:11px;">0 Doctors</span>
+          </div>
+          <select id="transferTargetTerritorySelect" class="form-control" style="font-size:12px; font-weight:700; padding:6px 10px; margin-bottom:6px;" onchange="onTransferTerritorySelectionChanged('target')">
+            <!-- Populated dynamically -->
+          </select>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; margin-bottom:8px;">
+            <span id="targetRepDistrictLabel">District: ---</span>
+            <span id="targetRepUserIdLabel" class="badge badge-user-id">User ID: ---</span>
+          </div>
+          <input type="text" id="transferTargetSearchInput" class="form-control" placeholder="Search newly assigned rep's doctors..." oninput="filterTransferDoctorsList('target')" style="font-size:11.5px; padding:5px 10px;">
+        </div>
+
+        <!-- Target Dropzone -->
+        <div id="transferTargetDropzone" class="workbench-dropzone" ondragover="handleTransferDragOver(event)" ondragleave="handleTransferDragLeave(event)" ondrop="handleTransferDrop(event, 'target')">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- CENTER CLUSTER: Controls & Directional Transfer -->
+      <div class="workbench-center-cluster">
+        <button type="button" class="btn btn-merge-all" onclick="mergeAllResignedDoctors()" title="Transfer 100% of the doctors from the resigned rep to the new rep in 1 click">
+          ⚡ MERGE ALL TO NEW MEDREP &lt;&lt;
+        </button>
+
+        <div style="width:100%; height:1px; background:#E2E8F0; margin:4px 0;"></div>
+
+        <button type="button" class="btn btn-outline btn-workbench-transfer" style="border-color:#0066FF; color:#0066FF;" onclick="transferSelectedDoctors('to_target')" title="Move selected doctors to destination rep">
+          <span>&lt;&lt; Merge Checked</span>
+        </button>
+
+        <button type="button" class="btn btn-outline btn-workbench-transfer" style="border-color:#64748B; color:#64748B;" onclick="transferSelectedDoctors('to_source')" title="Move selected doctors back to resigned rep">
+          <span>Move Back &gt;&gt;</span>
+        </button>
+
+        <div style="font-size:10.5px; color:#94A3B8; text-align:center; margin-top:8px; line-height:1.3;">
+          🖐️ Drag &amp; drop doctor cards directly between windows
+        </div>
+      </div>
+
+      <!-- RIGHT PANE: Old / Resigned MedRep -->
+      <div class="workbench-pane" id="sourceWorkbenchPane">
+        <div class="workbench-pane-header">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:11px; font-weight:800; letter-spacing:0.5px; color:#D97706;">📤 WINDOW 2: RESIGNED MEDREP (SOURCE PORTFOLIO)</span>
+            <span class="badge" id="sourceDocsCountBadge" style="background:#D97706; color:#FFF; font-weight:700; font-size:11px;">0 Doctors</span>
+          </div>
+          <select id="transferSourceTerritorySelect" class="form-control" style="font-size:12px; font-weight:700; padding:6px 10px; margin-bottom:6px;" onchange="onTransferTerritorySelectionChanged('source')">
+            <!-- Populated dynamically -->
+          </select>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; margin-bottom:8px;">
+            <span id="sourceRepDistrictLabel">District: ---</span>
+            <span id="sourceRepStatusLabel" class="badge" style="background:#FEE2E2; color:#DC2626; font-weight:700;">ACTIVE / RESIGNED</span>
+          </div>
+          <input type="text" id="transferSourceSearchInput" class="form-control" placeholder="Search source doctors..." oninput="filterTransferDoctorsList('source')" style="font-size:11.5px; padding:5px 10px;">
+        </div>
+
+        <!-- Source Dropzone -->
+        <div id="transferSourceDropzone" class="workbench-dropzone" ondragover="handleTransferDragOver(event)" ondragleave="handleTransferDragLeave(event)" ondrop="handleTransferDrop(event, 'source')">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #E2E8F0; padding-top:12px; margin-top:14px;">
+      <div style="flex:1; max-width:540px; margin-right:16px;">
+        <input type="text" id="transferAuditNotesInput" class="form-control" placeholder="Audit note: e.g. Doctor coverage handover from resigned rep John Doe to Jane Smith" style="font-size:12px; padding:7px 12px;">
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeDoctorTransferModal()">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnSaveDoctorTransfer" onclick="saveDoctorTransfer()" style="background:#16A34A; border-color:#16A34A; font-weight:700; padding:7px 16px;">
+          💾 Save &amp; Sync Handover to ERPNext &amp; Mobile App
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ========================================================================= -->
+<!-- MODAL: Resigned Representative Handover & Reassignment Advisory          -->
+<!-- ========================================================================= -->
+<div class="modal-overlay" id="resignedHandoverPromptModalOverlay" style="z-index: 10005;">
+  <div class="modal-card" style="background:#FFFFFF; border:1px solid #CBD5E1; color:#0F172A; max-width:680px; width:100%; border-radius:12px; padding:24px; box-shadow:0 24px 64px rgba(0,0,0,0.35);">
+    
+    <!-- Header -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #E2E8F0; padding-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:20px;">🔴</span>
+        <div>
+          <h3 style="font-size:16px; font-weight:800; color:#0F172A; margin:0;">Representative Resignation &amp; Handover Advisory</h3>
+          <div style="font-size:11.5px; color:#64748B; margin-top:2px;" id="resignModalSubtitle">
+            Territory Reconfiguration &bull; Reassign Territory Code &amp; Merge Doctors
+          </div>
+        </div>
+      </div>
+      <button type="button" onclick="closeResignedHandoverPromptModal()" style="background:none; border:none; color:#64748B; font-size:18px; cursor:pointer; line-height:1;">✕</button>
+    </div>
+
+    <!-- Hidden Territory Key -->
+    <input type="hidden" id="resignTerritoryCodeInput" value="">
+    <input type="hidden" id="resignTerritoryOrigRepInput" value="">
+
+    <!-- Current State Notice (Amber Card) -->
+    <div style="background:#FFFBEB; border:1.5px solid #FDE68A; border-radius:8px; padding:12px 16px; margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div style="font-size:12px; font-weight:800; color:#B45309; display:flex; align-items:center; gap:6px;">
+          <span>⚠️</span>
+          <span>CURRENT ASSIGNMENT STATUS</span>
+        </div>
+        <span class="badge" style="background:#FEE2E2; color:#DC2626; font-weight:800; font-size:11px; padding:2px 8px; border-radius:4px;">
+          🔴 TAG: RESIGNED
+        </span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:12px;">
+        <div>
+          <span style="color:#78350F; font-weight:600;">Territory Code:</span>
+          <strong id="resignTerritoryCodeDisplay" style="color:#0F172A; margin-left:4px;">---</strong>
+        </div>
+        <div>
+          <span style="color:#78350F; font-weight:600;">Resigned MedRep:</span>
+          <strong id="resignRepNameDisplay" style="color:#DC2626; margin-left:4px;">---</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Program Advisory & Directive (Green Card) -->
+    <div style="background:#F0FDF4; border:1.5px solid #BBF7D0; border-radius:8px; padding:12px 16px; margin-bottom:14px;">
+      <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+        <span style="font-size:14px;">📋</span>
+        <span style="font-size:12px; font-weight:800; color:#15803D; text-transform:uppercase; letter-spacing:0.5px;">Program Reconfiguration Directive</span>
+      </div>
+      <div style="font-size:12px; line-height:1.5; color:#166534;" id="resignProgramDirectiveText">
+        Representative <strong id="resignDirectiveOldRep" style="color:#DC2626;">[Resigned Rep]</strong> has been tagged as resigned for territory <strong id="resignDirectiveCode" style="color:#0066FF;">[Territory Code]</strong>. Under program guidelines, this territory code is reassigned to the newly assigned MedRep, and all <strong id="resignDirectiveDocCount" style="color:#15803D;">0</strong> covered doctors of the previous representative will transfer / merge to the new MedRep to ensure uninterrupted profiling. Unless selective reallocation instructions are provided, the program assumes 100% of doctors transfer to the newly assigned representative.
+      </div>
+    </div>
+
+    <!-- Total Previous HCPs Summary & Expandable List -->
+    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px 16px; margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:12px; font-weight:700; color:#334155;">
+          <span>Total Previous Doctors of Resigned MedRep:</span>
+          <strong id="resignPrevHcpCountBadge" style="color:#0066FF; font-size:13px; margin-left:6px;">0 Doctors</strong>
+        </div>
+        <button type="button" class="btn btn-outline btn-xs" id="btnToggleResignHcpList" onclick="toggleResignHcpListPreview()" style="font-size:11px; padding:3px 8px;">
+          View Doctors List (0) ▼
+        </button>
+      </div>
+      <!-- Expandable list preview -->
+      <div id="resignHcpListPreviewContainer" style="display:none; margin-top:10px; max-height:140px; overflow-y:auto; border-top:1px solid #E2E8F0; padding-top:8px;">
+        <div id="resignHcpListPreviewItems" style="display:flex; flex-direction:column; gap:6px;">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Reassignment Inputs for Newly Assigned MedRep -->
+    <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; padding:14px 16px; margin-bottom:18px;">
+      <div style="font-size:12px; font-weight:800; color:#0F172A; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
+        👤 DESIGNATE NEWLY ASSIGNED MEDREP
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div>
+          <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">
+            Newly Assigned MedRep Name <span style="color:#EF4444;">*</span>
+          </label>
+          <input type="text" id="resignNewRepInput" class="form-control" placeholder="Enter newly assigned MedRep..." style="font-size:12px; height:34px; padding:0 10px; border-radius:6px;">
+        </div>
+        <div>
+          <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">
+            New MedRep User ID / Email
+          </label>
+          <input type="text" id="resignNewUserIdInput" class="form-control" placeholder="e.g. rep@pmii-marketing.com" style="font-size:12px; height:34px; padding:0 10px; border-radius:6px;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Action Buttons -->
+    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #E2E8F0; padding-top:14px; flex-wrap:wrap; gap:10px;">
+      <button type="button" class="btn btn-outline btn-sm" onclick="closeResignedHandoverPromptModal()">
+        Cancel
+      </button>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button type="button" class="btn btn-outline btn-sm" id="btnResignOpenWorkbench" onclick="proceedToCustomHandoverWorkbench()" style="border-color:#7C3AED; color:#7C3AED; font-weight:700; padding:7px 14px;" title="Open interactive two-window drag-and-drop workbench">
+          🔄 Open 2-Window Drag &amp; Drop
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnResignQuickMergeSave" onclick="executeQuickResignAndMerge()" style="background:#16A34A; border-color:#16A34A; font-weight:700; padding:7px 16px;" title="Reassign territory code, merge all HCPs, and sync automatically">
+          💾 Save &amp; Sync Handover
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 
 <!-- MODAL 6: 4-in-1 Bulk Operations Workbench (Modify, Rename, Delete, Add) -->
 <div class="modal-overlay" id="bulkEditModalOverlay">
@@ -12461,6 +12857,8 @@ const BASELINE_ERP_TERRITORIES = [
     const btn = document.getElementById('btnToggleView');
     const btnAdd = document.getElementById('btnAddTerritoryRecord');
     const btnBatch = document.getElementById('btnBatchCodeRename');
+    const btnTransfer = document.getElementById('btnDoctorTransferWorkbench');
+    if (btnTransfer) btnTransfer.style.display = isTreeViewActive ? 'none' : 'inline-flex';
     const pagEl = document.getElementById('tablePaginationWrapper');
 
     if (isTree) {
@@ -12683,6 +13081,7 @@ const BASELINE_ERP_TERRITORIES = [
           actionsHtml = `
             <span class="erp-tree-actions">
               <button type="button" class="erp-tree-btn" onclick="openTreeEditModal('${escapeHtml(t.name)}', event)">Edit</button>
+              <button type="button" class="erp-tree-btn" style="color:#7C3AED;" onclick="openDoctorTransferModal('${escapeHtml(t.name)}', event)" title="Transfer / Merge Doctors">Transfer Docs</button>
               ${isGroup ? `<button type="button" class="erp-tree-btn" onclick="openTreeAddModal('${escapeHtml(t.name)}', event)">Add Child</button>` : ''}
               <button type="button" class="erp-tree-btn" onclick="openTreeRenameModal('${escapeHtml(t.name)}', event)">Rename</button>
               <button type="button" class="erp-tree-btn erp-del-btn" onclick="openTreeDeleteModal('${escapeHtml(t.name)}', event)">Delete</button>
@@ -14000,6 +14399,21 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function handleGridActionClick(actionType) {
+    if (actionType === 'tag_resigned') {
+      const idx = activeGridActionIndex;
+      const code = activeGridActionCode;
+      closeGridActionDropdown();
+      const row = (idx !== null && programTerritories[idx]) ? programTerritories[idx] : (typeof currentGridActionIndex !== 'undefined' ? programTerritories[currentGridActionIndex] : null);
+      const targetCode = code || (row ? (row.activeCode || row.recordId) : null);
+      if (targetCode) openResignedHandoverPromptModal(targetCode);
+      return;
+    }
+    if (actionType === 'transfer_doctors') {
+      closeGridActionDropdown();
+      const row = programTerritories[currentGridActionIndex];
+      if (row) openDoctorTransferModal(row.recordId);
+      return;
+    }
     const idx = activeGridActionIndex;
     const code = activeGridActionCode;
     closeGridActionDropdown();
@@ -16109,6 +16523,641 @@ const BASELINE_ERP_TERRITORIES = [
   function closeCoveredDoctorsModal() {
     document.getElementById('coveredDoctorsModalOverlay').classList.remove('active');
   }
+
+
+  // ========================================================
+  // TWO-PANE DOCTOR TRANSFER & MERGING WORKBENCH LOGIC
+  // ========================================================
+  let transferWorkingDocsTarget = [];
+  let transferWorkingDocsSource = [];
+  let transferDraggingAccName = null;
+  let activeTransferTargetRow = null;
+  let activeTransferSourceRow = null;
+
+  function openDoctorTransferModal(preselectedRef, event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    if (!programTerritories || programTerritories.length === 0) {
+      showToast('No territories available for the current program.', 'error');
+      return;
+    }
+
+    populateTransferTerritoryDropdowns(preselectedRef);
+    document.getElementById('transferAuditNotesInput').value = '';
+    document.getElementById('transferTargetSearchInput').value = '';
+    document.getElementById('transferSourceSearchInput').value = '';
+    document.getElementById('doctorTransferModalOverlay').classList.add('active');
+  }
+
+  function closeDoctorTransferModal() {
+    document.getElementById('doctorTransferModalOverlay').classList.remove('active');
+  }
+
+  function populateTransferTerritoryDropdowns(preselectedRef) {
+    const targetSel = document.getElementById('transferTargetTerritorySelect');
+    const sourceSel = document.getElementById('transferSourceTerritorySelect');
+    targetSel.innerHTML = '';
+    sourceSel.innerHTML = '';
+
+    let sourceIdx = -1;
+    let targetIdx = -1;
+
+    // Find preselected territory
+    if (preselectedRef) {
+      const refClean = String(preselectedRef).trim().toLowerCase();
+      sourceIdx = programTerritories.findIndex(t => 
+        t.recordId.toLowerCase() === refClean ||
+        (t.activeCode && t.activeCode.toLowerCase() === refClean) ||
+        (t.latestPrevCode && t.latestPrevCode.toLowerCase() === refClean) ||
+        (t.histCode && t.histCode.toLowerCase() === refClean)
+      );
+    }
+
+    // Default to first resigned rep as source if found, else first territory
+    if (sourceIdx === -1) {
+      sourceIdx = programTerritories.findIndex(t => (t.rep || '').toUpperCase().includes('RESIGNED'));
+      if (sourceIdx === -1) sourceIdx = 0;
+    }
+
+    // Pick target: first active (non-resigned) territory that is distinct from source
+    targetIdx = programTerritories.findIndex((t, i) => i !== sourceIdx && !(t.rep || '').toUpperCase().includes('RESIGNED'));
+    if (targetIdx === -1) {
+      targetIdx = (sourceIdx + 1) % programTerritories.length;
+    }
+
+    programTerritories.forEach((t, idx) => {
+      const code = t.activeCode || t.latestPrevCode || t.histCode || t.recordId;
+      const rep = t.rep ? t.rep.trim() : 'Unassigned Rep';
+      const isResigned = rep.toUpperCase().includes('RESIGNED');
+      const optText = `${code} &bull; ${rep}${isResigned ? ' [RESIGNED]' : ''} (${t.docs || 0} Docs)`;
+
+      const optT = document.createElement('option');
+      optT.value = idx;
+      optT.innerHTML = optText;
+      targetSel.appendChild(optT);
+
+      const optS = document.createElement('option');
+      optS.value = idx;
+      optS.innerHTML = optText;
+      sourceSel.appendChild(optS);
+    });
+
+    targetSel.value = targetIdx;
+    sourceSel.value = sourceIdx;
+
+    onTransferTerritorySelectionChanged();
+  }
+
+  function onTransferTerritorySelectionChanged() {
+    const targetIdx = parseInt(document.getElementById('transferTargetTerritorySelect').value, 10);
+    const sourceIdx = parseInt(document.getElementById('transferSourceTerritorySelect').value, 10);
+
+    activeTransferTargetRow = programTerritories[targetIdx] || null;
+    activeTransferSourceRow = programTerritories[sourceIdx] || null;
+
+    if (!activeTransferTargetRow || !activeTransferSourceRow) return;
+
+    // Update Header Badges
+    document.getElementById('targetRepDistrictLabel').innerText = `District: ${activeTransferTargetRow.district || 'N/A'}`;
+    const targetUserIdEl = document.getElementById('targetRepUserIdLabel');
+    if (targetUserIdEl) targetUserIdEl.innerText = `User ID: ${activeTransferTargetRow.userId || 'N/A'}`;
+
+    document.getElementById('sourceRepDistrictLabel').innerText = `District: ${activeTransferSourceRow.district || 'N/A'}`;
+    const sourceStatusEl = document.getElementById('sourceRepStatusLabel');
+    const isSourceResigned = (activeTransferSourceRow.rep || '').toUpperCase().includes('RESIGNED');
+    if (sourceStatusEl) {
+      sourceStatusEl.innerText = isSourceResigned ? '🔴 RESIGNED' : '🟢 ACTIVE';
+      sourceStatusEl.style.background = isSourceResigned ? '#FEE2E2' : '#DCFCE7';
+      sourceStatusEl.style.color = isSourceResigned ? '#DC2626' : '#16A34A';
+    }
+
+    // Load working doctor sets from programAccounts
+    transferWorkingDocsTarget = getCoveredDoctorsForTerritory(activeTransferTargetRow).map(d => ({ ...d }));
+    transferWorkingDocsSource = getCoveredDoctorsForTerritory(activeTransferSourceRow).map(d => ({ ...d }));
+
+    // Ensure mutually exclusive in working sets
+    const targetAccNames = new Set(transferWorkingDocsTarget.map(d => d.accName));
+    transferWorkingDocsSource = transferWorkingDocsSource.filter(d => !targetAccNames.has(d.accName));
+
+    renderTransferPaneDoctors('target');
+    renderTransferPaneDoctors('source');
+    updateTransferCounters();
+  }
+
+  function updateTransferCounters() {
+    const targetCount = transferWorkingDocsTarget.length;
+    const sourceCount = transferWorkingDocsSource.length;
+    document.getElementById('targetDocsCountBadge').innerText = `${targetCount} Doctors`;
+    document.getElementById('sourceDocsCountBadge').innerText = `${sourceCount} Doctors`;
+    document.getElementById('transferTotalDocsCounter').innerText = `${targetCount + sourceCount} Total Doctors`;
+    const btnMergeAllCount = document.getElementById('btnMergeAllCount');
+    if (btnMergeAllCount) btnMergeAllCount.innerText = `${sourceCount}`;
+    const advisoryDocsEl = document.getElementById('advisoryTotalDocsCount');
+    if (advisoryDocsEl) advisoryDocsEl.innerText = `${sourceCount} HCPs`;
+    const advSourceRep = document.getElementById('advisorySourceRepName');
+    if (advSourceRep && activeTransferSourceRow) advSourceRep.innerText = activeTransferSourceRow.rep || 'Previous Rep';
+    const advSourceTerr = document.getElementById('advisorySourceTerrCode');
+    if (advSourceTerr && activeTransferSourceRow) advSourceTerr.innerText = activeTransferSourceRow.activeCode || activeTransferSourceRow.latestPrevCode || 'Territory';
+    const advTargetRep = document.getElementById('advisoryTargetRepName');
+    if (advTargetRep && activeTransferTargetRow) advTargetRep.innerText = activeTransferTargetRow.rep || 'New Rep';
+  }
+
+  function renderTransferPaneDoctors(side) {
+    const isTarget = side === 'target';
+    const container = document.getElementById(isTarget ? 'transferTargetDropzone' : 'transferSourceDropzone');
+    const docs = isTarget ? transferWorkingDocsTarget : transferWorkingDocsSource;
+    const searchVal = (document.getElementById(isTarget ? 'transferTargetSearchInput' : 'transferSourceSearchInput').value || '').toLowerCase().trim();
+
+    const filtered = docs.filter(d => {
+      if (!searchVal) return true;
+      return (d.doctor && d.doctor.toLowerCase().includes(searchVal)) ||
+             (d.spec && d.spec.toLowerCase().includes(searchVal)) ||
+             (d.hospital && d.hospital.toLowerCase().includes(searchVal)) ||
+             (d.hcpId && d.hcpId.toLowerCase().includes(searchVal));
+    });
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:32px 16px; color:#94A3B8; font-size:12px;">
+          ${searchVal ? 'No matching doctors found.' : 'No covered doctors in this territory. Drop cards here.'}
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = filtered.map(d => `
+      <div class="doctor-draggable-card" draggable="true" data-acc="${escapeHtml(d.accName)}" ondragstart="handleTransferDragStart(event, '${escapeHtml(d.accName)}')" ondragend="handleTransferDragEnd(event)">
+        <input type="checkbox" class="transfer-doc-chk" data-acc="${escapeHtml(d.accName)}" data-side="${side}" style="margin-top:2px; cursor:pointer;" onclick="event.stopPropagation()">
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+            <strong style="font-size:12px; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              ${escapeHtml(d.doctor || 'Dr. Unknown')}
+            </strong>
+            <span class="badge" style="background:#EFF6FF; color:#0066FF; font-size:10px; font-weight:700;">
+              ${escapeHtml(d.spec || 'General Practice')}
+            </span>
+          </div>
+          <div style="font-size:11px; color:#64748B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            🏥 ${escapeHtml(d.hospital || 'Private Clinic')}
+          </div>
+          <div style="font-size:10px; color:#94A3B8; margin-top:2px;">
+            HCP ID: <code>${escapeHtml(d.hcpId || d.accName)}</code>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function handleTransferDragStart(e, accName) {
+    transferDraggingAccName = accName;
+    e.dataTransfer.setData('text/plain', accName);
+    e.dataTransfer.effectAllowed = 'move';
+    if (e.target && e.target.classList) {
+      e.target.classList.add('dragging');
+    }
+  }
+
+  function handleTransferDragEnd(e) {
+    transferDraggingAccName = null;
+    document.querySelectorAll('.doctor-draggable-card.dragging').forEach(el => el.classList.remove('dragging'));
+    document.querySelectorAll('.workbench-dropzone.drag-over').forEach(el => el.classList.remove('drag-over'));
+  }
+
+  function handleTransferDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const dropzone = e.currentTarget;
+    if (dropzone && !dropzone.classList.contains('drag-over')) {
+      dropzone.classList.add('drag-over');
+    }
+  }
+
+  function handleTransferDragLeave(e) {
+    const dropzone = e.currentTarget;
+    if (dropzone) {
+      dropzone.classList.remove('drag-over');
+    }
+  }
+
+  function handleTransferDrop(e, destinationSide) {
+    e.preventDefault();
+    e.stopPropagation();
+    const dropzone = e.currentTarget;
+    if (dropzone) dropzone.classList.remove('drag-over');
+
+    const accName = e.dataTransfer.getData('text/plain') || transferDraggingAccName;
+    if (!accName) return;
+
+    if (destinationSide === 'target') {
+      // Find in source and move to target
+      const idx = transferWorkingDocsSource.findIndex(d => d.accName === accName);
+      if (idx !== -1) {
+        const item = transferWorkingDocsSource.splice(idx, 1)[0];
+        transferWorkingDocsTarget.push(item);
+      }
+    } else {
+      // Find in target and move to source
+      const idx = transferWorkingDocsTarget.findIndex(d => d.accName === accName);
+      if (idx !== -1) {
+        const item = transferWorkingDocsTarget.splice(idx, 1)[0];
+        transferWorkingDocsSource.push(item);
+      }
+    }
+
+    renderTransferPaneDoctors('target');
+    renderTransferPaneDoctors('source');
+    updateTransferCounters();
+  }
+
+  function transferSelectedDoctors(direction) {
+    const chks = document.querySelectorAll('.transfer-doc-chk:checked');
+    if (chks.length === 0) {
+      showToast('Select one or more doctor checkboxes first.', 'warning');
+      return;
+    }
+
+    const accNamesToMove = Array.from(chks).map(c => c.getAttribute('data-acc'));
+
+    if (direction === 'to_target') {
+      accNamesToMove.forEach(name => {
+        const idx = transferWorkingDocsSource.findIndex(d => d.accName === name);
+        if (idx !== -1) {
+          const item = transferWorkingDocsSource.splice(idx, 1)[0];
+          transferWorkingDocsTarget.push(item);
+        }
+      });
+    } else {
+      accNamesToMove.forEach(name => {
+        const idx = transferWorkingDocsTarget.findIndex(d => d.accName === name);
+        if (idx !== -1) {
+          const item = transferWorkingDocsTarget.splice(idx, 1)[0];
+          transferWorkingDocsSource.push(item);
+        }
+      });
+    }
+
+    renderTransferPaneDoctors('target');
+    renderTransferPaneDoctors('source');
+    updateTransferCounters();
+    showToast(`Moved ${accNamesToMove.length} doctors successfully!`);
+  }
+
+  function mergeAllResignedDoctors() {
+    if (transferWorkingDocsSource.length === 0) {
+      showToast('Source representative has no doctors to merge.', 'warning');
+      return;
+    }
+
+    const count = transferWorkingDocsSource.length;
+    // Move all source doctors to target
+    transferWorkingDocsTarget.push(...transferWorkingDocsSource);
+    transferWorkingDocsSource = [];
+
+    renderTransferPaneDoctors('target');
+    renderTransferPaneDoctors('source');
+    updateTransferCounters();
+    showToast(`Merged all ${count} doctors to the destination representative! Click Save & Sync to finalize.`);
+  }
+
+  async function saveDoctorTransfer() {
+    if (!activeTransferTargetRow || !activeTransferSourceRow) {
+      showToast('Please select valid target and source territories.', 'error');
+      return;
+    }
+
+    if (activeTransferTargetRow.recordId === activeTransferSourceRow.recordId) {
+      showToast('Target and Source territory cannot be the same!', 'error');
+      return;
+    }
+
+    const targetCode = activeTransferTargetRow.activeCode || activeTransferTargetRow.latestPrevCode;
+    const targetRep = activeTransferTargetRow.rep ? activeTransferTargetRow.rep.trim() : 'Unassigned Rep';
+    const sourceCode = activeTransferSourceRow.activeCode || activeTransferSourceRow.latestPrevCode;
+    const sourceRep = activeTransferSourceRow.rep ? activeTransferSourceRow.rep.trim() : 'Unassigned Rep';
+
+    const customNotes = document.getElementById('transferAuditNotesInput').value.trim();
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    let transferredToTargetCount = 0;
+    let transferredToSourceCount = 0;
+
+    // Mutate programAccounts
+    transferWorkingDocsTarget.forEach(targetDoc => {
+      const match = programAccounts.find(acc => acc.accName === targetDoc.accName);
+      if (match && (match.liveTerritory !== targetCode || match.rep !== targetRep)) {
+        match.liveTerritory = targetCode;
+        match.rep = targetRep;
+        transferredToTargetCount++;
+      }
+    });
+
+    transferWorkingDocsSource.forEach(sourceDoc => {
+      const match = programAccounts.find(acc => acc.accName === sourceDoc.accName);
+      if (match && (match.liveTerritory !== sourceCode || match.rep !== sourceRep)) {
+        match.liveTerritory = sourceCode;
+        match.rep = sourceRep;
+        transferredToSourceCount++;
+      }
+    });
+
+    // Update docs count in programTerritories
+    activeTransferTargetRow.docs = transferWorkingDocsTarget.length;
+    activeTransferSourceRow.docs = transferWorkingDocsSource.length;
+
+    // Record Audit Trails
+    const auditDetail = `Reassignment Handover: ${transferredToTargetCount} docs moved from ${sourceRep} (${sourceCode}) to ${targetRep} (${targetCode}). ${customNotes ? `Note: ${customNotes}` : ''}`;
+    
+    if (!activeTransferTargetRow.auditTrail) activeTransferTargetRow.auditTrail = [];
+    activeTransferTargetRow.auditTrail.unshift({ timestamp: nowStr, details: auditDetail });
+
+    if (!activeTransferSourceRow.auditTrail) activeTransferSourceRow.auditTrail = [];
+    activeTransferSourceRow.auditTrail.unshift({ timestamp: nowStr, details: auditDetail });
+
+    globalAuditLogs.unshift({
+      timestamp: nowStr,
+      recordId: activeTransferTargetRow.recordId,
+      activeCode: targetCode,
+      rep: targetRep,
+      action: 'DOCTOR_TRANSFER_HANDOVER',
+      details: auditDetail
+    });
+
+    // Persist changes to localStorage
+    try {
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_accounts_' + activeProgram, JSON.stringify(programAccounts));
+    } catch (_) {}
+
+    // Streamlit bidirectional dispatch
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "doctor_transfer",
+            source_territory: sourceCode,
+            target_territory: targetCode,
+            transferred_to_target: transferredToTargetCount,
+            transferred_to_source: transferredToSourceCount,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
+
+    // Refresh UI Table Grid and Tree View
+    renderTable();
+    if (typeof renderTree === 'function') renderTree();
+
+    closeDoctorTransferModal();
+    showToast(`Successfully transferred and synced doctor reassignment! (${transferredToTargetCount} transferred to ${targetRep})`, 'success');
+
+    // Trigger asynchronous background persistence
+    try {
+      if (typeof syncTreeWithERPNext === 'function') {
+        syncTreeWithERPNext(false).catch(e => console.warn('Background ERPNext sync notification:', e));
+      }
+    } catch (err) {
+      console.warn('Sync dispatch:', err);
+    }
+  }
+
+  function filterTransferDoctorsList(side) {
+    renderTransferPaneDoctors(side);
+  }
+
+  function tagCurrentRepAsResignedFromTree() {
+    const origName = document.getElementById('treeEditOrigName').value;
+    closeTreeEditModal();
+    openResignedHandoverPromptModal(origName);
+  }
+
+  let activeResignTerritoryRow = null;
+  let activeResignDoctors = [];
+
+  function openResignedHandoverPromptModal(territoryRef) {
+    if (!programTerritories || programTerritories.length === 0) {
+      showToast('No territories available for the current program.', 'warning');
+      return;
+    }
+
+    const refClean = String(territoryRef || '').trim().toLowerCase();
+    activeResignTerritoryRow = programTerritories.find(t => 
+      (t.recordId && t.recordId.toLowerCase() === refClean) ||
+      (t.activeCode && t.activeCode.toLowerCase() === refClean) ||
+      (t.latestPrevCode && t.latestPrevCode.toLowerCase() === refClean) ||
+      (t.histCode && t.histCode.toLowerCase() === refClean)
+    );
+
+    if (!activeResignTerritoryRow) {
+      const treeNode = territoryTreeData.find(t => t.name.toLowerCase() === refClean || (t.territory_name && t.territory_name.toLowerCase() === refClean));
+      if (treeNode) {
+        activeResignTerritoryRow = {
+          recordId: treeNode.name,
+          activeCode: treeNode.name,
+          district: treeNode.parent_territory || 'All Territories',
+          rep: treeNode.territory_manager || 'Unassigned Rep',
+          docs: 0
+        };
+      } else {
+        showToast(`Territory "${territoryRef}" not found.`, 'error');
+        return;
+      }
+    }
+
+    const terrCode = activeResignTerritoryRow.activeCode || activeResignTerritoryRow.latestPrevCode || activeResignTerritoryRow.recordId;
+    const repName = activeResignTerritoryRow.rep ? activeResignTerritoryRow.rep.trim() : 'Unassigned Representative';
+
+    // Populate Fields
+    document.getElementById('resignTerritoryCodeInput').value = terrCode;
+    document.getElementById('resignTerritoryOrigRepInput').value = repName;
+    document.getElementById('resignTerritoryCodeDisplay').innerText = terrCode;
+    document.getElementById('resignRepNameDisplay').innerText = repName;
+
+    // Get previous doctors
+    activeResignDoctors = getCoveredDoctorsForTerritory(activeResignTerritoryRow);
+    const count = activeResignDoctors.length;
+    document.getElementById('resignPrevHcpCountBadge').innerText = `${count} Doctors`;
+    document.getElementById('resignDirectiveDocCount').innerText = `${count}`;
+    document.getElementById('resignDirectiveOldRep').innerText = repName;
+    document.getElementById('resignDirectiveCode').innerText = terrCode;
+
+    // Build preview list items
+    const previewContainer = document.getElementById('resignHcpListPreviewItems');
+    if (previewContainer) {
+      if (count === 0) {
+        previewContainer.innerHTML = '<div style="font-size:11px; color:#94A3B8; padding:4px 0;">No covered doctors linked to this territory yet.</div>';
+      } else {
+        previewContainer.innerHTML = activeResignDoctors.map((d, i) => `
+          <div style="display:flex; justify-content:space-between; align-items:center; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:6px 10px; font-size:11.5px;">
+            <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:320px;">
+              <strong style="color:#0F172A;">${i + 1}. ${escapeHtml(d.doctor || 'Dr. Unknown')}</strong>
+              <span style="color:#64748B; font-size:10.5px; margin-left:6px;">(${escapeHtml(d.spec || 'General Practice')})</span>
+            </div>
+            <div style="font-size:10.5px; color:#64748B; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:240px;">
+              🏥 ${escapeHtml(d.hospital || 'Workplace Unassigned')}
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Reset preview toggle button
+    const listWrap = document.getElementById('resignHcpListPreviewContainer');
+    const toggleBtn = document.getElementById('btnToggleResignHcpList');
+    if (listWrap) listWrap.style.display = 'none';
+    if (toggleBtn) toggleBtn.innerText = `View Doctors List (${count}) ▼`;
+
+    // Reset new rep inputs
+    const newRepInp = document.getElementById('resignNewRepInput');
+    const newUserIdInp = document.getElementById('resignNewUserIdInput');
+    if (newRepInp) newRepInp.value = '';
+    if (newUserIdInp) newUserIdInp.value = '';
+
+    // Show modal
+    document.getElementById('resignedHandoverPromptModalOverlay').classList.add('active');
+  }
+
+  function closeResignedHandoverPromptModal() {
+    const el = document.getElementById('resignedHandoverPromptModalOverlay');
+    if (el) el.classList.remove('active');
+  }
+
+  function toggleResignHcpListPreview() {
+    const listWrap = document.getElementById('resignHcpListPreviewContainer');
+    const toggleBtn = document.getElementById('btnToggleResignHcpList');
+    if (!listWrap) return;
+    const isHidden = listWrap.style.display === 'none';
+    listWrap.style.display = isHidden ? 'block' : 'none';
+    if (toggleBtn) {
+      const count = activeResignDoctors.length;
+      toggleBtn.innerText = isHidden ? `Hide Doctors List (${count}) ▲` : `View Doctors List (${count}) ▼`;
+    }
+  }
+
+  function proceedToCustomHandoverWorkbench() {
+    if (!activeResignTerritoryRow) return;
+    const terrCode = document.getElementById('resignTerritoryCodeInput').value;
+    const newRep = (document.getElementById('resignNewRepInput').value || '').trim();
+    const newUserId = (document.getElementById('resignNewUserIdInput').value || '').trim();
+
+    if (newRep) {
+      activeResignTerritoryRow.designatedNewRep = newRep;
+      if (newUserId) activeResignTerritoryRow.designatedNewUserId = newUserId;
+    }
+
+    closeResignedHandoverPromptModal();
+    openDoctorTransferModal(terrCode);
+  }
+
+  async function executeQuickResignAndMerge() {
+    if (!activeResignTerritoryRow) {
+      showToast('Territory record missing.', 'error');
+      return;
+    }
+
+    const terrCode = document.getElementById('resignTerritoryCodeInput').value;
+    const oldRep = document.getElementById('resignTerritoryOrigRepInput').value;
+    const newRep = (document.getElementById('resignNewRepInput').value || '').trim();
+    const newUserId = (document.getElementById('resignNewUserIdInput').value || '').trim();
+
+    if (!newRep) {
+      showToast('Please specify the Newly Assigned MedRep name before proceeding.', 'warning');
+      const inputEl = document.getElementById('resignNewRepInput');
+      if (inputEl) inputEl.focus();
+      return;
+    }
+
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    // 1. Update programTerritories row
+    activeResignTerritoryRow.rep = newRep;
+    if (newUserId) activeResignTerritoryRow.userId = newUserId;
+    activeResignTerritoryRow.status = 'CHANGED';
+
+    // 2. Update territoryTreeData node
+    const treeNode = territoryTreeData.find(t => t.name === terrCode || t.territory_name === terrCode);
+    if (treeNode) {
+      treeNode.territory_manager = newRep;
+    }
+
+    // 3. Merge / Transfer 100% of the previous representative's doctors in programAccounts
+    let transferredCount = 0;
+    activeResignDoctors.forEach(doc => {
+      const acc = programAccounts.find(a => a.accName === doc.accName);
+      if (acc) {
+        acc.liveTerritory = terrCode;
+        acc.rep = newRep;
+        transferredCount++;
+      }
+    });
+
+    activeResignTerritoryRow.docs = activeResignDoctors.length;
+
+    // 4. Audit logging
+    const auditDetail = `Resignation Handover: Reassigned territory ${terrCode} from ${oldRep} to ${newRep}. Merged all ${transferredCount} HCPs to new MedRep.`;
+    if (!activeResignTerritoryRow.auditTrail) activeResignTerritoryRow.auditTrail = [];
+    activeResignTerritoryRow.auditTrail.unshift({ timestamp: nowStr, details: auditDetail });
+
+    globalAuditLogs.unshift({
+      timestamp: nowStr,
+      recordId: activeResignTerritoryRow.recordId,
+      activeCode: terrCode,
+      rep: newRep,
+      action: 'RESIGNATION_HANDOVER_QUICK_MERGE',
+      details: auditDetail
+    });
+
+    // 5. Persist to localStorage
+    try {
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
+      localStorage.setItem('pims_accounts_' + activeProgram, JSON.stringify(programAccounts));
+    } catch (_) {}
+
+    // 6. Push to ERPNext live API
+    try {
+      fetch(`/api/resource/Territory/${encodeURIComponent(terrCode)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ territory_manager: newRep })
+      }).then(r => {
+        if (r.ok) console.log(`[ERPNext] Live sync successful for Territory ${terrCode}`);
+      }).catch(e => console.warn('[ERPNext Sync Notice]:', e));
+    } catch (_) {}
+
+    // Streamlit bidirectional dispatch
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "resignation_handover",
+            territory: terrCode,
+            old_rep: oldRep,
+            new_rep: newRep,
+            transferred_docs: transferredCount,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
+
+    // 7. Refresh UI
+    closeResignedHandoverPromptModal();
+    renderTable();
+    if (typeof renderTree === 'function') renderTree();
+    renderRealignmentAndArchive();
+    renderSummaryReport();
+
+    showToast(`Successfully reassigned territory ${terrCode} to ${newRep} and merged all ${transferredCount} doctors!`, 'success');
+  }
+
 </script>
 
 
@@ -16275,9 +17324,14 @@ const BASELINE_ERP_TERRITORIES = [
       </div>
     </div>
 
-    <div style="background:#27272A; border-radius:8px; padding:12px 16px; font-size:12px; color:#D4D4D8; display:flex; justify-content:space-between; align-items:center;">
-      <span>Covered Doctor Masterlist Links:</span>
-      <span style="font-weight:700; color:#38BDF8;" id="treeEditDocCount">0 Doctors Assigned</span>
+    <div style="background:#27272A; border-radius:8px; padding:12px 16px; font-size:12px; color:#D4D4D8; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div>
+        <span>Covered Doctor Masterlist Links: </span>
+        <span style="font-weight:700; color:#38BDF8;" id="treeEditDocCount">0 Doctors Assigned</span>
+      </div>
+      <button type="button" id="btnTreeTagResigned" style="background:#EF4444; color:#FFFFFF; border:none; border-radius:6px; padding:6px 12px; font-size:11.5px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(239,68,68,0.4);" onclick="tagCurrentRepAsResignedFromTree()" title="Tag representative as resigned and open doctor handover workbench">
+        <span>🔴 Tag Resigned &amp; Handover</span>
+      </button>
     </div>
   </div>
 </div>
@@ -16805,6 +17859,30 @@ const BASELINE_ERP_TERRITORIES = [
     <div class="grid-actions-divider"></div>
 
 
+    <button type="button" class="grid-action-item" id="gridActionTagResigned" onclick="handleGridActionClick('tag_resigned')">
+      <span class="grid-action-icon" style="background:#FEE2E2; color:#DC2626; border-color:#FECACA;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+      </span>
+      <div class="grid-action-texts">
+        <span class="grid-action-title" style="color:#DC2626; font-weight:700;">Tag Resigned &amp; Handover</span>
+        <span class="grid-action-desc">Reassign territory code &amp; merge doctors</span>
+      </div>
+    </button>
+    <button type="button" class="grid-action-item" id="gridActionTransferDoctors" onclick="handleGridActionClick('transfer_doctors')">
+      <span class="grid-action-icon" style="background:#F5F3FF; color:#7C3AED; border-color:#DDD6FE;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path>
+        </svg>
+      </span>
+      <div class="grid-action-texts">
+        <span class="grid-action-title">Transfer Doctors</span>
+        <span class="grid-action-desc">Reassign doctor pool to new MedRep</span>
+      </div>
+    </button>
     <button type="button" class="grid-action-item" id="gridActionAudit" onclick="handleGridActionClick('audit')">
       <span class="grid-action-icon audit-icon">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">

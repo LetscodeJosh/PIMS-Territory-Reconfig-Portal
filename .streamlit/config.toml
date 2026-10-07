@@ -10,5 +10,5 @@ gatherUsageStats = false
 
 [server]
 headless = true
-enableCORS = false
+enableCORS = true
 enableXsrfProtection = true
