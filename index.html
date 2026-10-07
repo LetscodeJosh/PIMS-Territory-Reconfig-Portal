@@ -63,10 +63,6 @@
   body[data-editor-view="grid"] #territoryTreeView {
     display: none !important;
   }
-  body[data-editor-view="grid"] #btnAddTerritoryRecord,
-  body[data-editor-view="grid"] #btnBatchCodeRename {
-    display: inline-flex !important;
-  }
   body[data-editor-view="grid"] #tablePaginationWrapper {
     display: flex !important;
   }
@@ -76,10 +72,6 @@
   }
   body[data-editor-view="tree"] #territoryTreeView {
     display: block !important;
-  }
-  body[data-editor-view="tree"] #btnAddTerritoryRecord,
-  body[data-editor-view="tree"] #btnBatchCodeRename {
-    display: none !important;
   }
   body[data-editor-view="tree"] #tablePaginationWrapper {
     display: none !important;
@@ -1816,11 +1808,81 @@
   /* ======================================================== */
   /* TWO-PANE DOCTOR TRANSFER & MERGING WORKBENCH STYLES      */
   /* ======================================================== */
-  body[data-editor-view="grid"] #btnDoctorTransferWorkbench {
-    display: inline-flex !important;
+  /* TOP-RIGHT RECONFIGURATION ACTIONS DROPDOWN STYLES */
+  .editor-actions-dropdown-container {
+    position: relative;
+    display: inline-block;
   }
-  body[data-editor-view="tree"] #btnDoctorTransferWorkbench {
-    display: none !important;
+  #btnEditorActionsDropdown {
+    transition: all 0.15s ease;
+  }
+  #btnEditorActionsDropdown:hover {
+    background: #F8FAFC !important;
+    border-color: #0066FF !important;
+    color: #0066FF !important;
+    box-shadow: 0 2px 6px rgba(0, 102, 255, 0.15) !important;
+  }
+  .editor-actions-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 1200;
+    min-width: 275px;
+    background: #FFFFFF;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.06);
+    padding: 8px;
+    animation: popoverFadeIn 0.15s ease-out;
+  }
+  .editor-action-menu-item {
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    box-sizing: border-box;
+    margin-bottom: 2px;
+  }
+  .editor-action-menu-item:hover {
+    background: #F1F5F9 !important;
+    transform: translateX(2px);
+  }
+  .editor-action-menu-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .editor-action-menu-text {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .editor-action-menu-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0F172A;
+    line-height: 1.3;
+  }
+  .editor-action-menu-desc {
+    font-size: 10px;
+    color: #64748B;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .transfer-workbench-modal {
@@ -2120,22 +2182,88 @@
               </button>
             </div>
 
-            <button class="btn btn-success" id="btnAddTerritoryRecord" onclick="openTreeAddModal('All Territories')" style="display:none; align-items:center; gap:6px;">
-              <span>+</span> Add Child / Territory
-            </button>
-            <button class="btn btn-outline" id="btnBatchCodeRename" style="border-color:var(--accent); color:var(--accent); display:none;" onclick="openBatchRenameModal()">
-              Batch Code Rename
-            </button>
-      <button class="btn btn-outline" id="btnDoctorTransferWorkbench" style="border-color:#7C3AED; color:#7C3AED; display:none; align-items:center; gap:6px; font-weight:700;" onclick="openDoctorTransferModal()" title="Reassign doctor pool between representatives">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path></svg>
-        <span>Transfer / Merge Doctors</span>
-      </button>
-            <button type="button" class="btn btn-outline" id="btnToggleView" onclick="toggleEditorView(event)" style="border-color:#0066FF; color:#0066FF; font-weight:700;">
-              View as Table Grid
-            </button>
-            <button class="btn btn-outline" id="btnExportCsv" onclick="exportReconfigurationCsv()">
-              Export CSV
-            </button>
+            <!-- Top-Right Actions Dropdown Menu (Clean, Neat & Uncluttered) -->
+            <div class="editor-actions-dropdown-container" id="editorActionsDropdownContainer">
+              <button type="button" class="btn btn-outline" id="btnEditorActionsDropdown" onclick="toggleEditorActionsDropdown(event)" style="height:36px; padding:0 14px; font-size:12.5px; font-weight:700; color:#1E293B; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:8px; display:inline-flex; align-items:center; gap:8px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.06);" title="Reconfiguration Actions & Tools">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:#0066FF;">
+                  <line x1="4" y1="21" x2="4" y2="14"></line>
+                  <line x1="4" y1="10" x2="4" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12" y2="3"></line>
+                  <line x1="20" y1="21" x2="20" y2="16"></line>
+                  <line x1="20" y1="12" x2="20" y2="3"></line>
+                  <line x1="1" y1="14" x2="7" y2="14"></line>
+                  <line x1="9" y1="8" x2="15" y2="8"></line>
+                  <line x1="17" y1="16" x2="23" y2="16"></line>
+                </svg>
+                <span>Actions</span>
+                <svg id="editorActionsChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#64748B; transition:transform 0.2s ease;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+
+              <div id="editorActionsMenu" class="editor-actions-menu">
+                <div style="padding:4px 8px 6px 8px; border-bottom:1px solid #F1F5F9; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:10px; font-weight:800; color:#64748B; text-transform:uppercase; letter-spacing:0.5px;">Workbench Actions</span>
+                  <span style="font-size:10.5px; font-weight:700; color:#0066FF;" id="editorActionsViewBadge">Table Grid</span>
+                </div>
+
+                <!-- 1. Add Child / Territory -->
+                <button type="button" class="editor-action-menu-item" id="btnAddTerritoryRecord" onclick="handleEditorActionClick('add')">
+                  <span class="editor-action-menu-icon" style="background:#DCFCE7; color:#16A34A; border:1px solid #BBF7D0;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  </span>
+                  <div class="editor-action-menu-text">
+                    <span class="editor-action-menu-title">+ Add Child / Territory</span>
+                    <span class="editor-action-menu-desc">Create child territory node or group folder</span>
+                  </div>
+                </button>
+
+                <!-- 2. Batch Code Rename -->
+                <button type="button" class="editor-action-menu-item" id="btnBatchCodeRename" onclick="handleEditorActionClick('batch_rename')">
+                  <span class="editor-action-menu-icon" style="background:#DBEAFE; color:#0066FF; border:1px solid #BFDBFE;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                  </span>
+                  <div class="editor-action-menu-text">
+                    <span class="editor-action-menu-title">Batch Code Rename</span>
+                    <span class="editor-action-menu-desc">Bulk rename territory codes with live diffs</span>
+                  </div>
+                </button>
+
+                <!-- 3. Transfer / Merge Doctors -->
+                <button type="button" class="editor-action-menu-item" id="btnDoctorTransferWorkbench" onclick="handleEditorActionClick('transfer_doctors')">
+                  <span class="editor-action-menu-icon" style="background:#F5F3FF; color:#7C3AED; border:1px solid #DDD6FE;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path></svg>
+                  </span>
+                  <div class="editor-action-menu-text">
+                    <span class="editor-action-menu-title" style="color:#7C3AED;">Transfer / Merge Doctors</span>
+                    <span class="editor-action-menu-desc">2-pane doctor transfer &amp; handover</span>
+                  </div>
+                </button>
+
+                <div style="height:1px; background:#F1F5F9; margin:4px 0;"></div>
+
+                <!-- 4. Toggle View (Table vs Tree) -->
+                <button type="button" class="editor-action-menu-item" id="btnToggleView" onclick="handleEditorActionClick('toggle_view', event)">
+                  <span class="editor-action-menu-icon" style="background:#F0F9FF; color:#0284C7; border:1px solid #BAE6FD;" id="editorActionViewIcon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                  </span>
+                  <div class="editor-action-menu-text">
+                    <span class="editor-action-menu-title" id="editorActionViewTitle">View as Territory Tree</span>
+                    <span class="editor-action-menu-desc" id="editorActionViewDesc">Switch to hierarchical interactive tree</span>
+                  </div>
+                </button>
+
+                <!-- 5. Export CSV -->
+                <button type="button" class="editor-action-menu-item" id="btnExportCsv" onclick="handleEditorActionClick('export_csv')">
+                  <span class="editor-action-menu-icon" style="background:#F8FAFC; color:#475569; border:1px solid #E2E8F0;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  </span>
+                  <div class="editor-action-menu-text">
+                    <span class="editor-action-menu-title">Export CSV</span>
+                    <span class="editor-action-menu-desc">Download active territory configuration</span>
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2946,133 +3074,111 @@
 </div>
 
 <!-- ======================================================== -->
-<!-- MODAL: Two-Pane Doctor Transfer & Merging Workbench      -->
+<!-- ======================================================== -->
+<!-- MODAL: Two-Pane Doctor Transfer & Handover Workbench     -->
 <!-- ======================================================== -->
 <div class="modal-overlay" id="doctorTransferModalOverlay">
-  <div class="modal-card transfer-workbench-modal">
+  <div class="modal-card transfer-workbench-modal" style="padding:24px;">
     <!-- Header -->
-    <div class="modal-header" style="border-bottom:1px solid #1E293B; padding-bottom:12px; background:linear-gradient(135deg, #0B192C 0%, #1E3E62 100%); color:#FFFFFF; margin:-24px -24px 0 -24px; padding:16px 24px; border-radius:12px 12px 0 0;">
+    <div class="modal-header" style="border-bottom:1px solid #E2E8F0; padding-bottom:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
       <div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <h2 style="font-size:16px; font-weight:800; color:#FFFFFF; margin:0;" id="doctorTransferModalTitle">
-            🔄 Resigned MedRep Handover &amp; Doctor Merge Workbench
-          </h2>
-          <span class="badge" style="background:#7C3AED; color:#FFF; font-weight:700; font-size:11px;">Dual-Window Drag &amp; Drop</span>
-        </div>
-        <div style="font-size:11.5px; color:#94A3B8; margin-top:4px;" id="doctorTransferModalSubtitle">
-          Reassign territory code &amp; merge doctor coverage from resigned representative to newly assigned MedRep
+        <h2 style="font-size:16px; font-weight:800; color:#0F172A; margin:0;" id="doctorTransferModalTitle">
+          Doctor Transfer &amp; Handover
+        </h2>
+        <div style="font-size:12px; color:#64748B; margin-top:2px;" id="doctorTransferModalSubtitle">
+          Reassign representative and transfer covered doctor portfolio between territories
         </div>
       </div>
-      <button class="btn btn-sm btn-outline" onclick="closeDoctorTransferModal()" style="color:#FFFFFF; border-color:#475569;">✕</button>
+      <button class="btn btn-sm btn-outline" onclick="closeDoctorTransferModal()" style="color:#64748B; border-color:#CBD5E1; background:#FFF; font-size:13px; padding:4px 10px;">✕</button>
     </div>
 
-    <!-- Official Program Instructions & Handover Advisory Notice -->
-    <div id="transferAdvisoryNotice" style="margin-top:14px; padding:12px 16px; background:#F8FAFC; border:1.5px solid #E2E8F0; border-radius:8px; font-size:12px; color:#1E293B;">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-size:16px;">📋</span>
-          <span style="font-size:12.5px; font-weight:800; color:#0F172A; text-transform:uppercase; letter-spacing:0.5px;">Program Handover Directive</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span class="badge" style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1D4ED8; font-weight:800; font-size:11.5px; padding:3px 10px; border-radius:6px;">
-            Total Previous Doctors: <strong id="advisoryTotalDocsCount" style="margin-left:4px;">0 HCPs</strong>
-          </span>
-          <span class="badge" id="transferTotalDocsCounter" style="background:#10B981; color:#FFF; font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:6px;">0 Total Doctors</span>
-        </div>
-      </div>
-      <div style="font-size:12px; line-height:1.5; color:#334155; margin-bottom:8px;">
-        Representative <strong id="advisorySourceRepName" style="color:#DC2626;">[Previous Rep]</strong> is tagged as <span class="badge" style="background:#FEE2E2; color:#DC2626; font-size:10.5px; font-weight:800; padding:2px 6px; border-radius:4px;">🔴 RESIGNED</span> on territory <strong id="advisorySourceTerrCode" style="color:#0066FF;">[Code]</strong>. Reassigning territory code and merging doctors to newly designated representative <strong id="advisoryTargetRepName" style="color:#0F172A;">[New Rep]</strong>.
-      </div>
-      <div style="padding:8px 12px; background:#DCFCE7; border:1px solid #86EFAC; border-radius:6px; font-size:12px; color:#166534; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span style="font-size:14px;">💡</span>
-          <span><strong>Program Recommendation:</strong> If no selective instructions are given, SFE assumes <strong>100% of the previous representative's doctors transfer to the newly assigned MedRep</strong>.</span>
-        </div>
-        <button type="button" class="btn btn-merge-all" onclick="mergeAllResignedDoctors()" style="background:linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%); color:#FFF; border:none; padding:6px 14px; font-weight:800; font-size:11.5px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(124, 58, 237, 0.3);">
-          <span>⚡ 1-Click Merge All (<span id="btnMergeAllCount">0</span>) HCPs to New MedRep</span>
+    <!-- Sleek Representative Reassignment & Handover Bar -->
+    <div id="transferHandoverHeaderBar" style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:10px; font-size:12px;">
+        <span style="font-weight:700; color:#475569;">Source Representative:</span>
+        <strong id="handoverSourceRepDisplay" style="color:#0F172A;">---</strong>
+        <button type="button" id="btnToggleResignStatus" class="btn btn-sm" onclick="toggleSourceResignStatus()" style="padding:2px 8px; font-size:11px; font-weight:700; border-radius:4px; background:#FEE2E2; color:#DC2626; border:1px solid #FECACA; cursor:pointer;">
+          Mark Resigned
         </button>
       </div>
+      <div style="display:flex; align-items:center; gap:8px; font-size:12px; flex:1; max-width:380px;">
+        <span style="font-weight:700; color:#475569; white-space:nowrap;">New Representative:</span>
+        <input type="text" id="handoverNewRepInput" class="form-control" placeholder="Enter new MedRep name..." style="font-size:12px; padding:4px 10px; height:32px;">
+      </div>
     </div>
 
-    <!-- Dual-Pane Split Layout (Window 1: New MedRep on Left, Window 2: Resigned MedRep on Right) -->
+    <!-- Dual-Pane Split Layout -->
     <div class="transfer-split-layout">
-      <!-- LEFT PANE: New / Destination MedRep -->
+      <!-- LEFT PANE: Target / Destination -->
       <div class="workbench-pane" id="targetWorkbenchPane">
         <div class="workbench-pane-header">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <span style="font-size:11px; font-weight:800; letter-spacing:0.5px; color:#0066FF;">📥 WINDOW 1: NEW MEDREP (DESTINATION)</span>
+            <span style="font-size:11.5px; font-weight:700; color:#0066FF;">Target Territory (Destination)</span>
             <span class="badge" id="targetDocsCountBadge" style="background:#0066FF; color:#FFF; font-weight:700; font-size:11px;">0 Doctors</span>
           </div>
           <select id="transferTargetTerritorySelect" class="form-control" style="font-size:12px; font-weight:700; padding:6px 10px; margin-bottom:6px;" onchange="onTransferTerritorySelectionChanged('target')">
-            <!-- Populated dynamically -->
           </select>
           <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; margin-bottom:8px;">
             <span id="targetRepDistrictLabel">District: ---</span>
             <span id="targetRepUserIdLabel" class="badge badge-user-id">User ID: ---</span>
           </div>
-          <input type="text" id="transferTargetSearchInput" class="form-control" placeholder="Search newly assigned rep's doctors..." oninput="filterTransferDoctorsList('target')" style="font-size:11.5px; padding:5px 10px;">
+          <input type="text" id="transferTargetSearchInput" class="form-control" placeholder="Search target doctors..." oninput="filterTransferDoctorsList('target')" style="font-size:11.5px; padding:5px 10px;">
         </div>
 
         <!-- Target Dropzone -->
         <div id="transferTargetDropzone" class="workbench-dropzone" ondragover="handleTransferDragOver(event)" ondragleave="handleTransferDragLeave(event)" ondrop="handleTransferDrop(event, 'target')">
-          <!-- Populated dynamically -->
         </div>
       </div>
 
       <!-- CENTER CLUSTER: Controls & Directional Transfer -->
       <div class="workbench-center-cluster">
-        <button type="button" class="btn btn-merge-all" onclick="mergeAllResignedDoctors()" title="Transfer 100% of the doctors from the resigned rep to the new rep in 1 click">
-          ⚡ MERGE ALL TO NEW MEDREP &lt;&lt;
+        <button type="button" class="btn btn-primary btn-workbench-transfer" onclick="mergeAllResignedDoctors()" title="Transfer all doctors to target territory" style="font-size:11.5px; font-weight:700; background:#0066FF; color:#FFF; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;">
+          &lt;&lt; Move All
         </button>
-
-        <div style="width:100%; height:1px; background:#E2E8F0; margin:4px 0;"></div>
-
-        <button type="button" class="btn btn-outline btn-workbench-transfer" style="border-color:#0066FF; color:#0066FF;" onclick="transferSelectedDoctors('to_target')" title="Move selected doctors to destination rep">
-          <span>&lt;&lt; Merge Checked</span>
+        <button type="button" class="btn btn-outline btn-workbench-transfer" onclick="transferSelectedDoctors('to_target')" title="Move checked doctors to target" style="border:1px solid #CBD5E1; color:#0F172A; background:#FFF; font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:6px; cursor:pointer;">
+          &lt; Move Selected
         </button>
-
-        <button type="button" class="btn btn-outline btn-workbench-transfer" style="border-color:#64748B; color:#64748B;" onclick="transferSelectedDoctors('to_source')" title="Move selected doctors back to resigned rep">
-          <span>Move Back &gt;&gt;</span>
+        <button type="button" class="btn btn-outline btn-workbench-transfer" onclick="transferSelectedDoctors('to_source')" title="Move checked doctors back to source" style="border:1px solid #CBD5E1; color:#64748B; background:#FFF; font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:6px; cursor:pointer;">
+          Move Selected &gt;
         </button>
-
         <div style="font-size:10.5px; color:#94A3B8; text-align:center; margin-top:8px; line-height:1.3;">
-          🖐️ Drag &amp; drop doctor cards directly between windows
+          Drag cards or check boxes to move
         </div>
       </div>
 
-      <!-- RIGHT PANE: Old / Resigned MedRep -->
+      <!-- RIGHT PANE: Source Territory -->
       <div class="workbench-pane" id="sourceWorkbenchPane">
         <div class="workbench-pane-header">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <span style="font-size:11px; font-weight:800; letter-spacing:0.5px; color:#D97706;">📤 WINDOW 2: RESIGNED MEDREP (SOURCE PORTFOLIO)</span>
-            <span class="badge" id="sourceDocsCountBadge" style="background:#D97706; color:#FFF; font-weight:700; font-size:11px;">0 Doctors</span>
+            <span style="font-size:11.5px; font-weight:700; color:#475569;">Source Territory</span>
+            <span class="badge" id="sourceDocsCountBadge" style="background:#64748B; color:#FFF; font-weight:700; font-size:11px;">0 Doctors</span>
           </div>
           <select id="transferSourceTerritorySelect" class="form-control" style="font-size:12px; font-weight:700; padding:6px 10px; margin-bottom:6px;" onchange="onTransferTerritorySelectionChanged('source')">
-            <!-- Populated dynamically -->
           </select>
           <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; margin-bottom:8px;">
             <span id="sourceRepDistrictLabel">District: ---</span>
-            <span id="sourceRepStatusLabel" class="badge" style="background:#FEE2E2; color:#DC2626; font-weight:700;">ACTIVE / RESIGNED</span>
+            <span id="sourceRepStatusLabel" class="badge" style="background:#F1F5F9; color:#475569; font-weight:600; font-size:10.5px;">Active</span>
           </div>
           <input type="text" id="transferSourceSearchInput" class="form-control" placeholder="Search source doctors..." oninput="filterTransferDoctorsList('source')" style="font-size:11.5px; padding:5px 10px;">
         </div>
 
         <!-- Source Dropzone -->
         <div id="transferSourceDropzone" class="workbench-dropzone" ondragover="handleTransferDragOver(event)" ondragleave="handleTransferDragLeave(event)" ondrop="handleTransferDrop(event, 'source')">
-          <!-- Populated dynamically -->
         </div>
       </div>
     </div>
 
     <!-- Modal Footer -->
-    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #E2E8F0; padding-top:12px; margin-top:14px;">
-      <div style="flex:1; max-width:540px; margin-right:16px;">
-        <input type="text" id="transferAuditNotesInput" class="form-control" placeholder="Audit note: e.g. Doctor coverage handover from resigned rep John Doe to Jane Smith" style="font-size:12px; padding:7px 12px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #E2E8F0; padding-top:14px; margin-top:16px;">
+      <div style="flex:1; max-width:420px;">
+        <input type="text" id="transferAuditNotesInput" class="form-control" placeholder="Audit note (optional)" style="font-size:12px; padding:6px 12px;">
       </div>
-      <div style="display:flex; gap:10px; align-items:center;">
-        <button type="button" class="btn btn-outline btn-sm" onclick="closeDoctorTransferModal()">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm" id="btnSaveDoctorTransfer" onclick="saveDoctorTransfer()" style="background:#16A34A; border-color:#16A34A; font-weight:700; padding:7px 16px;">
-          💾 Save &amp; Sync Handover to ERPNext &amp; Mobile App
+      <div style="display:flex; gap:10px; align-items:center; margin-left:auto;">
+        <button type="button" class="btn btn-outline" onclick="closeDoctorTransferModal()" style="padding:7px 18px; font-size:12px; font-weight:600; border:1px solid #CBD5E1; border-radius:6px; color:#475569; background:#FFF; cursor:pointer;">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary" id="btnSaveDoctorTransfer" onclick="saveDoctorTransfer()" style="padding:7px 26px; font-size:12.5px; font-weight:700; background:#0066FF; border:none; border-radius:6px; color:#FFF; cursor:pointer; box-shadow:0 1px 4px rgba(0,102,255,0.3);">
+          Save
         </button>
       </div>
     </div>
@@ -12855,36 +12961,101 @@ const BASELINE_ERP_TERRITORIES = [
     const treeEl = document.getElementById('territoryTreeView');
     const filterToolbar = document.getElementById('erpGridFilterToolbar');
     const btn = document.getElementById('btnToggleView');
-    const btnAdd = document.getElementById('btnAddTerritoryRecord');
-    const btnBatch = document.getElementById('btnBatchCodeRename');
-    const btnTransfer = document.getElementById('btnDoctorTransferWorkbench');
-    if (btnTransfer) btnTransfer.style.display = isTreeViewActive ? 'none' : 'inline-flex';
     const pagEl = document.getElementById('tablePaginationWrapper');
+    const viewTitleEl = document.getElementById('editorActionViewTitle');
+    const viewDescEl = document.getElementById('editorActionViewDesc');
+    const viewBadgeEl = document.getElementById('editorActionsViewBadge');
+    const viewIconEl = document.getElementById('editorActionViewIcon');
 
     if (isTree) {
-      // Tree View: Only 2 buttons visible: "View as Table Grid" & "Export CSV"
-      // Filter By toolbar is completely hidden; only single search 'Filter territory tree...' is active
+      // Tree View: Filter By toolbar is completely hidden; only single search 'Filter territory tree...' is active
       if (gridEl) gridEl.style.display = 'none';
       if (filterToolbar) filterToolbar.style.display = 'none';
       if (treeEl) treeEl.style.display = 'block';
-      if (btnAdd) btnAdd.style.display = 'none';
-      if (btnBatch) btnBatch.style.display = 'none';
-      if (btn) btn.innerText = 'View as Table Grid';
+      if (btn) btn.setAttribute('title', 'View as Table Grid');
+      if (viewTitleEl) viewTitleEl.innerText = 'View as Table Grid';
+      if (viewDescEl) viewDescEl.innerText = 'Switch to tabular spreadsheet view';
+      if (viewBadgeEl) {
+        viewBadgeEl.innerText = 'Territory Tree';
+        viewBadgeEl.style.color = '#10B981';
+      }
+      if (viewIconEl) {
+        viewIconEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>`;
+      }
       if (pagEl) pagEl.style.display = 'none';
       renderTree();
     } else {
-      // Table Grid View: All 4 buttons visible: "+ Add Territory Record", "Batch Code Rename", "View as Territory Tree", "Export CSV"
-      // Restore table grid and its Filter By toolbar
+      // Table Grid View: Restore table grid and its Filter By toolbar
       if (gridEl) gridEl.style.display = 'block';
       if (filterToolbar) filterToolbar.style.display = 'flex';
       if (treeEl) treeEl.style.display = 'none';
-      if (btnAdd) btnAdd.style.display = 'inline-flex';
-      if (btnBatch) btnBatch.style.display = 'inline-flex';
-      if (btn) btn.innerText = 'View as Territory Tree';
+      if (btn) btn.setAttribute('title', 'View as Territory Tree');
+      if (viewTitleEl) viewTitleEl.innerText = 'View as Territory Tree';
+      if (viewDescEl) viewDescEl.innerText = 'Switch to hierarchical tree view';
+      if (viewBadgeEl) {
+        viewBadgeEl.innerText = 'Table Grid';
+        viewBadgeEl.style.color = '#0066FF';
+      }
+      if (viewIconEl) {
+        viewIconEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>`;
+      }
       if (pagEl) pagEl.style.display = 'flex';
       renderTable();
     }
   }
+
+  // --- TOP-RIGHT ACTIONS DROPDOWN CONTROLLER ---
+  function toggleEditorActionsDropdown(event) {
+    if (event) {
+      if (typeof event.preventDefault === 'function') event.preventDefault();
+      if (typeof event.stopPropagation === 'function') event.stopPropagation();
+    }
+    const menu = document.getElementById('editorActionsMenu');
+    const chevron = document.getElementById('editorActionsChevron');
+    if (!menu) return;
+    const isShowing = menu.style.display === 'block';
+    if (isShowing) {
+      closeEditorActionsDropdown();
+    } else {
+      menu.style.display = 'block';
+      if (chevron) chevron.style.transform = 'rotate(180deg)';
+    }
+  }
+
+  function closeEditorActionsDropdown() {
+    const menu = document.getElementById('editorActionsMenu');
+    const chevron = document.getElementById('editorActionsChevron');
+    if (menu) menu.style.display = 'none';
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+  }
+
+  function handleEditorActionClick(action, event) {
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+    closeEditorActionsDropdown();
+    if (action === 'add') {
+      openTreeAddModal('All Territories');
+    } else if (action === 'batch_rename') {
+      openBatchRenameModal();
+    } else if (action === 'transfer_doctors') {
+      openDoctorTransferModal();
+    } else if (action === 'toggle_view') {
+      toggleEditorView(event);
+    } else if (action === 'export_csv') {
+      exportReconfigurationCsv();
+    }
+  }
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('#editorActionsDropdownContainer')) {
+      closeEditorActionsDropdown();
+    }
+  });
+
+  window.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeEditorActionsDropdown();
+    }
+  });
 
   function setEditorViewMode(mode) {
     const validMode = (mode === 'grid') ? 'grid' : 'tree';
@@ -13397,7 +13568,10 @@ const BASELINE_ERP_TERRITORIES = [
     const inp = document.getElementById(fieldId + 'Input');
     const disp = document.getElementById(fieldId + 'Display');
     const clr = document.getElementById(fieldId + 'Clear');
-    if (inp) inp.value = '';
+    if (inp) {
+      inp.value = '';
+      delete inp.dataset.userManuallySelected;
+    }
     if (disp) {
       disp.value = '';
       disp.focus();
@@ -13410,7 +13584,10 @@ const BASELINE_ERP_TERRITORIES = [
     const inp = document.getElementById(fieldId + 'Input');
     const disp = document.getElementById(fieldId + 'Display');
     const clr = document.getElementById(fieldId + 'Clear');
-    if (inp) inp.value = value;
+    if (inp) {
+      inp.value = value;
+      inp.dataset.userManuallySelected = 'true';
+    }
     if (disp) disp.value = displayLabel;
     if (clr) clr.style.display = 'block';
 
@@ -13486,6 +13663,23 @@ const BASELINE_ERP_TERRITORIES = [
       menu.appendChild(advRow);
 
     } else if (fieldId === 'treeAddManager' || fieldId === 'treeEditManager' || fieldId === 'editManager' || fieldId === 'addManager' || fieldId === 'newSpParent') {
+      // Top Option: Unassigned option for tree manager selection
+      if ((fieldId === 'treeAddManager' || fieldId === 'treeEditManager') && !rawQ) {
+        const unassignedItem = document.createElement('div');
+        unassignedItem.className = 'erp-dropdown-item';
+        unassignedItem.style.borderBottom = '1px solid #3F3F46';
+        unassignedItem.style.background = '#27272A';
+        unassignedItem.innerHTML = `
+          <div class="erp-dropdown-item-title" style="color:#A1A1AA; font-style:italic;">(Unassigned)</div>
+          <div class="erp-dropdown-item-sub" style="color:#71717A;">Leave territory manager unassigned</div>
+        `;
+        unassignedItem.onclick = () => {
+          clearErpSelection(fieldId);
+          closeAllErpDropdowns();
+        };
+        menu.appendChild(unassignedItem);
+      }
+
       // Filter Sales Persons across fields (name, sales_person_name, parent_sales_person, employee)
       let matches = availableSalesPersons.filter(s => {
         if (!tokens.length) return true;
@@ -13500,10 +13694,12 @@ const BASELINE_ERP_TERRITORIES = [
       });
 
       if (matches.length === 0) {
-        const emptyDiv = document.createElement('div');
-        emptyDiv.style.cssText = 'padding: 10px 14px; color: #71717A; font-size: 11.5px;';
-        emptyDiv.innerText = rawQ ? `No Sales Person matching "${query}"` : 'No Sales Persons available';
-        menu.appendChild(emptyDiv);
+        if (rawQ || (fieldId !== 'treeAddManager' && fieldId !== 'treeEditManager')) {
+          const emptyDiv = document.createElement('div');
+          emptyDiv.style.cssText = 'padding: 10px 14px; color: #71717A; font-size: 11.5px;';
+          emptyDiv.innerText = rawQ ? `No Sales Person matching "${query}"` : 'No Sales Persons available';
+          menu.appendChild(emptyDiv);
+        }
       } else {
         matches.slice(0, 50).forEach(s => {
           const item = document.createElement('div');
@@ -14399,19 +14595,13 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function handleGridActionClick(actionType) {
-    if (actionType === 'tag_resigned') {
-      const idx = activeGridActionIndex;
+    if (actionType === 'transfer_handover' || actionType === 'tag_resigned' || actionType === 'transfer_doctors') {
+      const idx = activeGridActionIndex !== null ? activeGridActionIndex : (typeof currentGridActionIndex !== 'undefined' ? currentGridActionIndex : null);
       const code = activeGridActionCode;
       closeGridActionDropdown();
-      const row = (idx !== null && programTerritories[idx]) ? programTerritories[idx] : (typeof currentGridActionIndex !== 'undefined' ? programTerritories[currentGridActionIndex] : null);
+      const row = (idx !== null && programTerritories[idx]) ? programTerritories[idx] : null;
       const targetCode = code || (row ? (row.activeCode || row.recordId) : null);
-      if (targetCode) openResignedHandoverPromptModal(targetCode);
-      return;
-    }
-    if (actionType === 'transfer_doctors') {
-      closeGridActionDropdown();
-      const row = programTerritories[currentGridActionIndex];
-      if (row) openDoctorTransferModal(row.recordId);
+      if (targetCode) openDoctorTransferModal(targetCode);
       return;
     }
     const idx = activeGridActionIndex;
@@ -14488,11 +14678,23 @@ const BASELINE_ERP_TERRITORIES = [
     if (parentInp) parentInp.value = parent;
     
     document.getElementById('treeAddIsGroup').checked = false;
+    const titleEl = document.getElementById('treeAddModalTitle');
+    if (titleEl) titleEl.innerText = 'New Territory (Add Child)';
     const nameInp = document.getElementById('treeAddNameInput');
     if (nameInp) nameInp.value = '';
     
     clearErpSelection('treeAddManager');
     clearErpSelection('treeAddUserAccount');
+    const mgrInp = document.getElementById('treeAddManagerInput');
+    if (mgrInp) {
+      mgrInp.value = '';
+      delete mgrInp.dataset.userManuallySelected;
+    }
+    const mgrDisp = document.getElementById('treeAddManagerDisplay');
+    if (mgrDisp) {
+      mgrDisp.value = '';
+      mgrDisp.placeholder = 'Unassigned';
+    }
     
     const progInp = document.getElementById('treeAddProgramInput');
     if (progInp) progInp.value = activeProgram || 'Abbott Diabetes Care';
@@ -14503,6 +14705,100 @@ const BASELINE_ERP_TERRITORIES = [
 
   function closeTreeAddModal() {
     document.getElementById('treeAddModalOverlay').classList.remove('active');
+  }
+
+  function onTreeAddIsGroupChanged(isGroup) {
+    const titleEl = document.getElementById('treeAddModalTitle');
+    if (titleEl) {
+      titleEl.innerText = isGroup ? 'New Child Folder (Group)' : 'New Territory (Add Child)';
+    }
+    const mgrDisp = document.getElementById('treeAddManagerDisplay');
+    if (mgrDisp) {
+      mgrDisp.placeholder = 'Unassigned';
+    }
+  }
+
+  function onTreeAddNameInput(val) {
+    const code = (val || '').trim();
+    const mgrInp = document.getElementById('treeAddManagerInput');
+    const mgrDisp = document.getElementById('treeAddManagerDisplay');
+    const mgrClr = document.getElementById('treeAddManagerClear');
+    const userInp = document.getElementById('treeAddUserAccountInput');
+    const userDisp = document.getElementById('treeAddUserAccountDisplay');
+    const userClr = document.getElementById('treeAddUserAccountClear');
+
+    if (!code) {
+      if (mgrInp && !mgrInp.dataset.userManuallySelected) {
+        mgrInp.value = '';
+        if (mgrDisp) mgrDisp.value = '';
+        if (mgrClr) mgrClr.style.display = 'none';
+      }
+      return;
+    }
+
+    // Lookup if this territory code has an assigned territory manager
+    let assignedManager = '';
+    let assignedUserId = '';
+
+    // 1. Search in territoryTreeData
+    if (typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData)) {
+      const treeNode = territoryTreeData.find(t => 
+        (t.name && t.name.trim().toLowerCase() === code.toLowerCase()) ||
+        (t.territory_name && t.territory_name.trim().toLowerCase() === code.toLowerCase())
+      );
+      if (treeNode && treeNode.territory_manager && treeNode.territory_manager.trim()) {
+        assignedManager = treeNode.territory_manager.trim();
+      }
+    }
+
+    // 2. Search in programTerritories
+    if (!assignedManager && typeof programTerritories !== 'undefined' && Array.isArray(programTerritories)) {
+      const terrRow = programTerritories.find(t => 
+        (t.activeCode && t.activeCode.trim().toLowerCase() === code.toLowerCase()) ||
+        (t.latestPrevCode && t.latestPrevCode.trim().toLowerCase() === code.toLowerCase()) ||
+        (t.histCode && t.histCode.trim().toLowerCase() === code.toLowerCase()) ||
+        (t.recordId && t.recordId.trim().toLowerCase() === code.toLowerCase())
+      );
+      if (terrRow) {
+        if (terrRow.rep && !terrRow.rep.toLowerCase().includes('unassigned') && !terrRow.rep.toLowerCase().includes('folder')) {
+          assignedManager = terrRow.rep.replace(/\s*\([^)]*\)/g, '').trim() || terrRow.rep.trim();
+        }
+        if (terrRow.userId && !terrRow.userId.toLowerCase().includes('unassigned')) {
+          assignedUserId = terrRow.userId.trim();
+        }
+      }
+    }
+
+    // 3. Search in availableSalesPersons
+    if (!assignedManager && typeof availableSalesPersons !== 'undefined' && Array.isArray(availableSalesPersons)) {
+      const sp = availableSalesPersons.find(s => 
+        (s.name && s.name.trim().toLowerCase() === code.toLowerCase()) ||
+        (s.sales_person_name && s.sales_person_name.toLowerCase().includes(code.toLowerCase()))
+      );
+      if (sp) {
+        assignedManager = sp.sales_person_name || sp.name;
+      }
+    }
+
+    // If an assigned territory manager is found, update the field
+    if (assignedManager) {
+      if (mgrInp) mgrInp.value = assignedManager;
+      if (mgrDisp) mgrDisp.value = assignedManager;
+      if (mgrClr) mgrClr.style.display = 'block';
+
+      if (assignedUserId && userInp && !userInp.dataset.userManuallySelected) {
+        userInp.value = assignedUserId;
+        if (userDisp) userDisp.value = assignedUserId;
+        if (userClr) userClr.style.display = 'block';
+      }
+    } else {
+      // Revert to unassigned placeholder if user hasn't manually picked from dropdown
+      if (mgrInp && !mgrInp.dataset.userManuallySelected) {
+        mgrInp.value = '';
+        if (mgrDisp) mgrDisp.value = '';
+        if (mgrClr) mgrClr.style.display = 'none';
+      }
+    }
   }
 
   async function submitTreeAdd() {
@@ -16629,9 +16925,19 @@ const BASELINE_ERP_TERRITORIES = [
     const sourceStatusEl = document.getElementById('sourceRepStatusLabel');
     const isSourceResigned = (activeTransferSourceRow.rep || '').toUpperCase().includes('RESIGNED');
     if (sourceStatusEl) {
-      sourceStatusEl.innerText = isSourceResigned ? '🔴 RESIGNED' : '🟢 ACTIVE';
-      sourceStatusEl.style.background = isSourceResigned ? '#FEE2E2' : '#DCFCE7';
-      sourceStatusEl.style.color = isSourceResigned ? '#DC2626' : '#16A34A';
+      sourceStatusEl.innerText = isSourceResigned ? 'Resigned' : 'Active';
+      sourceStatusEl.style.background = isSourceResigned ? '#FEE2E2' : '#F1F5F9';
+      sourceStatusEl.style.color = isSourceResigned ? '#DC2626' : '#475569';
+    }
+
+    // Update Reassignment bar
+    const sourceDisp = document.getElementById('handoverSourceRepDisplay');
+    if (sourceDisp) sourceDisp.innerText = activeTransferSourceRow.rep || 'Unassigned Rep';
+    const btnResign = document.getElementById('btnToggleResignStatus');
+    if (btnResign) {
+      btnResign.innerText = isSourceResigned ? 'Unmark Resigned' : 'Mark Resigned';
+      btnResign.style.background = isSourceResigned ? '#DCFCE7' : '#FEE2E2';
+      btnResign.style.color = isSourceResigned ? '#166534' : '#DC2626';
     }
 
     // Load working doctor sets from programAccounts
@@ -16647,22 +16953,25 @@ const BASELINE_ERP_TERRITORIES = [
     updateTransferCounters();
   }
 
+  function toggleSourceResignStatus() {
+    if (!activeTransferSourceRow) return;
+    const isCurrentlyResigned = (activeTransferSourceRow.rep || '').toUpperCase().includes('RESIGNED');
+    if (!isCurrentlyResigned) {
+      activeTransferSourceRow.rep = `${activeTransferSourceRow.rep} [RESIGNED]`;
+    } else {
+      activeTransferSourceRow.rep = activeTransferSourceRow.rep.replace(/\s*\[RESIGNED\]/gi, '').trim();
+    }
+    activeTransferSourceRow.status = 'CHANGED';
+    onTransferTerritorySelectionChanged();
+  }
+
   function updateTransferCounters() {
     const targetCount = transferWorkingDocsTarget.length;
     const sourceCount = transferWorkingDocsSource.length;
-    document.getElementById('targetDocsCountBadge').innerText = `${targetCount} Doctors`;
-    document.getElementById('sourceDocsCountBadge').innerText = `${sourceCount} Doctors`;
-    document.getElementById('transferTotalDocsCounter').innerText = `${targetCount + sourceCount} Total Doctors`;
-    const btnMergeAllCount = document.getElementById('btnMergeAllCount');
-    if (btnMergeAllCount) btnMergeAllCount.innerText = `${sourceCount}`;
-    const advisoryDocsEl = document.getElementById('advisoryTotalDocsCount');
-    if (advisoryDocsEl) advisoryDocsEl.innerText = `${sourceCount} HCPs`;
-    const advSourceRep = document.getElementById('advisorySourceRepName');
-    if (advSourceRep && activeTransferSourceRow) advSourceRep.innerText = activeTransferSourceRow.rep || 'Previous Rep';
-    const advSourceTerr = document.getElementById('advisorySourceTerrCode');
-    if (advSourceTerr && activeTransferSourceRow) advSourceTerr.innerText = activeTransferSourceRow.activeCode || activeTransferSourceRow.latestPrevCode || 'Territory';
-    const advTargetRep = document.getElementById('advisoryTargetRepName');
-    if (advTargetRep && activeTransferTargetRow) advTargetRep.innerText = activeTransferTargetRow.rep || 'New Rep';
+    const targetBadge = document.getElementById('targetDocsCountBadge');
+    if (targetBadge) targetBadge.innerText = `${targetCount} Doctors`;
+    const sourceBadge = document.getElementById('sourceDocsCountBadge');
+    if (sourceBadge) sourceBadge.innerText = `${sourceCount} Doctors`;
   }
 
   function renderTransferPaneDoctors(side) {
@@ -16682,7 +16991,7 @@ const BASELINE_ERP_TERRITORIES = [
     if (filtered.length === 0) {
       container.innerHTML = `
         <div style="text-align:center; padding:32px 16px; color:#94A3B8; font-size:12px;">
-          ${searchVal ? 'No matching doctors found.' : 'No covered doctors in this territory. Drop cards here.'}
+          ${searchVal ? 'No matching doctors found.' : 'No covered doctors in this territory.'}
         </div>
       `;
       return;
@@ -16696,15 +17005,12 @@ const BASELINE_ERP_TERRITORIES = [
             <strong style="font-size:12px; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
               ${escapeHtml(d.doctor || 'Dr. Unknown')}
             </strong>
-            <span class="badge" style="background:#EFF6FF; color:#0066FF; font-size:10px; font-weight:700;">
+            <span class="badge" style="background:#EFF6FF; color:#0066FF; font-size:10px; font-weight:600;">
               ${escapeHtml(d.spec || 'General Practice')}
             </span>
           </div>
           <div style="font-size:11px; color:#64748B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-            🏥 ${escapeHtml(d.hospital || 'Private Clinic')}
-          </div>
-          <div style="font-size:10px; color:#94A3B8; margin-top:2px;">
-            HCP ID: <code>${escapeHtml(d.hcpId || d.accName)}</code>
+            ${escapeHtml(d.hospital || 'Workplace Unassigned')}
           </div>
         </div>
       </div>
@@ -16833,6 +17139,17 @@ const BASELINE_ERP_TERRITORIES = [
       return;
     }
 
+    const newRepVal = (document.getElementById('handoverNewRepInput') ? document.getElementById('handoverNewRepInput').value : '').trim();
+    if (newRepVal && activeTransferSourceRow) {
+      activeTransferSourceRow.rep = newRepVal;
+      activeTransferSourceRow.status = 'CHANGED';
+      const sCode = activeTransferSourceRow.activeCode || activeTransferSourceRow.latestPrevCode || activeTransferSourceRow.recordId;
+      if (typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData)) {
+        const treeNode = territoryTreeData.find(t => t.name === activeTransferSourceRow.recordId || t.name === sCode);
+        if (treeNode) treeNode.territory_manager = newRepVal;
+      }
+    }
+
     const targetCode = activeTransferTargetRow.activeCode || activeTransferTargetRow.latestPrevCode;
     const targetRep = activeTransferTargetRow.rep ? activeTransferTargetRow.rep.trim() : 'Unassigned Rep';
     const sourceCode = activeTransferSourceRow.activeCode || activeTransferSourceRow.latestPrevCode;
@@ -16933,7 +17250,7 @@ const BASELINE_ERP_TERRITORIES = [
   function tagCurrentRepAsResignedFromTree() {
     const origName = document.getElementById('treeEditOrigName').value;
     closeTreeEditModal();
-    openResignedHandoverPromptModal(origName);
+    openDoctorTransferModal(origName);
   }
 
   let activeResignTerritoryRow = null;
@@ -17194,11 +17511,11 @@ const BASELINE_ERP_TERRITORIES = [
       </div>
       <div>
         <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
-          Territory Manager <span style="color:#EF4444;">*</span>
+          Territory Manager
         </label>
         <div class="erp-search-container" id="treeAddManagerContainer">
           <input type="hidden" id="treeAddManagerInput" value="">
-          <input type="text" id="treeAddManagerDisplay" class="erp-search-input-box" placeholder="Search or select Sales Person..." autocomplete="off" onfocus="openErpDropdown('treeAddManager')" oninput="onErpSearchInput('treeAddManager')">
+          <input type="text" id="treeAddManagerDisplay" class="erp-search-input-box" placeholder="Unassigned" autocomplete="off" onfocus="openErpDropdown('treeAddManager')" oninput="onErpSearchInput('treeAddManager')">
           <button type="button" class="erp-clear-btn" id="treeAddManagerClear" onclick="clearErpSelection('treeAddManager')">✕</button>
           <span class="erp-search-chevron">▼</span>
           <div class="erp-dropdown-menu" id="treeAddManagerMenu"></div>
@@ -17211,13 +17528,13 @@ const BASELINE_ERP_TERRITORIES = [
       <label style="font-size:12px; font-weight:700; color:#FFFFFF; display:block; margin-bottom:6px;">
         Territory Name <span style="color:#EF4444;">*</span>
       </label>
-      <input type="text" id="treeAddNameInput" placeholder="e.g. AD3 - GMA/EAST LUZON" style="width:100%; height:38px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 12px; color:#FFFFFF; font-size:13px; outline:none;" onkeydown="if(event.key==='Enter') submitTreeAdd()">
+      <input type="text" id="treeAddNameInput" placeholder="e.g. AD3 - GMA/EAST LUZON" style="width:100%; height:38px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 12px; color:#FFFFFF; font-size:13px; outline:none;" oninput="onTreeAddNameInput(this.value)" onkeydown="if(event.key==='Enter') submitTreeAdd()">
     </div>
 
     <!-- Checkbox Is Group -->
     <div style="margin-bottom:16px;">
       <label style="display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#FFFFFF; cursor:pointer;">
-        <input type="checkbox" id="treeAddIsGroup" style="width:16px; height:16px; accent-color:#0066FF; cursor:pointer;">
+        <input type="checkbox" id="treeAddIsGroup" onchange="onTreeAddIsGroupChanged(this.checked)" style="width:16px; height:16px; accent-color:#0066FF; cursor:pointer;">
         <span>Is Group</span>
       </label>
       <div style="font-size:11px; color:#A1A1AA; margin-top:4px; margin-left:24px;">
@@ -17288,10 +17605,10 @@ const BASELINE_ERP_TERRITORIES = [
         </select>
       </div>
       <div>
-        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Territory Manager <span style="color:#EF4444;">*</span></label>
+        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Territory Manager</label>
         <div class="erp-search-container" id="treeEditManagerContainer">
           <input type="hidden" id="treeEditManagerInput" value="">
-          <input type="text" id="treeEditManagerDisplay" class="erp-search-input-box" placeholder="Search or select Sales Person..." autocomplete="off" onfocus="openErpDropdown('treeEditManager')" oninput="onErpSearchInput('treeEditManager')">
+          <input type="text" id="treeEditManagerDisplay" class="erp-search-input-box" placeholder="Unassigned" autocomplete="off" onfocus="openErpDropdown('treeEditManager')" oninput="onErpSearchInput('treeEditManager')">
           <button type="button" class="erp-clear-btn" id="treeEditManagerClear" onclick="clearErpSelection('treeEditManager')">✕</button>
           <span class="erp-search-chevron">▼</span>
           <div class="erp-dropdown-menu" id="treeEditManagerMenu"></div>
@@ -17859,28 +18176,15 @@ const BASELINE_ERP_TERRITORIES = [
     <div class="grid-actions-divider"></div>
 
 
-    <button type="button" class="grid-action-item" id="gridActionTagResigned" onclick="handleGridActionClick('tag_resigned')">
-      <span class="grid-action-icon" style="background:#FEE2E2; color:#DC2626; border-color:#FECACA;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-        </svg>
-      </span>
-      <div class="grid-action-texts">
-        <span class="grid-action-title" style="color:#DC2626; font-weight:700;">Tag Resigned &amp; Handover</span>
-        <span class="grid-action-desc">Reassign territory code &amp; merge doctors</span>
-      </div>
-    </button>
-    <button type="button" class="grid-action-item" id="gridActionTransferDoctors" onclick="handleGridActionClick('transfer_doctors')">
-      <span class="grid-action-icon" style="background:#F5F3FF; color:#7C3AED; border-color:#DDD6FE;">
+    <button type="button" class="grid-action-item" id="gridActionTransferHandover" onclick="handleGridActionClick('transfer_handover')">
+      <span class="grid-action-icon" style="background:#EFF6FF; color:#0066FF; border-color:#BFDBFE;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path>
         </svg>
       </span>
       <div class="grid-action-texts">
-        <span class="grid-action-title">Transfer Doctors</span>
-        <span class="grid-action-desc">Reassign doctor pool to new MedRep</span>
+        <span class="grid-action-title">Transfer &amp; Handover</span>
+        <span class="grid-action-desc">Reassign rep &amp; transfer doctors</span>
       </div>
     </button>
     <button type="button" class="grid-action-item" id="gridActionAudit" onclick="handleGridActionClick('audit')">

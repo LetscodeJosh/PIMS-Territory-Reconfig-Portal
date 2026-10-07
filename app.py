@@ -588,10 +588,16 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(CURRENT_DIR, "index.html")
 PORTAL_HTML = os.path.join(CURRENT_DIR, "territory_reconfiguration_portal.html")
 
-# Ensure index.html exists for Streamlit component resolution
-if not os.path.exists(INDEX_HTML) and os.path.exists(PORTAL_HTML):
+# Ensure index.html is strictly synchronized with territory_reconfiguration_portal.html
+if os.path.exists(PORTAL_HTML):
     import shutil
-    shutil.copy2(PORTAL_HTML, INDEX_HTML)
+    try:
+        if (not os.path.exists(INDEX_HTML) or 
+            os.path.getsize(INDEX_HTML) != os.path.getsize(PORTAL_HTML) or 
+            os.path.getmtime(PORTAL_HTML) > os.path.getmtime(INDEX_HTML)):
+            shutil.copy2(PORTAL_HTML, INDEX_HTML)
+    except Exception:
+        pass
 
 portal_component = components.declare_component("pims_portal", path=CURRENT_DIR)
 
