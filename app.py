@@ -349,6 +349,14 @@ def execute_tree_action(opener, action, payload):
     headers_json = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "Mozilla/5.0"}
 
     try:
+        try:
+            from secure_frappe_gateway import TerritoryActionSchema, SecurityValidationError
+            _ = TerritoryActionSchema.from_dict({"action": action, **payload})
+        except ImportError:
+            pass
+        except SecurityValidationError as sve:
+            return "error", f"Security Validation Error: {sve}"
+
         if action == "tree_add":
             t_name = safe_str(payload.get("territory_name"))
             parent = safe_str(payload.get("parent_territory")) or "All Territories"
