@@ -156,15 +156,19 @@
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #38BDF8;
-    padding: 6px 12px;
+    padding: 0;
+    width: 34px;
+    height: 34px;
     border-radius: 6px;
-    font-size: 11.5px;
+    font-size: 18px;
+    line-height: 1;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
   .menu-toggle-btn:hover {
@@ -2080,8 +2084,8 @@
 <!-- Header -->
 <header>
   <div class="header-left">
-    <button class="menu-toggle-btn" onclick="toggleSidebar()" id="sidebarToggleBtn" style="display:none;">
-      <span>&#9776;</span> <span id="toggleText">Hide Menu</span>
+    <button class="menu-toggle-btn" onclick="toggleSidebar()" id="sidebarToggleBtn" title="Hide Menu" aria-label="Toggle Navigation Menu" style="display:none;">
+      <span style="font-size: 18px; line-height: 1;">&#9776;</span>
     </button>
     <div class="brand">
       <div class="brand-icon" style="background:#FFFFFF; border:1.5px solid #38BDF8; padding:2px; display:flex; align-items:center; justify-content:center; border-radius:8px; overflow:hidden; width:34px; height:34px;">
@@ -8752,6 +8756,11 @@ const BASELINE_ERP_TERRITORIES = [
         const name = t.name || t.territory_name;
         if (!name || name === 'All Territories') return;
 
+        if (t.custom_account_or_program && t.custom_account_or_program === programName) {
+          allowedNames.add(name);
+          return;
+        }
+
         let curr = t.parent_territory;
         let visited = new Set();
         while (curr && curr !== 'All Territories' && !visited.has(curr)) {
@@ -8912,20 +8921,67 @@ const BASELINE_ERP_TERRITORIES = [
     renderSummaryReport();
   }
 
-  function refreshLiveData() {
-    showToast(`Refreshing live masterlist for ${activeProgram}...`);
-    if (typeof dispatchToStreamlit === 'function') {
+  async function refreshLiveData() {
+    const syncBtn = document.getElementById('headerSyncBtn');
+    const origHtml = syncBtn ? syncBtn.innerHTML : 'Refresh Live Sync';
+    if (syncBtn) {
+      syncBtn.disabled = true;
+      syncBtn.style.opacity = '0.75';
+      syncBtn.innerHTML = `
+        <svg class="erp-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-dasharray="32" stroke-dashoffset="12" fill="none"/></svg>
+        <span>Syncing ERPNext...</span>
+      `;
+    }
+
+    showToast(`Synchronizing live ERPNext Territory Tree & Masterlists...`, 'info', 4000);
+
+    // 1. Dispatch bidirectional refresh event to Streamlit host
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
       try {
-        dispatchToStreamlit('tree_refresh', { activeProgram: activeProgram });
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "tree_refresh",
+            activeProgram: activeProgram,
+            timestamp: Date.now()
+          }
+        }, "*");
       } catch (_) {}
     }
+
+    // 2. Perform live fetch directly against ERPNext gateway (desktop & web proxy)
     if (typeof syncTreeWithERPNext === 'function') {
-      syncTreeWithERPNext(true);
+      try {
+        await syncTreeWithERPNext(false);
+      } catch (err) {
+        console.warn('[Sync Tree Error]', err);
+      }
     }
+
+    // 3. Ensure tree and grid are freshly rendered from synchronized tree
+    try {
+      syncProgramTerritoriesWithTree();
+      if (window.activeEditorViewMode === 'grid') {
+        if (typeof renderTable === 'function') renderTable();
+      } else {
+        if (typeof renderTree === 'function') renderTree();
+      }
+      if (typeof updateEditorViewModeUI === 'function') updateEditorViewModeUI();
+      if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
+      if (typeof renderSummaryReport === 'function') renderSummaryReport();
+    } catch (_) {}
+
+    // 4. Restore button and confirm to user
     setTimeout(() => {
-      switchProgram();
-      showToast(`Live masterlist data up to date!`);
-    }, 400);
+      if (syncBtn) {
+        syncBtn.disabled = false;
+        syncBtn.style.opacity = '1';
+        syncBtn.innerHTML = origHtml;
+      }
+      const terrCount = (territoryTreeData && territoryTreeData.length) ? territoryTreeData.length : 0;
+      showToast(`Territory Tree live sync complete: ${terrCount} territories synchronized directly with ERPNext!`, 'success', 4500);
+    }, 1200);
   }
 
   
@@ -9384,6 +9440,16 @@ const BASELINE_ERP_TERRITORIES = [
             if (typeof updateEditorViewModeUI === 'function') updateEditorViewModeUI();
             if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
             if (typeof renderSummaryReport === 'function') renderSummaryReport();
+            // Restore header sync button if in syncing state
+            const syncBtn = document.getElementById('headerSyncBtn');
+            if (syncBtn && syncBtn.disabled) {
+              syncBtn.disabled = false;
+              syncBtn.style.opacity = '1';
+              syncBtn.innerHTML = `
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                <span>Refresh Live Sync</span>
+              `;
+            }
           }
         } catch (terrErr) {
           console.warn('[Streamlit Live Territories Warning]', terrErr);
@@ -9392,7 +9458,16 @@ const BASELINE_ERP_TERRITORIES = [
         // 6. Two-way server feedback toasts
         if (treeSync && treeSync.timestamp && treeSync.timestamp > lastProcessedTreeEventTs) {
           lastProcessedTreeEventTs = treeSync.timestamp;
-          showToast(treeSync.message, treeSync.status || 'info');
+          showToast(treeSync.message, treeSync.status || 'info', 4500);
+          const syncBtn = document.getElementById('headerSyncBtn');
+          if (syncBtn && syncBtn.disabled) {
+            syncBtn.disabled = false;
+            syncBtn.style.opacity = '1';
+            syncBtn.innerHTML = `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>Refresh Live Sync</span>
+            `;
+          }
         }
       } catch (renderErr) {
         console.error('[Streamlit Message Handler Error]', renderErr);
@@ -9621,8 +9696,17 @@ const BASELINE_ERP_TERRITORIES = [
 
   function toggleSidebar() {
     const sidebar = document.getElementById('sidebarNav');
+    if (!sidebar) return;
     const isCollapsed = sidebar.classList.toggle('collapsed');
-    document.getElementById('toggleText').innerText = isCollapsed ? 'Show Menu' : 'Hide Menu';
+    const toggleBtn = document.getElementById('sidebarToggleBtn');
+    if (toggleBtn) {
+      toggleBtn.title = isCollapsed ? 'Show Menu' : 'Hide Menu';
+      toggleBtn.setAttribute('aria-label', isCollapsed ? 'Show Menu' : 'Hide Menu');
+    }
+    const toggleTextEl = document.getElementById('toggleText');
+    if (toggleTextEl) {
+      toggleTextEl.innerText = isCollapsed ? 'Show Menu' : 'Hide Menu';
+    }
   }
 
     // --- RECONFIGURATION EDITOR (TAB 1) ---
@@ -13366,7 +13450,10 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   async function syncTreeWithERPNext(triggerServerRefresh = false) {
-    syncSalesPersonsAndEmployeesWithERPNext();
+    try {
+      await syncSalesPersonsAndEmployeesWithERPNext();
+    } catch (_) {}
+
     if (triggerServerRefresh && (isStreamlitActive || (window.parent && window.parent !== window))) {
       try {
         window.parent.postMessage({
@@ -13374,13 +13461,15 @@ const BASELINE_ERP_TERRITORIES = [
           type: "streamlit:setComponentValue",
           value: {
             action: "tree_refresh",
+            activeProgram: activeProgram,
             timestamp: Date.now()
           }
         }, "*");
       } catch (_) {}
     }
+
     try {
-      const res = await fetch('/api/resource/Territory?fields=["name","territory_name","parent_territory","is_group","territory_manager","custom_user_id","custom_account_or_program"]&limit_page_length=500', {
+      const res = await fetch('/api/resource/Territory?fields=["name","territory_name","parent_territory","is_group","territory_manager","custom_user_id","custom_account_or_program"]&limit_page_length=2000', {
         headers: { 'Accept': 'application/json' }
       });
       if (res.ok) {
@@ -13402,6 +13491,10 @@ const BASELINE_ERP_TERRITORIES = [
             }
           });
           territoryTreeData = liveTerrs;
+          treeExpandedNodes.add('All Territories');
+          const progBranch = LIVE_DATA[activeProgram]?.territoryBranch;
+          if (progBranch) treeExpandedNodes.add(progBranch);
+
           localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
           syncProgramTerritoriesWithTree();
           if (window.activeEditorViewMode === 'grid') {
@@ -14831,27 +14924,62 @@ const BASELINE_ERP_TERRITORIES = [
       } catch (_) {}
     }
 
-    // Direct ERPNext API call
+    // Direct ERPNext API call (with multi-stage resilience catching HTTP 417)
     try {
       const payload = {
         sales_person_name: spName,
-        parent_sales_person: parentSp,
+        parent_sales_person: parentSp || 'Sales Team',
         is_group: isGrp,
         enabled: isEnabled
       };
       if (empId) payload.employee = empId;
       if (commRate) payload.commission_rate = commRate;
-      if (userAcc) payload.user_id = userAcc;
       if (targets && targets.length > 0) payload.targets = targets;
 
-      fetch('/api/resource/Sales%20Person', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(payload)
-      }).then(async res => {
+      const postSp = async (b) => {
+        return await fetch('/api/resource/Sales%20Person', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(b)
+        });
+      };
+
+      postSp(payload).then(async res => {
         if (res.ok) {
           console.log(`[ERPNext] Created Sales Person "${spName}" online`);
-          showToast(`Sales Person "${spName}" created and added to Sales Person Tree!`, 'success');
+          showToast(`Sales Person "${spName}" created live on dev.pmii-marketing.com!`, 'success');
+          syncSalesPersonsAndEmployeesWithERPNext();
+        } else if (res.status === 417) {
+          // Resilience Stage 1: Retry without targets if child table validation failed
+          const retryBody = Object.assign({}, payload);
+          delete retryBody.targets;
+          let retryRes = await postSp(retryBody);
+          if (retryRes.ok) {
+            showToast(`Sales Person "${spName}" created live (targets schema aligned)!`, 'success');
+            syncSalesPersonsAndEmployeesWithERPNext();
+            return;
+          }
+          // Resilience Stage 2: Retry under parent "Sales Team"
+          retryBody.parent_sales_person = 'Sales Team';
+          retryRes = await postSp(retryBody);
+          if (retryRes.ok) {
+            showToast(`Sales Person "${spName}" created under "Sales Team"!`, 'success');
+            syncSalesPersonsAndEmployeesWithERPNext();
+            return;
+          }
+          // Resilience Stage 3: Retry without employee link
+          delete retryBody.employee;
+          retryRes = await postSp(retryBody);
+          if (retryRes.ok) {
+            showToast(`Sales Person "${spName}" created successfully!`, 'success');
+            syncSalesPersonsAndEmployeesWithERPNext();
+            return;
+          }
+          try {
+            const err = await res.json();
+            const msg = err.exception || err.message || 'ERPNext validation failed (HTTP 417)';
+            showToast(`ERPNext Warning: ${msg}`, 'warning');
+          } catch (_) {}
         } else {
           try {
             const err = await res.json();

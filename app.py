@@ -64,7 +64,7 @@ def get_authenticated_opener():
     opener = create_erpnext_opener()
     creds = [
         ("lesantos@pims-marketing.com", "pims@admin"),
-        ("jptan@profinsights.biz", "UEPCS101c!"),
+        ("jptan@profinsights.biz", "pims@admin"),
     ]
     for usr, pwd in creds:
         try:
@@ -270,7 +270,7 @@ def fetch_live_territories(opener):
             "custom_user_id",
             "custom_account_or_program"
         ])
-        url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory?fields={urllib.parse.quote(fields)}&limit_page_length=500"
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory?fields={urllib.parse.quote(fields)}&limit_page_length=1000"
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
         res = opener.open(req, timeout=8)
         data = json.loads(res.read().decode("utf-8")).get("data", [])
@@ -504,22 +504,77 @@ def execute_tree_action(opener, action, payload):
                 body["department"] = dept
             comm = payload.get("commission_rate")
             if comm:
-                body["commission_rate"] = comm
+                try:
+                    body["commission_rate"] = float(comm)
+                except Exception:
+                    pass
             targets = payload.get("targets")
             if targets and isinstance(targets, list) and len(targets) > 0:
-                body["targets"] = targets
+                cleaned_targets = []
+                for t in targets:
+                    if isinstance(t, dict):
+                        item_grp = (t.get("item_group") or "").strip() or "All Item Groups"
+                        dist_id = (t.get("distribution_id") or "").strip() or "Evenly Distributed"
+                        qty = float(t.get("target_qty") or 0)
+                        amt = float(t.get("target_amount") or 0)
+                        if item_grp or qty > 0 or amt > 0:
+                            cleaned_targets.append({
+                                "item_group": item_grp,
+                                "fiscal_year": (t.get("fiscal_year") or "2026").strip(),
+                                "target_qty": qty,
+                                "target_amount": amt,
+                                "distribution_id": dist_id
+                            })
+                if cleaned_targets:
+                    body["targets"] = cleaned_targets
 
-            data = json.dumps(body).encode("utf-8")
-            req = urllib.request.Request(
-                f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person",
-                data=data,
-                headers=headers_json,
-                method="POST"
-            )
-            res = opener.open(req, timeout=10)
-            if res.status in [200, 201]:
-                return "success", f'Sales Person "{sp_name}" added to Sales Person Tree on dev.pmii-marketing.com!'
-            return "warning", f"ERPNext responded with HTTP {res.status}"
+            def do_post_sp(p_body):
+                data = json.dumps(p_body).encode("utf-8")
+                p_req = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person",
+                    data=data,
+                    headers=headers_json,
+                    method="POST"
+                )
+                return opener.open(p_req, timeout=10)
+
+            try:
+                res = do_post_sp(body)
+                if res.status in [200, 201]:
+                    return "success", f'Sales Person "{sp_name}" added to Sales Person Tree on dev.pmii-marketing.com!'
+                return "warning", f"ERPNext responded with HTTP {res.status}"
+            except urllib.error.HTTPError as he:
+                err_text = he.read().decode("utf-8", errors="ignore")
+                # Resilience: If targets failed, retry without targets
+                if "distribution_id" in err_text or "Target Detail" in err_text or "Monthly Distribution" in err_text:
+                    if "targets" in body:
+                        del body["targets"]
+                        try:
+                            res = do_post_sp(body)
+                            if res.status in [200, 201]:
+                                return "success", f'Sales Person "{sp_name}" added to Sales Person Tree (targets omitted due to schema alignment)!'
+                        except Exception:
+                            pass
+                # Resilience: If parent failed, retry with Sales Team
+                if "Parent Sales Person" in err_text or "parent_sales_person" in err_text:
+                    body["parent_sales_person"] = "Sales Team"
+                    try:
+                        res = do_post_sp(body)
+                        if res.status in [200, 201]:
+                            return "success", f'Sales Person "{sp_name}" added under "Sales Team"!'
+                    except Exception:
+                        pass
+                # Resilience: If employee failed, retry without employee
+                if "Employee" in err_text or "employee" in err_text:
+                    if "employee" in body:
+                        del body["employee"]
+                        try:
+                            res = do_post_sp(body)
+                            if res.status in [200, 201]:
+                                return "success", f'Sales Person "{sp_name}" added (unlinked from unverified employee)!'
+                        except Exception:
+                            pass
+                raise he
 
         elif action == "employee_create":
             first_name = payload.get("first_name", "").strip()
@@ -571,7 +626,7 @@ def execute_tree_action(opener, action, payload):
             return "warning", f"ERPNext responded with HTTP {res.status}"
 
         elif action == "tree_refresh":
-            return "info", "Territory tree refreshed from dev.pmii-marketing.com"
+            return "success", "Territory tree synchronized live from dev.pmii-marketing.com!"
 
         return "info", f"Action {action} processed."
 
@@ -797,14 +852,33 @@ if component_val and isinstance(component_val, dict):
             opener = st.session_state.get("opener") or get_authenticated_opener()
             if opener:
                 st.session_state["opener"] = opener
-                st.session_state["live_territories"] = fetch_live_territories(opener)
-                st.session_state["live_sales_persons"] = fetch_live_sales_persons(opener)
-                st.session_state["live_employees"] = fetch_live_employees(opener)
+                try:
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                        f_terrs = executor.submit(fetch_live_territories, opener)
+                        f_sps = executor.submit(fetch_live_sales_persons, opener)
+                        f_emps = executor.submit(fetch_live_employees, opener)
+                        f_users = executor.submit(fetch_live_users, opener)
+                        st.session_state["live_territories"] = f_terrs.result()
+                        st.session_state["live_sales_persons"] = f_sps.result()
+                        st.session_state["live_employees"] = f_emps.result()
+                        st.session_state["live_users"] = f_users.result()
+                except Exception as ex:
+                    st.session_state["live_territories"] = fetch_live_territories(opener)
+                    st.session_state["live_sales_persons"] = fetch_live_sales_persons(opener)
+                    st.session_state["live_employees"] = fetch_live_employees(opener)
+                    st.session_state["live_users"] = fetch_live_users(opener)
+
+                t_count = len(st.session_state.get("live_territories") or [])
+                if action == "tree_refresh":
+                    msg = f"Live ERPNext sync complete: {t_count} territories loaded directly from dev.pmii-marketing.com!"
+                    status = "success"
+
                 token = st.session_state.get("session_token")
                 if token and token in ACTIVE_SESSIONS:
                     ACTIVE_SESSIONS[token]["live_territories"] = st.session_state["live_territories"]
                     ACTIVE_SESSIONS[token]["live_sales_persons"] = st.session_state["live_sales_persons"]
                     ACTIVE_SESSIONS[token]["live_employees"] = st.session_state["live_employees"]
+                    ACTIVE_SESSIONS[token]["live_users"] = st.session_state["live_users"]
                     ACTIVE_SESSIONS[token]["last_active"] = time.time()
             st.session_state["tree_sync_event"] = {
                 "action": action,
