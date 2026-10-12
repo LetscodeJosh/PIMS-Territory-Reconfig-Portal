@@ -1,0 +1,944 @@
+import streamlit as st
+import streamlit.components.v1 as components
+import os
+import json
+import urllib.request
+import urllib.parse
+import ssl
+import http.cookiejar
+import concurrent.futures
+import secrets
+import time
+
+# 1. Enterprise Streamlit Page Configuration
+st.set_page_config(
+    page_title="PIMS • Territory Reconfiguration Portal",
+    page_icon="🗺️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# 2. Seamless Fullscreen Styling (Zero Streamlit header, footer, or padding)
+st.markdown("""
+<style>
+    /* Full bleed viewport */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stCustomComponentV1"] {
+        height: 100vh !important;
+        max-height: 100vh !important;
+        overflow: hidden !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .block-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        overflow: hidden !important;
+    }
+    header[data-testid="stHeader"] {
+        display: none !important;
+    }
+    footer {
+        display: none !important;
+    }
+    iframe {
+        border: none !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        min-height: 100vh !important;
+        max-height: 100vh !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+def load_dotenv_safely(env_path=".env"):
+    """Safely loads key-value pairs from .env if it exists without third-party dependencies."""
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip("'\"")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
+        except Exception:
+            pass
+
+# Load local .env if present (ignored by git for security)
+load_dotenv_safely(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+
+def get_erpnext_url():
+    """Dynamically resolves ERPNext server endpoint strictly from Streamlit secrets, environment, or .env."""
+    try:
+        if hasattr(st, "secrets") and "ERPNEXT_URL" in st.secrets:
+            val = str(st.secrets["ERPNEXT_URL"]).strip().rstrip("/")
+            if val:
+                return val
+    except Exception:
+        pass
+    env_url = os.environ.get("ERPNEXT_URL") or os.environ.get("ERPNEXT_SERVER_URL")
+    if env_url:
+        return env_url.strip().rstrip("/")
+    return ""
+
+ERPNEXT_SERVER_URL = get_erpnext_url()
+
+def get_server_display_name():
+    """Returns safe display name of the active ERPNext host for user feedback."""
+    if not ERPNEXT_SERVER_URL:
+        return "ERPNext Server"
+    host = urllib.parse.urlparse(ERPNEXT_SERVER_URL).netloc
+    return host if host else "ERPNext Server"
+
+class LoginRateLimiter:
+    """In-memory rate limiter to protect ERPNext authentication against brute force attacks."""
+    def __init__(self, max_attempts: int = 5, window_seconds: int = 60, lockout_seconds: int = 300):
+        self.max_attempts = max_attempts
+        self.window_seconds = window_seconds
+        self.lockout_seconds = lockout_seconds
+        self.attempts = {}
+        self.lockouts = {}
+
+    def is_locked(self, identifier: str):
+        now = time.time()
+        key = identifier.lower().strip()
+        lockout_until = self.lockouts.get(key, 0)
+        if now < lockout_until:
+            return True, int(lockout_until - now)
+        if key in self.lockouts:
+            del self.lockouts[key]
+        return False, 0
+
+    def record_attempt(self, identifier: str, success: bool):
+        now = time.time()
+        key = identifier.lower().strip()
+        if success:
+            self.attempts.pop(key, None)
+            self.lockouts.pop(key, None)
+            return
+
+        recent = [t for t in self.attempts.get(key, []) if now - t < self.window_seconds]
+        recent.append(now)
+        self.attempts[key] = recent
+
+        if len(recent) >= self.max_attempts:
+            self.lockouts[key] = now + self.lockout_seconds
+            self.attempts.pop(key, None)
+
+RATE_LIMITER = LoginRateLimiter()
+
+def safe_str(val, default=""):
+    if val is None:
+        return default
+    return str(val).strip()
+
+def get_authenticated_opener():
+    if "opener" in st.session_state and st.session_state["opener"]:
+        return st.session_state["opener"]
+
+    opener = create_erpnext_opener()
+    svc_user = os.environ.get("PIMS_SERVICE_USER") or (st.secrets.get("PIMS_SERVICE_USER") if hasattr(st, "secrets") and "PIMS_SERVICE_USER" in st.secrets else None)
+    svc_pwd = os.environ.get("PIMS_SERVICE_PASSWORD") or (st.secrets.get("PIMS_SERVICE_PASSWORD") if hasattr(st, "secrets") and "PIMS_SERVICE_PASSWORD" in st.secrets else None)
+    if svc_user and svc_pwd:
+        try:
+            login_data = json.dumps({"usr": svc_user, "pwd": svc_pwd}).encode("utf-8")
+            login_headers = {
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PIMS-Streamlit-Client"
+            }
+            login_req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/api/method/login",
+                data=login_data,
+                headers=login_headers
+            )
+            login_res = opener.open(login_req, timeout=8)
+            res_data = json.loads(login_res.read().decode("utf-8"))
+            if res_data.get("message") == "Logged In":
+                return opener
+        except Exception:
+            pass
+    return opener
+
+def create_erpnext_opener():
+    ctx = ssl.create_default_context()
+    if os.environ.get("ERPNEXT_INSECURE_SSL") == "1":
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    cj = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(cj),
+        urllib.request.HTTPSHandler(context=ctx)
+    )
+    return opener
+
+def verify_erpnext_credentials(usr, pwd):
+    if not usr or not pwd:
+        return {
+            "success": False,
+            "authorized": False,
+            "message": "Both username and password are required."
+        }, None
+
+    usr = usr.strip()
+    pwd = pwd.strip()
+
+    # Rate limiting protection against brute force and credential stuffing
+    is_locked, remaining = RATE_LIMITER.is_locked(usr)
+    if is_locked:
+        return {
+            "success": False,
+            "authorized": False,
+            "message": f"Too many failed login attempts. Security lockout active. Please wait {remaining} seconds before retrying."
+        }, None
+
+    opener = create_erpnext_opener()
+
+    login_payload = json.dumps({"usr": usr, "pwd": pwd}).encode("utf-8")
+    login_headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PIMS-Streamlit-Client"
+    }
+
+    login_data = {}
+    try:
+        login_req = urllib.request.Request(
+            f"{ERPNEXT_SERVER_URL}/api/method/login",
+            data=login_payload,
+            headers=login_headers
+        )
+        login_res = opener.open(login_req, timeout=8)
+        login_data = json.loads(login_res.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            RATE_LIMITER.record_attempt(usr, success=False)
+            return {
+                "success": False,
+                "authorized": False,
+                "message": "Invalid username or password. Please verify your ERPNext credentials or contact your administrator."
+            }, None
+        return {
+            "success": False,
+            "authorized": False,
+            "message": f"ERPNext authentication error (HTTP {e.code}). Please try again."
+        }, None
+    except Exception as e:
+        server_host = get_server_display_name()
+        return {
+            "success": False,
+            "authorized": False,
+            "message": f"Unable to establish a secure connection to the authentication server ({server_host}). Please verify network connectivity."
+        }, None
+
+    if login_data.get("message") != "Logged In":
+        RATE_LIMITER.record_attempt(usr, success=False)
+        return {
+            "success": False,
+            "authorized": False,
+            "message": "Authentication failed on ERPNext."
+        }, None
+
+    # Reset rate limiting counter upon verified authentication
+    RATE_LIMITER.record_attempt(usr, success=True)
+    full_name = login_data.get("full_name") or usr
+
+    # Fast-path for Administrator / Admin
+    if usr.lower() in ["administrator", "admin"]:
+        return {
+            "success": True,
+            "authorized": True,
+            "message": f"Welcome back, {full_name}!",
+            "user": {
+                "email": usr,
+                "full_name": full_name or "System Administrator",
+                "role_profile": "Administrator",
+                "role_title": "Administrator",
+                "is_admin": True,
+                "is_sfe": False,
+                "roles": ["System Manager", "Administrator"],
+                "auth_source": f"ERPNext Live User Masterlist ({get_server_display_name()})"
+            }
+        }, opener
+
+    roles = []
+    role_profile = ""
+
+    try:
+        quoted_usr = urllib.parse.quote(usr)
+        user_req = urllib.request.Request(
+            f"{ERPNEXT_SERVER_URL}/api/resource/User/{quoted_usr}",
+            headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"}
+        )
+        user_res = opener.open(user_req, timeout=6)
+        user_doc = json.loads(user_res.read().decode("utf-8")).get("data", {})
+        full_name = user_doc.get("full_name") or full_name
+        role_profile = user_doc.get("role_profile_name") or ""
+        roles = [r.get("role") for r in user_doc.get("roles", []) if isinstance(r, dict) and r.get("role")]
+    except Exception:
+        pass
+
+    all_roles_str = " ".join([role_profile] + roles).lower()
+    is_admin = any(k in all_roles_str for k in ["system manager", "administrator"])
+    is_sfe = any(k in all_roles_str for k in ["sales force effectiveness", "sales manager", "sfe", "territory manager"])
+
+    if not (is_admin or is_sfe):
+        return {
+            "success": False,
+            "authorized": False,
+            "message": f"Access Restricted: User '{usr}' does not have authorized SFE or Administrator roles. Please contact your system administrator."
+        }, None
+
+    role_title = "Administrator" if is_admin else "SFE Lead"
+
+    return {
+        "success": True,
+        "authorized": True,
+        "message": f"Welcome back, {full_name}!",
+        "user": {
+            "email": usr,
+            "full_name": full_name,
+            "role_profile": role_profile or role_title,
+            "role_title": role_title,
+            "is_admin": is_admin,
+            "is_sfe": is_sfe,
+            "roles": roles,
+            "auth_source": f"ERPNext Live User Masterlist ({get_server_display_name()})"
+        }
+    }, opener
+
+def fetch_live_territories(opener):
+    if not opener:
+        return None
+    try:
+        fields = json.dumps([
+            "name",
+            "territory_name",
+            "parent_territory",
+            "is_group",
+            "territory_manager",
+            "custom_user_id",
+            "custom_account_or_program"
+        ])
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory?fields={urllib.parse.quote(fields)}&limit_page_length=1000"
+        req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+        res = opener.open(req, timeout=8)
+        data = json.loads(res.read().decode("utf-8")).get("data", [])
+        return data
+    except Exception as e:
+        print(f"[Streamlit Proxy] Failed to fetch live territories: {e}")
+        return None
+
+def fetch_live_sales_persons(opener):
+    if not opener:
+        return None
+    try:
+        fields = json.dumps(["name", "sales_person_name", "parent_sales_person", "employee", "is_group", "enabled", "department"])
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person?fields={urllib.parse.quote(fields)}&limit_page_length=2000"
+        req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+        res = opener.open(req, timeout=10)
+        data = json.loads(res.read().decode("utf-8")).get("data", [])
+        return data
+    except Exception as e:
+        print(f"[Streamlit Proxy] Failed to fetch live sales persons: {e}")
+        return None
+
+def fetch_live_employees(opener):
+    if not opener:
+        return None
+    try:
+        fields = json.dumps(["name", "employee_name", "first_name", "last_name", "gender", "company", "status", "department", "designation"])
+        filters = json.dumps([["Employee", "status", "=", "Active"]])
+        all_emps = []
+        limit_start = 0
+        limit_page_length = 500
+        while True:
+            url = (
+                f"{ERPNEXT_SERVER_URL}/api/resource/Employee"
+                f"?fields={urllib.parse.quote(fields)}"
+                f"&filters={urllib.parse.quote(filters)}"
+                f"&limit_start={limit_start}&limit_page_length={limit_page_length}"
+            )
+            req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+            res = opener.open(req, timeout=15)
+            batch = json.loads(res.read().decode("utf-8")).get("data", [])
+            if not batch:
+                break
+            all_emps.extend(batch)
+            if len(batch) < limit_page_length:
+                break
+            limit_start += limit_page_length
+        return all_emps
+    except Exception as e:
+        print(f"[Streamlit Proxy] Failed to fetch live employees: {e}")
+        return None
+
+def fetch_live_users(opener):
+    if not opener:
+        return None
+    try:
+        fields = json.dumps(["name", "email", "full_name", "first_name", "last_name", "enabled"])
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/User?fields={urllib.parse.quote(fields)}&limit_page_length=3000"
+        req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+        res = opener.open(req, timeout=12)
+        data = json.loads(res.read().decode("utf-8")).get("data", [])
+        return data
+    except Exception as e:
+        print(f"[Streamlit Proxy] Failed to fetch live users: {e}")
+        return None
+
+def execute_tree_action(opener, action, payload):
+    if not opener:
+        opener = get_authenticated_opener()
+        if opener and "opener" in st.session_state:
+            st.session_state["opener"] = opener
+
+    if not opener:
+        return "error", "Cannot connect to ERPNext. Please check network connectivity."
+
+    headers_json = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "Mozilla/5.0"}
+
+    try:
+        try:
+            from secure_frappe_gateway import TerritoryActionSchema, SecurityValidationError
+            _ = TerritoryActionSchema.from_dict({"action": action, **payload})
+        except ImportError:
+            pass
+        except SecurityValidationError as sve:
+            return "error", f"Security Validation Error: {sve}"
+
+        if action == "tree_add":
+            t_name = safe_str(payload.get("territory_name"))
+            parent = safe_str(payload.get("parent_territory")) or "All Territories"
+            is_group = int(payload.get("is_group", 0) or 0)
+            t_mgr = safe_str(payload.get("territory_manager"))
+            if not t_name:
+                return "error", "Territory name cannot be blank."
+            body = {
+                "territory_name": t_name,
+                "parent_territory": parent,
+                "is_group": is_group
+            }
+            if t_mgr:
+                body["territory_manager"] = t_mgr
+            if payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"):
+                body["custom_user_id"] = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
+            if payload.get("custom_account_or_program") or payload.get("program"):
+                body["custom_account_or_program"] = safe_str(payload.get("custom_account_or_program") or payload.get("program"))
+            data = json.dumps(body).encode("utf-8")
+            req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+                data=data,
+                headers=headers_json,
+                method="POST"
+            )
+            try:
+                res = opener.open(req, timeout=10)
+                if res.status in [200, 201]:
+                    return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
+                return "warning", f"ERPNext responded with HTTP {res.status}"
+            except urllib.error.HTTPError as he:
+                err_text = he.read().decode("utf-8", errors="ignore")
+                if "DuplicateEntryError" in err_text:
+                    return "warning", f'Territory "{t_name}" already exists in ERPNext.'
+                if "LinkValidationError" in err_text and "territory_manager" in err_text and "territory_manager" in body:
+                    del body["territory_manager"]
+                    data = json.dumps(body).encode("utf-8")
+                    req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+                        data=data,
+                        headers=headers_json,
+                        method="POST"
+                    )
+                    res = opener.open(req, timeout=10)
+                    if res.status in [200, 201]:
+                        return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
+                raise he
+
+        elif action == "tree_edit":
+            orig_name = safe_str(payload.get("name"))
+            new_parent = safe_str(payload.get("parent_territory")) or "All Territories"
+            new_is_group = int(payload.get("is_group", 0) or 0)
+            new_mgr = safe_str(payload.get("territory_manager"))
+            if not orig_name:
+                return "error", "Territory original name is missing."
+            body = {
+                "parent_territory": new_parent,
+                "is_group": new_is_group
+            }
+            if new_mgr:
+                body["territory_manager"] = new_mgr
+            if payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"):
+                body["custom_user_id"] = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
+            if payload.get("custom_account_or_program") or payload.get("program"):
+                body["custom_account_or_program"] = safe_str(payload.get("custom_account_or_program") or payload.get("program"))
+            data = json.dumps(body).encode("utf-8")
+            req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name)}",
+                data=data,
+                headers=headers_json,
+                method="PUT"
+            )
+            try:
+                res = opener.open(req, timeout=10)
+                if res.status == 200:
+                    return "success", f'Territory "{orig_name}" updated live on {get_server_display_name()}!'
+                return "warning", f"ERPNext responded with HTTP {res.status}"
+            except urllib.error.HTTPError as he:
+                err_text = he.read().decode("utf-8", errors="ignore")
+                if "LinkValidationError" in err_text and "territory_manager" in err_text and "territory_manager" in body:
+                    del body["territory_manager"]
+                    data = json.dumps(body).encode("utf-8")
+                    req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name)}",
+                        data=data,
+                        headers=headers_json,
+                        method="PUT"
+                    )
+                    res = opener.open(req, timeout=10)
+                    if res.status == 200:
+                        return "success", f'Territory "{orig_name}" updated live on {get_server_display_name()}!'
+                raise he
+
+        elif action == "tree_rename":
+            old_name = safe_str(payload.get("old_name"))
+            new_name = safe_str(payload.get("new_name"))
+            if not old_name or not new_name:
+                return "error", "Both old and new names are required to rename."
+            form_data = urllib.parse.urlencode({
+                "doctype": "Territory",
+                "old_name": old_name,
+                "new_name": new_name
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.rename_doc",
+                data=form_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+                method="POST"
+            )
+            res = opener.open(req, timeout=10)
+            if res.status == 200:
+                return "success", f'Renamed "{old_name}" -> "{new_name}" live on {get_server_display_name()}!'
+            return "warning", f"ERPNext responded with HTTP {res.status}"
+
+        elif action == "tree_delete":
+            name = safe_str(payload.get("name"))
+            if not name:
+                return "error", "Territory name is required to delete."
+            req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(name)}",
+                headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+                method="DELETE"
+            )
+            res = opener.open(req, timeout=10)
+            if res.status in [200, 202]:
+                return "success", f'Territory "{name}" deleted from {get_server_display_name()}!'
+            return "warning", f"ERPNext responded with HTTP {res.status}"
+
+        elif action == "sales_person_create":
+            sp_name = payload.get("sales_person_name", "").strip()
+            parent_sp = payload.get("parent_sales_person", "").strip() or "Sales Team"
+            is_group = int(payload.get("is_group", 0))
+            enabled = int(payload.get("enabled", 1))
+            emp = payload.get("employee", "").strip()
+            body = {
+                "sales_person_name": sp_name,
+                "parent_sales_person": parent_sp,
+                "is_group": is_group,
+                "enabled": enabled
+            }
+            if emp:
+                body["employee"] = emp
+            dept = payload.get("department", "").strip()
+            if dept:
+                body["department"] = dept
+            comm = payload.get("commission_rate")
+            if comm:
+                try:
+                    body["commission_rate"] = float(comm)
+                except Exception:
+                    pass
+            targets = payload.get("targets")
+            if targets and isinstance(targets, list) and len(targets) > 0:
+                cleaned_targets = []
+                for t in targets:
+                    if isinstance(t, dict):
+                        item_grp = (t.get("item_group") or "").strip() or "All Item Groups"
+                        dist_id = (t.get("distribution_id") or "").strip() or "Evenly Distributed"
+                        qty = float(t.get("target_qty") or 0)
+                        amt = float(t.get("target_amount") or 0)
+                        if item_grp or qty > 0 or amt > 0:
+                            cleaned_targets.append({
+                                "item_group": item_grp,
+                                "fiscal_year": (t.get("fiscal_year") or "2026").strip(),
+                                "target_qty": qty,
+                                "target_amount": amt,
+                                "distribution_id": dist_id
+                            })
+                if cleaned_targets:
+                    body["targets"] = cleaned_targets
+
+            def do_post_sp(p_body):
+                data = json.dumps(p_body).encode("utf-8")
+                p_req = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person",
+                    data=data,
+                    headers=headers_json,
+                    method="POST"
+                )
+                return opener.open(p_req, timeout=10)
+
+            try:
+                res = do_post_sp(body)
+                if res.status in [200, 201]:
+                    return "success", f'Sales Person "{sp_name}" added to Sales Person Tree on {get_server_display_name()}!'
+                return "warning", f"ERPNext responded with HTTP {res.status}"
+            except urllib.error.HTTPError as he:
+                err_text = he.read().decode("utf-8", errors="ignore")
+                # Resilience: If targets failed, retry without targets
+                if "distribution_id" in err_text or "Target Detail" in err_text or "Monthly Distribution" in err_text:
+                    if "targets" in body:
+                        del body["targets"]
+                        try:
+                            res = do_post_sp(body)
+                            if res.status in [200, 201]:
+                                return "success", f'Sales Person "{sp_name}" added to Sales Person Tree (targets omitted due to schema alignment)!'
+                        except Exception:
+                            pass
+                # Resilience: If parent failed, retry with Sales Team
+                if "Parent Sales Person" in err_text or "parent_sales_person" in err_text:
+                    body["parent_sales_person"] = "Sales Team"
+                    try:
+                        res = do_post_sp(body)
+                        if res.status in [200, 201]:
+                            return "success", f'Sales Person "{sp_name}" added under "Sales Team"!'
+                    except Exception:
+                        pass
+                # Resilience: If employee failed, retry without employee
+                if "Employee" in err_text or "employee" in err_text:
+                    if "employee" in body:
+                        del body["employee"]
+                        try:
+                            res = do_post_sp(body)
+                            if res.status in [200, 201]:
+                                return "success", f'Sales Person "{sp_name}" added (unlinked from unverified employee)!'
+                        except Exception:
+                            pass
+                raise he
+
+        elif action == "employee_create":
+            first_name = payload.get("first_name", "").strip()
+            last_name = payload.get("last_name", "").strip()
+            gender = payload.get("gender", "Male").strip()
+            dob = payload.get("date_of_birth", "1995-01-01").strip()
+            doj = payload.get("date_of_joining", "2024-01-01").strip()
+            company = payload.get("company", "Professional Insights Marketing Services").strip()
+            status = payload.get("status", "Active").strip()
+            body = {
+                "first_name": first_name,
+                "gender": gender,
+                "date_of_birth": dob,
+                "date_of_joining": doj,
+                "company": company,
+                "status": status
+            }
+            if last_name:
+                body["last_name"] = last_name
+            if payload.get("middle_name"):
+                body["middle_name"] = payload.get("middle_name").strip()
+            if payload.get("designation"):
+                body["designation"] = payload.get("designation").strip()
+            if payload.get("department"):
+                body["department"] = payload.get("department").strip()
+            if payload.get("reports_to"):
+                body["reports_to"] = payload.get("reports_to").strip()
+            if payload.get("cell_number"):
+                body["cell_number"] = payload.get("cell_number").strip()
+            if payload.get("company_email"):
+                body["company_email"] = payload.get("company_email").strip()
+
+            data = json.dumps(body).encode("utf-8")
+            req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/api/resource/Employee",
+                data=data,
+                headers=headers_json,
+                method="POST"
+            )
+            res = opener.open(req, timeout=10)
+            if res.status in [200, 201]:
+                try:
+                    created_doc = json.loads(res.read().decode("utf-8")).get("data", {})
+                    new_id = created_doc.get("name") or "New Employee"
+                    full_name = created_doc.get("employee_name") or f"{first_name} {last_name}".strip()
+                    return "success", f'Employee "{full_name}" ({new_id}) created on {get_server_display_name()}!'
+                except Exception:
+                    return "success", f'Employee created successfully on {get_server_display_name()}!'
+            return "warning", f"ERPNext responded with HTTP {res.status}"
+
+        elif action == "tree_refresh":
+            return "success", f"Territory tree synchronized live from {get_server_display_name()}!"
+
+        return "info", f"Action {action} processed."
+
+    except urllib.error.HTTPError as e:
+        try:
+            err_body = e.read().decode("utf-8")
+            err_json = json.loads(err_body)
+            msg = err_json.get("exception") or err_json.get("message")
+            if not msg and err_json.get("_server_messages"):
+                try:
+                    msgs = json.loads(err_json["_server_messages"])
+                    if msgs:
+                        m_obj = json.loads(msgs[0]) if isinstance(msgs[0], str) else msgs[0]
+                        msg = m_obj.get("message")
+                except Exception:
+                    pass
+            if not msg:
+                msg = f"HTTP Error {e.code}"
+            return "warning", f"ERPNext: {msg}"
+        except Exception:
+            return "warning", f"ERPNext Error (HTTP {e.code})"
+    except Exception as e:
+        return "error", f"Network error: {str(e)}"
+
+
+# Persistent Cross-Refresh Session Cache
+if "ACTIVE_SESSIONS" not in globals():
+    ACTIVE_SESSIONS = {}
+
+SESSION_MAX_AGE_SECONDS = 7 * 86400  # 7 days
+
+def get_query_param(key):
+    try:
+        if hasattr(st, "query_params"):
+            return st.query_params.get(key)
+        elif hasattr(st, "experimental_get_query_params"):
+            vals = st.experimental_get_query_params().get(key, [])
+            return vals[0] if vals else None
+    except Exception:
+        pass
+    return None
+
+def set_query_param(key, value):
+    try:
+        if hasattr(st, "query_params"):
+            st.query_params[key] = value
+        elif hasattr(st, "experimental_set_query_params"):
+            st.experimental_set_query_params(**{key: value})
+    except Exception:
+        pass
+
+def clear_query_param(key=None):
+    try:
+        if hasattr(st, "query_params"):
+            if key:
+                if key in st.query_params:
+                    del st.query_params[key]
+            else:
+                st.query_params.clear()
+        elif hasattr(st, "experimental_set_query_params"):
+            if key:
+                params = st.experimental_get_query_params()
+                params.pop(key, None)
+                st.experimental_set_query_params(**params)
+            else:
+                st.experimental_set_query_params()
+    except Exception:
+        pass
+
+def purge_expired_sessions():
+    now = time.time()
+    expired = [k for k, v in ACTIVE_SESSIONS.items() if now - v.get("last_active", 0) > SESSION_MAX_AGE_SECONDS]
+    for k in expired:
+        ACTIVE_SESSIONS.pop(k, None)
+
+# 3. Mount Territory Reconfiguration Portal Component
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+INDEX_HTML = os.path.join(CURRENT_DIR, "index.html")
+PORTAL_HTML = os.path.join(CURRENT_DIR, "territory_reconfiguration_portal.html")
+
+# Ensure index.html is strictly synchronized with territory_reconfiguration_portal.html
+if os.path.exists(PORTAL_HTML):
+    import shutil
+    try:
+        if (not os.path.exists(INDEX_HTML) or 
+            os.path.getsize(INDEX_HTML) != os.path.getsize(PORTAL_HTML) or 
+            os.path.getmtime(PORTAL_HTML) > os.path.getmtime(INDEX_HTML)):
+            shutil.copy2(PORTAL_HTML, INDEX_HTML)
+    except Exception:
+        pass
+
+portal_component = components.declare_component("pims_portal", path=CURRENT_DIR)
+
+# Restore persistent session across page refresh if present in query parameters
+session_token = get_query_param("sfe_session")
+if session_token and session_token in ACTIVE_SESSIONS:
+    cached_session = ACTIVE_SESSIONS[session_token]
+    cached_session["last_active"] = time.time()
+    if "auth_response" not in st.session_state or not st.session_state["auth_response"]:
+        st.session_state["auth_response"] = cached_session.get("auth_response")
+    if "opener" not in st.session_state or not st.session_state["opener"]:
+        st.session_state["opener"] = cached_session.get("opener")
+    if "live_territories" not in st.session_state or not st.session_state["live_territories"]:
+        st.session_state["live_territories"] = cached_session.get("live_territories")
+    if "live_sales_persons" not in st.session_state or not st.session_state["live_sales_persons"]:
+        st.session_state["live_sales_persons"] = cached_session.get("live_sales_persons")
+    if "live_employees" not in st.session_state or not st.session_state["live_employees"]:
+        st.session_state["live_employees"] = cached_session.get("live_employees")
+    if "live_users" not in st.session_state or not st.session_state["live_users"]:
+        st.session_state["live_users"] = cached_session.get("live_users")
+    st.session_state["session_token"] = session_token
+elif session_token:
+    clear_query_param("sfe_session")
+
+
+if "auth_response" not in st.session_state:
+    st.session_state["auth_response"] = None
+if "opener" not in st.session_state:
+    st.session_state["opener"] = None
+
+# Only attempt authenticated opener and live fetch if an authorized session is active
+if st.session_state.get("auth_response") and st.session_state["auth_response"].get("authorized"):
+    if not st.session_state.get("opener"):
+        st.session_state["opener"] = get_authenticated_opener()
+    if "live_territories" not in st.session_state or not st.session_state["live_territories"]:
+        st.session_state["live_territories"] = fetch_live_territories(st.session_state["opener"]) if st.session_state["opener"] else None
+else:
+    if "live_territories" not in st.session_state:
+        st.session_state["live_territories"] = None
+
+if "live_sales_persons" not in st.session_state:
+    st.session_state["live_sales_persons"] = None
+if "live_employees" not in st.session_state:
+    st.session_state["live_employees"] = None
+if "live_users" not in st.session_state:
+    st.session_state["live_users"] = None
+if "tree_sync_event" not in st.session_state:
+    st.session_state["tree_sync_event"] = None
+if "last_action_timestamp" not in st.session_state:
+    st.session_state["last_action_timestamp"] = 0
+
+# Render the web app component directly (Opens directly to the native login view)
+component_val = portal_component(
+    auth_response=st.session_state["auth_response"],
+    live_territories=st.session_state["live_territories"],
+    live_sales_persons=st.session_state["live_sales_persons"],
+    live_employees=st.session_state["live_employees"],
+    live_users=st.session_state["live_users"],
+    tree_sync_event=st.session_state["tree_sync_event"],
+    key="pims_portal_app"
+)
+
+# Handle events dispatched from the portal
+if component_val and isinstance(component_val, dict):
+    action = component_val.get("action")
+    ts = component_val.get("timestamp", 0)
+
+    # De-duplicate events to strictly eliminate infinite rerun loops
+    if ts > st.session_state["last_action_timestamp"]:
+        st.session_state["last_action_timestamp"] = ts
+        if action == "login":
+            usr = component_val.get("usr")
+            pwd = component_val.get("pwd")
+            res, opener = verify_erpnext_credentials(usr, pwd)
+            st.session_state["auth_response"] = res
+            if res.get("authorized") and opener:
+                st.session_state["opener"] = opener
+                try:
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                        f_terrs = executor.submit(fetch_live_territories, opener)
+                        f_sps = executor.submit(fetch_live_sales_persons, opener)
+                        f_emps = executor.submit(fetch_live_employees, opener)
+                        f_users = executor.submit(fetch_live_users, opener)
+                        st.session_state["live_territories"] = f_terrs.result()
+                        st.session_state["live_sales_persons"] = f_sps.result()
+                        st.session_state["live_employees"] = f_emps.result()
+                        st.session_state["live_users"] = f_users.result()
+                except Exception as ex:
+                    print(f"[Streamlit Data Fetch Warning] {ex}")
+                    st.session_state["live_territories"] = fetch_live_territories(opener)
+                    st.session_state["live_users"] = fetch_live_users(opener)
+            if res.get("authorized") and opener:
+                purge_expired_sessions()
+                token = secrets.token_urlsafe(32)
+                ACTIVE_SESSIONS[token] = {
+                    "auth_response": res,
+                    "opener": opener,
+                    "live_territories": st.session_state["live_territories"],
+                    "live_sales_persons": st.session_state["live_sales_persons"],
+                    "live_employees": st.session_state["live_employees"],
+                    "live_users": st.session_state["live_users"],
+                    "last_active": time.time()
+                }
+                set_query_param("sfe_session", token)
+                st.session_state["session_token"] = token
+
+            # Immediately scrub credentials from memory and component payload
+            if "pwd" in component_val:
+                component_val["pwd"] = ""
+            del pwd
+            del usr
+            st.rerun()
+        elif action == "logout":
+            token = st.session_state.get("session_token") or get_query_param("sfe_session")
+            if token and token in ACTIVE_SESSIONS:
+                ACTIVE_SESSIONS.pop(token, None)
+            clear_query_param("sfe_session")
+            st.session_state["auth_response"] = None
+            st.session_state["opener"] = None
+            st.session_state["live_territories"] = None
+            st.session_state["live_sales_persons"] = None
+            st.session_state["live_employees"] = None
+            st.session_state["live_users"] = None
+            st.session_state["tree_sync_event"] = None
+            st.session_state["session_token"] = None
+            st.rerun()
+        elif action in ["tree_add", "tree_edit", "tree_rename", "tree_delete", "tree_refresh", "sales_person_create", "employee_create"]:
+            opener = st.session_state.get("opener")
+            if not opener:
+                opener = get_authenticated_opener()
+                st.session_state["opener"] = opener
+            status, msg = execute_tree_action(opener, action, component_val)
+            opener = st.session_state.get("opener") or get_authenticated_opener()
+            if opener:
+                st.session_state["opener"] = opener
+                try:
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                        f_terrs = executor.submit(fetch_live_territories, opener)
+                        f_sps = executor.submit(fetch_live_sales_persons, opener)
+                        f_emps = executor.submit(fetch_live_employees, opener)
+                        f_users = executor.submit(fetch_live_users, opener)
+                        st.session_state["live_territories"] = f_terrs.result()
+                        st.session_state["live_sales_persons"] = f_sps.result()
+                        st.session_state["live_employees"] = f_emps.result()
+                        st.session_state["live_users"] = f_users.result()
+                except Exception as ex:
+                    st.session_state["live_territories"] = fetch_live_territories(opener)
+                    st.session_state["live_sales_persons"] = fetch_live_sales_persons(opener)
+                    st.session_state["live_employees"] = fetch_live_employees(opener)
+                    st.session_state["live_users"] = fetch_live_users(opener)
+
+                t_count = len(st.session_state.get("live_territories") or [])
+                if action == "tree_refresh":
+                    msg = f"Live ERPNext sync complete: {t_count} territories loaded directly from {get_server_display_name()}!"
+                    status = "success"
+
+                token = st.session_state.get("session_token")
+                if token and token in ACTIVE_SESSIONS:
+                    ACTIVE_SESSIONS[token]["live_territories"] = st.session_state["live_territories"]
+                    ACTIVE_SESSIONS[token]["live_sales_persons"] = st.session_state["live_sales_persons"]
+                    ACTIVE_SESSIONS[token]["live_employees"] = st.session_state["live_employees"]
+                    ACTIVE_SESSIONS[token]["live_users"] = st.session_state["live_users"]
+                    ACTIVE_SESSIONS[token]["last_active"] = time.time()
+            st.session_state["tree_sync_event"] = {
+                "action": action,
+                "status": status,
+                "message": msg,
+                "timestamp": ts
+            }
+            st.rerun()
+
