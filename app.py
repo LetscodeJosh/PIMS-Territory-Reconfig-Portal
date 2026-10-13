@@ -96,43 +96,6 @@ def get_server_display_name():
     host = urllib.parse.urlparse(ERPNEXT_SERVER_URL).netloc
     return host if host else "ERPNext Server"
 
-class LoginRateLimiter:
-    """In-memory rate limiter to protect ERPNext authentication against brute force attacks."""
-    def __init__(self, max_attempts: int = 5, window_seconds: int = 60, lockout_seconds: int = 300):
-        self.max_attempts = max_attempts
-        self.window_seconds = window_seconds
-        self.lockout_seconds = lockout_seconds
-        self.attempts = {}
-        self.lockouts = {}
-
-    def is_locked(self, identifier: str):
-        now = time.time()
-        key = identifier.lower().strip()
-        lockout_until = self.lockouts.get(key, 0)
-        if now < lockout_until:
-            return True, int(lockout_until - now)
-        if key in self.lockouts:
-            del self.lockouts[key]
-        return False, 0
-
-    def record_attempt(self, identifier: str, success: bool):
-        now = time.time()
-        key = identifier.lower().strip()
-        if success:
-            self.attempts.pop(key, None)
-            self.lockouts.pop(key, None)
-            return
-
-        recent = [t for t in self.attempts.get(key, []) if now - t < self.window_seconds]
-        recent.append(now)
-        self.attempts[key] = recent
-
-        if len(recent) >= self.max_attempts:
-            self.lockouts[key] = now + self.lockout_seconds
-            self.attempts.pop(key, None)
-
-RATE_LIMITER = LoginRateLimiter()
-
 def safe_str(val, default=""):
     if val is None:
         return default
@@ -188,15 +151,6 @@ def verify_erpnext_credentials(usr, pwd):
     usr = usr.strip()
     pwd = pwd.strip()
 
-    # Rate limiting protection against brute force and credential stuffing
-    is_locked, remaining = RATE_LIMITER.is_locked(usr)
-    if is_locked:
-        return {
-            "success": False,
-            "authorized": False,
-            "message": f"Too many failed login attempts. Security lockout active. Please wait {remaining} seconds before retrying."
-        }, None
-
     opener = create_erpnext_opener()
 
     login_payload = json.dumps({"usr": usr, "pwd": pwd}).encode("utf-8")
@@ -216,7 +170,6 @@ def verify_erpnext_credentials(usr, pwd):
         login_data = json.loads(login_res.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         if e.code == 401:
-            RATE_LIMITER.record_attempt(usr, success=False)
             return {
                 "success": False,
                 "authorized": False,
@@ -236,15 +189,12 @@ def verify_erpnext_credentials(usr, pwd):
         }, None
 
     if login_data.get("message") != "Logged In":
-        RATE_LIMITER.record_attempt(usr, success=False)
         return {
             "success": False,
             "authorized": False,
             "message": "Authentication failed on ERPNext."
         }, None
 
-    # Reset rate limiting counter upon verified authentication
-    RATE_LIMITER.record_attempt(usr, success=True)
     full_name = login_data.get("full_name") or usr
 
     # Fast-path for Administrator / Admin
