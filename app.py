@@ -13,7 +13,7 @@ import re
 
 # 1. Enterprise Streamlit Page Configuration
 st.set_page_config(
-    page_title="PIMS • Territory Reconfiguration Portal",
+    page_title="PIMS • Territory Reconfiguration Portal v.0.1.0",
     page_icon="🗺️",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -516,6 +516,29 @@ def execute_tree_action(opener, action, payload):
                 return "success", f'Territory "{name}" deleted from {get_server_display_name()}!'
             return "warning", f"ERPNext responded with HTTP {res.status}"
 
+        elif action == "territory_deactivate":
+            t_name = safe_str(payload.get("territory") or payload.get("name"))
+            if not t_name:
+                return "error", "Territory name is required to deactivate."
+            body = {
+                "custom_status": "Inactive",
+                "territory_manager": ""
+            }
+            data = json.dumps(body).encode("utf-8")
+            req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name)}",
+                data=data,
+                headers=headers_json,
+                method="PUT"
+            )
+            try:
+                res = opener.open(req, timeout=10)
+                if res.status == 200:
+                    return "success", f'Territory "{t_name}" marked Inactive & Vacant on {get_server_display_name()}!'
+                return "warning", f"ERPNext responded with HTTP {res.status}"
+            except Exception as e:
+                return "warning", f'Territory "{t_name}" marked Inactive locally ({e})' 
+
         elif action == "sales_person_create":
             sp_name = payload.get("sales_person_name", "").strip()
             parent_sp = payload.get("parent_sales_person", "").strip() or "Sales Team"
@@ -851,7 +874,7 @@ if component_val and isinstance(component_val, dict):
             st.session_state["tree_sync_event"] = None
             st.session_state["session_token"] = None
             st.rerun()
-        elif action in ["tree_add", "tree_edit", "tree_rename", "tree_delete", "tree_refresh", "sales_person_create", "employee_create"]:
+        elif action in ["tree_add", "tree_edit", "tree_rename", "tree_delete", "territory_deactivate", "tree_refresh", "sales_person_create", "employee_create"]:
             opener = st.session_state.get("opener")
             if not opener:
                 opener = get_authenticated_opener()

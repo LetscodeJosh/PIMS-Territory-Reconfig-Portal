@@ -60,6 +60,153 @@
 
     window.__streamlitSendReady = sendReady;
   })();
+
+  // =========================================================================
+  // SFE USER GUIDE & SUBTEXT GUIDANCE ENGINE (v.0.1.0)
+  // =========================================================================
+  let isGuideModeActive = false;
+
+  function checkFirstTimeUserGuide() {
+    const hasSeenGuide = localStorage.getItem('pims_sfe_guide_seen');
+    if (!hasSeenGuide) {
+      isGuideModeActive = true;
+      document.body.classList.add('guide-mode-active');
+      setTimeout(() => {
+        openUserGuideModal(false);
+      }, 500);
+    } else {
+      const pref = localStorage.getItem('pims_sfe_guide_subtexts_pref');
+      if (pref === 'true' || pref === null) {
+        isGuideModeActive = true;
+        document.body.classList.add('guide-mode-active');
+      }
+    }
+    const guideBtn = document.getElementById('btnHelpGuide');
+    if (guideBtn) guideBtn.style.display = 'inline-flex';
+  }
+
+  function openUserGuideModal(isRecap) {
+    const modal = document.getElementById('userGuideModalOverlay');
+    if (!modal) return;
+    isGuideModeActive = true;
+    document.body.classList.add('guide-mode-active');
+    modal.classList.add('active');
+  }
+
+  function closeUserGuideModal() {
+    const modal = document.getElementById('userGuideModalOverlay');
+    if (modal) modal.classList.remove('active');
+    localStorage.setItem('pims_sfe_guide_seen', 'true');
+  }
+
+  function toggleGuideSubtextPref(enable) {
+    isGuideModeActive = enable;
+    if (enable) {
+      document.body.classList.add('guide-mode-active');
+      localStorage.setItem('pims_sfe_guide_subtexts_pref', 'true');
+    } else {
+      document.body.classList.remove('guide-mode-active');
+      localStorage.setItem('pims_sfe_guide_subtexts_pref', 'false');
+    }
+  }
+
+  // =========================================================================
+  // TAG INACTIVE & VACANT (STRICT SFE NO-DELETION GUARANTEE)
+  // =========================================================================
+  function openTagInactiveModal(code) {
+    closeGridActionDropdown();
+    const matchedPt = programTerritories.find(pt => pt.activeCode === code || pt.histCode === code || pt.recordId === code);
+    const repName = matchedPt && matchedPt.rep ? matchedPt.rep : 'Unassigned Rep';
+    const docCount = matchedPt && matchedPt.coveredDoctors ? matchedPt.coveredDoctors.length : 0;
+    
+    document.getElementById('inactiveTerritoryCode').value = code;
+    document.getElementById('inactiveTerritoryName').innerText = code;
+    document.getElementById('inactiveRepName').innerText = repName;
+    document.getElementById('inactiveDocCount').innerText = `${docCount} Doctors Preserved`;
+    
+    const modal = document.getElementById('inactiveModalOverlay');
+    if (modal) modal.classList.add('active');
+  }
+
+  function closeTagInactiveModal() {
+    const modal = document.getElementById('inactiveModalOverlay');
+    if (modal) modal.classList.remove('active');
+  }
+
+  function confirmTagInactive() {
+    const code = document.getElementById('inactiveTerritoryCode').value;
+    if (!code) return;
+    
+    const pt = programTerritories.find(p => p.activeCode === code || p.histCode === code || p.recordId === code);
+    if (pt) {
+      pt.operationalStatus = 'Inactive';
+      pt.status = 'CHANGED';
+      pt.rep = '[Vacant / Resigned]';
+      pt.isActive = false;
+    }
+    
+    const treeNode = territoryTreeData.find(t => t.name === code);
+    if (treeNode) {
+      treeNode.territory_manager = '[Vacant / Resigned]';
+      treeNode.status = 'Inactive';
+    }
+    
+    // Safely store in archivedRecords for Archive Directory Vault
+    if (!archivedRecords.find(a => a.code === code)) {
+      archivedRecords.push({
+        code: code,
+        name: code,
+        dateArchived: new Date().toISOString().split('T')[0],
+        reason: 'MedRep resigned - Tagged Inactive & Vacant for future program cycles',
+        originalDistrict: pt ? pt.district : 'General',
+        originalRep: pt ? pt.rep : 'Unassigned',
+        coveredDocsCount: pt && pt.coveredDoctors ? pt.coveredDoctors.length : 0
+      });
+      try {
+        localStorage.setItem('pims_archived_territories_' + activeProgram, JSON.stringify(archivedRecords));
+      } catch (_) {}
+    }
+    
+    // Log in master audit trail
+    globalAuditLogs.unshift({
+      timestamp: new Date().toLocaleString(),
+      recordId: pt ? pt.recordId : code,
+      action: 'TAG_INACTIVE',
+      territoryCode: code,
+      user: (activeUser && activeUser.email) ? activeUser.email : 'SFE Lead',
+      details: `Territory ${code} tagged as Inactive & Vacant (MedRep resigned). Preserved in Archive Directory for future program use.`
+    });
+    try {
+      localStorage.setItem('pims_global_audit_logs', JSON.stringify(globalAuditLogs));
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
+    } catch (_) {}
+
+    // Bidirectional dispatch to ERPNext Streamlit connector
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "territory_deactivate",
+            territory: code,
+            custom_status: "Inactive",
+            territory_manager: "",
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
+    
+    closeTagInactiveModal();
+    renderGridTable();
+    renderInteractiveTree();
+    renderSummaryReport();
+    renderArchivedTerritoriesVault();
+    showToast(`Territory ${code} marked Inactive & Vacant (Preserved in Archive Directory)`);
+  }
+
 </script>
 <style>
   :root {
@@ -2084,6 +2231,34 @@
     box-shadow: 0 6px 16px rgba(124, 58, 237, 0.38) !important;
   }
 
+
+  /* GUIDE MODE & ACTION BUTTON SUBTEXTS STYLING */
+  .grid-action-desc {
+    display: block !important;
+    font-size: 11px;
+    color: #94A3B8;
+    margin-top: 1px;
+    font-weight: 500;
+  }
+  .grid-actions-popover {
+    min-width: 280px !important;
+  }
+  .audit-table-scroll-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .audit-table-scroll-container::-webkit-scrollbar-track {
+    background: #F1F5F9;
+    border-radius: 4px;
+  }
+  .audit-table-scroll-container::-webkit-scrollbar-thumb {
+    background: #94A3B8;
+    border-radius: 4px;
+  }
+  .audit-table-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #64748B;
+  }
+
 </style>
 </head>
 <body>
@@ -2099,7 +2274,7 @@
         <img src="data:image/png;base64,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" alt="App Logo" style="width:100%; height:100%; object-fit:contain; border-radius:6px;">
       </div>
       <div class="brand-text">
-        <h1>HCP Profiling &bull; Territory Reconfiguration Portal</h1>
+        <h1>HCP Profiling &bull; Territory Reconfiguration Portal <span style="font-size:11px; font-weight:800; background:#EFF6FF; color:#0066FF; border:1px solid #BFDBFE; padding:2px 7px; border-radius:12px; margin-left:6px; vertical-align:middle;">v.0.1.0</span></h1>
       </div>
     </div>
   </div>
@@ -2125,6 +2300,11 @@
     <button class="btn btn-sm btn-logout" id="btnLogout" onclick="logoutPortal()" style="display:none;" title="Sign out of Territory Portal">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
       <span>Logout</span>
+    </button>
+
+    <button class="btn btn-sm btn-outline" id="btnHelpGuide" onclick="openUserGuideModal(true)" style="display:none; align-items:center; gap:6px; background:#FFFFFF; border:1.5px solid #CBD5E1; color:#0066FF; font-weight:700; border-radius:6px; height:32px; padding:0 10px; cursor:pointer;" title="User Guide & Navigation Hints (ℹ)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+      <span>User Guide</span>
     </button>
 
     <div id="headerAuthStatus" style="font-size:11.5px; color:#94A3B8; font-weight:700; display:flex; align-items:center; gap:6px;">
@@ -2533,9 +2713,9 @@
       <div class="card-container">
         <div class="card-header">
           <div>
-            <div class="card-title">Realignment Overview &amp; Archive Territory</div>
+            <div class="card-title">Archived &amp; Inactive Territories Directory</div>
             <div class="card-subtitle">
-              Overview of consolidated district clusters, reassigned territories, and archived headcount from previous cycles.
+              Dedicated repository of archived territories, vacant codes, and deactivated headcounts from previous cycles (Zero physician data loss).
             </div>
           </div>
           <div style="display:flex; gap:8px;">
@@ -2543,13 +2723,7 @@
           </div>
         </div>
 
-        <!-- District Clusters Realignment Grid -->
-        <h3 style="font-size:13px; color:var(--accent); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px;">
-          Active District Groups &amp; Realignment Distribution
-        </h3>
-        <div class="cluster-grid" id="districtClustersGrid">
-          <!-- Populated dynamically -->
-        </div>
+
 
         <!-- TAB 2: ARCHIVE FOLDER DROPDOWN & VAULT COMPONENT -->
         <div style="margin-top:28px;" id="archiveFolderDropdownContainer">
@@ -2740,19 +2914,19 @@
           </div>
           <div class="kpi-card">
             <div class="kpi-lbl">Unchanged</div>
-            <div class="kpi-val" style="color:var(--success);" id="kpiUnchanged">0</div>
+            <div class="kpi-val" id="kpiUnchanged">0</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-lbl">Changed / Renamed</div>
-            <div class="kpi-val" style="color:var(--warning);" id="kpiChanged">0</div>
+            <div class="kpi-val" id="kpiChanged">0</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-lbl">Rep Transfers</div>
-            <div class="kpi-val" style="color:#C084FC;" id="kpiTransfers">0</div>
+            <div class="kpi-val" id="kpiTransfers">0</div>
           </div>
           <div class="kpi-card">
             <div class="kpi-lbl">Archived Nodes</div>
-            <div class="kpi-val" style="color:var(--danger);" id="kpiArchived">0</div>
+            <div class="kpi-val" id="kpiArchived">0</div>
           </div>
         </div>
 
@@ -2809,17 +2983,17 @@
           </div>
         </div>
 
-        <!-- Audit Trail Table -->
-        <div class="table-responsive">
-          <table>
+        <!-- Audit Trail Table with Top-Tier Scrollable View & Sticky Headers -->
+        <div class="audit-table-scroll-container" style="max-height:520px; overflow-y:auto; overflow-x:auto; border:1.5px solid #CBD5E1; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.04); background:#FFFFFF; position:relative;">
+          <table id="globalAuditTable" style="width:100%; border-collapse:collapse; font-size:12.5px; text-align:left; background:#FFFFFF;">
             <thead>
-              <tr>
-                <th style="width:16%;">Timestamp</th>
-                <th style="width:14%;">Record ID</th>
-                <th style="width:14%;">Action Type</th>
-                <th style="width:16%;">Territory Code</th>
-                <th style="width:16%;">Logged User</th>
-                <th style="width:24%;">Audit Details</th>
+              <tr style="position:sticky; top:0; z-index:10; background:#0B192C;">
+                <th class="col-audit-time" style="width:16%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px;">Timestamp</th>
+                <th class="col-audit-id" style="width:14%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px;">Record ID</th>
+                <th class="col-audit-action" style="width:14%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px;">Action Type</th>
+                <th class="col-audit-code" style="width:16%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px;">Territory Code</th>
+                <th class="col-audit-user" style="width:16%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px;">Logged User</th>
+                <th class="col-audit-details" style="width:24%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px;">Audit Details</th>
               </tr>
             </thead>
             <tbody id="globalAuditTableBody">
@@ -2836,7 +3010,7 @@
 
 <!-- Footer -->
 <footer style="background:#FFFFFF; border-top:1.5px solid #E2E8F0; padding:8px 24px; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; flex-shrink:0; height:40px; z-index:90;">
-  <div>Territory Reconfiguration Web Portal &bull; Standalone SFE Edition (V.0.5.4)</div>
+  <div>Territory Reconfiguration Web Portal &bull; Standalone SFE Edition (v.0.1.0)</div>
   <div>ERPNext SFE CRM Integration</div>
 </footer>
 
@@ -9200,6 +9374,8 @@ const BASELINE_ERP_TERRITORIES = [
     if (userBadge) userBadge.style.display = 'flex';
     const logoutBtn = document.getElementById('btnLogout');
     if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+    const helpBtn = document.getElementById('btnHelpGuide');
+    if (helpBtn) helpBtn.style.display = 'inline-flex';
     const authStatus = document.getElementById('headerAuthStatus');
     if (authStatus) authStatus.style.display = 'none';
 
@@ -9218,6 +9394,7 @@ const BASELINE_ERP_TERRITORIES = [
 
       // Initialize and render data with program isolation strictly enforced
       switchProgram();
+      checkFirstTimeUserGuide();
     }
   }
 
@@ -9249,6 +9426,8 @@ const BASELINE_ERP_TERRITORIES = [
     if (toggleBtn) toggleBtn.style.display = 'none';
     const progGroup = document.getElementById('headerProgramGroup');
     if (progGroup) progGroup.style.display = 'none';
+    const helpBtn = document.getElementById('btnHelpGuide');
+    if (helpBtn) helpBtn.style.display = 'none';
     const syncBtn = document.getElementById('headerSyncBtn');
     if (syncBtn) syncBtn.style.display = 'none';
     const userBadge = document.getElementById('userBadge');
@@ -15488,8 +15667,8 @@ const BASELINE_ERP_TERRITORIES = [
       openTreeAddModal(code);
     } else if (actionType === 'rename') {
       openTreeRenameModal(code);
-    } else if (actionType === 'delete') {
-      openTreeDeleteModal(code);
+    } else if (actionType === 'delete' || actionType === 'deactivate') {
+      openTagInactiveModal(code);
     } else if (actionType === 'docs') {
       openCoveredDoctorsModal(idx);
     } else if (actionType === 'audit') {
@@ -17418,7 +17597,7 @@ const BASELINE_ERP_TERRITORIES = [
         
         let actionBadgeClass = 'badge-changed';
         if (log.action === 'INITIAL_SYNC') actionBadgeClass = 'badge-unchanged';
-        else if (log.action === 'ARCHIVED' || log.action === 'BULK_DELETE' || log.action === 'BULK_DECOMMISSION') actionBadgeClass = 'badge-archive';
+        else if (log.action === 'ARCHIVED' || log.action === 'BULK_DELETE' || log.action === 'BULK_DECOMMISSION' || log.action === 'TAG_INACTIVE' || log.action === 'DEACTIVATED') actionBadgeClass = 'badge-archive';
         else if (log.action === 'REACTIVATED' || log.action === 'BULK_ADD') actionBadgeClass = 'badge-unchanged';
 
         const isLongText = (log.details || '').length > 80;
@@ -19187,16 +19366,16 @@ const BASELINE_ERP_TERRITORIES = [
         <span class="grid-action-desc">Rename territory name in tree & ERPNext</span>
       </div>
     </button>
-    <button type="button" class="grid-action-item danger-item" id="gridActionDelete" onclick="handleGridActionClick('delete')">
-      <span class="grid-action-icon delete-icon">
+    <button type="button" class="grid-action-item" id="gridActionDeactivate" onclick="handleGridActionClick('deactivate')" style="color:#D97706;">
+      <span class="grid-action-icon" style="background:#FEF3C7; color:#D97706; border:1px solid #FDE68A;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="3 6 5 6 21 6"></polyline>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
         </svg>
       </span>
       <div class="grid-action-texts">
-        <span class="grid-action-title">Delete</span>
-        <span class="grid-action-desc">Remove from tree and ERPNext</span>
+        <span class="grid-action-title">Tag Inactive / Vacant</span>
+        <span class="grid-action-desc">Set territory inactive &amp; vacant in ERPNext</span>
       </div>
     </button>
     
@@ -19228,5 +19407,125 @@ const BASELINE_ERP_TERRITORIES = [
     </button>
   </div>
 </div>
+
+<!-- MODAL: Tag Inactive & Vacant Confirmation (Strict SFE No-Deletion Policy) -->
+<div class="modal-overlay" id="inactiveModalOverlay">
+  <div class="modal-card" style="max-width:480px; border-radius:12px; border:1.5px solid #FCD34D; box-shadow:0 16px 40px rgba(0,0,0,0.15);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1.5px solid #FEF3C7; padding-bottom:10px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:20px;">⏸️</span>
+        <h3 style="font-size:15px; font-weight:800; color:#B45309; margin:0;">Tag Territory Inactive &amp; Vacant</h3>
+      </div>
+      <button type="button" onclick="closeTagInactiveModal()" style="background:none; border:none; color:#94A3B8; font-size:18px; cursor:pointer; line-height:1;">✕</button>
+    </div>
+
+    <input type="hidden" id="inactiveTerritoryCode">
+
+    <div style="background:#FFFBEB; border:1.5px solid #FDE68A; padding:12px 14px; border-radius:8px; margin-bottom:14px;">
+      <div style="font-size:12.5px; color:#92400E; font-weight:700; margin-bottom:4px;">
+        🛡️ SFE Zero Data Loss &amp; No-Deletion Policy
+      </div>
+      <div style="font-size:11.5px; color:#78350F; line-height:1.5;">
+        Territories are <strong>never deleted</strong>. Tagging as Inactive marks the resigned MedRep as <strong>[Vacant / Resigned]</strong>, leaves the territory code active as Vacant in ERPNext, and preserves all covered doctors without data loss.
+      </div>
+    </div>
+
+    <div style="font-size:12.5px; color:#334155; line-height:1.5; margin-bottom:16px;">
+      <div>Territory Code: <strong id="inactiveTerritoryName" style="color:#0066FF;">---</strong></div>
+      <div style="margin-top:4px;">Current MedRep: <strong id="inactiveRepName" style="color:#0F172A;">---</strong></div>
+      <div style="margin-top:4px;">Affiliated Doctors: <span class="badge badge-primary" id="inactiveDocCount">0 Doctors Preserved</span></div>
+      <div style="margin-top:8px; font-size:11.5px; color:#64748B;">
+        Status will update to <strong>Inactive (Vacant)</strong> and be archived into the Archived Territories Directory.
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px;">
+      <button type="button" class="btn btn-outline" onclick="closeTagInactiveModal()">Cancel</button>
+      <button type="button" class="btn btn-warning" onclick="confirmTagInactive()" style="background:#D97706; color:#FFFFFF; border:none; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer;">
+        Confirm Inactive &amp; Vacant
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Interactive SFE User Guide & Navigation Walkthrough (v.0.1.0) -->
+<div class="modal-overlay" id="userGuideModalOverlay" style="z-index:9999;">
+  <div class="modal-card" style="max-width:680px; border-radius:14px; border:1.5px solid #93C5FD; box-shadow:0 20px 50px rgba(11,25,44,0.25); max-height:90vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1.5px solid #DBEAFE; padding-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:24px;">🧭</span>
+        <div>
+          <h3 style="font-size:16px; font-weight:800; color:#1E3E62; margin:0;">Territory Reconfiguration Portal Guide</h3>
+          <span style="font-size:11px; color:#0066FF; font-weight:700;">Version v.0.1.0 &bull; SFE Enterprise Navigation &amp; Workflow Manual</span>
+        </div>
+      </div>
+      <button type="button" onclick="closeUserGuideModal()" style="background:none; border:none; color:#94A3B8; font-size:20px; cursor:pointer; line-height:1; font-weight:bold;">✕</button>
+    </div>
+
+    <!-- Guide Content Cards -->
+    <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:18px;">
+      
+      <!-- Card 1: Navigation -->
+      <div style="background:#F8FAFC; border:1.5px solid #E2E8F0; border-radius:10px; padding:12px 14px;">
+        <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:13px; color:#0F172A; margin-bottom:6px;">
+          <span>1️⃣</span> <span>Portal Navigation &amp; Workspaces</span>
+        </div>
+        <div style="font-size:12px; color:#475569; line-height:1.5;">
+          • <strong>Reconfiguration Editor:</strong> Switch seamlessly between <em>Table Grid</em> (fast data entry, bulk actions) and <em>Territory Tree</em> (visual hierarchy).<br>
+          • <strong>Archive Directory:</strong> Access archived territories vault. View previous cycle states with zero doctor data loss.<br>
+          • <strong>Summary Report:</strong> Full audit trail logging every timestamp, modified code, rep transfer, and logged user.
+        </div>
+      </div>
+
+      <!-- Card 2: Core Action Buttons & Subtexts -->
+      <div style="background:#EFF6FF; border:1.5px solid #BFDBFE; border-radius:10px; padding:12px 14px;">
+        <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:13px; color:#1D4ED8; margin-bottom:6px;">
+          <span>2️⃣</span> <span>Button Action Guide &amp; Subtexts</span>
+        </div>
+        <div style="font-size:12px; color:#1E3A8A; line-height:1.6;">
+          • <strong>Edit:</strong> <em>Edit territory properties &amp; manager</em> (Quota, rep assignment, district).<br>
+          • <strong>Add Child:</strong> <em>Create child territory under this node</em> (Build territory sub-branches).<br>
+          • <strong>Rename:</strong> <em>Rename territory name in tree &amp; ERPNext</em> (Batch rename codes with live diffs).<br>
+          • <strong>Tag Inactive:</strong> <em>Set territory inactive &amp; vacant in ERPNext</em> (Decommissions resigned reps safely).<br>
+          • <strong>Transfer &amp; Handover:</strong> <em>Reassign rep &amp; transfer doctors</em> (2-pane doctor transfer wizard).<br>
+          • <strong>Audit Trail:</strong> <em>View change history &amp; logs</em> (Inspect full change ledger per territory).
+        </div>
+      </div>
+
+      <!-- Card 3: No Deletion Policy & Inactive/Vacant Logic -->
+      <div style="background:#FEF3C7; border:1.5px solid #FDE68A; border-radius:10px; padding:12px 14px;">
+        <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:13px; color:#92400E; margin-bottom:6px;">
+          <span>3️⃣</span> <span>Strict No-Deletion Policy &amp; Vacant Territory Architecture</span>
+        </div>
+        <div style="font-size:12px; color:#78350F; line-height:1.5;">
+          When a Medical Representative resigns, their territory is tagged as <strong>Inactive</strong>. 
+          ERPNext adopts the territory code as <strong>Vacant</strong> so that when a new representative is hired, the program can reassign the exact code and preserve historical doctor profiling data without any disruption.
+        </div>
+      </div>
+
+      <!-- Card 4: Guidance Recap (i) Icon -->
+      <div style="background:#F0FDF4; border:1.5px solid #BBF7D0; border-radius:10px; padding:12px 14px;">
+        <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:13px; color:#166534; margin-bottom:6px;">
+          <span>4️⃣</span> <span>Need a Recap? Click the ℹ️ User Guide Button Anytime</span>
+        </div>
+        <div style="font-size:12px; color:#14532D; line-height:1.5;">
+          Whenever you need to refresh your understanding or view the subtext guides on each button, click the <strong>User Guide (ℹ)</strong> icon on the top-right header navigation.
+        </div>
+      </div>
+
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1.5px solid #E2E8F0; padding-top:14px; flex-wrap:wrap; gap:10px;">
+      <label style="display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:#475569; cursor:pointer;">
+        <input type="checkbox" id="guideAlwaysShowSubtextsCb" checked onchange="toggleGuideSubtextPref(this.checked)" style="accent-color:#0066FF; cursor:pointer;">
+        Always show button guidance subtexts under action menus
+      </label>
+      <button type="button" class="btn btn-primary" onclick="closeUserGuideModal()" style="background:#0066FF; color:#FFFFFF; font-weight:700; padding:8px 22px; border-radius:7px; cursor:pointer; border:none;">
+        Got it / Start Exploring 🚀
+      </button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
