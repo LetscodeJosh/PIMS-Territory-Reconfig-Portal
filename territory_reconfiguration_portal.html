@@ -2108,9 +2108,7 @@
       </select>
     </div>
 
-    <button class="header-action-btn" id="headerSyncBtn" style="border-color:#38BDF8; color:#38BDF8; display:none;" onclick="refreshLiveData()">
-      Refresh Live Sync
-    </button>
+<!-- Refresh Live Sync removed per SFE live reconfig standard -->
 
     <div class="user-badge" id="userBadge" style="display:none;">
       <div class="user-status-dot"></div>
@@ -2356,6 +2354,7 @@
                 <option value="all">All Columns</option>
                 <option value="latestPrevCode">Last Previous Code</option>
                 <option value="activeCode">Active Code</option>
+                <option value="area">Area / District</option>
                 <option value="rep">Assigned MedRep</option>
                 <option value="userId">User ID</option>
                 <option value="recordId">Record ID</option>
@@ -2373,24 +2372,26 @@
                 </button>
               </div>
 
-              <!-- Status Checkbox Filter Container: When unchecked, data is hidden; when checked, displayed! -->
+              <!-- Status Checkbox Filter Container: Active and Inactive filter -->
               <div id="erpStatusFilterContainer" style="display:none; align-items:center; gap:8px; height:34px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; padding:0 10px; flex-shrink:0;">
-                <label style="font-size:11.5px; font-weight:700; color:#15803D; display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0; user-select:none;" title="When checked: displays UNCHANGED data. When unchecked: hides UNCHANGED data.">
-                  <input type="checkbox" id="statusCb_unchanged" checked onchange="onStatusCheckboxChange()" style="accent-color:#15803D; cursor:pointer; width:15px; height:15px;">
-                  UNCHANGED
+                <label style="font-size:11.5px; font-weight:700; color:#15803D; display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0; user-select:none;" title="When checked: displays Active territories.">
+                  <input type="checkbox" id="statusCb_active" checked onchange="onStatusCheckboxChange()" style="accent-color:#15803D; cursor:pointer; width:15px; height:15px;">
+                  ACTIVE
                 </label>
                 <span style="color:#CBD5E1;">|</span>
-                <label style="font-size:11.5px; font-weight:700; color:#B45309; display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0; user-select:none;" title="When checked: displays CHANGED data. When unchecked: hides CHANGED data.">
-                  <input type="checkbox" id="statusCb_changed" checked onchange="onStatusCheckboxChange()" style="accent-color:#B45309; cursor:pointer; width:15px; height:15px;">
-                  CHANGED
+                <label style="font-size:11.5px; font-weight:700; color:#64748B; display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0; user-select:none;" title="When checked: displays Inactive / Resigned territories.">
+                  <input type="checkbox" id="statusCb_inactive" checked onchange="onStatusCheckboxChange()" style="accent-color:#64748B; cursor:pointer; width:15px; height:15px;">
+                  INACTIVE
                 </label>
+                <input type="checkbox" id="statusCb_unchanged" checked style="display:none;">
+                <input type="checkbox" id="statusCb_changed" checked style="display:none;">
               </div>
 
               <!-- Column Visibility Filter Dropdown (When unchecked, column is hidden; when checked, displayed!) -->
               <div id="columnVisibilityDropdownWrapper"  class="col-visibility-dropdown" style="flex-shrink:0;">
                 <button type="button" id="btnColumnFilter" onclick="toggleColumnVisibilityMenu()" class="btn btn-sm" style="height:34px; font-size:12px; font-weight:700; color:#334155; display:inline-flex; align-items:center; gap:6px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; padding:0 12px; cursor:pointer;" title="Show or hide table columns">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                  <span>Columns (<span id="visibleColCount">5</span>/5)</span>
+                  <span>Columns (<span id="visibleColCount">6</span>/6)</span>
                   <span style="font-size:9px; color:#64748B;">▼</span>
                 </button>
                 <div id="columnVisibilityMenu" class="col-visibility-menu">
@@ -2410,6 +2411,10 @@
                     <label class="col-menu-item">
                       <input type="checkbox" id="colToggle_active" checked onchange="toggleColumnVisibility('active', this.checked)">
                       <span>Active Code</span>
+                    </label>
+                    <label class="col-menu-item">
+                      <input type="checkbox" id="colToggle_area" checked onchange="toggleColumnVisibility('area', this.checked)">
+                      <span>Area / District</span>
                     </label>
                     <label class="col-menu-item">
                       <input type="checkbox" id="colToggle_rep" checked onchange="toggleColumnVisibility('rep', this.checked)">
@@ -2434,12 +2439,13 @@
             <table id="editorTable">
               <thead>
                 <tr>
-                  <th class="col-cb" style="width:48px; min-width:48px; max-width:48px; text-align:center;"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="Select all on this page" style="cursor:pointer; width:16px; height:16px; accent-color:#0066FF;"></th>
-                  <th class="col-prev" style="width:16%;">Latest Previous Code</th>
-                  <th class="col-active" style="width:16%;">Active Code</th>
-                  <th class="col-rep" style="width:28%;">Assigned MedRep</th>
-                  <th class="col-docs" style="width:12%; text-align:center;">Doctor Count</th>
-                  <th class="col-status" style="width:14%;">Status</th>
+                  <th class="col-cb" style="width:44px; min-width:44px; max-width:44px; text-align:center;"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="Select all on this page" style="cursor:pointer; width:16px; height:16px; accent-color:#0066FF;"></th>
+                  <th class="col-prev" style="width:14%;">Latest Previous Code</th>
+                  <th class="col-active" style="width:14%;">Active Code</th>
+                  <th class="col-area" style="width:14%;">Area / District</th>
+                  <th class="col-rep" style="width:24%;">Assigned MedRep</th>
+                  <th class="col-docs" style="width:11%; text-align:center;">Doctor Count</th>
+                  <th class="col-status" style="width:11%; text-align:center;">Status</th>
                   <th class="col-actions" style="width:110px; min-width:110px; max-width:110px; text-align:center;">Actions</th>
                 </tr>
               </thead>
@@ -3158,17 +3164,20 @@
       <button class="btn btn-sm btn-outline" onclick="closeDoctorTransferModal()" style="color:#64748B; border-color:#CBD5E1; background:#FFF; font-size:13px; padding:4px 10px;">✕</button>
     </div>
 
-    <!-- Sleek Representative Reassignment & Handover Bar -->
+    <!-- Representative Reassignment & Operational Status Bar -->
     <div id="transferHandoverHeaderBar" style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
       <div style="display:flex; align-items:center; gap:10px; font-size:12px;">
-        <span style="font-weight:700; color:#475569;">Source Representative:</span>
+        <span style="font-weight:700; color:#475569;">Source Rep:</span>
         <strong id="handoverSourceRepDisplay" style="color:#0F172A;">---</strong>
-        <button type="button" id="btnToggleResignStatus" class="btn btn-sm" onclick="toggleSourceResignStatus()" style="padding:2px 8px; font-size:11px; font-weight:700; border-radius:4px; background:#FEE2E2; color:#DC2626; border:1px solid #FECACA; cursor:pointer;">
-          Mark Resigned
-        </button>
+        
+        <div style="display:inline-flex; border:1.5px solid #CBD5E1; border-radius:6px; overflow:hidden; background:#FFF; margin-left:6px;">
+          <button type="button" id="btnTransferStatus_active" onclick="setTransferSourceOperationalStatus('Active')" style="padding:3px 9px; font-size:11px; font-weight:700; border:none; cursor:pointer; background:#DCFCE7; color:#15803D;">Active (Working)</button>
+          <button type="button" id="btnTransferStatus_inactive" onclick="setTransferSourceOperationalStatus('Inactive')" style="padding:3px 9px; font-size:11px; font-weight:700; border:none; border-left:1px solid #CBD5E1; cursor:pointer; background:#F8FAFC; color:#64748B;">Inactive (Resigned)</button>
+          <button type="button" id="btnTransferStatus_vacant" onclick="setTransferSourceOperationalStatus('Vacant')" style="padding:3px 9px; font-size:11px; font-weight:700; border:none; border-left:1px solid #CBD5E1; cursor:pointer; background:#F8FAFC; color:#64748B;">Vacant</button>
+        </div>
       </div>
-      <div style="display:flex; align-items:center; gap:8px; font-size:12px; flex:1; max-width:380px;">
-        <span style="font-weight:700; color:#475569; white-space:nowrap;">New Representative:</span>
+      <div style="display:flex; align-items:center; gap:8px; font-size:12px; flex:1; max-width:360px;">
+        <span style="font-weight:700; color:#475569; white-space:nowrap;">New Rep:</span>
         <input type="text" id="handoverNewRepInput" class="form-control" placeholder="Enter new MedRep name..." style="font-size:12px; padding:4px 10px; height:32px;">
       </div>
     </div>
@@ -3196,15 +3205,15 @@
         </div>
       </div>
 
-      <!-- CENTER CLUSTER: Controls & Directional Transfer -->
+      <!-- CENTER CLUSTER: Controls & Directional Transfer (All 3 Buttons Active & Vibrant) -->
       <div class="workbench-center-cluster">
-        <button type="button" class="btn btn-primary btn-workbench-transfer" onclick="mergeAllResignedDoctors()" title="Transfer all doctors to target territory" style="font-size:11.5px; font-weight:700; background:#0066FF; color:#FFF; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;">
+        <button type="button" class="btn btn-workbench-transfer" onclick="mergeAllResignedDoctors()" title="Transfer all doctors to target territory" style="font-size:11.5px; font-weight:700; background:#0066FF; color:#FFF; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; box-shadow:0 1px 3px rgba(0,102,255,0.3);">
           &lt;&lt; Move All
         </button>
-        <button type="button" class="btn btn-outline btn-workbench-transfer" onclick="transferSelectedDoctors('to_target')" title="Move checked doctors to target" style="border:1px solid #CBD5E1; color:#0F172A; background:#FFF; font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:6px; cursor:pointer;">
+        <button type="button" class="btn btn-workbench-transfer" onclick="transferSelectedDoctors('to_target')" title="Move checked doctors to target" style="border:1.5px solid #0066FF; color:#0066FF; background:#EFF6FF; font-size:11.5px; font-weight:700; padding:7px 10px; border-radius:6px; cursor:pointer;">
           &lt; Move Selected
         </button>
-        <button type="button" class="btn btn-outline btn-workbench-transfer" onclick="transferSelectedDoctors('to_source')" title="Move checked doctors back to source" style="border:1px solid #CBD5E1; color:#64748B; background:#FFF; font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:6px; cursor:pointer;">
+        <button type="button" class="btn btn-workbench-transfer" onclick="transferSelectedDoctors('to_source')" title="Move checked doctors back to source" style="border:1.5px solid #0066FF; color:#0066FF; background:#EFF6FF; font-size:11.5px; font-weight:700; padding:7px 10px; border-radius:6px; cursor:pointer;">
           Move Selected &gt;
         </button>
         <div style="font-size:10.5px; color:#94A3B8; text-align:center; margin-top:8px; line-height:1.3;">
@@ -3234,17 +3243,20 @@
       </div>
     </div>
 
-    <!-- Modal Footer -->
-    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #E2E8F0; padding-top:14px; margin-top:16px;">
-      <div style="flex:1; max-width:420px;">
-        <input type="text" id="transferAuditNotesInput" class="form-control" placeholder="Audit note (optional)" style="font-size:12px; padding:6px 12px;">
+    <!-- Modal Footer with Multiline Free-Typing Audit Notes -->
+    <div style="border-top:1px solid #E2E8F0; padding-top:14px; margin-top:16px;">
+      <div style="margin-bottom:10px;">
+        <label for="transferAuditNotesInput" style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">
+          SFE Reconfiguration &amp; Handover Audit Notes (Free Typing for Future Reference):
+        </label>
+        <textarea id="transferAuditNotesInput" rows="3" class="form-control" placeholder="Enter detailed transfer notes, doctor handover details, territory reason for change, or other future reference notes..." style="font-size:12px; padding:8px 12px; resize:vertical; min-height:64px; width:100%; border:1.5px solid #CBD5E1; border-radius:6px; line-height:1.5; color:#0F172A; background:#FFF;"></textarea>
       </div>
-      <div style="display:flex; gap:10px; align-items:center; margin-left:auto;">
+      <div style="display:flex; justify-content:flex-end; gap:10px; align-items:center;">
         <button type="button" class="btn btn-outline" onclick="closeDoctorTransferModal()" style="padding:7px 18px; font-size:12px; font-weight:600; border:1px solid #CBD5E1; border-radius:6px; color:#475569; background:#FFF; cursor:pointer;">
           Cancel
         </button>
         <button type="button" class="btn btn-primary" id="btnSaveDoctorTransfer" onclick="saveDoctorTransfer()" style="padding:7px 26px; font-size:12.5px; font-weight:700; background:#0066FF; border:none; border-radius:6px; color:#FFF; cursor:pointer; box-shadow:0 1px 4px rgba(0,102,255,0.3);">
-          Save
+          Save &amp; Finalize Transfer
         </button>
       </div>
     </div>
@@ -9491,8 +9503,23 @@ const BASELINE_ERP_TERRITORIES = [
     const usr = (usrInput ? usrInput.value : '').trim();
     const pwd = (pwdInput ? pwdInput.value : '');
 
+    // 1. Security Intrusion & Lockout Safeguards
+    const lockoutMsg = SecurityIntrusionGuard.isLockedOut();
+    if (lockoutMsg) {
+      showLoginError(lockoutMsg);
+      return;
+    }
+
     if (!usr || !pwd) {
       showLoginError('Please enter both username and password.');
+      return;
+    }
+
+    if (SecurityIntrusionGuard.detectInjection(usr) || SecurityIntrusionGuard.detectInjection(pwd)) {
+      SecurityIntrusionGuard.recordFailedAttempt(true);
+      showLoginError('⚠️ SECURITY VIOLATION: Malicious injection pattern detected. Access blocked and session restricted to safeguard system integrity.');
+      if (usrInput) usrInput.value = '';
+      if (pwdInput) pwdInput.value = '';
       return;
     }
 
@@ -9559,7 +9586,7 @@ const BASELINE_ERP_TERRITORIES = [
             } catch (_) {}
             if (btn) btn.disabled = false;
             if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
-            applyAuthenticatedUser(userObj, true);
+            SecurityIntrusionGuard.reset(); applyAuthenticatedUser(userObj, true);
             showToast(`Welcome back, ${userObj.full_name}!`, 'success');
             isActivelyLoggingIn = false;
           } else {
@@ -9598,7 +9625,7 @@ const BASELINE_ERP_TERRITORIES = [
         sessionStorage.removeItem('sfe_portal_logged_out');
         sessionStorage.setItem('sfe_portal_user', JSON.stringify(data.user));
         loginNotificationShown = true;
-        applyAuthenticatedUser(data.user, true);
+        SecurityIntrusionGuard.reset(); applyAuthenticatedUser(data.user, true);
         showToast(`Welcome back, ${data.user.full_name || data.user.email}! Signed in as ${data.user.role_title}.`);
         return;
       }
@@ -9715,11 +9742,12 @@ const BASELINE_ERP_TERRITORIES = [
   let selectedRowIndices = new Set();
 
   // Column Visibility State for Active Territory Table (Tab 1 - Actions always visible)
-  const DATA_COL_KEYS = ['prev', 'active', 'rep', 'docs', 'status'];
+  const DATA_COL_KEYS = ['prev', 'active', 'area', 'rep', 'docs', 'status'];
 
   const tableColumnVisibility = {
     prev: true,
     active: true,
+    area: true,
     rep: true,
     docs: true,
     status: true
@@ -10007,6 +10035,125 @@ const BASELINE_ERP_TERRITORIES = [
   function onGlobalSearch() { applyErpFilter(); }
   function resetColumnFilters() { clearFilterField(); resetStatusCheckboxFilter(); }
 
+
+  // =========================================================================
+  // SFE Universal Territory Area & District Coverage Mappings
+  // (Extensible placeholder dictionary ready for SFE area code/district file)
+  // =========================================================================
+  const TERRITORY_AREA_MAPPINGS = {
+    // Abbott Diabetes Care
+    'AD0101': 'GMA/NLZ', 'AD0102': 'GMA/NLZ', 'AD0103': 'GMA/NLZ', 'AD0104': 'GMA/NLZ',
+    'AD0105': 'COOR/GMA', 'AD0105 (COOR)': 'COOR/GMA', 'AD0106': 'GMA/NLZ', 'AD0107': 'GMA/NLZ',
+    'AD0108': 'GMA/SLZ', 'AD0109': 'GMA/SLZ', 'AD0110': 'GMA/SLZ', 'AD0111': 'GMA/SLZ',
+    'AD0112': 'GMA/SLZ', 'AD0113': 'GMA/NLZ', 'AD0114': 'GMA/SLZ', 'AD0115': 'GMA/SLZ',
+    'AD0116': 'COOR/GMA', 'AD0117': 'COOR/GMA', 'AD0118': 'COOR/GMA', 'AD0119': 'GMA/NLZ',
+    'AD0120': 'GMA/NLZ', 'ADC01': 'GMA/SLZ', 'ADC02': 'GMA/SLZ',
+    // Bayer Consumer Health
+    'BA1-01': 'SGMA/VIS', 'BA1-02': 'SGMA/VIS', 'BA1-03': 'SGMA/VIS', 'BA1-04': 'SGMA/VIS', 'BA1-05': 'SGMA/VIS', 'BA1-06': 'SGMA/VIS',
+    'BA2-01': 'WGMA', 'BA2-02': 'WGMA', 'BA2-03': 'WGMA', 'BA2-04': 'WGMA', 'BA2-05': 'WGMA', 'BA2-06': 'WGMA', 'BA2-07': 'WGMA', 'BA2-08': 'WGMA',
+    'BA3-01': 'NEGMA', 'BA3-02': 'NEGMA', 'BA3-03': 'NEGMA', 'BA3-04': 'NEGMA', 'BA3-05': 'NEGMA', 'BA3-06': 'NEGMA', 'BA3-07': 'NEGMA',
+    'BA4-01': 'SLZ', 'BA4-02': 'SLZ', 'BA4-03': 'SLZ', 'BA4-04': 'SLZ', 'BA4-05': 'SLZ', 'BA4-06': 'SLZ', 'BA4-07': 'SLZ', 'BA4-08': 'SLZ',
+    'BA5-01': 'NLZ/CAM', 'BA5-02': 'NLZ/CAM', 'BA5-03': 'NLZ/CAM', 'BA5-04': 'NLZ/CAM', 'BA5-05': 'NLZ/CAM', 'BA5-06': 'NLZ/CAM', 'BA5-07': 'NLZ/CAM',
+    'BA6-01': 'CEB/MIN', 'BA6-02': 'CEB/MIN', 'BA6-03': 'CEB/MIN', 'BA6-04': 'CEB/MIN', 'BA6-05': 'CEB/MIN', 'BA6-06': 'CEB/MIN',
+    'BA7-01': 'ILO/VIS', 'BA7-02': 'ILO/VIS', 'BA7-03': 'ILO/VIS', 'BA7-04': 'ILO/VIS', 'BA7-05': 'ILO/VIS', 'BA7-06': 'ILO/VIS', 'BA7-07': 'ILO/VIS', 'BA7-08': 'ILO/VIS',
+    'BA8-01': 'DVO/MIN', 'BA8-02': 'DVO/MIN', 'BA8-03': 'DVO/MIN', 'BA8-04': 'DVO/MIN', 'BA8-05': 'DVO/MIN', 'BA8-06': 'DVO/MIN', 'BA8-07': 'DVO/MIN', 'BA8-08': 'DVO/MIN',
+    // RiteMed
+    'RM101': 'NGMA/NLZ', 'RM102': 'NGMA/NLZ', 'RM103': 'NGMA/NLZ', 'RM104': 'NGMA/NLZ', 'RM105': 'NGMA/NLZ', 'RM106': 'NGMA/NLZ',
+    'RM201': 'SGMA/SLZ', 'RM202': 'SGMA/SLZ', 'RM203': 'SGMA/SLZ',
+    // Vivaro
+    'VIV-01': 'GMA', 'VIV-02': 'GMA', 'VIV-03': 'GMA', 'VIV-04': 'GMA', 'VIV-05': 'GMA', 'VIV-06': 'GMA'
+  };
+
+  function resolveTerritoryArea(territoryCode, district) {
+    if (!territoryCode) return 'Coverage Area';
+    const cleanCode = String(territoryCode).trim();
+    if (TERRITORY_AREA_MAPPINGS[cleanCode]) {
+      return TERRITORY_AREA_MAPPINGS[cleanCode];
+    }
+    const baseCode = cleanCode.replace(/\s*\([^)]*\)/g, '').trim();
+    if (TERRITORY_AREA_MAPPINGS[baseCode]) {
+      return TERRITORY_AREA_MAPPINGS[baseCode];
+    }
+    if (district && typeof district === 'string') {
+      const d = district.toUpperCase();
+      if (d.includes('GMA/NORTH LUZON') || d.includes('CENTRAL LUZON')) return 'GMA/NLZ';
+      if (d.includes('GMA/SOUTH LUZON') || d.includes('SOUTH LUZON')) return 'GMA/SLZ';
+      if (d.includes('WEST GMA')) return 'WGMA';
+      if (d.includes('NORTH/EAST GMA')) return 'NEGMA';
+      if (d.includes('CAMANAVA')) return 'NLZ/CAM';
+      if (d.includes('CEBU') || d.includes('MINDANAO')) return 'CEB/MIN';
+      if (d.includes('BACOLOD') || d.includes('ILOILO') || d.includes('VISAYAS')) return 'VIS';
+      if (d.includes('COOR')) return 'COOR/GMA';
+      if (d.includes('GMA')) return 'GMA';
+      const parts = district.split('-');
+      if (parts.length > 1) return parts[parts.length - 1].trim();
+      return district.trim();
+    }
+    return 'Coverage Area';
+  }
+
+  // Security Intrusion Sentinel for Authentication Guarding
+  const SecurityIntrusionGuard = {
+    failedAttempts: 0,
+    lockoutUntil: 0,
+
+    isLockedOut() {
+      const savedLockout = localStorage.getItem('sfe_security_lockout');
+      if (savedLockout) {
+        const val = parseInt(savedLockout, 10);
+        if (!isNaN(val) && val > Date.now()) {
+          this.lockoutUntil = val;
+        } else {
+          localStorage.removeItem('sfe_security_lockout');
+          this.lockoutUntil = 0;
+        }
+      }
+      if (this.lockoutUntil > Date.now()) {
+        const remainingMinutes = Math.ceil((this.lockoutUntil - Date.now()) / 60000);
+        return `Security Access Frozen: Too many failed login or suspicious injection attempts. Please wait ${remainingMinutes} minute(s) before retrying.`;
+      }
+      return false;
+    },
+
+    detectInjection(val) {
+      if (!val || typeof val !== 'string') return false;
+      const patterns = [
+        /('|)(OR|AND).+(=|<|>|LIKE|IN)/i,
+        /UNION(\s+ALL)?\s+SELECT/i,
+        /DROP\s+(TABLE|DATABASE)/i,
+        /INSERT\s+INTO/i,
+        /--|\/\*|\*\//,
+        /<script\b[^>]*>/i,
+        /javascript:/i,
+        /(\||;|`|\$\()/,
+        /(exec|system|passthru|shell_exec)\s*\(/i
+      ];
+      for (const p of patterns) {
+        if (p.test(val)) return true;
+      }
+      return false;
+    },
+
+    recordFailedAttempt(isViolation = false) {
+      this.failedAttempts++;
+      if (isViolation) {
+        this.lockoutUntil = Date.now() + 15 * 60 * 1000; // 15 min freeze
+        try { localStorage.setItem('sfe_security_lockout', String(this.lockoutUntil)); } catch (_) {}
+        return;
+      }
+      if (this.failedAttempts >= 5) {
+        this.lockoutUntil = Date.now() + 10 * 60 * 1000; // 10 min freeze
+        try { localStorage.setItem('sfe_security_lockout', String(this.lockoutUntil)); } catch (_) {}
+      }
+    },
+
+    reset() {
+      this.failedAttempts = 0;
+      this.lockoutUntil = 0;
+      try { localStorage.removeItem('sfe_security_lockout'); } catch (_) {}
+    }
+  };
+
     // --- RENDER TABLE ---
   function renderTable() {
     const tbody = document.getElementById('editorTableBody');
@@ -10044,7 +10191,7 @@ const BASELINE_ERP_TERRITORIES = [
         emptyHeaderTh.style.color = '#94A3B8';
         emptyHeaderTh.style.fontSize = '11px';
         emptyHeaderTh.style.fontWeight = '600';
-        emptyHeaderTh.innerText = 'All 5 Data Columns Hidden (Use "Columns ▼" menu to restore)';
+        emptyHeaderTh.innerText = 'All 6 Data Columns Hidden (Use "Columns ▼" menu to restore)';
         const theadRow = document.querySelector('#editorTable thead tr');
         const actionsTh = document.querySelector('#editorTable th.col-actions');
         if (theadRow && actionsTh) {
@@ -10060,26 +10207,34 @@ const BASELINE_ERP_TERRITORIES = [
     // 1. Filter territories
     const filterField = (document.getElementById('erpFilterField')?.value || 'all');
     const filterText = (document.getElementById('erpFilterValue')?.value || '').toLowerCase().trim();
-    const showUnchanged = document.getElementById('statusCb_unchanged')?.checked ?? true;
-    const showChanged = document.getElementById('statusCb_changed')?.checked ?? true;
+    const showActive = document.getElementById('statusCb_active')?.checked ?? (document.getElementById('statusCb_unchanged')?.checked ?? true);
+    const showInactive = document.getElementById('statusCb_inactive')?.checked ?? (document.getElementById('statusCb_changed')?.checked ?? true);
 
     let filtered = [];
     programTerritories.forEach((row, index) => {
       let isMatch = true;
+      const isRowInactive = (row.operationalStatus === 'Inactive') || (row.isActive === false) || (row.rep && row.rep.toLowerCase().includes('resigned'));
       if (filterField === 'status') {
-        if (row.status === 'UNCHANGED' && !showUnchanged) isMatch = false;
-        if (row.status === 'CHANGED' && !showChanged) isMatch = false;
+        if (!isRowInactive && !showActive) isMatch = false;
+        if (isRowInactive && !showInactive) isMatch = false;
       } else if (filterText) {
+        const rowAreaTag = resolveTerritoryArea(row.activeCode || row.latestPrevCode, row.district);
+        if (filterField === 'area') {
+          isMatch = (rowAreaTag || '').toLowerCase().includes(filterText) || (row.district || '').toLowerCase().includes(filterText);
+        } else
         if (filterField === 'all') {
           const userStr = (row.userId && row.userId.includes('@')) ? row.userId : 'unassigned';
+          const rowAreaTag = resolveTerritoryArea(row.activeCode || row.latestPrevCode, row.district);
+          const statusText = isRowInactive ? 'inactive resigned' : 'active working';
           const combined = [
             row.latestPrevCode || '',
             row.activeCode || '',
+            rowAreaTag || '',
             row.rep || '',
             userStr,
             row.district || '',
             String(row.docs || '0'),
-            row.status || '',
+            statusText,
             row.recordId || ''
           ].join(' ').toLowerCase();
           isMatch = combined.includes(filterText);
@@ -10142,12 +10297,23 @@ const BASELINE_ERP_TERRITORIES = [
         }
 
         const repNameClean = row.rep ? row.rep.replace(/\s*\([^)]*\)/g, '').trim() : 'Unassigned Rep';
-        const formattedAssignedMedRep = `${row.activeCode || row.latestPrevCode} - ${repNameClean}`;
+        const formattedAssignedMedRep = repNameClean;
         const docCountNum = parseInt(row.docs, 10) || 0;
 
-        const statusBadge = row.status === 'CHANGED' 
-          ? '<span class="badge badge-changed">CHANGED</span>'
-          : '<span class="badge badge-unchanged">UNCHANGED</span>';
+        const isInactive = (row.operationalStatus === 'Inactive') ||
+                           (row.isActive === false) ||
+                           (row.rep && row.rep.toLowerCase().includes('resigned'));
+        const isVacant = (row.operationalStatus === 'Vacant') ||
+                         (!row.rep || row.rep.toLowerCase().includes('unassigned'));
+
+        let statusBadge = '';
+        if (isVacant) {
+          statusBadge = '<span class="badge" style="background:#FEF3C7; color:#D97706; border:1px solid #FCD34D; font-weight:700; padding:3px 8px; border-radius:12px; font-size:11px;">Vacant</span>';
+        } else if (isInactive) {
+          statusBadge = '<span class="badge" style="background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; font-weight:700; padding:3px 8px; border-radius:12px; font-size:11px;">Inactive</span>';
+        } else {
+          statusBadge = '<span class="badge" style="background:#DCFCE7; color:#15803D; border:1px solid #86EFAC; font-weight:700; padding:3px 8px; border-radius:12px; font-size:11px;">Active</span>';
+        }
 
         let middleTds = '';
         if (activeColCount === 0) {
@@ -10157,9 +10323,14 @@ const BASELINE_ERP_TERRITORIES = [
             </td>
           `;
         } else {
+          const rowAreaTag = resolveTerritoryArea(row.activeCode || row.latestPrevCode, row.district);
           middleTds = `
             <td class="col-prev" style="${tableColumnVisibility.prev ? '' : 'display:none;'}"><strong>${escapeHtml(row.latestPrevCode)}</strong></td>
             <td class="col-active" style="${tableColumnVisibility.active ? '' : 'display:none;'}"><strong style="color:#0284C7;">${escapeHtml(row.activeCode)}</strong></td>
+            <td class="col-area" style="${tableColumnVisibility.area ? '' : 'display:none;'}">
+              <span class="badge" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; font-weight:700; font-size:11px; padding:2px 7px; border-radius:6px;">${escapeHtml(rowAreaTag)}</span>
+              <div style="font-size:10px; color:#64748B; margin-top:2px; max-width:140px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(row.district || '')}">${escapeHtml(row.district || '')}</div>
+            </td>
             <td class="col-rep" style="${tableColumnVisibility.rep ? '' : 'display:none;'}">
               <div style="font-weight:600; color:#0F172A;">${escapeHtml(formattedAssignedMedRep)}</div>
               <div style="font-size:10.5px; color:#64748B; margin-top:2px;">
@@ -13742,8 +13913,23 @@ const BASELINE_ERP_TERRITORIES = [
 
     // Recursive Branch Renderer for Active Masterlist Hierarchy
     function renderBranch(parentName, depth = 0) {
-      const children = childrenMap[parentName] || [];
+      let children = childrenMap[parentName] || [];
       if (children.length === 0) return null;
+
+      // Filter Root children strictly by active program
+      if (parentName === 'All Territories') {
+        const allowed = getProgramTerritoryNames(activeProgram);
+        const progData = LIVE_DATA[activeProgram] || {};
+        children = children.filter(c => {
+          if (allowed.has(c.name)) return true;
+          if (c.name === progData.territoryBranch) return true;
+          if (activeProgram === 'Abbott Diabetes Care' && (c.name.includes('Abbott') || c.name.includes('ADC'))) return true;
+          if (activeProgram === 'Bayer Consumer Health' && c.name.includes('Bayer')) return true;
+          if (activeProgram === 'RiteMed' && c.name.includes('RiteMed')) return true;
+          if (activeProgram === 'Vivaro' && c.name.includes('Vivaro')) return true;
+          return false;
+        });
+      }
 
       const branchWrapper = document.createElement('div');
       branchWrapper.className = 'erp-tree-children';
@@ -13807,6 +13993,9 @@ const BASELINE_ERP_TERRITORIES = [
         // 4. Action Pill Buttons:
         const isRoot = t.name === 'All Territories';
         let actionsHtml = '';
+        const matchedPt = programTerritories.find(pt => pt.activeCode === t.name || pt.histCode === t.name);
+        const isNodeInactive = (matchedPt && ((matchedPt.operationalStatus === 'Inactive') || (matchedPt.isActive === false) || (matchedPt.rep && matchedPt.rep.toLowerCase().includes('resigned'))));
+
         if (isRoot) {
           actionsHtml = `
             <span class="erp-tree-actions">
@@ -13816,18 +14005,33 @@ const BASELINE_ERP_TERRITORIES = [
           actionsHtml = `
             <span class="erp-tree-actions">
               <button type="button" class="erp-tree-btn" onclick="openTreeEditModal('${escapeHtml(t.name)}', event)">Edit</button>
-              <button type="button" class="erp-tree-btn" style="color:#7C3AED;" onclick="openDoctorTransferModal('${escapeHtml(t.name)}', event)" title="Transfer / Merge Doctors">Transfer Docs</button>
-              ${isGroup ? `<button type="button" class="erp-tree-btn" onclick="openTreeAddModal('${escapeHtml(t.name)}', event)">Add Child</button>` : ''}
+              <button type="button" class="erp-tree-btn" style="color:#7C3AED;" onclick="openDoctorTransferModal('${escapeHtml(t.name)}', event)" title="Transfer / Merge Doctors">Transfer Doctor</button>
               <button type="button" class="erp-tree-btn" onclick="openTreeRenameModal('${escapeHtml(t.name)}', event)">Rename</button>
-              <button type="button" class="erp-tree-btn erp-del-btn" onclick="openTreeDeleteModal('${escapeHtml(t.name)}', event)">Delete</button>
+              <button type="button" class="erp-tree-btn" style="color:${isNodeInactive ? '#DC2626' : '#15803D'}; font-weight:700;" onclick="toggleTreeNodeActiveStatus('${escapeHtml(t.name)}', event)" title="Toggle operational status (Zero data deleted)">${isNodeInactive ? 'Inactive' : 'Active'}</button>
             </span>`;
+        }
+
+        let treeLabelHtml = '';
+        if (isGroup) {
+          treeLabelHtml = `<span class="erp-tree-label">${escapeHtml(t.name)}</span>`;
+        } else {
+          const nodePt = programTerritories.find(pt => pt.activeCode === t.name || pt.histCode === t.name);
+          const nodeDistrict = nodePt ? nodePt.district : '';
+          const nodeArea = resolveTerritoryArea(t.name, nodeDistrict);
+          const nodeRep = nodePt && nodePt.rep ? nodePt.rep.replace(/\s*\([^)]*\)/g, '').trim() : (t.territory_manager ? t.territory_manager.replace(/\s*\([^)]*\)/g, '').trim() : 'Unassigned Rep');
+          treeLabelHtml = `
+            <span class="erp-tree-label" style="font-weight:700; color:#0F172A;">${escapeHtml(t.name)}</span>
+            <span class="badge" style="background:#F0F9FF; color:#0284C7; border:1px solid #BAE6FD; font-weight:700; font-size:10.5px; padding:1px 6px; border-radius:4px; margin:0 4px;">(${escapeHtml(nodeArea)})</span>
+            <span style="color:#94A3B8; margin-right:4px;">-</span>
+            <span style="font-weight:600; color:#334155; font-size:12.5px;">${escapeHtml(nodeRep)}</span>
+          `;
         }
 
         row.innerHTML = `
           ${toggleHtml}
           ${iconHtml}
-          <span class="erp-tree-label">${escapeHtml(t.name)}</span>
-          ${mgrHtml}
+          ${treeLabelHtml}
+          ${isGroup ? mgrHtml : ''}
           ${docBadge}
           ${actionsHtml}
         `;
@@ -15893,6 +16097,43 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   // 4. DELETE
+  
+  function toggleTreeNodeActiveStatus(name, event) {
+    if (event) {
+      if (typeof event.stopPropagation === 'function') event.stopPropagation();
+      if (typeof event.preventDefault === 'function') event.preventDefault();
+    }
+    const pt = programTerritories.find(p => p.activeCode === name || p.histCode === name || p.name === name);
+    const currStatus = pt ? (pt.operationalStatus || (pt.rep && pt.rep.toLowerCase().includes('resigned') ? 'Inactive' : 'Active')) : 'Active';
+    const nextStatus = currStatus === 'Active' ? 'Inactive' : 'Active';
+
+    if (pt) {
+      pt.operationalStatus = nextStatus;
+      pt.status = 'CHANGED';
+      if (!pt.auditTrail) pt.auditTrail = [];
+      pt.auditTrail.unshift({
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        action: 'STATUS_TOGGLE',
+        user: (authenticatedUser ? (authenticatedUser.email || authenticatedUser.full_name) : 'SFE Lead'),
+        details: `Operational status updated: ${currStatus} -> ${nextStatus} (Zero data deleted).`
+      });
+    }
+
+    const treeNode = territoryTreeData.find(t => t.name === name);
+    if (treeNode) {
+      treeNode.operational_status = nextStatus;
+    }
+
+    try {
+      localStorage.setItem('pims_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
+    } catch (_) {}
+
+    renderTree();
+    renderTable();
+    showToast(`Territory "${name}" marked as ${nextStatus}! (Zero data deleted)`, 'success', 3500);
+  }
+
   function openTreeDeleteModal(name, event) {
     if (event) event.stopPropagation();
     document.getElementById('treeDeleteTargetName').value = name;
@@ -17419,10 +17660,12 @@ const BASELINE_ERP_TERRITORIES = [
     const repNameClean = row.rep ? row.rep.replace(/\s*\([^)]*\)/g, '').trim() : 'Unassigned Rep';
     const assignedCode = row.activeCode || row.latestPrevCode;
 
-    document.getElementById('coveredDocsModalTitle').innerText = `Covered Doctors: ${assignedCode} - ${repNameClean}`;
+    const modalAreaTag = resolveTerritoryArea(assignedCode, row.district);
+    document.getElementById('coveredDocsModalTitle').innerText = `Covered Doctors: ${assignedCode} (${modalAreaTag}) - ${repNameClean}`;
     document.getElementById('coveredDocsModalSubtitle').innerHTML = `
       <strong>${escapeHtml(activeProgram)}</strong> &bull; 
-      District: <span style="color:#CBD5E1;">${escapeHtml(row.district || 'N/A')}</span> &bull; 
+      Area: <strong style="color:#0284C7; background:#F0F9FF; padding:1px 6px; border-radius:4px; border:1px solid #BAE6FD;">${escapeHtml(modalAreaTag)}</strong> &bull; 
+      District: <span style="color:#475569;">${escapeHtml(row.district || 'N/A')}</span> &bull; 
       User ID: <span class="badge badge-user-id" style="${(!row.userId || !row.userId.includes('@') || (row.rep && row.rep.toLowerCase().includes('unassigned'))) ? 'background:#F4F4F5; color:#71717A; border:1px solid #E4E4E7; font-weight:600;' : ''}">${escapeHtml((row.userId && row.userId.includes('@') && (!row.rep || !row.rep.toLowerCase().includes('unassigned'))) ? row.userId : 'Unassigned')}</span> &bull; 
       Record: <code>${escapeHtml(row.recordId)}</code>
     `;
@@ -17460,14 +17703,15 @@ const BASELINE_ERP_TERRITORIES = [
     const container = document.getElementById('coveredDoctorsListContainer');
     if (!doctors || doctors.length === 0) {
       const terrCode = currentViewingTerritoryForDoctors ? (currentViewingTerritoryForDoctors.activeCode || currentViewingTerritoryForDoctors.latestPrevCode) : 'this territory';
-      const repClean = currentViewingTerritoryForDoctors ? (currentViewingTerritoryForDoctors.rep ? currentViewingTerritoryForDoctors.rep.replace(/\s*\([^)]*\)/g, '').trim() : 'Unassigned Rep') : 'MedRep';
+      const searchVal = (document.getElementById('coveredDocsSearchInput')?.value || '').trim();
       container.innerHTML = `
-        <div style="text-align:center; padding:36px 20px; background:#F8FAFC; border:1.5px dashed #CBD5E1; border-radius:10px; margin:8px 0;">
-          <div style="font-size:36px; margin-bottom:10px;">🩺</div>
-          <div style="font-size:15px; font-weight:800; color:#0F172A; margin-bottom:6px;">No Doctors Currently Covered</div>
-          <div style="font-size:12px; color:#64748B; max-width:480px; margin:0 auto; line-height:1.6;">
-            Territory <strong>${escapeHtml(terrCode)}</strong> currently has <strong style="color:#DC2626;">0 registered doctors</strong> in the HCP Profiling masterlist.
-            When medical representative <strong>${escapeHtml(repClean)}</strong> profiles and submits doctor registrations under territory <strong>${escapeHtml(terrCode)}</strong> via the mobile HCP App, their validated doctor profile records will automatically reflect here.
+        <div style="text-align:center; padding:32px 20px; background:#F8FAFC; border:1.5px dashed #CBD5E1; border-radius:10px; margin:8px 0;">
+          <div style="font-size:30px; margin-bottom:8px;">🩺</div>
+          <div style="font-size:14.5px; font-weight:800; color:#0F172A; margin-bottom:4px;">No Doctors Found</div>
+          <div style="font-size:12px; color:#64748B; max-width:440px; margin:0 auto; line-height:1.5;">
+            ${searchVal 
+              ? `No doctors matching "<strong>${escapeHtml(searchVal)}</strong>" in territory <strong>${escapeHtml(terrCode)}</strong>.`
+              : `No doctors are currently registered under territory <strong>${escapeHtml(terrCode)}</strong>.`}
           </div>
         </div>
       `;
@@ -17624,6 +17868,10 @@ const BASELINE_ERP_TERRITORIES = [
 
     activeTransferTargetRow = programTerritories[targetIdx] || null;
     activeTransferSourceRow = programTerritories[sourceIdx] || null;
+      if (activeTransferSourceRow) {
+        const s = activeTransferSourceRow.operationalStatus || ((activeTransferSourceRow.rep && activeTransferSourceRow.rep.toLowerCase().includes('resigned')) ? 'Inactive' : 'Active');
+        updateTransferStatusButtons(s);
+      }
 
     if (!activeTransferTargetRow || !activeTransferSourceRow) return;
 
@@ -17665,6 +17913,34 @@ const BASELINE_ERP_TERRITORIES = [
     renderTransferPaneDoctors('target');
     renderTransferPaneDoctors('source');
     updateTransferCounters();
+  }
+
+  
+  function setTransferSourceOperationalStatus(status) {
+    if (!activeTransferSourceRow) {
+      showToast('Please select a source territory first', 'warning');
+      return;
+    }
+    activeTransferSourceRow.operationalStatus = status;
+    activeTransferSourceRow.status = 'CHANGED';
+    updateTransferStatusButtons(status);
+    showToast(`Source territory status set to ${status}`, 'info');
+  }
+
+  function updateTransferStatusButtons(status) {
+    const btnAct = document.getElementById('btnTransferStatus_active');
+    const btnInact = document.getElementById('btnTransferStatus_inactive');
+    const btnVac = document.getElementById('btnTransferStatus_vacant');
+    if (!btnAct || !btnInact || !btnVac) return;
+
+    btnAct.style.background = status === 'Active' ? '#DCFCE7' : '#F8FAFC';
+    btnAct.style.color = status === 'Active' ? '#15803D' : '#64748B';
+
+    btnInact.style.background = status === 'Inactive' ? '#FEE2E2' : '#F8FAFC';
+    btnInact.style.color = status === 'Inactive' ? '#DC2626' : '#64748B';
+
+    btnVac.style.background = status === 'Vacant' ? '#FEF3C7' : '#F8FAFC';
+    btnVac.style.color = status === 'Vacant' ? '#D97706' : '#64748B';
   }
 
   function toggleSourceResignStatus() {

@@ -9,6 +9,7 @@ import http.cookiejar
 import concurrent.futures
 import secrets
 import time
+import re
 
 # 1. Enterprise Streamlit Page Configuration
 st.set_page_config(
@@ -140,6 +141,18 @@ def create_erpnext_opener():
     )
     return opener
 
+INJECTION_PATTERN = re.compile(
+    r"('|\b)(OR|AND)\b.+(=|<|>|LIKE|IN)|"
+    r"UNION(\s+ALL)?\s+SELECT|"
+    r"DROP\s+(TABLE|DATABASE)|"
+    r"INSERT\s+INTO|"
+    r"--|/\*|\*/|"
+    r"<script\b[^>]*>|"
+    r"javascript:|"
+    r"(\||;|`|\$\()",
+    re.IGNORECASE
+)
+
 def verify_erpnext_credentials(usr, pwd):
     if not usr or not pwd:
         return {
@@ -151,6 +164,14 @@ def verify_erpnext_credentials(usr, pwd):
     usr = usr.strip()
     pwd = pwd.strip()
 
+    # Security Intrusion Mitigation: Block SQL / Command / Script Injection Attacks
+    if INJECTION_PATTERN.search(usr) or INJECTION_PATTERN.search(pwd):
+        return {
+            "success": False,
+            "authorized": False,
+            "message": "⚠️ SECURITY VIOLATION: Malicious injection attempt detected. Request blocked and access restricted."
+        }, None
+
     opener = create_erpnext_opener()
 
     login_payload = json.dumps({"usr": usr, "pwd": pwd}).encode("utf-8")
@@ -160,33 +181,39 @@ def verify_erpnext_credentials(usr, pwd):
     }
 
     login_data = {}
-    try:
-        login_req = urllib.request.Request(
-            f"{ERPNEXT_SERVER_URL}/api/method/login",
-            data=login_payload,
-            headers=login_headers
-        )
-        login_res = opener.open(login_req, timeout=8)
-        login_data = json.loads(login_res.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        if e.code == 401:
-            return {
-                "success": False,
-                "authorized": False,
-                "message": "Invalid username or password. Please verify your ERPNext credentials or contact your administrator."
-            }, None
-        return {
-            "success": False,
-            "authorized": False,
-            "message": f"ERPNext authentication error (HTTP {e.code}). Please try again."
-        }, None
-    except Exception as e:
-        server_host = get_server_display_name()
-        return {
-            "success": False,
-            "authorized": False,
-            "message": f"Unable to establish a secure connection to the authentication server ({server_host}). Please verify network connectivity."
-        }, None
+    max_retries = 2
+    for attempt in range(max_retries):
+        try:
+            login_req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/api/method/login",
+                data=login_payload,
+                headers=login_headers
+            )
+            login_res = opener.open(login_req, timeout=15)
+            login_data = json.loads(login_res.read().decode("utf-8"))
+            break
+        except urllib.error.HTTPError as e:
+            if e.code == 401:
+                return {
+                    "success": False,
+                    "authorized": False,
+                    "message": "Invalid username or password. Please verify your ERPNext credentials or contact your administrator."
+                }, None
+            if attempt == max_retries - 1:
+                return {
+                    "success": False,
+                    "authorized": False,
+                    "message": f"ERPNext authentication error (HTTP {e.code}). Please try again."
+                }, None
+        except Exception as e:
+            if attempt == max_retries - 1:
+                server_host = get_server_display_name()
+                return {
+                    "success": False,
+                    "authorized": False,
+                    "message": f"Unable to establish a secure connection to the authentication server ({server_host}). Please verify network connectivity."
+                }, None
+            time.sleep(0.5)
 
     if login_data.get("message") != "Logged In":
         return {
