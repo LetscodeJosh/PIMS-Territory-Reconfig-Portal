@@ -936,16 +936,16 @@
 
   /* Interactive ERPNext Territory Tree View (1:1 Live Engine) */
   .erp-tree-container {
-    background: #111111;
-    border: 1px solid #27272A;
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
     border-radius: 8px;
     padding: 16px 20px;
     min-height: 520px;
     max-height: 750px;
     overflow-y: auto;
-    color: #F4F4F5;
+    color: #0F172A !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03) !important;
   }
 
   .erp-tree-node {
@@ -956,7 +956,7 @@
   .erp-tree-row {
     display: flex;
     align-items: center;
-    padding: 5px 8px;
+    padding: 6px 10px;
     border-radius: 6px;
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease;
@@ -965,11 +965,12 @@
   }
 
   .erp-tree-row:hover {
-    background: #1F1F23;
+    background: #F8FAFC !important;
   }
 
   .erp-tree-row.selected {
-    background: #27272A;
+    background: #EFF6FF !important;
+    border-left: 3px solid #0066FF;
   }
 
   .erp-tree-toggle {
@@ -978,16 +979,16 @@
     justify-content: center;
     width: 18px;
     height: 18px;
-    color: #A1A1AA;
+    color: #64748B !important;
     font-size: 10px;
     cursor: pointer;
-    transition: transform 0.15s ease;
+    transition: transform 0.15s ease, color 0.15s ease;
     margin-right: 4px;
     flex-shrink: 0;
   }
 
   .erp-tree-toggle:hover {
-    color: #38BDF8;
+    color: #0284C7 !important;
   }
 
   .erp-tree-spacer {
@@ -1007,7 +1008,7 @@
   }
 
   .erp-folder-icon {
-    color: #E2E8F0;
+    color: #0284C7;
   }
 
   .erp-leaf-icon {
@@ -1021,56 +1022,62 @@
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    border: 1.5px solid #94A3B8;
-    background: transparent;
+    border: 1.5px solid #0284C7;
+    background: #0284C7;
     display: inline-block;
   }
 
   .erp-tree-label {
     font-size: 13.5px;
-    font-weight: 600;
-    color: #FFFFFF;
+    font-weight: 700;
+    color: #0F172A !important;
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
   }
 
   .erp-tree-row.selected .erp-tree-label {
-    color: #FFFFFF;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    color: #0066FF !important;
   }
 
   .erp-tree-mgr {
-    font-size: 11.5px;
-    color: #94A3B8;
+    font-size: 12px;
+    color: #64748B !important;
     margin-left: 8px;
-    font-weight: 400;
+    font-weight: 500;
     white-space: nowrap;
   }
 
   .erp-tree-badge {
     font-size: 11px;
-    color: #38BDF8;
-    background: rgba(56, 189, 248, 0.12);
-    border: 1px solid rgba(56, 189, 248, 0.25);
-    padding: 1px 7px;
-    border-radius: 10px;
+    color: #0284C7 !important;
+    background: #F0F9FF !important;
+    border: 1px solid #BAE6FD !important;
+    padding: 2px 8px;
+    border-radius: 12px;
     margin-left: 8px;
-    font-weight: 600;
+    font-weight: 700;
     white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .erp-tree-badge:hover {
+    background: #E0F2FE !important;
+    color: #0369A1 !important;
   }
 
   .erp-tree-actions {
     display: none;
     align-items: center;
-    gap: 3px;
+    gap: 4px;
     margin-left: 12px;
-    background: #27272A;
-    border: 1px solid #3F3F46;
+    background: #FFFFFF !important;
+    border: 1px solid #CBD5E1 !important;
     border-radius: 6px;
-    padding: 2px 4px;
+    padding: 2px 6px;
     flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   }
 
   .erp-tree-row:hover .erp-tree-actions,
@@ -1079,12 +1086,12 @@
   }
 
   .erp-tree-btn {
-    background: transparent;
-    border: none;
-    color: #F4F4F5;
-    font-size: 11.5px;
+    background: #F1F5F9 !important;
+    border: 1px solid #E2E8F0 !important;
+    color: #334155 !important;
+    font-size: 11px;
     font-weight: 600;
-    padding: 2px 8px;
+    padding: 3px 8px;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -1092,8 +1099,8 @@
   }
 
   .erp-tree-btn:hover {
-    background: #3F3F46;
-    color: #38BDF8;
+    background: #E2E8F0 !important;
+    color: #0F172A !important;
   }
 
   .erp-tree-btn.erp-del-btn:hover {
@@ -1103,7 +1110,7 @@
 
   .erp-tree-children {
     position: relative;
-    border-left: 1px dashed #27272A;
+    border-left: 1px dashed #CBD5E1 !important;
     margin-left: 14px;
     padding-left: 6px;
   }
@@ -9002,11 +9009,12 @@ const BASELINE_ERP_TERRITORIES = [
   let isActivelyLoggingIn = false;
 
   function checkAuthSession() {
-    // Restore persistent session from session/local storage across page refresh
+    // SECURITY ENFORCEMENT: Never auto-login across server updates or from permanent localStorage
     try {
+      localStorage.removeItem('sfe_portal_user');
       const isExplicitlyLoggedOut = sessionStorage.getItem('sfe_portal_logged_out') === '1';
       if (!isExplicitlyLoggedOut) {
-        const stored = sessionStorage.getItem('sfe_portal_user') || localStorage.getItem('sfe_portal_user');
+        const stored = sessionStorage.getItem('sfe_portal_user');
         if (stored) {
           const u = JSON.parse(stored);
           if (u && (u.email || u.full_name)) {
@@ -9352,7 +9360,7 @@ const BASELINE_ERP_TERRITORIES = [
             sessionStorage.removeItem('sfe_portal_logged_out');
             try {
               sessionStorage.setItem('sfe_portal_user', JSON.stringify(auth.user));
-              localStorage.setItem('sfe_portal_user', JSON.stringify(auth.user));
+              localStorage.removeItem('sfe_portal_user');
             } catch (_) {}
             const errBox = document.getElementById('loginErrorBox');
             if (errBox) {
@@ -13970,7 +13978,7 @@ const BASELINE_ERP_TERRITORIES = [
         if (isGroup) {
           iconHtml = `
             <span class="erp-tree-icon erp-folder-icon" title="Group Territory (Can add child)">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E2E8F0" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="rgba(2, 132, 199, 0.1)" stroke="#0284C7" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
             </span>`;
         } else {
           iconHtml = `
@@ -14020,10 +14028,10 @@ const BASELINE_ERP_TERRITORIES = [
           const nodeArea = resolveTerritoryArea(t.name, nodeDistrict);
           const nodeRep = nodePt && nodePt.rep ? nodePt.rep.replace(/\s*\([^)]*\)/g, '').trim() : (t.territory_manager ? t.territory_manager.replace(/\s*\([^)]*\)/g, '').trim() : 'Unassigned Rep');
           treeLabelHtml = `
-            <span class="erp-tree-label" style="font-weight:700; color:#0F172A;">${escapeHtml(t.name)}</span>
-            <span class="badge" style="background:#F0F9FF; color:#0284C7; border:1px solid #BAE6FD; font-weight:700; font-size:10.5px; padding:1px 6px; border-radius:4px; margin:0 4px;">(${escapeHtml(nodeArea)})</span>
+            <span class="erp-tree-label" style="font-weight:700; color:#0284C7; font-size:13px;">${escapeHtml(t.name)}</span>
+            <span class="badge" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; font-weight:700; font-size:11px; padding:2px 7px; border-radius:6px; margin:0 4px;">(${escapeHtml(nodeArea)})</span>
             <span style="color:#94A3B8; margin-right:4px;">-</span>
-            <span style="font-weight:600; color:#334155; font-size:12.5px;">${escapeHtml(nodeRep)}</span>
+            <span style="font-weight:600; color:#0F172A; font-size:12.5px;">${escapeHtml(nodeRep)}</span>
           `;
         }
 

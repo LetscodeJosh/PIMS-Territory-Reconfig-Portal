@@ -751,26 +751,12 @@ if os.path.exists(PORTAL_HTML):
 
 portal_component = components.declare_component("pims_portal", path=CURRENT_DIR)
 
-# Restore persistent session across page refresh if present in query parameters
+# SECURITY INVARIANT: Clear any lingering sfe_session from URL query parameters to prevent auto-login breaches
 session_token = get_query_param("sfe_session")
-if session_token and session_token in ACTIVE_SESSIONS:
-    cached_session = ACTIVE_SESSIONS[session_token]
-    cached_session["last_active"] = time.time()
-    if "auth_response" not in st.session_state or not st.session_state["auth_response"]:
-        st.session_state["auth_response"] = cached_session.get("auth_response")
-    if "opener" not in st.session_state or not st.session_state["opener"]:
-        st.session_state["opener"] = cached_session.get("opener")
-    if "live_territories" not in st.session_state or not st.session_state["live_territories"]:
-        st.session_state["live_territories"] = cached_session.get("live_territories")
-    if "live_sales_persons" not in st.session_state or not st.session_state["live_sales_persons"]:
-        st.session_state["live_sales_persons"] = cached_session.get("live_sales_persons")
-    if "live_employees" not in st.session_state or not st.session_state["live_employees"]:
-        st.session_state["live_employees"] = cached_session.get("live_employees")
-    if "live_users" not in st.session_state or not st.session_state["live_users"]:
-        st.session_state["live_users"] = cached_session.get("live_users")
-    st.session_state["session_token"] = session_token
-elif session_token:
+if session_token:
     clear_query_param("sfe_session")
+session_token = None
+
 
 
 if "auth_response" not in st.session_state:
@@ -840,19 +826,10 @@ if component_val and isinstance(component_val, dict):
                     st.session_state["live_territories"] = fetch_live_territories(opener)
                     st.session_state["live_users"] = fetch_live_users(opener)
             if res.get("authorized") and opener:
-                purge_expired_sessions()
                 token = secrets.token_urlsafe(32)
-                ACTIVE_SESSIONS[token] = {
-                    "auth_response": res,
-                    "opener": opener,
-                    "live_territories": st.session_state["live_territories"],
-                    "live_sales_persons": st.session_state["live_sales_persons"],
-                    "live_employees": st.session_state["live_employees"],
-                    "live_users": st.session_state["live_users"],
-                    "last_active": time.time()
-                }
-                set_query_param("sfe_session", token)
                 st.session_state["session_token"] = token
+                clear_query_param("sfe_session")
+
 
             # Immediately scrub credentials from memory and component payload
             if "pwd" in component_val:
