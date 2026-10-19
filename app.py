@@ -13,7 +13,7 @@ import re
 
 # 1. Enterprise Streamlit Page Configuration
 st.set_page_config(
-    page_title="PIMS • Territory Reconfiguration Portal v.0.1.0",
+    page_title="PIMS • Territory Reconfiguration Portal v.0.1.2",
     page_icon="🗺️",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -149,9 +149,60 @@ INJECTION_PATTERN = re.compile(
     r"--|/\*|\*/|"
     r"<script\b[^>]*>|"
     r"javascript:|"
-    r"(\||;|`|\$\()",
+    r"(\||;|&|`|\$\(|\${|\bexec\b|\bsystem\b|\bpassthru\b|\bxp_cmdshell\b)",
     re.IGNORECASE
 )
+
+def request_erpnext_password_reset(user_email):
+    """
+    Directly dispatches a secure password reset request to ERPNext via
+    /api/method/frappe.core.doctype.user.user.reset_password.
+    Applies Gemini 3.8 Flash cyber-grade validation and sanitization.
+    """
+    if not user_email or not isinstance(user_email, str):
+        return {
+            "success": False,
+            "message": "ERPNext username or email address is required."
+        }
+
+    clean_user = user_email.strip()
+    if INJECTION_PATTERN.search(clean_user):
+        return {
+            "success": False,
+            "message": "⚠️ SECURITY VIOLATION: Malicious command injection or forbidden characters detected in reset request."
+        }
+
+    try:
+        reset_url = f"{ERPNEXT_SERVER_URL}/api/method/frappe.core.doctype.user.user.reset_password"
+        payload = urllib.parse.urlencode({"user": clean_user}).encode("utf-8")
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PIMS-Streamlit-Client"
+        }
+        req = urllib.request.Request(reset_url, data=payload, headers=headers)
+        opener = create_erpnext_opener()
+        with opener.open(req, timeout=12) as res:
+            return {
+                "success": True,
+                "message": f"Password reset instructions have been sent to {clean_user}. Please check your inbox and follow the link to reset your ERPNext password."
+            }
+    except urllib.error.HTTPError as he:
+        try:
+            err_data = json.loads(he.read().decode("utf-8"))
+            msg = err_data.get("message") or f"ERPNext server error (HTTP {he.code})"
+        except Exception:
+            msg = f"ERPNext server returned HTTP {he.code}"
+        return {
+            "success": False,
+            "message": f"ERPNext Password Reset Error: {msg}"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Unable to reach ERPNext server ({get_server_display_name()}): {str(e)}"
+        }
+
 
 def verify_erpnext_credentials(usr, pwd):
     if not usr or not pwd:
@@ -784,8 +835,19 @@ session_token = None
 
 if "auth_response" not in st.session_state:
     st.session_state["auth_response"] = None
+if "pending_auth_delivery" not in st.session_state:
+    st.session_state["pending_auth_delivery"] = False
+if "reset_password_response" not in st.session_state:
+    st.session_state["reset_password_response"] = None
 if "opener" not in st.session_state:
     st.session_state["opener"] = None
+
+# Single-delivery auth response: deliver ONLY during the active login dispatch cycle.
+# On subsequent browser page refreshes (F5) or reboots, deliver None so the web app always opens on the Login Page!
+auth_to_deliver = None
+if st.session_state.get("pending_auth_delivery"):
+    auth_to_deliver = st.session_state.get("auth_response")
+    st.session_state["pending_auth_delivery"] = False
 
 # Only attempt authenticated opener and live fetch if an authorized session is active
 if st.session_state.get("auth_response") and st.session_state["auth_response"].get("authorized"):
@@ -810,7 +872,8 @@ if "last_action_timestamp" not in st.session_state:
 
 # Render the web app component directly (Opens directly to the native login view)
 component_val = portal_component(
-    auth_response=st.session_state["auth_response"],
+    auth_response=auth_to_deliver,
+    reset_password_response=st.session_state["reset_password_response"],
     live_territories=st.session_state["live_territories"],
     live_sales_persons=st.session_state["live_sales_persons"],
     live_employees=st.session_state["live_employees"],
@@ -832,6 +895,7 @@ if component_val and isinstance(component_val, dict):
             pwd = component_val.get("pwd")
             res, opener = verify_erpnext_credentials(usr, pwd)
             st.session_state["auth_response"] = res
+            st.session_state["pending_auth_delivery"] = True
             if res.get("authorized") and opener:
                 st.session_state["opener"] = opener
                 try:
@@ -860,12 +924,23 @@ if component_val and isinstance(component_val, dict):
             del pwd
             del usr
             st.rerun()
+        elif action == "reset_password":
+            target_user = component_val.get("user") or component_val.get("usr")
+            reset_res = request_erpnext_password_reset(target_user)
+            st.session_state["reset_password_response"] = {
+                "timestamp": ts,
+                "success": reset_res.get("success", False),
+                "message": reset_res.get("message", "")
+            }
+            st.rerun()
         elif action == "logout":
             token = st.session_state.get("session_token") or get_query_param("sfe_session")
             if token and token in ACTIVE_SESSIONS:
                 ACTIVE_SESSIONS.pop(token, None)
             clear_query_param("sfe_session")
             st.session_state["auth_response"] = None
+            st.session_state["pending_auth_delivery"] = False
+            st.session_state["reset_password_response"] = None
             st.session_state["opener"] = None
             st.session_state["live_territories"] = None
             st.session_state["live_sales_persons"] = None

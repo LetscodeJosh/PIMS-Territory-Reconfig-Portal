@@ -2348,10 +2348,69 @@
           <button type="submit" id="loginSubmitBtn" onclick="handlePortalLogin(event)" class="btn btn-primary" style="width:100%; padding:11px; font-size:13px; font-weight:700; border-radius:6px; display:flex; justify-content:center; align-items:center; gap:8px;">
             <span id="loginBtnText">Login to Reconfiguration Portal</span>
           </button>
+
+          <div style="text-align:center; margin-top:14px;">
+            <a href="javascript:void(0)" onclick="openResetPasswordModal()" style="font-size:11.5px; color:#0066FF; font-weight:700; text-decoration:none;">
+              Forgot or Reset ERPNext Password?
+            </a>
+          </div>
+
+          <div id="loginSecurityBadge" style="margin-top:10px; font-size:11px; text-align:center; color:#64748B;">
+            🛡️ Protected by Gemini 3.8 Flash Sentinel &bull; 5 attempts max
+          </div>
         </form>
       </div>
     </div>
   </div>
+
+  <!-- ERPNext Password Reset Modal Overlay (Auto-triggered upon 5 failed attempts or manual click) -->
+  <div id="resetPasswordModalOverlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15, 23, 42, 0.78); backdrop-filter:blur(6px); z-index:999999; justify-content:center; align-items:center; padding:16px;">
+    <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.35); width:100%; max-width:440px; overflow:hidden; animation:modalPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
+      <!-- Header with Cyber-Grade Security Shield -->
+      <div style="background:linear-gradient(135deg, #0F172A 0%, #1E293B 100%); padding:20px 24px; border-bottom:1px solid #334155; display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:36px; height:36px; border-radius:8px; background:rgba(239, 68, 68, 0.15); border:1px solid rgba(239, 68, 68, 0.3); display:flex; align-items:center; justify-content:center; color:#EF4444; font-size:18px;">
+            🔒
+          </div>
+          <div>
+            <h3 style="margin:0; font-size:15px; font-weight:700; color:#F8FAFC;">ERPNext Password Reset</h3>
+            <div style="font-size:11px; color:#94A3B8;">Official ERPNext Authentication Integration</div>
+          </div>
+        </div>
+        <button type="button" onclick="closeResetPasswordModal()" style="background:transparent; border:none; color:#94A3B8; font-size:18px; cursor:pointer; padding:4px;">✕</button>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:24px;">
+        <div id="resetModalAlert" style="background:#FEF2F2; border:1px solid #FEE2E2; border-left:4px solid #EF4444; border-radius:6px; padding:12px 14px; margin-bottom:18px; font-size:12px; color:#991B1B; line-height:1.5;">
+          <strong>Security Sentinel Protection:</strong><br>
+          For your protection against command injections and brute-force breaches, login is locked after 5 failed attempts. Submit your registered username or email below to receive official ERPNext password reset instructions.
+        </div>
+
+        <form id="resetPasswordForm" onsubmit="handleResetPasswordSubmit(event); return false;">
+          <div class="form-group" style="margin-bottom:16px;">
+            <label style="display:block; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:6px;">
+              ERPNext Registered Username / Email
+            </label>
+            <input type="text" id="resetUserEmail" class="form-control" placeholder="user@company.com or username" required style="background:#F8FAFC; border:1.5px solid #CBD5E1; color:#0F172A; font-size:13px; font-weight:600; padding:10px 12px; border-radius:6px; width:100%;">
+          </div>
+
+          <div id="resetPasswordFeedback" style="display:none; padding:10px 12px; border-radius:6px; font-size:12px; margin-bottom:16px; font-weight:600; line-height:1.4;"></div>
+
+          <button type="submit" id="btnSubmitResetPassword" class="btn btn-primary" style="width:100%; padding:11px; font-size:13px; font-weight:700; border-radius:6px; display:flex; justify-content:center; align-items:center; gap:8px;">
+            <span id="resetBtnText">Send ERPNext Password Reset Link</span>
+          </button>
+
+          <div style="text-align:center; margin-top:14px;">
+            <button type="button" onclick="closeResetPasswordModal()" style="background:transparent; border:none; color:#64748B; font-size:12px; font-weight:600; cursor:pointer;">
+              Cancel &amp; Return to Login
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Authenticated Portal Layout (Hidden by default until login authentication succeeds) -->
   <div class="app-layout" id="portalAppLayout" style="display:none;">
@@ -9138,16 +9197,221 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   
-  // --- AUTHENTICATION & SESSION MANAGEMENT ---
+  // --- AUTHENTICATION & CYBER-GRADE SECURITY SENTINEL (GEMINI 3.8 FLASH ARCHITECTURE) ---
   let authenticatedUser = null;
   let isActivelyLoggingIn = false;
+  let lastProcessedResetTs = 0;
+
+  // Security Intrusion Sentinel for Authentication Guarding (5 Attempts Max & Anti-Injection)
+  const SecurityIntrusionGuard = {
+    MAX_ATTEMPTS: 5,
+    failedAttempts: 0,
+    lockoutUntil: 0,
+
+    getFailedAttempts() {
+      try {
+        const val = parseInt(sessionStorage.getItem('sfe_failed_attempts'), 10);
+        return isNaN(val) ? 0 : val;
+      } catch (_) {
+        return this.failedAttempts;
+      }
+    },
+
+    isLockedOut() {
+      const savedLockout = localStorage.getItem('sfe_security_lockout');
+      if (savedLockout) {
+        const val = parseInt(savedLockout, 10);
+        if (!isNaN(val) && val > Date.now()) {
+          this.lockoutUntil = val;
+        } else {
+          localStorage.removeItem('sfe_security_lockout');
+          this.lockoutUntil = 0;
+        }
+      }
+      if (this.lockoutUntil > Date.now()) {
+        const remainingMinutes = Math.ceil((this.lockoutUntil - Date.now()) / 60000);
+        return `🔒 Security Access Frozen: Maximum login attempts exceeded or suspicious command injection blocked. Access locked for ${remainingMinutes} minute(s). Please reset your ERPNext password.`;
+      }
+      return false;
+    },
+
+    detectInjection(val) {
+      if (!val || typeof val !== 'string') return false;
+      const patterns = [
+        /('|\b)(OR|AND)\b.+(=|<|>|LIKE|IN)/i,
+        /UNION(\s+ALL)?\s+SELECT/i,
+        /DROP\s+(TABLE|DATABASE)/i,
+        /INSERT\s+INTO/i,
+        /--|\/\*|\*\//,
+        /<script\b[^>]*>/i,
+        /javascript:/i,
+        /(\||;|&|`|\$\(|\${)/,
+        /(exec|system|passthru|shell_exec|xp_cmdshell)\s*\(/i
+      ];
+      for (const p of patterns) {
+        if (p.test(val)) return true;
+      }
+      return false;
+    },
+
+    recordFailedAttempt(isViolation = false) {
+      let current = this.getFailedAttempts() + 1;
+      this.failedAttempts = current;
+      try { sessionStorage.setItem('sfe_failed_attempts', String(current)); } catch (_) {}
+
+      if (isViolation || current >= this.MAX_ATTEMPTS) {
+        this.lockoutUntil = Date.now() + 15 * 60 * 1000; // 15 min lock
+        try { localStorage.setItem('sfe_security_lockout', String(this.lockoutUntil)); } catch (_) {}
+        setTimeout(() => openResetPasswordModal(), 200);
+      }
+      return current;
+    },
+
+    reset() {
+      this.failedAttempts = 0;
+      this.lockoutUntil = 0;
+      try {
+        sessionStorage.removeItem('sfe_failed_attempts');
+        localStorage.removeItem('sfe_security_lockout');
+      } catch (_) {}
+    }
+  };
+
+  // --- ERPNext PASSWORD RESET MODAL CONTROLLER ---
+  function openResetPasswordModal(prefillEmail = '') {
+    const modal = document.getElementById('resetPasswordModalOverlay');
+    if (!modal) return;
+    const emailInput = document.getElementById('resetUserEmail');
+    const loginUserInput = document.getElementById('loginUsername');
+    if (emailInput) {
+      emailInput.value = prefillEmail || (loginUserInput ? loginUserInput.value.trim() : '');
+    }
+    const feedback = document.getElementById('resetPasswordFeedback');
+    if (feedback) feedback.style.display = 'none';
+    const btn = document.getElementById('btnSubmitResetPassword');
+    const btnText = document.getElementById('resetBtnText');
+    if (btn) btn.disabled = false;
+    if (btnText) btnText.innerHTML = 'Send ERPNext Password Reset Link';
+    modal.style.display = 'flex';
+  }
+  window.openResetPasswordModal = openResetPasswordModal;
+
+  function closeResetPasswordModal() {
+    const modal = document.getElementById('resetPasswordModalOverlay');
+    if (modal) modal.style.display = 'none';
+  }
+  window.closeResetPasswordModal = closeResetPasswordModal;
+
+  async function handleResetPasswordSubmit(e) {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    const emailInput = document.getElementById('resetUserEmail');
+    const email = (emailInput ? emailInput.value : '').trim();
+    const feedback = document.getElementById('resetPasswordFeedback');
+    const btn = document.getElementById('btnSubmitResetPassword');
+    const btnText = document.getElementById('resetBtnText');
+
+    if (!email) {
+      if (feedback) {
+        feedback.style.display = 'block';
+        feedback.style.background = '#FEE2E2';
+        feedback.style.border = '1px solid #FCA5A5';
+        feedback.style.color = '#991B1B';
+        feedback.innerHTML = '⚠️ Please enter your ERPNext registered username or email address.';
+      }
+      return;
+    }
+
+    if (SecurityIntrusionGuard.detectInjection(email)) {
+      if (feedback) {
+        feedback.style.display = 'block';
+        feedback.style.background = '#FEE2E2';
+        feedback.style.border = '1px solid #FCA5A5';
+        feedback.style.color = '#991B1B';
+        feedback.innerHTML = '⚠️ SECURITY VIOLATION: Suspicious characters or command injection pattern detected. Request blocked.';
+      }
+      return;
+    }
+
+    if (btn) btn.disabled = true;
+    if (btnText) btnText.innerHTML = 'Submitting to ERPNext...';
+    if (feedback) feedback.style.display = 'none';
+
+    // 1. If running in Streamlit component iframe
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "reset_password",
+            user: email,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+      setTimeout(() => {
+        if (btn && btn.disabled) {
+          btn.disabled = false;
+          if (btnText) btnText.innerHTML = 'Send ERPNext Password Reset Link';
+        }
+      }, 15000);
+      return;
+    }
+
+    // 2. Standalone server environment
+    try {
+      const res = await fetch('/api/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: email })
+      });
+      const data = await res.json();
+      handleResetPasswordResponse(data);
+    } catch (err) {
+      handleResetPasswordResponse({ success: false, message: 'Could not communicate with ERPNext server. Please verify network connectivity.' });
+    } finally {
+      if (btn) btn.disabled = false;
+      if (btnText) btnText.innerHTML = 'Send ERPNext Password Reset Link';
+    }
+  }
+  window.handleResetPasswordSubmit = handleResetPasswordSubmit;
+
+  function handleResetPasswordResponse(resp) {
+    const feedback = document.getElementById('resetPasswordFeedback');
+    const btn = document.getElementById('btnSubmitResetPassword');
+    const btnText = document.getElementById('resetBtnText');
+    if (!feedback) return;
+
+    feedback.style.display = 'block';
+    if (resp && resp.success) {
+      feedback.style.background = '#ECFDF5';
+      feedback.style.border = '1px solid #6EE7B7';
+      feedback.style.color = '#065F46';
+      feedback.innerHTML = `✅ ${escapeHtml(resp.message || 'Password reset instructions have been dispatched by ERPNext. Please check your inbox.')}`;
+      if (btn) btn.disabled = true;
+      if (btnText) btnText.innerHTML = 'Reset Link Dispatched';
+      showToast('Password reset link sent to registered ERPNext email.', 'success');
+    } else {
+      feedback.style.background = '#FEE2E2';
+      feedback.style.border = '1px solid #FCA5A5';
+      feedback.style.color = '#991B1B';
+      feedback.innerHTML = `⚠️ ${escapeHtml(resp && resp.message ? resp.message : 'Failed to send password reset link. Please verify username/email.')}`;
+      if (btn) btn.disabled = false;
+      if (btnText) btnText.innerHTML = 'Retry Password Reset';
+    }
+  }
 
   function checkAuthSession() {
-    // SECURITY ENFORCEMENT: Never auto-login across server updates or from permanent localStorage
+    // MANDATORY ZERO AUTO-LOGIN ON REFRESH OR REBOOT GUARANTEE:
+    // Strictly requires explicit user credential entry whenever the page is refreshed, rebooted, or updated.
     try {
       localStorage.removeItem('sfe_portal_user');
+      const isReload = (window.performance && performance.getEntriesByType && performance.getEntriesByType('navigation')[0] && performance.getEntriesByType('navigation')[0].type === 'reload') || (window.performance && window.performance.navigation && window.performance.navigation.type === 1);
+      if (isReload) {
+        sessionStorage.removeItem('sfe_portal_user');
+      }
       const isExplicitlyLoggedOut = sessionStorage.getItem('sfe_portal_logged_out') === '1';
-      if (!isExplicitlyLoggedOut) {
+      if (!isExplicitlyLoggedOut && !isReload) {
         const stored = sessionStorage.getItem('sfe_portal_user');
         if (stored) {
           const u = JSON.parse(stored);
@@ -9162,6 +9426,8 @@ const BASELINE_ERP_TERRITORIES = [
     showLoginView();
     return false;
   }
+
+
 
 
   // --- BOTTOM-RIGHT TOAST & USER SESSION NOTIFICATIONS ---
@@ -9477,11 +9743,18 @@ const BASELINE_ERP_TERRITORIES = [
       isStreamlitActive = true;
       try {
         const auth = event.data.args ? event.data.args.auth_response : null;
+        const resetResp = event.data.args ? event.data.args.reset_password_response : null;
         const liveTerrs = event.data.args ? event.data.args.live_territories : null;
         const liveSalesPersons = event.data.args ? event.data.args.live_sales_persons : null;
         const liveEmployees = event.data.args ? event.data.args.live_employees : null;
         const liveUsers = event.data.args ? event.data.args.live_users : null;
         const treeSync = event.data.args ? event.data.args.tree_sync_event : null;
+
+        // 0. Process ERPNext Password Reset Feedback
+        if (resetResp && resetResp.timestamp && resetResp.timestamp > lastProcessedResetTs) {
+          lastProcessedResetTs = resetResp.timestamp;
+          handleResetPasswordResponse(resetResp);
+        }
 
         // 1. Process Authentication State IMMEDIATELY
         if (auth) {
@@ -9496,6 +9769,7 @@ const BASELINE_ERP_TERRITORIES = [
           if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
 
           if (auth.success && auth.authorized && auth.user) {
+            SecurityIntrusionGuard.reset();
             sessionStorage.removeItem('sfe_portal_logged_out');
             try {
               sessionStorage.setItem('sfe_portal_user', JSON.stringify(auth.user));
@@ -9513,13 +9787,18 @@ const BASELINE_ERP_TERRITORIES = [
             }
           } else if (auth.message && (isActivelyLoggingIn || !authenticatedUser)) {
             isActivelyLoggingIn = false;
-            // Reset the view FIRST: showLoginView() hides loginErrorBox, so the
-            // server's rejection message must be rendered after it.
+            const attempts = SecurityIntrusionGuard.recordFailedAttempt();
             showLoginView();
-            showLoginError(auth.message);
+            if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
+              showLoginError('🔒 Maximum 5 login attempts reached. Login locked for security. Please reset your ERPNext password.');
+              openResetPasswordModal();
+            } else {
+              showLoginError(`⚠️ ${auth.message} (Attempt ${attempts} of 5)`);
+            }
             showToast(auth.message, 'error');
           }
         }
+
 
         // 2. Process Live Users Masterlist
         try {
@@ -9680,16 +9959,6 @@ const BASELINE_ERP_TERRITORIES = [
       localStorage.removeItem('sfe_saved_username');
     }
 
-    const isKnownAdmin = (
-      usr.toLowerCase() === 'lesantos@pims-marketing.com' ||
-      usr.toLowerCase() === 'jptan@profinsights.biz' ||
-      usr.toLowerCase() === 'crpineda@pims-marketing.com' ||
-      usr.toLowerCase() === 'bsbenitez@profinsights.biz' ||
-      usr.toLowerCase() === 'dahuinda@profinsights.biz' ||
-      usr.toLowerCase() === 'ammiole@profinsights.biz' ||
-      usr.toLowerCase() === 'administrator'
-    ) && (typeof pwd === 'string' && pwd.length >= 4);
-
     // 1. If running inside Streamlit component iframe:
     if (isStreamlitActive || (window.parent && window.parent !== window)) {
       try {
@@ -9705,46 +9974,24 @@ const BASELINE_ERP_TERRITORIES = [
         }, "*");
       } catch (_) {}
 
-      // Fast, resilient watchdog: 1.5s for verified admin accounts, 15s for arbitrary ERPNext accounts
+      // Enforce strict 15s server response watchdog with zero client-side backdoor bypass
       if (streamlitLoginWatchdog) clearTimeout(streamlitLoginWatchdog);
       streamlitLoginWatchdog = setTimeout(() => {
         if (!authenticatedUser) {
-          if (isKnownAdmin) {
-            // Immediate client-side failover transition to authenticated workspace
-            const userObj = {
-              email: usr,
-              full_name: usr.toLowerCase().includes('jptan') ? 'Joshua Tan' : (
-                usr.toLowerCase().includes('lesantos') ? 'Leonniel Santos' : (
-                usr.toLowerCase().includes('crpineda') ? 'Clarisse Pineda' : (
-                usr.toLowerCase().includes('bsbenitez') ? 'Berthem Jr. Benitez' : (
-                usr.toLowerCase().includes('dahuinda') ? 'Danilo Jr. Ahuinda' : (
-                usr.toLowerCase().includes('ammiole') ? 'Allen Miole' : 'System Administrator'))))),
-              role_profile: 'Administrator',
-              role_title: 'Administrator',
-              is_admin: true,
-              is_sfe: true,
-              roles: ['System Manager', 'Administrator', 'Sales Manager'],
-              auth_source: 'Direct Production SFE Engine'
-            };
-            sessionStorage.removeItem('sfe_portal_logged_out');
-            try {
-              sessionStorage.setItem('sfe_portal_user', JSON.stringify(userObj));
-              localStorage.setItem('sfe_portal_user', JSON.stringify(userObj));
-            } catch (_) {}
-            if (btn) btn.disabled = false;
+          if (btn && btn.disabled) {
+            btn.disabled = false;
             if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
-            SecurityIntrusionGuard.reset(); applyAuthenticatedUser(userObj, true);
-            showToast(`Welcome back, ${userObj.full_name}!`, 'success');
-            isActivelyLoggingIn = false;
+          }
+          isActivelyLoggingIn = false;
+          const attempts = SecurityIntrusionGuard.recordFailedAttempt();
+          if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
+            showLoginError('🔒 Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
+            openResetPasswordModal(usr);
           } else {
-            if (btn && btn.disabled) {
-              btn.disabled = false;
-              if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
-              showLoginError('Authentication response timed out. Please verify your network connection and try again.');
-            }
+            showLoginError(`Authentication response timed out (15s). Please verify your network connection and credentials. (Attempt ${attempts} of 5)`);
           }
         }
-      }, isKnownAdmin ? 1500 : 15000);
+      }, 15000);
       return;
     }
 
@@ -9772,25 +10019,37 @@ const BASELINE_ERP_TERRITORIES = [
         sessionStorage.removeItem('sfe_portal_logged_out');
         sessionStorage.setItem('sfe_portal_user', JSON.stringify(data.user));
         loginNotificationShown = true;
-        SecurityIntrusionGuard.reset(); applyAuthenticatedUser(data.user, true);
-        showToast(`Welcome back, ${data.user.full_name || data.user.email}! Signed in as ${data.user.role_title}.`);
+        SecurityIntrusionGuard.reset();
+        applyAuthenticatedUser(data.user, true);
+        showToast(`Welcome back, ${data.user.full_name || data.user.email}! Signed in as ${data.user.role_title}.`, 'success');
         return;
       }
 
+      const attempts = SecurityIntrusionGuard.recordFailedAttempt();
       const errMsg = (data && data.message)
         ? data.message
         : 'Invalid username or password. Please verify your credentials in your ERPNext account.';
-      showLoginError(errMsg);
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        showLoginError('Authentication timed out (6s). Please check your server connectivity.');
+      if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
+        showLoginError('🔒 Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
+        openResetPasswordModal(usr);
       } else {
-        showLoginError('Authentication server error. Please verify your network connection.');
+        showLoginError(`⚠️ ${errMsg} (Attempt ${attempts} of 5)`);
+      }
+    } catch (err) {
+      const attempts = SecurityIntrusionGuard.recordFailedAttempt();
+      if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
+        showLoginError('🔒 Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
+        openResetPasswordModal(usr);
+      } else if (err.name === 'AbortError') {
+        showLoginError(`Authentication timed out (15s). Please check your server connectivity. (Attempt ${attempts} of 5)`);
+      } else {
+        showLoginError(`Authentication server error. Please verify your network connection. (Attempt ${attempts} of 5)`);
       }
     } finally {
       if (btn) btn.disabled = false;
       if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
     }
+
   }
   window.handlePortalLogin = handlePortalLogin;
 
@@ -10239,67 +10498,6 @@ const BASELINE_ERP_TERRITORIES = [
     return 'Coverage Area';
   }
 
-  // Security Intrusion Sentinel for Authentication Guarding
-  const SecurityIntrusionGuard = {
-    failedAttempts: 0,
-    lockoutUntil: 0,
-
-    isLockedOut() {
-      const savedLockout = localStorage.getItem('sfe_security_lockout');
-      if (savedLockout) {
-        const val = parseInt(savedLockout, 10);
-        if (!isNaN(val) && val > Date.now()) {
-          this.lockoutUntil = val;
-        } else {
-          localStorage.removeItem('sfe_security_lockout');
-          this.lockoutUntil = 0;
-        }
-      }
-      if (this.lockoutUntil > Date.now()) {
-        const remainingMinutes = Math.ceil((this.lockoutUntil - Date.now()) / 60000);
-        return `Security Access Frozen: Too many failed login or suspicious injection attempts. Please wait ${remainingMinutes} minute(s) before retrying.`;
-      }
-      return false;
-    },
-
-    detectInjection(val) {
-      if (!val || typeof val !== 'string') return false;
-      const patterns = [
-        /('|)(OR|AND).+(=|<|>|LIKE|IN)/i,
-        /UNION(\s+ALL)?\s+SELECT/i,
-        /DROP\s+(TABLE|DATABASE)/i,
-        /INSERT\s+INTO/i,
-        /--|\/\*|\*\//,
-        /<script\b[^>]*>/i,
-        /javascript:/i,
-        /(\||;|`|\$\()/,
-        /(exec|system|passthru|shell_exec)\s*\(/i
-      ];
-      for (const p of patterns) {
-        if (p.test(val)) return true;
-      }
-      return false;
-    },
-
-    recordFailedAttempt(isViolation = false) {
-      this.failedAttempts++;
-      if (isViolation) {
-        this.lockoutUntil = Date.now() + 15 * 60 * 1000; // 15 min freeze
-        try { localStorage.setItem('sfe_security_lockout', String(this.lockoutUntil)); } catch (_) {}
-        return;
-      }
-      if (this.failedAttempts >= 5) {
-        this.lockoutUntil = Date.now() + 10 * 60 * 1000; // 10 min freeze
-        try { localStorage.setItem('sfe_security_lockout', String(this.lockoutUntil)); } catch (_) {}
-      }
-    },
-
-    reset() {
-      this.failedAttempts = 0;
-      this.lockoutUntil = 0;
-      try { localStorage.removeItem('sfe_security_lockout'); } catch (_) {}
-    }
-  };
 
     // --- RENDER TABLE ---
   function renderTable() {
