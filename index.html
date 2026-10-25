@@ -1207,12 +1207,58 @@
     border-radius: 6px;
     padding: 2px 6px;
     flex-shrink: 0;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
 
-  .erp-tree-row:hover .erp-tree-actions,
-  .erp-tree-row.selected .erp-tree-actions {
-    display: inline-flex;
+  /* Zero Redundant Pop-ups: Show actions strictly on the single row under the cursor */
+  .erp-tree-row:hover .erp-tree-actions {
+    display: inline-flex !important;
+  }
+
+  /* When cursor is outside the tree container, show actions on the actively selected row only */
+  #interactiveTreeContainer:not(:hover) .erp-tree-row.selected .erp-tree-actions {
+    display: inline-flex !important;
+  }
+
+  /* Transfer Doctor Button Styling */
+  .erp-tree-btn-transfer {
+    color: #7C3AED !important;
+    border-color: #DDD6FE !important;
+    background: #FAF5FF !important;
+  }
+  .erp-tree-btn-transfer:hover {
+    color: #FFFFFF !important;
+    background: #7C3AED !important;
+    border-color: #7C3AED !important;
+    box-shadow: 0 1px 4px rgba(124, 58, 237, 0.3);
+  }
+
+  /* Deactivate Button (When Territory is Active -> Action: Inactive) - Blue tones */
+  .erp-tree-btn.status-btn-deactivate {
+    color: #0369A1 !important;
+    background: #F0F9FF !important;
+    border: 1px solid #BAE6FD !important;
+    font-weight: 700;
+  }
+  .erp-tree-btn.status-btn-deactivate:hover {
+    color: #FFFFFF !important;
+    background: #0284C7 !important;
+    border-color: #0284C7 !important;
+    box-shadow: 0 1px 5px rgba(2, 132, 199, 0.35);
+  }
+
+  /* Activate Button (When Territory is Inactive -> Action: Active) - Green tones */
+  .erp-tree-btn.status-btn-activate {
+    color: #15803D !important;
+    background: #F0FDF4 !important;
+    border: 1px solid #BBF7D0 !important;
+    font-weight: 700;
+  }
+  .erp-tree-btn.status-btn-activate:hover {
+    color: #FFFFFF !important;
+    background: #16A34A !important;
+    border-color: #16A34A !important;
+    box-shadow: 0 1px 5px rgba(22, 163, 74, 0.35);
   }
 
   .erp-tree-btn {
@@ -2275,20 +2321,7 @@
 
 <!-- Refresh Live Sync removed per SFE live reconfig standard -->
 
-    <div class="user-badge" id="userBadge" style="display:none;">
-      <div class="user-status-dot"></div>
-      <span id="userBadgeText">User: <strong id="userBadgeEmail">---</strong></span>
-    </div>
 
-    <button class="btn btn-sm btn-logout" id="btnLogout" onclick="logoutPortal()" style="display:none;" title="Sign out of Territory Portal">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-      <span>Logout</span>
-    </button>
-
-    <button class="btn btn-sm btn-outline" id="btnHelpGuide" onclick="openUserGuideModal(true)" style="display:none; align-items:center; gap:6px; background:#FFFFFF; border:1.5px solid #CBD5E1; color:#0066FF; font-weight:700; border-radius:6px; height:32px; padding:0 10px; cursor:pointer;" title="User Guide & Navigation Hints (ℹ)">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-      <span>User Guide</span>
-    </button>
 
     <div id="headerAuthStatus" style="font-size:11.5px; color:#94A3B8; font-weight:700; display:flex; align-items:center; gap:6px;">
       <span>🔒 Secure Login</span>
@@ -2430,7 +2463,28 @@
     </div>
 
     <div class="sidebar-footer">
-      <div style="font-size:11px; color:#64748B; text-align:center;">
+      <!-- User Profile Badge Card in Navigation Menu -->
+      <div class="user-badge" id="userBadge" style="display:none; width:100%; box-sizing:border-box; background:#0B1626; border:1px solid #1E293B; border-radius:8px; padding:8px 10px; align-items:center; gap:8px;">
+        <div class="user-status-dot" style="width:8px; height:8px; border-radius:50%; background:#10B981; box-shadow:0 0 6px rgba(16,185,129,0.8); flex-shrink:0;"></div>
+        <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; font-size:11.5px; color:#F1F5F9;" id="userBadgeText">
+          User: <strong id="userBadgeEmail">---</strong>
+        </div>
+      </div>
+
+      <!-- Quick Actions: User Guide & Logout -->
+      <div style="display:flex; gap:6px; align-items:center; width:100%; box-sizing:border-box;">
+        <button class="btn btn-sm btn-outline" id="btnHelpGuide" onclick="openUserGuideModal(true)" style="display:none; flex:1; align-items:center; justify-content:center; gap:6px; background:#0F172A; border:1px solid #334155; color:#38BDF8; font-weight:700; border-radius:6px; height:32px; padding:0 8px; cursor:pointer; font-size:11.5px;" title="User Guide & Navigation Hints (ℹ)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          <span>User Guide</span>
+        </button>
+
+        <button class="btn btn-sm btn-logout" id="btnLogout" onclick="logoutPortal()" style="display:none; flex:1; align-items:center; justify-content:center; gap:6px; background:rgba(239, 68, 68, 0.15); border:1px solid rgba(239, 68, 68, 0.35); color:#FCA5A5; font-weight:700; border-radius:6px; height:32px; padding:0 8px; cursor:pointer; font-size:11.5px;" title="Sign out of Territory Portal">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          <span>Logout</span>
+        </button>
+      </div>
+
+      <div style="font-size:10px; color:#64748B; text-align:center; padding-top:2px;">
         Territory Reconfiguration &bull; SFE CRM Workbench
       </div>
     </div>
@@ -14371,15 +14425,24 @@ const BASELINE_ERP_TERRITORIES = [
         if (isRoot) {
           actionsHtml = `
             <span class="erp-tree-actions">
-              <button type="button" class="erp-tree-btn" onclick="openTreeAddModal('${escapeHtml(t.name)}', event)">Add Child</button>
+              <button type="button" class="erp-tree-btn" onclick="openTreeAddModal('${escapeHtml(t.name)}', event)">+ Add Child</button>
+            </span>`;
+        } else if (isGroup) {
+          actionsHtml = `
+            <span class="erp-tree-actions">
+              <button type="button" class="erp-tree-btn" onclick="openTreeAddModal('${escapeHtml(t.name)}', event)">+ Add Child</button>
+              <button type="button" class="erp-tree-btn" onclick="openTreeRenameModal('${escapeHtml(t.name)}', event)">Rename</button>
             </span>`;
         } else {
+          // Leaf node / actual MedRep territory
+          // Image 4 Standard: Action is Inactive first when territory is active, then Active when territory is inactive.
+          // Visual guidance: Blue hover for deactivating, Green hover for activating.
           actionsHtml = `
             <span class="erp-tree-actions">
               <button type="button" class="erp-tree-btn" onclick="openTreeEditModal('${escapeHtml(t.name)}', event)">Edit</button>
-              <button type="button" class="erp-tree-btn" style="color:#7C3AED;" onclick="openDoctorTransferModal('${escapeHtml(t.name)}', event)" title="Transfer / Merge Doctors">Transfer Doctor</button>
+              <button type="button" class="erp-tree-btn erp-tree-btn-transfer" onclick="openDoctorTransferModal('${escapeHtml(t.name)}', event)" title="Transfer / Merge Doctors">Transfer Doctor</button>
               <button type="button" class="erp-tree-btn" onclick="openTreeRenameModal('${escapeHtml(t.name)}', event)">Rename</button>
-              <button type="button" class="erp-tree-btn" style="color:${isNodeInactive ? '#DC2626' : '#15803D'}; font-weight:700;" onclick="toggleTreeNodeActiveStatus('${escapeHtml(t.name)}', event)" title="Toggle operational status (Zero data deleted)">${isNodeInactive ? 'Inactive' : 'Active'}</button>
+              <button type="button" class="erp-tree-btn erp-tree-status-toggle ${isNodeInactive ? 'status-btn-activate' : 'status-btn-deactivate'}" onclick="toggleTreeNodeActiveStatus('${escapeHtml(t.name)}', event)" title="${isNodeInactive ? 'Reactivate territory & restore MedRep in dropdowns' : 'Mark Inactive / Resigned (grays out MedRep in dropdowns)'}">${isNodeInactive ? 'Active' : 'Inactive'}</button>
             </span>`;
         }
 
@@ -14391,12 +14454,22 @@ const BASELINE_ERP_TERRITORIES = [
           const nodeDistrict = nodePt ? nodePt.district : '';
           const nodeArea = resolveTerritoryArea(t.name, nodeDistrict);
           const nodeRep = nodePt && nodePt.rep ? nodePt.rep.replace(/\s*\([^)]*\)/g, '').trim() : (t.territory_manager ? t.territory_manager.replace(/\s*\([^)]*\)/g, '').trim() : 'Unassigned Rep');
-          treeLabelHtml = `
-            <span class="erp-tree-label" style="font-weight:700; color:#0284C7; font-size:13px;">${escapeHtml(t.name)}</span>
-            <span class="badge" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; font-weight:700; font-size:11px; padding:2px 7px; border-radius:6px; margin:0 4px;">(${escapeHtml(nodeArea)})</span>
-            <span style="color:#94A3B8; margin-right:4px;">-</span>
-            <span style="font-weight:600; color:#0F172A; font-size:12.5px;">${escapeHtml(nodeRep)}</span>
-          `;
+          if (isNodeInactive) {
+            treeLabelHtml = `
+              <span class="erp-tree-label" style="font-weight:700; color:#64748B; font-size:13px;">${escapeHtml(t.name)}</span>
+              <span class="badge" style="background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:6px; margin:0 4px;">(${escapeHtml(nodeArea)})</span>
+              <span style="color:#94A3B8; margin-right:4px;">-</span>
+              <span style="font-weight:600; color:#94A3B8; font-size:12.5px; text-decoration:line-through;">${escapeHtml(nodeRep)}</span>
+              <span class="badge" style="background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; font-weight:700; font-size:10px; padding:1px 6px; border-radius:4px; margin-left:4px;">Inactive / Resigned</span>
+            `;
+          } else {
+            treeLabelHtml = `
+              <span class="erp-tree-label" style="font-weight:700; color:#0284C7; font-size:13px;">${escapeHtml(t.name)}</span>
+              <span class="badge" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; font-weight:700; font-size:11px; padding:2px 7px; border-radius:6px; margin:0 4px;">(${escapeHtml(nodeArea)})</span>
+              <span style="color:#94A3B8; margin-right:4px;">-</span>
+              <span style="font-weight:600; color:#0F172A; font-size:12.5px;">${escapeHtml(nodeRep)}</span>
+            `;
+          }
         }
 
         row.innerHTML = `
@@ -14904,15 +14977,39 @@ const BASELINE_ERP_TERRITORIES = [
       } else {
         matches.slice(0, 50).forEach(s => {
           const item = document.createElement('div');
-          item.className = 'erp-dropdown-item';
           const name = s.sales_person_name || s.name;
           const parent = s.parent_sales_person ? s.parent_sales_person : (s.employee ? `Employee: ${s.employee}` : '');
           
-          item.innerHTML = `
-            <div class="erp-dropdown-item-title">${escapeHtml(name)}</div>
-            ${parent ? `<div class="erp-dropdown-item-sub">${escapeHtml(parent)}</div>` : ''}
-          `;
-          item.onclick = () => selectErpItem(fieldId, s.name, name, s);
+          // Check if this sales person is assigned to an Inactive territory in programTerritories
+          const cleanSp = name.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+          const inactiveMatch = programTerritories.find(p => {
+            const cleanRep = (p.rep || '').replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+            return (cleanRep === cleanSp) && (p.operationalStatus === 'Inactive' || p.isResigned === true);
+          });
+
+          if (inactiveMatch) {
+            item.className = 'erp-dropdown-item erp-item-grayed-out';
+            item.style.cssText = 'opacity:0.55; background:#F8FAFC; cursor:not-allowed; border-left:3px solid #94A3B8; padding:8px 12px;';
+            item.title = `MedRep is Inactive/Resigned on territory ${inactiveMatch.activeCode || inactiveMatch.name}. Reactivate territory in tree to use again.`;
+            item.innerHTML = `
+              <div class="erp-dropdown-item-title" style="color:#64748B; display:flex; align-items:center; justify-content:space-between;">
+                <span>${escapeHtml(name)}</span>
+                <span style="font-size:10px; font-weight:700; color:#DC2626; background:#FEF2F2; border:1px solid #FECACA; padding:1px 6px; border-radius:4px;">Inactive / Resigned</span>
+              </div>
+              ${parent ? `<div class="erp-dropdown-item-sub" style="color:#94A3B8;">${escapeHtml(parent)}</div>` : ''}
+            `;
+            item.onclick = (e) => {
+              e.stopPropagation();
+              showToast(`MedRep "${name}" is currently Inactive / Resigned. Reactivate their territory (${inactiveMatch.activeCode || inactiveMatch.name}) in the tree to reassign.`, 'warning', 3500);
+            };
+          } else {
+            item.className = 'erp-dropdown-item';
+            item.innerHTML = `
+              <div class="erp-dropdown-item-title">${escapeHtml(name)}</div>
+              ${parent ? `<div class="erp-dropdown-item-sub">${escapeHtml(parent)}</div>` : ''}
+            `;
+            item.onclick = () => selectErpItem(fieldId, s.name, name, s);
+          }
           menu.appendChild(item);
         });
       }
@@ -16481,6 +16578,7 @@ const BASELINE_ERP_TERRITORIES = [
 
     if (pt) {
       pt.operationalStatus = nextStatus;
+      pt.isResigned = (nextStatus === 'Inactive');
       pt.status = 'CHANGED';
       if (!pt.auditTrail) pt.auditTrail = [];
       pt.auditTrail.unshift({
@@ -16503,7 +16601,11 @@ const BASELINE_ERP_TERRITORIES = [
 
     renderTree();
     renderTable();
-    showToast(`Territory "${name}" marked as ${nextStatus}! (Zero data deleted)`, 'success', 3500);
+    if (nextStatus === 'Inactive') {
+      showToast(`Territory "${name}" marked as Inactive! MedRep is now grayed out in dropdowns until reactivated.`, 'info', 4000);
+    } else {
+      showToast(`Territory "${name}" reactivated! Territory code is now ready for use and MedRep restored.`, 'success', 4000);
+    }
   }
 
   function openTreeDeleteModal(name, event) {
@@ -18214,12 +18316,17 @@ const BASELINE_ERP_TERRITORIES = [
     programTerritories.forEach((t, idx) => {
       const code = t.activeCode || t.latestPrevCode || t.histCode || t.recordId;
       const rep = t.rep ? t.rep.trim() : 'Unassigned Rep';
-      const isResigned = rep.toUpperCase().includes('RESIGNED');
-      const optText = `${code} &bull; ${rep}${isResigned ? ' [RESIGNED]' : ''} (${t.docs || 0} Docs)`;
+      const isInactive = (t.operationalStatus === 'Inactive' || t.isResigned === true || rep.toUpperCase().includes('RESIGNED'));
+      const optText = `${code} &bull; ${rep}${isInactive ? ' [INACTIVE / RESIGNED]' : ''} (${t.docs || 0} Docs)`;
 
       const optT = document.createElement('option');
       optT.value = idx;
       optT.innerHTML = optText;
+      if (isInactive) {
+        optT.disabled = true;
+        optT.style.color = '#94A3B8';
+        optT.style.background = '#F1F5F9';
+      }
       targetSel.appendChild(optT);
 
       const optS = document.createElement('option');
