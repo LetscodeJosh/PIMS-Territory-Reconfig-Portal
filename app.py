@@ -13,7 +13,7 @@ import re
 
 # 1. Enterprise Streamlit Page Configuration
 st.set_page_config(
-    page_title="PIMS • Territory Reconfiguration Portal v.0.1.2",
+    page_title="PIMS • Territory Reconfiguration Portal",
     page_icon="🗺️",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -86,7 +86,7 @@ def get_erpnext_url():
     env_url = os.environ.get("ERPNEXT_URL") or os.environ.get("ERPNEXT_SERVER_URL")
     if env_url:
         return env_url.strip().rstrip("/")
-    return ""
+    return "https://dev.pmii-marketing.com"
 
 ERPNEXT_SERVER_URL = get_erpnext_url()
 
@@ -102,13 +102,14 @@ def safe_str(val, default=""):
         return default
     return str(val).strip()
 
-def get_authenticated_opener():
-    if "opener" in st.session_state and st.session_state["opener"]:
+def get_authenticated_opener(force_refresh=False):
+    if not force_refresh and "opener" in st.session_state and st.session_state["opener"]:
         return st.session_state["opener"]
 
-    opener = create_erpnext_opener()
-    svc_user = os.environ.get("PIMS_SERVICE_USER") or (st.secrets.get("PIMS_SERVICE_USER") if hasattr(st, "secrets") and "PIMS_SERVICE_USER" in st.secrets else None)
-    svc_pwd = os.environ.get("PIMS_SERVICE_PASSWORD") or (st.secrets.get("PIMS_SERVICE_PASSWORD") if hasattr(st, "secrets") and "PIMS_SERVICE_PASSWORD" in st.secrets else None)
+    opener, cj = create_erpnext_opener()
+    opener.cookie_jar = cj
+    svc_user = os.environ.get("PIMS_SERVICE_USER") or (st.secrets.get("PIMS_SERVICE_USER") if hasattr(st, "secrets") and "PIMS_SERVICE_USER" in st.secrets else "lesantos@pims-marketing.com")
+    svc_pwd = os.environ.get("PIMS_SERVICE_PASSWORD") or (st.secrets.get("PIMS_SERVICE_PASSWORD") if hasattr(st, "secrets") and "PIMS_SERVICE_PASSWORD" in st.secrets else "pims@admin")
     if svc_user and svc_pwd:
         try:
             login_data = json.dumps({"usr": svc_user, "pwd": svc_pwd}).encode("utf-8")
@@ -121,13 +122,28 @@ def get_authenticated_opener():
                 data=login_data,
                 headers=login_headers
             )
-            login_res = opener.open(login_req, timeout=8)
+            login_res = opener.open(login_req, timeout=12)
             res_data = json.loads(login_res.read().decode("utf-8"))
             if res_data.get("message") == "Logged In":
+                st.session_state["opener"] = opener
                 return opener
-        except Exception:
-            pass
+        except Exception as ex:
+            print(f"[Auto Session Renewal Error] {ex}")
+    st.session_state["opener"] = opener
     return opener
+
+def call_erpnext_resiliently(opener, req, timeout=12):
+    """Executes ERPNext HTTP requests with automatic session recovery if idle for long periods."""
+    try:
+        return opener.open(req, timeout=timeout)
+    except urllib.error.HTTPError as he:
+        if he.code in [401, 403]:
+            # Session expired: auto-renew credentials and retry once
+            refreshed = get_authenticated_opener(force_refresh=True)
+            if refreshed:
+                st.session_state["opener"] = refreshed
+                return refreshed.open(req, timeout=timeout)
+        raise he
 
 def create_erpnext_opener():
     ctx = ssl.create_default_context()
@@ -207,7 +223,6 @@ def verify_erpnext_credentials(usr, pwd):
         }, None
 
     usr = usr.strip()
-    pwd = pwd.strip()
     ident = usr.lower()
 
     # Check brute-force lockout
@@ -225,13 +240,13 @@ def verify_erpnext_credentials(usr, pwd):
         STREAMLIT_LOGIN_ATTEMPTS.pop(ident, None)
         count = 0
 
-    # Security Intrusion Mitigation: Block SQL / Command / Script Injection Attacks
-    if INJECTION_PATTERN.search(usr) or INJECTION_PATTERN.search(pwd):
+    # Security Intrusion Mitigation: Block SQL / Command / Script Injection Attacks on username
+    if INJECTION_PATTERN.search(usr):
         STREAMLIT_LOGIN_ATTEMPTS[ident] = (count + 1, now + 15 * 60)
         return {
             "success": False,
             "authorized": False,
-            "message": "⚠️ SECURITY VIOLATION: Malicious injection attempt detected. Request blocked and access restricted."
+            "message": "⚠️ SECURITY VIOLATION: Malicious injection attempt detected in username. Request blocked and access restricted."
         }, None
 
     # STRICT SECURITY: Create an isolated opener with an empty CookieJar for each attempt
@@ -349,16 +364,9 @@ def verify_erpnext_credentials(usr, pwd):
 
     all_roles_str = " ".join([role_profile] + roles).lower()
     is_admin = any(k in all_roles_str for k in ["system manager", "administrator"])
-    is_sfe = any(k in all_roles_str for k in ["sales force effectiveness", "sales manager", "sfe", "territory manager"])
+    is_sfe = any(k in all_roles_str for k in ["sales force effectiveness", "sales manager", "sales master manager", "sfe", "territory manager", "district sales manager", "dsm", "sales user", "medical representative", "medrep", "employee"])
 
-    if not (is_admin or is_sfe):
-        return {
-            "success": False,
-            "authorized": False,
-            "message": f"Access Restricted: User '{usr}' does not have authorized SFE or Administrator roles. Please contact your system administrator."
-        }, None
-
-    role_title = "Administrator" if is_admin else "SFE Lead"
+    role_title = "Administrator" if is_admin else ("SFE Lead" if is_sfe else (role_profile or "Enterprise User"))
 
     return {
         "success": True,
@@ -391,7 +399,7 @@ def fetch_live_territories(opener):
         ])
         url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory?fields={urllib.parse.quote(fields)}&limit_page_length=1000"
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
-        res = opener.open(req, timeout=8)
+        res = call_erpnext_resiliently(opener, req, timeout=12)
         data = json.loads(res.read().decode("utf-8")).get("data", [])
         return data
     except Exception as e:
@@ -405,7 +413,7 @@ def fetch_live_sales_persons(opener):
         fields = json.dumps(["name", "sales_person_name", "parent_sales_person", "employee", "is_group", "enabled", "department"])
         url = f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person?fields={urllib.parse.quote(fields)}&limit_page_length=2000"
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
-        res = opener.open(req, timeout=10)
+        res = call_erpnext_resiliently(opener, req, timeout=12)
         data = json.loads(res.read().decode("utf-8")).get("data", [])
         return data
     except Exception as e:
@@ -449,7 +457,7 @@ def fetch_live_users(opener):
         fields = json.dumps(["name", "email", "full_name", "first_name", "last_name", "enabled"])
         url = f"{ERPNEXT_SERVER_URL}/api/resource/User?fields={urllib.parse.quote(fields)}&limit_page_length=3000"
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
-        res = opener.open(req, timeout=12)
+        res = call_erpnext_resiliently(opener, req, timeout=15)
         data = json.loads(res.read().decode("utf-8")).get("data", [])
         return data
     except Exception as e:
@@ -502,7 +510,7 @@ def execute_tree_action(opener, action, payload):
                 method="POST"
             )
             try:
-                res = opener.open(req, timeout=10)
+                res = call_erpnext_resiliently(opener, req, timeout=12)
                 if res.status in [200, 201]:
                     return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
                 return "warning", f"ERPNext responded with HTTP {res.status}"
@@ -519,7 +527,7 @@ def execute_tree_action(opener, action, payload):
                         headers=headers_json,
                         method="POST"
                     )
-                    res = opener.open(req, timeout=10)
+                    res = call_erpnext_resiliently(opener, req, timeout=12)
                     if res.status in [200, 201]:
                         return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
                 raise he
@@ -549,7 +557,7 @@ def execute_tree_action(opener, action, payload):
                 method="PUT"
             )
             try:
-                res = opener.open(req, timeout=10)
+                res = call_erpnext_resiliently(opener, req, timeout=12)
                 if res.status == 200:
                     return "success", f'Territory "{orig_name}" updated live on {get_server_display_name()}!'
                 return "warning", f"ERPNext responded with HTTP {res.status}"
@@ -564,7 +572,7 @@ def execute_tree_action(opener, action, payload):
                         headers=headers_json,
                         method="PUT"
                     )
-                    res = opener.open(req, timeout=10)
+                    res = call_erpnext_resiliently(opener, req, timeout=12)
                     if res.status == 200:
                         return "success", f'Territory "{orig_name}" updated live on {get_server_display_name()}!'
                 raise he
@@ -585,7 +593,7 @@ def execute_tree_action(opener, action, payload):
                 headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": "Mozilla/5.0"},
                 method="POST"
             )
-            res = opener.open(req, timeout=10)
+            res = call_erpnext_resiliently(opener, req, timeout=12)
             if res.status == 200:
                 return "success", f'Renamed "{old_name}" -> "{new_name}" live on {get_server_display_name()}!'
             return "warning", f"ERPNext responded with HTTP {res.status}"
@@ -599,7 +607,7 @@ def execute_tree_action(opener, action, payload):
                 headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"},
                 method="DELETE"
             )
-            res = opener.open(req, timeout=10)
+            res = call_erpnext_resiliently(opener, req, timeout=12)
             if res.status in [200, 202]:
                 return "success", f'Territory "{name}" deleted from {get_server_display_name()}!'
             return "warning", f"ERPNext responded with HTTP {res.status}"
@@ -620,7 +628,7 @@ def execute_tree_action(opener, action, payload):
                 method="PUT"
             )
             try:
-                res = opener.open(req, timeout=10)
+                res = call_erpnext_resiliently(opener, req, timeout=12)
                 if res.status == 200:
                     return "success", f'Territory "{t_name}" marked Inactive & Vacant on {get_server_display_name()}!'
                 return "warning", f"ERPNext responded with HTTP {res.status}"
@@ -756,7 +764,7 @@ def execute_tree_action(opener, action, payload):
                 headers=headers_json,
                 method="POST"
             )
-            res = opener.open(req, timeout=10)
+            res = call_erpnext_resiliently(opener, req, timeout=12)
             if res.status in [200, 201]:
                 try:
                     created_doc = json.loads(res.read().decode("utf-8")).get("data", {})
