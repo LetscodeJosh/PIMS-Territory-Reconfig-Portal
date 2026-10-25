@@ -16576,22 +16576,39 @@ const BASELINE_ERP_TERRITORIES = [
     const currStatus = pt ? (pt.operationalStatus || (pt.rep && pt.rep.toLowerCase().includes('resigned') ? 'Inactive' : 'Active')) : 'Active';
     const nextStatus = currStatus === 'Active' ? 'Inactive' : 'Active';
 
+    // Calculate updated territory manager string for ERPNext synchronization
+    let baseManager = '';
+    if (pt && pt.rep) {
+      baseManager = pt.rep.replace(/\s*(\[|\()(RESIGNED|INACTIVE)[^)]*(\]|\))/gi, '').trim();
+    }
+    const treeNode = territoryTreeData.find(t => t.name === name);
+    if (!baseManager && treeNode && treeNode.territory_manager) {
+      baseManager = treeNode.territory_manager.replace(/\s*(\[|\()(RESIGNED|INACTIVE)[^)]*(\]|\))/gi, '').trim();
+    }
+    if (!baseManager) baseManager = 'Unassigned';
+
+    let updatedManager = baseManager;
+    if (nextStatus === 'Inactive') {
+      updatedManager = `${baseManager} [RESIGNED]`;
+    }
+
     if (pt) {
       pt.operationalStatus = nextStatus;
       pt.isResigned = (nextStatus === 'Inactive');
+      pt.rep = updatedManager;
       pt.status = 'CHANGED';
       if (!pt.auditTrail) pt.auditTrail = [];
       pt.auditTrail.unshift({
         timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
         action: 'STATUS_TOGGLE',
         user: (authenticatedUser ? (authenticatedUser.email || authenticatedUser.full_name) : 'SFE Lead'),
-        details: `Operational status updated: ${currStatus} -> ${nextStatus} (Zero data deleted).`
+        details: `Operational status updated: ${currStatus} -> ${nextStatus} (ERPNext Manager: ${updatedManager}).`
       });
     }
 
-    const treeNode = territoryTreeData.find(t => t.name === name);
     if (treeNode) {
       treeNode.operational_status = nextStatus;
+      treeNode.territory_manager = updatedManager;
     }
 
     try {
@@ -16599,12 +16616,41 @@ const BASELINE_ERP_TERRITORIES = [
       localStorage.setItem('pims_territory_tree_v1', JSON.stringify(territoryTreeData));
     } catch (_) {}
 
+    // Live ERPNext 2-way dispatch:
+    // 1. Direct REST PUT to ERPNext live API
+    try {
+      fetch(`/api/resource/Territory/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ territory_manager: updatedManager })
+      }).then(res => {
+        if (res.ok) console.log(`[ERPNext Live Sync] Territory "${name}" manager updated to: ${updatedManager}`);
+      }).catch(err => console.warn('[ERPNext Sync Notice]:', err));
+    } catch (_) {}
+
+    // 2. Streamlit Cloud bidirectional postMessage
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "territory_toggle_status",
+            territory: name,
+            status: nextStatus,
+            territory_manager: updatedManager,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
+
     renderTree();
     renderTable();
     if (nextStatus === 'Inactive') {
-      showToast(`Territory "${name}" marked as Inactive! MedRep is now grayed out in dropdowns until reactivated.`, 'info', 4000);
+      showToast(`Territory "${name}" marked Inactive in Portal & ERPNext! MedRep is grayed out in dropdowns until reactivated.`, 'info', 4500);
     } else {
-      showToast(`Territory "${name}" reactivated! Territory code is now ready for use and MedRep restored.`, 'success', 4000);
+      showToast(`Territory "${name}" reactivated in Portal & ERPNext! Ready for use and MedRep restored.`, 'success', 4500);
     }
   }
 

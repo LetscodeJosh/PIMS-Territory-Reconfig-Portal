@@ -612,14 +612,12 @@ def execute_tree_action(opener, action, payload):
                 return "success", f'Territory "{name}" deleted from {get_server_display_name()}!'
             return "warning", f"ERPNext responded with HTTP {res.status}"
 
-        elif action == "territory_deactivate":
+        elif action in ["territory_toggle_status", "territory_deactivate"]:
             t_name = safe_str(payload.get("territory") or payload.get("name"))
+            new_mgr = safe_str(payload.get("territory_manager"))
             if not t_name:
-                return "error", "Territory name is required to deactivate."
-            body = {
-                "custom_status": "Inactive",
-                "territory_manager": ""
-            }
+                return "error", "Territory name is required."
+            body = {"territory_manager": new_mgr}
             data = json.dumps(body).encode("utf-8")
             req = urllib.request.Request(
                 f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name)}",
@@ -630,10 +628,10 @@ def execute_tree_action(opener, action, payload):
             try:
                 res = call_erpnext_resiliently(opener, req, timeout=12)
                 if res.status == 200:
-                    return "success", f'Territory "{t_name}" marked Inactive & Vacant on {get_server_display_name()}!'
+                    return "success", f'Territory "{t_name}" status synced to {get_server_display_name()} ({new_mgr})'
                 return "warning", f"ERPNext responded with HTTP {res.status}"
             except Exception as e:
-                return "warning", f'Territory "{t_name}" marked Inactive locally ({e})' 
+                return "warning", f'Territory "{t_name}" updated locally ({e})'
 
         elif action == "sales_person_create":
             sp_name = payload.get("sales_person_name", "").strip()
