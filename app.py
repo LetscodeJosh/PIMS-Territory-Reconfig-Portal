@@ -108,8 +108,8 @@ def get_authenticated_opener(force_refresh=False):
 
     opener, cj = create_erpnext_opener()
     opener.cookie_jar = cj
-    svc_user = os.environ.get("PIMS_SERVICE_USER") or (st.secrets.get("PIMS_SERVICE_USER") if hasattr(st, "secrets") and "PIMS_SERVICE_USER" in st.secrets else "lesantos@pims-marketing.com")
-    svc_pwd = os.environ.get("PIMS_SERVICE_PASSWORD") or (st.secrets.get("PIMS_SERVICE_PASSWORD") if hasattr(st, "secrets") and "PIMS_SERVICE_PASSWORD" in st.secrets else "pims@admin")
+    svc_user = os.environ.get("PIMS_SERVICE_USER") or (st.secrets.get("PIMS_SERVICE_USER") if hasattr(st, "secrets") and "PIMS_SERVICE_USER" in st.secrets else "")
+    svc_pwd = os.environ.get("PIMS_SERVICE_PASSWORD") or (st.secrets.get("PIMS_SERVICE_PASSWORD") if hasattr(st, "secrets") and "PIMS_SERVICE_PASSWORD" in st.secrets else "")
     if svc_user and svc_pwd:
         try:
             login_data = json.dumps({"usr": svc_user, "pwd": svc_pwd}).encode("utf-8")
@@ -463,6 +463,525 @@ def fetch_live_users(opener):
     except Exception as e:
         print(f"[Streamlit Proxy] Failed to fetch live users: {e}")
         return None
+
+
+def fetch_live_institutions(opener):
+    if not opener:
+        return None
+    try:
+        fields = json.dumps(["*"])
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/Institution?fields={urllib.parse.quote(fields)}&order_by=name%20desc&limit_page_length=0"
+        req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+        try:
+            res = call_erpnext_resiliently(opener, req, timeout=15)
+            data = json.loads(res.read().decode("utf-8")).get("data", [])
+        except Exception:
+            core_fields = json.dumps(["name", "institution_name", "region_name", "province_name", "city_municipality", "workflow_state", "rejection_reason", "owner", "creation", "modified", "docstatus", "ownership", "institution_type", "service_capability"])
+            fallback_url = f"{ERPNEXT_SERVER_URL}/api/resource/Institution?fields={urllib.parse.quote(core_fields)}&order_by=name%20desc&limit_page_length=0"
+            req2 = urllib.request.Request(fallback_url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+            res2 = call_erpnext_resiliently(opener, req2, timeout=15)
+            data = json.loads(res2.read().decode("utf-8")).get("data", [])
+
+        # Hydrate audit trail and PIMS_META from Frappe Comment doctype
+        try:
+            c_fields = json.dumps(["name", "reference_name", "content", "comment_by", "owner", "creation"])
+            c_filters = json.dumps([["reference_doctype", "=", "Institution"]])
+            c_url = f"{ERPNEXT_SERVER_URL}/api/resource/Comment?fields={urllib.parse.quote(c_fields)}&filters={urllib.parse.quote(c_filters)}&order_by=creation%20asc&limit_page_length=1000"
+            c_req = urllib.request.Request(c_url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+            c_res = call_erpnext_resiliently(opener, c_req, timeout=12)
+            comments = json.loads(c_res.read().decode("utf-8")).get("data", [])
+            by_inst = {}
+            for c in comments:
+                ref = c.get("reference_name")
+                if ref:
+                    by_inst.setdefault(ref, []).append(c)
+
+            meta_regex = re.compile(r"<!--PIMS_META:(\{.*?\})-->", re.DOTALL)
+            for inst in data:
+                iname = inst.get("name")
+                c_list = by_inst.get(iname, [])
+                audit_trail = inst.get("audit_trail") if isinstance(inst.get("audit_trail"), list) else []
+                for c in c_list:
+                    raw_html = str(c.get("content") or "")
+                    m = meta_regex.search(raw_html)
+                    if m:
+                        try:
+                            meta_obj = json.loads(m.group(1))
+                            for mk, mv in meta_obj.items():
+                                if mv is not None and mv != "" and mk not in ("action", "user", "role", "timestamp", "details"):
+                                    inst[mk] = mv
+                            audit_trail.append({
+                                "timestamp": meta_obj.get("timestamp") or c.get("creation") or "",
+                                "user": meta_obj.get("user") or c.get("comment_by") or c.get("owner") or "User",
+                                "role": meta_obj.get("role") or "SFE Specialist",
+                                "action": meta_obj.get("action") or "Update",
+                                "details": meta_obj.get("details") or re.sub(r"<[^>]*>", "", meta_regex.sub("", raw_html)).strip()
+                            })
+                        except Exception:
+                            pass
+                    else:
+                        clean_txt = re.sub(r"<[^>]*>", "", raw_html).strip()
+                        if clean_txt:
+                            if "certified by medrep" in clean_txt.lower():
+                                inst["is_certified"] = 1
+                                inst["certification_note"] = clean_txt
+                            audit_trail.append({
+                                "timestamp": c.get("creation") or "",
+                                "user": c.get("comment_by") or c.get("owner") or "User",
+                                "role": "User",
+                                "action": "Comment / Note",
+                                "details": clean_txt
+                            })
+                inst["audit_trail"] = audit_trail
+        except Exception as ce:
+            print(f"[Streamlit Proxy] Comment hydration notice: {ce}")
+
+        return data
+    except Exception as e:
+        print(f"[Streamlit Proxy] Failed to fetch live institutions: {e}")
+        return None
+
+
+def _post_institution_meta_comment(opener, inst_name, human_text, meta_dict):
+    try:
+        headers_json = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "Mozilla/5.0"}
+        meta_json = json.dumps(meta_dict)
+        content_body = f"{human_text}<!--PIMS_META:{meta_json}-->"
+        c_payload = json.dumps({
+            "comment_type": "Comment",
+            "reference_doctype": "Institution",
+            "reference_name": inst_name,
+            "content": content_body
+        }).encode("utf-8")
+        c_req = urllib.request.Request(
+            f"{ERPNEXT_SERVER_URL}/api/resource/Comment",
+            data=c_payload,
+            headers=headers_json,
+            method="POST"
+        )
+        call_erpnext_resiliently(opener, c_req, timeout=10)
+    except Exception as e:
+        print(f"[Streamlit Proxy] Meta comment post notice: {e}")
+
+
+def _propagate_institution_to_linked_records(opener, match_identifiers, hcp_account_payload=None, hcp_payload=None, submission_payload=None):
+    headers_json = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "Mozilla/5.0"}
+    valid_ids = [x for x in match_identifiers if x]
+    if not valid_ids:
+        return
+    # 1. HCP Account
+    if hcp_account_payload:
+        try:
+            rv_body = json.dumps({
+                "doctype": "HCP Account",
+                "fields": ["`tabHCP Account`.`name`"],
+                "filters": [["HCP Account", "workplace_id", "in", valid_ids]],
+                "limit_page_length": 500
+            }).encode("utf-8")
+            rv_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.desk.reportview.get", data=rv_body, headers=headers_json, method="POST")
+            rv_res = call_erpnext_resiliently(opener, rv_req, timeout=10)
+            vals = json.loads(rv_res.read().decode("utf-8")).get("message", {}).get("values", [])
+            for row in (vals or []):
+                if row and len(row) > 0:
+                    acc_name = str(row[0])
+                    put_req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/HCP%20Account/{urllib.parse.quote(acc_name)}",
+                        data=json.dumps(hcp_account_payload).encode("utf-8"),
+                        headers=headers_json,
+                        method="PUT"
+                    )
+                    try:
+                        call_erpnext_resiliently(opener, put_req, timeout=10)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    # 2. HCP Profile Submission
+    if submission_payload:
+        try:
+            rv_body = json.dumps({
+                "doctype": "HCP Profile Submission",
+                "fields": ["`tabHCP Profile Submission`.`name`"],
+                "filters": [["HCP Profile Submission Workplaces", "hcp_workplace", "in", valid_ids]],
+                "limit_page_length": 500
+            }).encode("utf-8")
+            rv_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.desk.reportview.get", data=rv_body, headers=headers_json, method="POST")
+            rv_res = call_erpnext_resiliently(opener, rv_req, timeout=10)
+            vals = json.loads(rv_res.read().decode("utf-8")).get("message", {}).get("values", [])
+            for row in (vals or []):
+                if row and len(row) > 0:
+                    sub_name = str(row[0])
+                    put_req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/HCP%20Profile%20Submission/{urllib.parse.quote(sub_name)}",
+                        data=json.dumps(submission_payload).encode("utf-8"),
+                        headers=headers_json,
+                        method="PUT"
+                    )
+                    try:
+                        call_erpnext_resiliently(opener, put_req, timeout=10)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    # 3. HCP Masterlist
+    if hcp_payload:
+        try:
+            rv_body = json.dumps({
+                "doctype": "HCP",
+                "fields": ["`tabHCP`.`name`"],
+                "filters": [["HCP", "institution", "in", valid_ids]],
+                "limit_page_length": 500
+            }).encode("utf-8")
+            rv_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.desk.reportview.get", data=rv_body, headers=headers_json, method="POST")
+            rv_res = call_erpnext_resiliently(opener, rv_req, timeout=10)
+            vals = json.loads(rv_res.read().decode("utf-8")).get("message", {}).get("values", [])
+            for row in (vals or []):
+                if row and len(row) > 0:
+                    hcp_name = str(row[0])
+                    put_req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/HCP/{urllib.parse.quote(hcp_name)}",
+                        data=json.dumps(hcp_payload).encode("utf-8"),
+                        headers=headers_json,
+                        method="PUT"
+                    )
+                    try:
+                        call_erpnext_resiliently(opener, put_req, timeout=10)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+
+def execute_institution_action(opener, action, payload):
+    if not opener:
+        opener = get_authenticated_opener()
+        if opener and "opener" in st.session_state:
+            st.session_state["opener"] = opener
+    if not opener:
+        return "error", "Cannot connect to ERPNext. Please check network connectivity."
+
+    headers_json = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "Mozilla/5.0"}
+    now_iso = time.strftime("%Y-%m-%dT%H:%M:%S")
+    actor_user = safe_str(payload.get("user")) or "SFE Specialist"
+    actor_role = safe_str(payload.get("role")) or "SFE Specialist"
+
+    try:
+        if action == "inst_refresh":
+            return "success", f"Institution governance queue synced live from {get_server_display_name()}!"
+
+        elif action == "inst_approve":
+            name = safe_str(payload.get("name"))
+            inst_title = safe_str(payload.get("institution_name")) or name
+            needs_dsm = bool(payload.get("requires_dsm_approval")) and safe_str(payload.get("current_state")) != "Pending DSM Approval"
+            target_state = "Pending DSM Approval" if needs_dsm else "Approved"
+            target_docstatus = 0 if needs_dsm else 1
+            wf_action = "Route to DSM" if needs_dsm else "Approve"
+
+            if not name:
+                return "error", "Institution ID is required."
+
+            success = False
+            try:
+                wf_body = json.dumps({"doc": {"doctype": "Institution", "name": name}, "action": wf_action}).encode("utf-8")
+                wf_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.model.workflow.apply_workflow", data=wf_body, headers=headers_json, method="POST")
+                wf_res = call_erpnext_resiliently(opener, wf_req, timeout=12)
+                success = (wf_res.status == 200)
+            except Exception:
+                success = False
+
+            if not success:
+                try:
+                    put_body = json.dumps({"workflow_state": target_state, "docstatus": target_docstatus, "rejection_reason": ""}).encode("utf-8")
+                    put_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/resource/Institution/{urllib.parse.quote(name)}", data=put_body, headers=headers_json, method="PUT")
+                    put_res = call_erpnext_resiliently(opener, put_req, timeout=12)
+                    success = (put_res.status == 200)
+                except Exception:
+                    pass
+
+            if not success:
+                try:
+                    sv_body = json.dumps({"doctype": "Institution", "name": name, "fieldname": {"workflow_state": target_state, "docstatus": target_docstatus}}).encode("utf-8")
+                    sv_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.set_value", data=sv_body, headers=headers_json, method="POST")
+                    sv_res = call_erpnext_resiliently(opener, sv_req, timeout=12)
+                    success = (sv_res.status == 200)
+                except Exception:
+                    pass
+
+            human_msg = (
+                f"Validated by {actor_user} ({actor_role}) in Web Portal and routed to DSM for regional approval."
+                if needs_dsm else
+                f"Approved by {actor_user} ({actor_role}) in Web Portal. Facility is now active in the Institution Directory."
+            )
+            _post_institution_meta_comment(opener, name, human_msg, {
+                "workflow_state": target_state,
+                "docstatus": target_docstatus,
+                "rejection_reason": "",
+                "action": "Routed to DSM" if needs_dsm else "Approved",
+                "user": actor_user,
+                "role": actor_role,
+                "timestamp": now_iso,
+                "details": human_msg
+            })
+
+            if target_state == "Approved":
+                _propagate_institution_to_linked_records(
+                    opener,
+                    [name, inst_title],
+                    hcp_account_payload={"workplace_approval_note": "this institution is now approved", "rejection_reason": "", "rejected_institution_tag": ""},
+                    hcp_payload={"workplace_approval_note": "this institution is now approved", "rejection_reason": "", "rejected_institution_tag": ""},
+                    submission_payload={"rejection_reason": "", "rejected_institution_tag": ""}
+                )
+
+            return "success", f'Institution "{inst_title}" ({name}) {("routed to DSM" if needs_dsm else "approved and synced to Mobile App Directory")}!'
+
+        elif action == "inst_normalize":
+            name = safe_str(payload.get("name"))
+            clean_wp = safe_str(payload.get("institution_name"))
+            old_wp = safe_str(payload.get("old_institution_name")) or clean_wp
+            reg_id = safe_str(payload.get("region_id"))
+            prov_id = safe_str(payload.get("province_id"))
+            city_id = safe_str(payload.get("city_id"))
+            street = safe_str(payload.get("street_address"))
+            ownership = safe_str(payload.get("ownership"))
+            inst_type = safe_str(payload.get("institution_type"))
+            capability = safe_str(payload.get("service_capability"))
+            auto_approve = bool(payload.get("auto_approve", True))
+            needs_dsm = bool(payload.get("requires_dsm_approval")) and safe_str(payload.get("current_state")) != "Pending DSM Approval"
+
+            if not name or not clean_wp:
+                return "error", "Institution ID and standardized facility name are required."
+
+            update_fields = {"institution_name": clean_wp}
+            if reg_id:
+                update_fields["region_name"] = reg_id
+            if prov_id:
+                update_fields["province_name"] = prov_id
+            if city_id:
+                update_fields["city_municipality"] = city_id
+            if street:
+                update_fields["street_address"] = street
+            if ownership:
+                update_fields["ownership"] = ownership
+            if inst_type:
+                update_fields["institution_type"] = inst_type
+            if capability:
+                update_fields["service_capability"] = capability
+            if auto_approve:
+                update_fields["rejection_reason"] = ""
+
+            try:
+                put_req = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/resource/Institution/{urllib.parse.quote(name)}",
+                    data=json.dumps(update_fields).encode("utf-8"),
+                    headers=headers_json,
+                    method="PUT"
+                )
+                call_erpnext_resiliently(opener, put_req, timeout=12)
+            except urllib.error.HTTPError as he:
+                err_txt = he.read().decode("utf-8", errors="ignore")
+                if "LinkValidationError" in err_txt or "Could not find" in err_txt:
+                    fallback_fields = {"institution_name": clean_wp}
+                    if ownership:
+                        fallback_fields["ownership"] = ownership
+                    if inst_type:
+                        fallback_fields["institution_type"] = inst_type
+                    if capability:
+                        fallback_fields["service_capability"] = capability
+                    put_req2 = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/Institution/{urllib.parse.quote(name)}",
+                        data=json.dumps(fallback_fields).encode("utf-8"),
+                        headers=headers_json,
+                        method="PUT"
+                    )
+                    try:
+                        call_erpnext_resiliently(opener, put_req2, timeout=12)
+                    except Exception:
+                        pass
+
+            target_state = safe_str(payload.get("current_state")) or "Pending Approval"
+            target_docstatus = 0
+            if auto_approve:
+                target_state = "Pending DSM Approval" if needs_dsm else "Approved"
+                target_docstatus = 0 if needs_dsm else 1
+                wf_action = "Route to DSM" if needs_dsm else "Approve"
+                wf_ok = False
+                try:
+                    wf_body = json.dumps({"doc": {"doctype": "Institution", "name": name}, "action": wf_action}).encode("utf-8")
+                    wf_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.model.workflow.apply_workflow", data=wf_body, headers=headers_json, method="POST")
+                    wf_res = call_erpnext_resiliently(opener, wf_req, timeout=12)
+                    wf_ok = (wf_res.status == 200)
+                except Exception:
+                    wf_ok = False
+                if not wf_ok:
+                    try:
+                        sv_body = json.dumps({"doctype": "Institution", "name": name, "fieldname": {"workflow_state": target_state, "docstatus": target_docstatus}}).encode("utf-8")
+                        sv_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.set_value", data=sv_body, headers=headers_json, method="POST")
+                        call_erpnext_resiliently(opener, sv_req, timeout=12)
+                    except Exception:
+                        pass
+
+            loc_summary = ", ".join([x for x in [safe_str(payload.get("city_name")) or city_id, safe_str(payload.get("province_name")) or prov_id, safe_str(payload.get("region_name")) or reg_id] if x])
+            human_msg = f"Normalized by {actor_user} ({actor_role}) in Web Portal: {clean_wp} ({ownership}, {inst_type}, {capability}) at {loc_summary}."
+            if auto_approve:
+                human_msg += f" Status transitioned to {target_state}."
+
+            _post_institution_meta_comment(opener, name, human_msg, {
+                "institution_name": clean_wp,
+                "region_name": reg_id or safe_str(payload.get("region_name")),
+                "province_name": prov_id or safe_str(payload.get("province_name")),
+                "city_municipality": city_id or safe_str(payload.get("city_name")),
+                "street_address": street,
+                "ownership": ownership,
+                "institution_type": inst_type,
+                "service_capability": capability,
+                "workflow_state": target_state,
+                "docstatus": target_docstatus,
+                "rejection_reason": "" if auto_approve else safe_str(payload.get("rejection_reason")),
+                "action": "Normalized & Approved" if (auto_approve and target_state == "Approved") else ("Normalized & Routed to DSM" if auto_approve else "Normalized by SFE"),
+                "user": actor_user,
+                "role": actor_role,
+                "timestamp": now_iso,
+                "details": human_msg
+            })
+
+            _propagate_institution_to_linked_records(
+                opener,
+                [name, old_wp, clean_wp],
+                hcp_account_payload={
+                    "workplace_id": clean_wp,
+                    "workplace_approval_note": "this institution is now approved" if (auto_approve and target_state == "Approved") else "this institution is not yet approved",
+                    "rejection_reason": "",
+                    "rejected_institution_tag": ""
+                },
+                hcp_payload={
+                    "institution": clean_wp,
+                    "workplace_approval_note": "this institution is now approved" if (auto_approve and target_state == "Approved") else "this institution is not yet approved",
+                    "rejection_reason": "",
+                    "rejected_institution_tag": ""
+                },
+                submission_payload={"institution": clean_wp, "rejection_reason": "", "rejected_institution_tag": ""}
+            )
+
+            return "success", f'Normalized "{clean_wp}" ({name}) and synced live to ERPNext & Mobile App!'
+
+        elif action == "inst_reject":
+            name = safe_str(payload.get("name"))
+            inst_title = safe_str(payload.get("institution_name")) or name
+            reason = safe_str(payload.get("rejection_reason"))
+            if not name or not reason:
+                return "error", "Both Institution ID and mandatory rejection reason are required."
+
+            rejection_tag = f"[REJECTED INSTITUTION: {reason}]"
+            try:
+                put_req = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/resource/Institution/{urllib.parse.quote(name)}",
+                    data=json.dumps({"rejection_reason": reason, "workflow_state": "Rejected", "docstatus": 0}).encode("utf-8"),
+                    headers=headers_json,
+                    method="PUT"
+                )
+                call_erpnext_resiliently(opener, put_req, timeout=12)
+            except Exception:
+                pass
+
+            try:
+                wf_body = json.dumps({"doc": {"doctype": "Institution", "name": name}, "action": "Reject"}).encode("utf-8")
+                wf_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.model.workflow.apply_workflow", data=wf_body, headers=headers_json, method="POST")
+                call_erpnext_resiliently(opener, wf_req, timeout=12)
+            except Exception:
+                pass
+
+            human_msg = f"Rejected by {actor_user} ({actor_role}) in Web Portal. Reason: {reason}"
+            _post_institution_meta_comment(opener, name, human_msg, {
+                "workflow_state": "Rejected",
+                "docstatus": 0,
+                "rejection_reason": reason,
+                "action": "Rejected",
+                "user": actor_user,
+                "role": actor_role,
+                "timestamp": now_iso,
+                "details": human_msg
+            })
+
+            _propagate_institution_to_linked_records(
+                opener,
+                [name, inst_title],
+                hcp_account_payload={"workplace_approval_note": rejection_tag, "rejection_reason": reason, "rejected_institution_tag": rejection_tag},
+                hcp_payload={"workplace_approval_note": rejection_tag, "rejection_reason": reason, "rejected_institution_tag": rejection_tag},
+                submission_payload={"rejection_reason": reason, "rejected_institution_tag": rejection_tag}
+            )
+
+            return "warning", f'Rejected "{inst_title}" ({name}) and propagated rejection notice to MedRep Mobile App!'
+
+        elif action == "inst_remap":
+            old_id = safe_str(payload.get("old_id") or payload.get("name"))
+            old_name = safe_str(payload.get("old_name") or payload.get("institution_name")) or old_id
+            rep_id = safe_str(payload.get("replacement_id"))
+            rep_name = safe_str(payload.get("replacement_name")) or rep_id
+            note = safe_str(payload.get("resolution_note")) or f"Remapped duplicate/unprofiled institution to approved facility: {rep_name}"
+            if not old_id or not rep_id:
+                return "error", "Both original and replacement canonical Institution IDs are required."
+
+            remapped_tag = f"Remapped by SFE to: {rep_name}"
+            full_note = f"{remapped_tag} ({note})"
+
+            try:
+                wf_body = json.dumps({"doc": {"doctype": "Institution", "name": old_id}, "action": "Remap"}).encode("utf-8")
+                wf_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.model.workflow.apply_workflow", data=wf_body, headers=headers_json, method="POST")
+                call_erpnext_resiliently(opener, wf_req, timeout=12)
+            except Exception:
+                pass
+
+            try:
+                put_req = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/resource/Institution/{urllib.parse.quote(old_id)}",
+                    data=json.dumps({"workflow_state": "Remapped", "rejection_reason": full_note}).encode("utf-8"),
+                    headers=headers_json,
+                    method="PUT"
+                )
+                call_erpnext_resiliently(opener, put_req, timeout=12)
+            except Exception:
+                pass
+
+            human_msg = f"Remapped by {actor_user} ({actor_role}) in Web Portal to canonical facility {rep_name} ({rep_id}). {note}"
+            _post_institution_meta_comment(opener, old_id, human_msg, {
+                "workflow_state": "Remapped",
+                "rejection_reason": full_note,
+                "action": "Remapped by SFE",
+                "user": actor_user,
+                "role": actor_role,
+                "timestamp": now_iso,
+                "details": human_msg
+            })
+
+            _propagate_institution_to_linked_records(
+                opener,
+                [old_id, old_name],
+                hcp_account_payload={
+                    "workplace_id": rep_name,
+                    "workplace_approval_note": "this institution is now approved",
+                    "rejection_reason": full_note,
+                    "rejected_institution_tag": f"[REMAPPED: {remapped_tag}]"
+                },
+                hcp_payload={
+                    "institution": rep_name,
+                    "workplace_approval_note": "this institution is now approved",
+                    "rejection_reason": full_note,
+                    "rejected_institution_tag": f"[REMAPPED: {remapped_tag}]"
+                },
+                submission_payload={
+                    "institution": rep_id,
+                    "rejection_reason": full_note,
+                    "rejected_institution_tag": f"[REMAPPED: {remapped_tag}]"
+                }
+            )
+
+            return "success", f'Remapped "{old_name}" -> "{rep_name}" ({rep_id}) across ERPNext & Mobile App!'
+
+        return "info", f"Institution action {action} processed."
+    except Exception as e:
+        return "error", f"Institution action error: {str(e)}"
 
 def execute_tree_action(opener, action, payload):
     if not opener:
@@ -898,6 +1417,8 @@ if st.session_state.get("auth_response") and st.session_state["auth_response"].g
         st.session_state["opener"] = get_authenticated_opener()
     if "live_territories" not in st.session_state or not st.session_state["live_territories"]:
         st.session_state["live_territories"] = fetch_live_territories(st.session_state["opener"]) if st.session_state["opener"] else None
+    if "live_institutions" not in st.session_state or st.session_state["live_institutions"] is None:
+        st.session_state["live_institutions"] = fetch_live_institutions(st.session_state["opener"]) if st.session_state["opener"] else None
 else:
     if "live_territories" not in st.session_state:
         st.session_state["live_territories"] = None
@@ -908,6 +1429,8 @@ if "live_employees" not in st.session_state:
     st.session_state["live_employees"] = None
 if "live_users" not in st.session_state:
     st.session_state["live_users"] = None
+if "live_institutions" not in st.session_state:
+    st.session_state["live_institutions"] = None
 if "tree_sync_event" not in st.session_state:
     st.session_state["tree_sync_event"] = None
 if "last_action_timestamp" not in st.session_state:
@@ -921,6 +1444,7 @@ component_val = portal_component(
     live_sales_persons=st.session_state["live_sales_persons"],
     live_employees=st.session_state["live_employees"],
     live_users=st.session_state["live_users"],
+    live_institutions=st.session_state["live_institutions"],
     tree_sync_event=st.session_state["tree_sync_event"],
     key="pims_portal_app"
 )
@@ -947,10 +1471,12 @@ if component_val and isinstance(component_val, dict):
                         f_sps = executor.submit(fetch_live_sales_persons, opener)
                         f_emps = executor.submit(fetch_live_employees, opener)
                         f_users = executor.submit(fetch_live_users, opener)
+                        f_insts = executor.submit(fetch_live_institutions, opener)
                         st.session_state["live_territories"] = f_terrs.result()
                         st.session_state["live_sales_persons"] = f_sps.result()
                         st.session_state["live_employees"] = f_emps.result()
                         st.session_state["live_users"] = f_users.result()
+                        st.session_state["live_institutions"] = f_insts.result()
                 except Exception as ex:
                     print(f"[Streamlit Data Fetch Warning] {ex}")
                     st.session_state["live_territories"] = fetch_live_territories(opener)
@@ -993,8 +1519,30 @@ if component_val and isinstance(component_val, dict):
             st.session_state["live_sales_persons"] = None
             st.session_state["live_employees"] = None
             st.session_state["live_users"] = None
+            st.session_state["live_institutions"] = None
             st.session_state["tree_sync_event"] = None
             st.session_state["session_token"] = None
+            st.rerun()
+        elif action in ["inst_approve", "inst_normalize", "inst_reject", "inst_remap", "inst_refresh"]:
+            opener = st.session_state.get("opener")
+            if not opener:
+                opener = get_authenticated_opener()
+                st.session_state["opener"] = opener
+            status, msg = execute_institution_action(opener, action, component_val)
+            opener = st.session_state.get("opener") or get_authenticated_opener()
+            if opener:
+                st.session_state["opener"] = opener
+                st.session_state["live_institutions"] = fetch_live_institutions(opener)
+                i_count = len(st.session_state.get("live_institutions") or [])
+                if action == "inst_refresh":
+                    msg = f"Live ERPNext sync complete: {i_count} institutions loaded directly from {get_server_display_name()}!"
+                    status = "success"
+            st.session_state["tree_sync_event"] = {
+                "action": action,
+                "status": status,
+                "message": msg,
+                "timestamp": ts
+            }
             st.rerun()
         elif action in ["tree_add", "tree_edit", "tree_rename", "tree_delete", "territory_deactivate", "tree_refresh", "sales_person_create", "employee_create"]:
             opener = st.session_state.get("opener")
@@ -1011,10 +1559,12 @@ if component_val and isinstance(component_val, dict):
                         f_sps = executor.submit(fetch_live_sales_persons, opener)
                         f_emps = executor.submit(fetch_live_employees, opener)
                         f_users = executor.submit(fetch_live_users, opener)
+                        f_insts = executor.submit(fetch_live_institutions, opener)
                         st.session_state["live_territories"] = f_terrs.result()
                         st.session_state["live_sales_persons"] = f_sps.result()
                         st.session_state["live_employees"] = f_emps.result()
                         st.session_state["live_users"] = f_users.result()
+                        st.session_state["live_institutions"] = f_insts.result()
                 except Exception as ex:
                     st.session_state["live_territories"] = fetch_live_territories(opener)
                     st.session_state["live_sales_persons"] = fetch_live_sales_persons(opener)

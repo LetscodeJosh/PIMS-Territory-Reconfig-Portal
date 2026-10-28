@@ -87,7 +87,7 @@ class SecurityValidationError(ValueError):
 # Allow-lists for safe identifiers
 SAFE_IDENTIFIER_REGEX = re.compile(r'^[a-zA-Z0-9_\- ]+$')
 SAFE_METHOD_REGEX = re.compile(r'^[a-zA-Z0-9_\.]+$')
-SAFE_FIELD_NAME_REGEX = re.compile(r'^[a-zA-Z0-9_]+$')
+SAFE_FIELD_NAME_REGEX = re.compile(r'^([a-zA-Z0-9_`\.\*\s]+)$')
 
 
 def sanitize_string(val: Any, max_len: int = 140, allow_spaces: bool = True) -> str:
@@ -168,7 +168,7 @@ class ResourceRequestSchema:
                 raise SecurityValidationError(f"Illegal field identifier: '{f}'")
 
         # 4. Limit and paging
-        limit_len = sanitize_int(query_params.get("limit_page_length", 20), default=20, min_val=1, max_val=2000)
+        limit_len = sanitize_int(query_params.get("limit_page_length", 20), default=20, min_val=0, max_val=10000)
         limit_start = sanitize_int(query_params.get("limit_start", 0), default=0, min_val=0, max_val=500_000)
 
         # 5. Safe Order By
@@ -220,7 +220,7 @@ class TerritoryActionSchema:
             raise SecurityValidationError("Payload must be a JSON object")
 
         raw_action = sanitize_string(data.get("action", ""), max_len=30, allow_spaces=False)
-        allowed_actions = {"tree_add", "tree_edit", "tree_rename", "tree_delete", "tree_refresh"}
+        allowed_actions = {"tree_add", "tree_edit", "tree_rename", "tree_delete", "tree_refresh", "territory_deactivate", "sales_person_create", "employee_create", "inst_approve", "inst_normalize", "inst_reject", "inst_remap", "inst_refresh"}
         if raw_action not in allowed_actions:
             raise SecurityValidationError(f"Disallowed action: '{raw_action}'")
 

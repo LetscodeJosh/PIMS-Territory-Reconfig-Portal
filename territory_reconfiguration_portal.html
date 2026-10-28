@@ -2459,6 +2459,10 @@
           <span>Summary Report</span>
           <span class="tab-badge" id="summaryBadge">Audit Trail</span>
         </button>
+        <button class="sidebar-tab-btn" id="btn-tab-institutions" onclick="openTab('tab-institutions')">
+          <span>Institution Approvals</span>
+          <span class="tab-badge" id="instApprovalBadge" style="background:rgba(245,158,11,0.2); color:#FCD34D; border:1px solid rgba(245,158,11,0.4);">0 Pending</span>
+        </button>
       </div>
     </div>
 
@@ -3064,6 +3068,173 @@
               <!-- Populated dynamically -->
             </tbody>
           </table>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 4: SFE INSTITUTION APPROVAL, NORMALIZATION & GOVERNANCE WORKBENCH -->
+    <!-- ===================================================================== -->
+    <div id="tab-institutions" class="tab-content">
+      <div class="card" style="padding:18px 20px; border-radius:12px; background:#FFFFFF; border:1px solid #E2E8F0; box-shadow:0 2px 8px rgba(15,23,42,0.04);">
+
+        <!-- Workbench Header & Live Sync Toolbar -->
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:14px; padding-bottom:16px; border-bottom:1.5px solid #E2E8F0; margin-bottom:16px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg,#0066FF,#0284C7); color:#FFFFFF; font-weight:800; font-size:16px;">🏥</span>
+              <div>
+                <h2 style="margin:0; font-size:17px; font-weight:800; color:#0F172A; letter-spacing:-0.2px;">SFE Institution Approval &amp; Masterlist Governance Workbench</h2>
+                <div style="font-size:12px; color:#475569; margin-top:2px;">
+                  Review, normalize, remap duplicates, and approve new institutions discovered by Medical Representatives on the HCP Profiling Mobile App. Approved records sync directly to the App Institution Directory.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div id="sfeInstSyncStatusPill" style="display:inline-flex; align-items:center; gap:6px; padding:6px 11px; border-radius:20px; background:#F0FDF4; border:1px solid #BBF7D0; font-size:11.5px; font-weight:700; color:#15803D;">
+              <span style="width:7px; height:7px; border-radius:50%; background:#16A34A; box-shadow:0 0 6px rgba(22,163,74,0.8);"></span>
+              <span id="sfeInstSyncStatusText">Live Sync Active (15s Auto-Poll)</span>
+            </div>
+
+            <button type="button" class="btn btn-outline" id="btnSyncLiveInstitutions" onclick="syncLiveInstitutionsFromErp(true)" style="display:inline-flex; align-items:center; gap:6px; background:#EFF6FF; border:1px solid #93C5FD; color:#1D4ED8; font-weight:700; font-size:12px; padding:7px 13px; border-radius:7px; cursor:pointer;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>Sync Live from ERPNext</span>
+            </button>
+
+            <button type="button" class="btn btn-outline" onclick="exportSfeInstitutionsCsv()" style="display:inline-flex; align-items:center; gap:6px; background:#F8FAFC; border:1px solid #CBD5E1; color:#0F172A; font-weight:700; font-size:12px; padding:7px 13px; border-radius:7px; cursor:pointer;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Export CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 5 Interactive Executive KPI Cards -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(185px, 1fr)); gap:12px; margin-bottom:16px;">
+          <div onclick="setSfeInstStatusFilter('Pending Approval')" style="cursor:pointer; background:linear-gradient(135deg,#FFFBEB,#FEF3C7); border:1.5px solid #FDE68A; border-radius:10px; padding:12px 14px; transition:transform 0.12s ease;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:#B45309; letter-spacing:0.4px;">Pending SFE Review</span>
+              <span style="font-size:15px;">⏳</span>
+            </div>
+            <div id="kpiInstPendingSfe" style="font-size:24px; font-weight:900; color:#92400E; margin-top:4px;">0</div>
+            <div style="font-size:11px; color:#B45309; margin-top:2px;">New MedRep discoveries awaiting SFE</div>
+          </div>
+
+          <div onclick="setSfeInstStatusFilter('Pending DSM Approval')" style="cursor:pointer; background:linear-gradient(135deg,#EFF6FF,#DBEAFE); border:1.5px solid #BFDBFE; border-radius:10px; padding:12px 14px; transition:transform 0.12s ease;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:#1D4ED8; letter-spacing:0.4px;">Pending DSM Approval</span>
+              <span style="font-size:15px;">🏛️</span>
+            </div>
+            <div id="kpiInstPendingDsm" style="font-size:24px; font-weight:900; color:#1E40AF; margin-top:4px;">0</div>
+            <div style="font-size:11px; color:#1D4ED8; margin-top:2px;">Government / high-impact facilities</div>
+          </div>
+
+          <div onclick="setSfeInstStatusFilter('Approved')" style="cursor:pointer; background:linear-gradient(135deg,#F0FDF4,#DCFCE7); border:1.5px solid #BBF7D0; border-radius:10px; padding:12px 14px; transition:transform 0.12s ease;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:#15803D; letter-spacing:0.4px;">Approved Masterlist</span>
+              <span style="font-size:15px;">✅</span>
+            </div>
+            <div id="kpiInstApproved" style="font-size:24px; font-weight:900; color:#166534; margin-top:4px;">0</div>
+            <div style="font-size:11px; color:#15803D; margin-top:2px;">Live in HCP App Institution Directory</div>
+          </div>
+
+          <div onclick="setSfeInstStatusFilter('Rejected')" style="cursor:pointer; background:linear-gradient(135deg,#FEF2F2,#FEE2E2); border:1.5px solid #FECACA; border-radius:10px; padding:12px 14px; transition:transform 0.12s ease;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:#B91C1C; letter-spacing:0.4px;">Rejected Proposals</span>
+              <span style="font-size:15px;">🚫</span>
+            </div>
+            <div id="kpiInstRejected" style="font-size:24px; font-weight:900; color:#991B1B; margin-top:4px;">0</div>
+            <div style="font-size:11px; color:#B91C1C; margin-top:2px;">Returned to MedRep with reason</div>
+          </div>
+
+          <div onclick="setSfeInstStatusFilter('All')" style="cursor:pointer; background:linear-gradient(135deg,#F8FAFC,#F1F5F9); border:1.5px solid #CBD5E1; border-radius:10px; padding:12px 14px; transition:transform 0.12s ease;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:#334155; letter-spacing:0.4px;">MedRep Certified</span>
+              <span style="font-size:15px;">🛡️</span>
+            </div>
+            <div id="kpiInstCertified" style="font-size:24px; font-weight:900; color:#0F172A; margin-top:4px;">0</div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">Verified field accuracy attestation</div>
+          </div>
+        </div>
+
+        <!-- Status Filter Tabs + Search & Classification Filters -->
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; margin-bottom:14px;">
+          <div style="display:flex; flex-wrap:wrap; gap:6px;" id="sfeInstStatusPillGroup">
+            <button type="button" class="sfe-inst-pill active" data-status="Pending Approval" onclick="setSfeInstStatusFilter('Pending Approval')">
+              Pending SFE Review <span id="pillCountPendingSfe" class="sfe-inst-pill-count">0</span>
+            </button>
+            <button type="button" class="sfe-inst-pill" data-status="Pending DSM Approval" onclick="setSfeInstStatusFilter('Pending DSM Approval')">
+              Pending DSM <span id="pillCountPendingDsm" class="sfe-inst-pill-count">0</span>
+            </button>
+            <button type="button" class="sfe-inst-pill" data-status="Approved" onclick="setSfeInstStatusFilter('Approved')">
+              Approved Directory <span id="pillCountApproved" class="sfe-inst-pill-count">0</span>
+            </button>
+            <button type="button" class="sfe-inst-pill" data-status="Rejected" onclick="setSfeInstStatusFilter('Rejected')">
+              Rejected <span id="pillCountRejected" class="sfe-inst-pill-count">0</span>
+            </button>
+            <button type="button" class="sfe-inst-pill" data-status="All" onclick="setSfeInstStatusFilter('All')">
+              All Records <span id="pillCountAll" class="sfe-inst-pill-count">0</span>
+            </button>
+          </div>
+
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; flex:1; justify-content:flex-end; min-width:280px;">
+            <div style="position:relative; flex:1; max-width:320px; min-width:200px;">
+              <input type="text" id="sfeInstSearchInput" oninput="onSfeInstFilterChange()" placeholder="Search INST ID, facility name, city, doctor, MedRep..." style="width:100%; box-sizing:border-box; padding:7px 28px 7px 11px; border:1px solid #CBD5E1; border-radius:7px; font-size:12px; color:#0F172A; background:#FFFFFF;">
+              <button type="button" onclick="clearSfeInstSearch()" title="Clear search" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); border:none; background:transparent; color:#64748B; cursor:pointer; font-size:13px; padding:2px 4px;">&times;</button>
+            </div>
+
+            <select id="sfeInstOwnershipFilter" onchange="onSfeInstFilterChange()" style="padding:7px 10px; border:1px solid #CBD5E1; border-radius:7px; font-size:12px; color:#0F172A; background:#FFFFFF; font-weight:600;">
+              <option value="ALL">All Ownerships</option>
+              <option value="Private">Private</option>
+              <option value="Government">Government</option>
+            </select>
+
+            <select id="sfeInstTypeFilter" onchange="onSfeInstFilterChange()" style="padding:7px 10px; border:1px solid #CBD5E1; border-radius:7px; font-size:12px; color:#0F172A; background:#FFFFFF; font-weight:600;">
+              <option value="ALL">All Facility Types</option>
+              <option value="Hospital">Hospital</option>
+              <option value="Clinic">Clinic</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Institution Governance Table -->
+        <div class="table-container" style="max-height:560px; overflow-y:auto; border:1px solid #E2E8F0; border-radius:10px;">
+          <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
+            <thead>
+              <tr>
+                <th style="width:13%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 12px; text-align:left;">INST ID &amp; Certification</th>
+                <th style="width:23%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 12px; text-align:left;">Facility Name &amp; Classification</th>
+                <th style="width:22%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 12px; text-align:left;">Official PSGC Location</th>
+                <th style="width:15%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 12px; text-align:left;">Linked Doctor &amp; Submitter</th>
+                <th style="width:11%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 12px; text-align:left;">Workflow State</th>
+                <th style="width:16%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 12px; text-align:center;">SFE Governance Actions</th>
+              </tr>
+            </thead>
+            <tbody id="sfeInstitutionTableBody">
+              <tr>
+                <td colspan="6" style="text-align:center; padding:32px; color:#64748B;">Loading live institutions from ERPNext...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Footer -->
+        <div id="sfeInstPaginationBar" style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-top:12px; padding-top:10px; border-top:1px solid #E2E8F0; font-size:12px; color:#475569;">
+          <div id="sfeInstPaginationSummary">Showing 0 of 0 institutions</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label for="sfeInstPageSizeSelect" style="font-size:11.5px; color:#64748B;">Rows per page:</label>
+            <select id="sfeInstPageSizeSelect" onchange="changeSfeInstPageSize(this.value)" style="padding:4px 8px; border:1px solid #CBD5E1; border-radius:6px; font-size:12px;">
+              <option value="15" selected>15</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <button type="button" class="btn btn-sm btn-outline" id="btnSfeInstPrevPage" onclick="changeSfeInstPage(-1)" style="padding:4px 10px; border-radius:6px; border:1px solid #CBD5E1; background:#FFFFFF; cursor:pointer; font-weight:700;">&laquo; Prev</button>
+            <span id="sfeInstPageIndicator" style="font-weight:700; color:#0F172A; padding:0 6px;">Page 1 of 1</span>
+            <button type="button" class="btn btn-sm btn-outline" id="btnSfeInstNextPage" onclick="changeSfeInstPage(1)" style="padding:4px 10px; border-radius:6px; border:1px solid #CBD5E1; background:#FFFFFF; cursor:pointer; font-weight:700;">Next &raquo;</button>
+          </div>
         </div>
 
       </div>
@@ -9793,6 +9964,7 @@ const BASELINE_ERP_TERRITORIES = [
         const liveSalesPersons = event.data.args ? event.data.args.live_sales_persons : null;
         const liveEmployees = event.data.args ? event.data.args.live_employees : null;
         const liveUsers = event.data.args ? event.data.args.live_users : null;
+        const liveInstitutions = event.data.args ? event.data.args.live_institutions : null;
         const treeSync = event.data.args ? event.data.args.tree_sync_event : null;
 
         // 0. Process ERPNext Password Reset Feedback
@@ -9942,6 +10114,17 @@ const BASELINE_ERP_TERRITORIES = [
           }
         } catch (terrErr) {
           console.warn('[Streamlit Live Territories Warning]', terrErr);
+        }
+
+        // 5b. Process Live Institutions Masterlist (SFE Approval Workbench)
+        try {
+          if (liveInstitutions && Array.isArray(liveInstitutions)) {
+            if (typeof ingestLiveInstitutionsFromServer === 'function') {
+              ingestLiveInstitutionsFromServer(liveInstitutions, 'Streamlit Cloud Live');
+            }
+          }
+        } catch (instErr) {
+          console.warn('[Streamlit Live Institutions Warning]', instErr);
         }
 
         // 6. Two-way server feedback toasts
@@ -10207,6 +10390,16 @@ const BASELINE_ERP_TERRITORIES = [
     if (tabId === 'tab-summary') {
       document.getElementById('btn-tab-summary').classList.add('active');
       renderSummaryReport();
+    }
+    if (tabId === 'tab-institutions') {
+      const btnInst = document.getElementById('btn-tab-institutions');
+      if (btnInst) btnInst.classList.add('active');
+      if (typeof renderSfeInstitutionWorkbench === 'function') {
+        renderSfeInstitutionWorkbench();
+      }
+      if (typeof syncLiveInstitutionsFromErp === 'function') {
+        syncLiveInstitutionsFromErp(false);
+      }
     }
   }
 
@@ -19829,6 +20022,20 @@ const BASELINE_ERP_TERRITORIES = [
         </div>
       </div>
 
+      <!-- Section 5: SFE Institution Approvals & Masterlist Sync -->
+      <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:14px 16px;">
+        <div style="font-weight:700; font-size:13px; color:#1E40AF; margin-bottom:6px;">
+          5. SFE Institution Approvals &amp; Real-Time Mobile App Sync
+        </div>
+        <div style="font-size:12px; color:#1E3A8A; line-height:1.6;">
+          Open <strong>Institution Approvals</strong> in the left sidebar to review new facilities discovered by MedReps on the HCP Profiling Mobile App:<br>
+          &bull; <strong>Normalize &amp; Approve:</strong> Standardize facility names (Proper Case), Ownership (Government/Private), Type (Hospital/Clinic), Service Capability, and official PSGC Region/Province/City codes before approving.<br>
+          &bull; <strong>Government Routing:</strong> Government facilities automatically route to <em>Pending DSM Approval</em> prior to final masterlist activation.<br>
+          &bull; <strong>Duplicate Remapping:</strong> Remap duplicate proposals to an existing canonical <code>INST-XXXXX</code> record and automatically update linked doctors.<br>
+          &bull; <strong>Direct Mobile Sync:</strong> Approved facilities immediately sync to the HCP Mobile App's <em>Institution Directory</em> and doctor workplace records.
+        </div>
+      </div>
+
     </div>
 
     <!-- Modal Footer: Minimalist Clean Button -->
@@ -19839,6 +20046,1558 @@ const BASELINE_ERP_TERRITORIES = [
     </div>
   </div>
 </div>
+
+
+<!-- ========================================================================= -->
+<!-- SFE INSTITUTION GOVERNANCE MODALS & REAL-TIME SYNC ENGINE (v.0.8.0)       -->
+<!-- ========================================================================= -->
+<style>
+  .sfe-inst-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid #CBD5E1;
+    background: #FFFFFF;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .sfe-inst-pill:hover {
+    border-color: #93C5FD;
+    background: #EFF6FF;
+    color: #1D4ED8;
+  }
+  .sfe-inst-pill.active {
+    background: #0066FF;
+    border-color: #0066FF;
+    color: #FFFFFF;
+    box-shadow: 0 2px 6px rgba(0, 102, 255, 0.25);
+  }
+  .sfe-inst-pill-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 800;
+    background: rgba(15, 23, 42, 0.08);
+    color: inherit;
+  }
+  .sfe-inst-pill.active .sfe-inst-pill-count {
+    background: rgba(255, 255, 255, 0.24);
+    color: #FFFFFF;
+  }
+  .sfe-inst-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.12s ease;
+    white-space: nowrap;
+  }
+  .sfe-inst-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.62);
+    backdrop-filter: blur(2px);
+    z-index: 9500;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .sfe-inst-modal-card {
+    background: #FFFFFF;
+    border-radius: 12px;
+    border: 1px solid #CBD5E1;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28);
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px 22px;
+    box-sizing: border-box;
+  }
+</style>
+
+<!-- 1. NORMALIZE & STANDARDIZE INSTITUTION MODAL -->
+<div id="sfeInstNormalizeModalOverlay" class="sfe-inst-modal-overlay">
+  <div class="sfe-inst-modal-card" style="max-width:680px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; border-bottom:1px solid #E2E8F0; padding-bottom:12px; margin-bottom:14px;">
+      <div>
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#0066FF; letter-spacing:0.5px;">SFE Masterlist Governance &amp; Standardization</div>
+        <h3 style="margin:3px 0 0 0; font-size:16px; font-weight:800; color:#0F172A;" id="sfeNormModalTitle">Normalize &amp; Standardize Institution</h3>
+      </div>
+      <button type="button" onclick="closeSfeNormalizeModal()" style="border:none; background:#F1F5F9; color:#475569; width:28px; height:28px; border-radius:6px; cursor:pointer; font-weight:800;">&times;</button>
+    </div>
+
+    <!-- 60-Second Edit Lease / Concurrency Lock Banner -->
+    <div id="sfeNormConcurrencyBanner" style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:11.5px; color:#1E40AF; font-weight:600;">
+      <span>🔒 Concurrency Edit Lease Active (60s) &bull; Record reserved for your SFE session</span>
+      <span id="sfeNormLeaseTimer" style="font-weight:800; color:#1D4ED8;">60s</span>
+    </div>
+
+    <!-- Government / High-Impact Routing Alert -->
+    <div id="sfeNormGovRoutingAlert" style="display:none; background:#FFFBEB; border:1px solid #FDE68A; border-radius:8px; padding:9px 12px; margin-bottom:12px; font-size:11.5px; color:#92400E; font-weight:600;">
+      🏛️ <strong>Government / High-Impact Facility Rule:</strong> Approving a Government facility from SFE Review routes it to <strong>Pending DSM Approval</strong> before final masterlist activation (or directly approves if already in Pending DSM Approval).
+    </div>
+
+    <input type="hidden" id="sfeNormInstId" value="">
+
+    <div style="display:grid; grid-template-columns:1fr; gap:12px;">
+      <!-- Official Facility Name + Proper Case Formatter -->
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <label for="sfeNormNameInput" style="font-size:12px; font-weight:700; color:#0F172A;">Official Facility Name <span style="color:#EF4444;">*</span></label>
+          <button type="button" onclick="applyProperCaseToNormName()" style="border:1px solid #93C5FD; background:#EFF6FF; color:#1D4ED8; border-radius:5px; padding:3px 8px; font-size:11px; font-weight:700; cursor:pointer;">
+            ✨ Format Proper Case
+          </button>
+        </div>
+        <input type="text" id="sfeNormNameInput" placeholder="e.g., St. Luke's Medical Center - Global City" style="width:100%; box-sizing:border-box; padding:8px 11px; border:1px solid #CBD5E1; border-radius:7px; font-size:13px; font-weight:600; color:#0F172A;">
+      </div>
+
+      <!-- Ownership, Institution Type, Service Capability -->
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
+        <div>
+          <label for="sfeNormOwnershipSelect" style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">Ownership <span style="color:#EF4444;">*</span></label>
+          <select id="sfeNormOwnershipSelect" onchange="onSfeNormClassificationChange()" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #CBD5E1; border-radius:7px; font-size:12.5px; font-weight:600; color:#0F172A;">
+            <option value="Private">Private</option>
+            <option value="Government">Government</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="sfeNormTypeSelect" style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">Institution Type <span style="color:#EF4444;">*</span></label>
+          <select id="sfeNormTypeSelect" onchange="onSfeNormClassificationChange()" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #CBD5E1; border-radius:7px; font-size:12.5px; font-weight:600; color:#0F172A;">
+            <option value="Hospital">Hospital</option>
+            <option value="Clinic">Clinic</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="sfeNormCapabilitySelect" style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">Service Capability <span style="color:#EF4444;">*</span></label>
+          <select id="sfeNormCapabilitySelect" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #CBD5E1; border-radius:7px; font-size:12.5px; font-weight:600; color:#0F172A;">
+          </select>
+        </div>
+      </div>
+
+      <!-- Cascading Official PSGC Hierarchy (Region -> Province -> City/Municipality) -->
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px;">
+        <div style="font-size:11.5px; font-weight:800; color:#0F172A; margin-bottom:8px;">
+          📍 Official Philippine Standard Geographic Code (PSGC) Hierarchy
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
+          <div>
+            <label for="sfeNormRegionSelect" style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">Region <span style="color:#EF4444;">*</span></label>
+            <select id="sfeNormRegionSelect" onchange="onSfeNormRegionChange()" style="width:100%; box-sizing:border-box; padding:7px 9px; border:1px solid #CBD5E1; border-radius:6px; font-size:12px; color:#0F172A; background:#FFFFFF;">
+            </select>
+          </div>
+
+          <div>
+            <label for="sfeNormProvinceSelect" style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">Province / District <span style="color:#EF4444;">*</span></label>
+            <select id="sfeNormProvinceSelect" onchange="onSfeNormProvinceChange()" style="width:100%; box-sizing:border-box; padding:7px 9px; border:1px solid #CBD5E1; border-radius:6px; font-size:12px; color:#0F172A; background:#FFFFFF;">
+            </select>
+          </div>
+
+          <div>
+            <label for="sfeNormCitySelect" style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">City / Municipality <span style="color:#EF4444;">*</span></label>
+            <select id="sfeNormCitySelect" style="width:100%; box-sizing:border-box; padding:7px 9px; border:1px solid #CBD5E1; border-radius:6px; font-size:12px; color:#0F172A; background:#FFFFFF;">
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; margin-top:10px;">
+          <div>
+            <label for="sfeNormAddressInput" style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:3px;">Street Address / Building</label>
+            <input type="text" id="sfeNormAddressInput" placeholder="Street / Building / Ave" style="width:100%; box-sizing:border-box; padding:6px 9px; border:1px solid #CBD5E1; border-radius:6px; font-size:12px;">
+          </div>
+          <div>
+            <label for="sfeNormBarangayInput" style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:3px;">Barangay</label>
+            <input type="text" id="sfeNormBarangayInput" placeholder="Barangay" style="width:100%; box-sizing:border-box; padding:6px 9px; border:1px solid #CBD5E1; border-radius:6px; font-size:12px;">
+          </div>
+          <div>
+            <label for="sfeNormZipInput" style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:3px;">Zip Code</label>
+            <input type="text" id="sfeNormZipInput" placeholder="e.g. 1634" style="width:100%; box-sizing:border-box; padding:6px 9px; border:1px solid #CBD5E1; border-radius:6px; font-size:12px;">
+          </div>
+        </div>
+      </div>
+
+      <!-- SFE Normalization Note -->
+      <div>
+        <label for="sfeNormNoteInput" style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:4px;">SFE Standardization / Audit Note (Optional)</label>
+        <input type="text" id="sfeNormNoteInput" placeholder="e.g., Standardized official hospital name and verified PSGC city code" style="width:100%; box-sizing:border-box; padding:7px 10px; border:1px solid #CBD5E1; border-radius:7px; font-size:12px;">
+      </div>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; border-top:1px solid #E2E8F0; padding-top:14px; margin-top:16px;">
+      <button type="button" onclick="closeSfeNormalizeModal()" style="padding:8px 14px; border-radius:7px; border:1px solid #CBD5E1; background:#FFFFFF; color:#475569; font-weight:700; font-size:12px; cursor:pointer;">Cancel</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" onclick="submitSfeNormalizeModal(false)" style="padding:8px 14px; border-radius:7px; border:1px solid #0284C7; background:#F0F9FF; color:#0369A1; font-weight:700; font-size:12px; cursor:pointer;">
+          💾 Save Normalized Fields Only
+        </button>
+        <button type="button" id="btnSfeNormAndApprove" onclick="submitSfeNormalizeModal(true)" style="padding:8px 16px; border-radius:7px; border:none; background:#16A34A; color:#FFFFFF; font-weight:800; font-size:12px; cursor:pointer; box-shadow:0 2px 6px rgba(22,163,74,0.3);">
+          ✅ Normalize &amp; Approve (Sync to App Directory)
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. REJECT INSTITUTION MODAL (MANDATORY REASON + PROPAGATION) -->
+<div id="sfeInstRejectModalOverlay" class="sfe-inst-modal-overlay">
+  <div class="sfe-inst-modal-card" style="max-width:540px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; border-bottom:1px solid #FEE2E2; padding-bottom:12px; margin-bottom:14px;">
+      <div>
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#DC2626; letter-spacing:0.5px;">SFE Governance Rejection &amp; MedRep Feedback</div>
+        <h3 style="margin:3px 0 0 0; font-size:16px; font-weight:800; color:#0F172A;" id="sfeRejectModalTitle">Reject Proposed Institution</h3>
+      </div>
+      <button type="button" onclick="closeSfeRejectModal()" style="border:none; background:#F1F5F9; color:#475569; width:28px; height:28px; border-radius:6px; cursor:pointer; font-weight:800;">&times;</button>
+    </div>
+
+    <input type="hidden" id="sfeRejectInstId" value="">
+
+    <div id="sfeRejectInstSummary" style="background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12px; color:#7F1D1D;">
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <div style="font-size:11px; font-weight:700; color:#475569; margin-bottom:6px;">Quick Preset Rejection Reasons (Click to populate):</div>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;">
+        <button type="button" onclick="setSfeRejectPreset('Duplicate of an existing approved institution in the directory')" style="font-size:11px; padding:4px 8px; border-radius:5px; border:1px solid #CBD5E1; background:#F8FAFC; color:#334155; cursor:pointer; font-weight:600;">Duplicate Facility</button>
+        <button type="button" onclick="setSfeRejectPreset('Incomplete or unverifiable street address / PSGC municipality')" style="font-size:11px; padding:4px 8px; border-radius:5px; border:1px solid #CBD5E1; background:#F8FAFC; color:#334155; cursor:pointer; font-weight:600;">Incomplete Address / PSGC</button>
+        <button type="button" onclick="setSfeRejectPreset('Incorrect Ownership or Service Capability classification')" style="font-size:11px; padding:4px 8px; border-radius:5px; border:1px solid #CBD5E1; background:#F8FAFC; color:#334155; cursor:pointer; font-weight:600;">Wrong Ownership / Capability</button>
+        <button type="button" onclick="setSfeRejectPreset('Facility could not be verified in official DOH / PhilHealth registry')" style="font-size:11px; padding:4px 8px; border-radius:5px; border:1px solid #CBD5E1; background:#F8FAFC; color:#334155; cursor:pointer; font-weight:600;">Unverified in DOH Registry</button>
+      </div>
+    </div>
+
+    <div>
+      <label for="sfeInstRejectReasonInput" style="display:block; font-size:12px; font-weight:700; color:#0F172A; margin-bottom:4px;">Mandatory Rejection Reason <span style="color:#EF4444;">*</span></label>
+      <textarea id="sfeInstRejectReasonInput" rows="3" placeholder="Provide clear instructions for the MedRep so they can correct and resubmit (up to 2 attempts) on the mobile app..." style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #CBD5E1; border-radius:7px; font-size:12.5px; color:#0F172A; font-family:inherit;"></textarea>
+      <div style="font-size:11px; color:#64748B; margin-top:4px;">
+        Propagates <code>[REJECTED INSTITUTION: &lt;reason&gt;]</code> to ERPNext <code>Institution</code>, linked <code>HCP Account</code>, <code>HCP</code>, and <code>HCP Profile Submission</code>.
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; border-top:1px solid #E2E8F0; padding-top:14px; margin-top:14px;">
+      <button type="button" onclick="closeSfeRejectModal()" style="padding:8px 14px; border-radius:7px; border:1px solid #CBD5E1; background:#FFFFFF; color:#475569; font-weight:700; font-size:12px; cursor:pointer;">Cancel</button>
+      <button type="button" onclick="submitSfeRejectModal()" style="padding:8px 16px; border-radius:7px; border:none; background:#DC2626; color:#FFFFFF; font-weight:800; font-size:12px; cursor:pointer;">
+        🚫 Confirm Rejection &amp; Sync to MedRep App
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 3. REMAP DUPLICATE INSTITUTION MODAL -->
+<div id="sfeInstRemapModalOverlay" class="sfe-inst-modal-overlay">
+  <div class="sfe-inst-modal-card" style="max-width:580px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; border-bottom:1px solid #E2E8F0; padding-bottom:12px; margin-bottom:14px;">
+      <div>
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#7C3AED; letter-spacing:0.5px;">SFE Duplicate Resolution &amp; Doctor Remapping</div>
+        <h3 style="margin:3px 0 0 0; font-size:16px; font-weight:800; color:#0F172A;">Remap Duplicate Proposal to Approved Institution</h3>
+      </div>
+      <button type="button" onclick="closeSfeRemapModal()" style="border:none; background:#F1F5F9; color:#475569; width:28px; height:28px; border-radius:6px; cursor:pointer; font-weight:800;">&times;</button>
+    </div>
+
+    <input type="hidden" id="sfeRemapDuplicateId" value="">
+
+    <div id="sfeRemapDuplicateSummary" style="background:#F5F3FF; border:1px solid #DDD6FE; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12px; color:#4C1D95;">
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label for="sfeInstRemapSearchInput" style="display:block; font-size:12px; font-weight:700; color:#0F172A; margin-bottom:4px;">1. Filter Canonical Approved Institution (`INST-XXXXX`)</label>
+      <input type="text" id="sfeInstRemapSearchInput" oninput="populateSfeRemapTargetSelect()" placeholder="Type facility name, INST ID, or city to filter approved masterlist..." style="width:100%; box-sizing:border-box; padding:7px 10px; border:1px solid #CBD5E1; border-radius:7px; font-size:12px; margin-bottom:6px;">
+
+      <label for="sfeInstRemapTargetSelect" style="display:block; font-size:12px; font-weight:700; color:#0F172A; margin-bottom:4px;">2. Select Target Canonical Approved Institution <span style="color:#EF4444;">*</span></label>
+      <select id="sfeInstRemapTargetSelect" size="6" style="width:100%; box-sizing:border-box; padding:6px; border:1px solid #CBD5E1; border-radius:7px; font-size:12px; color:#0F172A; background:#FFFFFF;">
+      </select>
+    </div>
+
+    <div>
+      <label for="sfeInstRemapNoteInput" style="display:block; font-size:12px; font-weight:700; color:#0F172A; margin-bottom:4px;">Duplicate Resolution Note</label>
+      <input type="text" id="sfeInstRemapNoteInput" placeholder="e.g., Duplicate of existing approved facility; linked doctor remapped" style="width:100%; box-sizing:border-box; padding:7px 10px; border:1px solid #CBD5E1; border-radius:7px; font-size:12px;">
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; border-top:1px solid #E2E8F0; padding-top:14px; margin-top:14px;">
+      <button type="button" onclick="closeSfeRemapModal()" style="padding:8px 14px; border-radius:7px; border:1px solid #CBD5E1; background:#FFFFFF; color:#475569; font-weight:700; font-size:12px; cursor:pointer;">Cancel</button>
+      <button type="button" onclick="submitSfeRemapModal()" style="padding:8px 16px; border-radius:7px; border:none; background:#7C3AED; color:#FFFFFF; font-weight:800; font-size:12px; cursor:pointer;">
+        🔀 Remap Linked Doctors &amp; Close Duplicate
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 4. INSTITUTION AUDIT TRAIL & CERTIFICATION DETAILS MODAL -->
+<div id="sfeInstAuditModalOverlay" class="sfe-inst-modal-overlay">
+  <div class="sfe-inst-modal-card" style="max-width:620px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; border-bottom:1px solid #E2E8F0; padding-bottom:12px; margin-bottom:14px;">
+      <div>
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#0284C7; letter-spacing:0.5px;">End-to-End Governance Ledger</div>
+        <h3 style="margin:3px 0 0 0; font-size:16px; font-weight:800; color:#0F172A;" id="sfeAuditModalTitle">Institution Audit Trail</h3>
+      </div>
+      <button type="button" onclick="closeSfeInstAuditModal()" style="border:none; background:#F1F5F9; color:#475569; width:28px; height:28px; border-radius:6px; cursor:pointer; font-weight:800;">&times;</button>
+    </div>
+
+    <div id="sfeAuditModalBody" style="font-size:12.5px; color:#334155; line-height:1.55;">
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; align-items:center; border-top:1px solid #E2E8F0; padding-top:12px; margin-top:14px;">
+      <button type="button" onclick="closeSfeInstAuditModal()" style="padding:7px 18px; border-radius:7px; border:none; background:#0066FF; color:#FFFFFF; font-weight:700; font-size:12px; cursor:pointer;">Close Audit Trail</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===========================================================================
+  // SFE INSTITUTION APPROVAL, NORMALIZATION & REAL-TIME SYNC ENGINE (v.0.8.0)
+  // ===========================================================================
+  const PSGC_COMPACT_DATA = [["0100000000","Region I (Ilocos Region)","Region",""],["0200000000","Region II (Cagayan Valley)","Region",""],["0300000000","Region III (Central Luzon)","Region",""],["0400000000","Region IV-A (CALABARZON)","Region",""],["0500000000","Region V (Bicol Region)","Region",""],["0600000000","Region VI (Western Visayas)","Region",""],["0700000000","Region VII (Central Visayas)","Region",""],["0800000000","Region VIII (Eastern Visayas)","Region",""],["0900000000","Region IX (Zamboanga Peninsula)","Region",""],["1000000000","Region X (Northern Mindanao)","Region",""],["1100000000","Region XI (Davao Region)","Region",""],["1200000000","Region XII (SOCCSKSARGEN)","Region",""],["1300000000","NCR","Region",""],["1400000000","CAR","Region",""],["1600000000","Region XIII (Caraga)","Region",""],["1700000000","MIMAROPA Region","Region",""],["1800000000","Negros Island Region (NIR)","Region",""],["1900000000","BARMM","Region",""],["0102800000","Ilocos Norte","Province","0100000000"],["0102900000","Ilocos Sur","Province","0100000000"],["0103300000","La Union","Province","0100000000"],["0105500000","Pangasinan","Province","0100000000"],["0200900000","Batanes","Province","0200000000"],["0201500000","Cagayan","Province","0200000000"],["0203100000","Isabela","Province","0200000000"],["0205000000","Nueva Vizcaya","Province","0200000000"],["0205700000","Quirino","Province","0200000000"],["0300800000","Bataan","Province","0300000000"],["0301400000","Bulacan","Province","0300000000"],["0304900000","Nueva Ecija","Province","0300000000"],["0305400000","Pampanga","Province","0300000000"],["0306900000","Tarlac","Province","0300000000"],["0307100000","Zambales","Province","0300000000"],["0307700000","Aurora","Province","0300000000"],["0401000000","Batangas","Province","0400000000"],["0402100000","Cavite","Province","0400000000"],["0403400000","Laguna","Province","0400000000"],["0405600000","Quezon","Province","0400000000"],["0405800000","Rizal","Province","0400000000"],["0500500000","Albay","Province","0500000000"],["0501600000","Camarines Norte","Province","0500000000"],["0501700000","Camarines Sur","Province","0500000000"],["0502000000","Catanduanes","Province","0500000000"],["0504100000","Masbate","Province","0500000000"],["0506200000","Sorsogon","Province","0500000000"],["0600400000","Aklan","Province","0600000000"],["0600600000","Antique","Province","0600000000"],["0601900000","Capiz","Province","0600000000"],["0603000000","Iloilo","Province","0600000000"],["0607900000","Guimaras","Province","0600000000"],["0701200000","Bohol","Province","0700000000"],["0702200000","Cebu","Province","0700000000"],["0802600000","Eastern Samar","Province","0800000000"],["0803700000","Leyte","Province","0800000000"],["0804800000","Northern Samar","Province","0800000000"],["0806000000","Samar","Province","0800000000"],["0806400000","Southern Leyte","Province","0800000000"],["0807800000","Biliran","Province","0800000000"],["0907200000","Zamboanga del Norte","Province","0900000000"],["0907300000","Zamboanga del Sur","Province","0900000000"],["0908300000","Zamboanga Sibugay","Province","0900000000"],["1001300000","Bukidnon","Province","1000000000"],["1001800000","Camiguin","Province","1000000000"],["1003500000","Lanao del Norte","Province","1000000000"],["1004200000","Misamis Occidental","Province","1000000000"],["1004300000","Misamis Oriental","Province","1000000000"],["1102300000","Davao del Norte","Province","1100000000"],["1102400000","Davao del Sur","Province","1100000000"],["1102500000","Davao Oriental","Province","1100000000"],["1108200000","Davao de Oro","Province","1100000000"],["1108600000","Davao Occidental","Province","1100000000"],["1204700000","Cotabato","Province","1200000000"],["1206300000","South Cotabato","Province","1200000000"],["1206500000","Sultan Kudarat","Province","1200000000"],["1208000000","Sarangani","Province","1200000000"],["1380100000","Metro Manila-Caloocan","Province","1300000000"],["1380200000","Metro Manila-Las Piñas","Province","1300000000"],["1380300000","Metro Manila-Makati","Province","1300000000"],["1380400000","Metro Manila-Malabon","Province","1300000000"],["1380500000","Metro Manila-Mandaluyong","Province","1300000000"],["1380600000","Metro Manila-Manila","Province","1300000000"],["1380700000","Metro Manila-Marikina","Province","1300000000"],["1380800000","Metro Manila-Muntinlupa","Province","1300000000"],["1380900000","Metro Manila-Navotas","Province","1300000000"],["1381000000","Metro Manila-Parañaque","Province","1300000000"],["1381100000","Metro Manila-Pasay","Province","1300000000"],["1381200000","Metro Manila-Pasig","Province","1300000000"],["1381300000","Metro Manila-Quezon City","Province","1300000000"],["1381400000","Metro Manila-San Juan","Province","1300000000"],["1381500000","Metro Manila-Taguig","Province","1300000000"],["1381600000","Metro Manila-Valenzuela","Province","1300000000"],["1381701000","Metro Manila-Pateros","Province","1300000000"],["1400100000","Abra","Province","1400000000"],["1401100000","Benguet","Province","1400000000"],["1402700000","Ifugao","Province","1400000000"],["1403200000","Kalinga","Province","1400000000"],["1404400000","Mountain Province","Province","1400000000"],["1408100000","Apayao","Province","1400000000"],["1600200000","Agusan del Norte","Province","1600000000"],["1600300000","Agusan del Sur","Province","1600000000"],["1606700000","Surigao del Norte","Province","1600000000"],["1606800000","Surigao del Sur","Province","1600000000"],["1608500000","Dinagat Islands","Province","1600000000"],["1704000000","Marinduque","Province","1700000000"],["1705100000","Occidental Mindoro","Province","1700000000"],["1705200000","Oriental Mindoro","Province","1700000000"],["1705300000","Palawan","Province","1700000000"],["1705900000","Romblon","Province","1700000000"],["1804500000","Negros Occidental","Province","1800000000"],["1804600000","Negros Oriental","Province","1800000000"],["1806100000","Siquijor","Province","1800000000"],["1900700000","Basilan","Province","1900000000"],["1903600000","Lanao del Sur","Province","1900000000"],["1906600000","Sulu","Province","1900000000"],["1907000000","Tawi-Tawi","Province","1900000000"],["1908700000","Maguindanao del Norte","Province","1900000000"],["1908800000","Maguindanao del Sur","Province","1900000000"],["0102801000","Adams","City","0102800000"],["0102802000","Bacarra","City","0102800000"],["0102803000","Badoc","City","0102800000"],["0102804000","Bangui","City","0102800000"],["0102805000","Batac City","City","0102800000"],["0102806000","Burgos","City","0102800000"],["0102807000","Carasi","City","0102800000"],["0102808000","Currimao","City","0102800000"],["0102809000","Dingras","City","0102800000"],["0102810000","Dumalneg","City","0102800000"],["0102811000","Banna","City","0102800000"],["0102812000","Laoag City","City","0102800000"],["0102813000","Marcos","City","0102800000"],["0102814000","Nueva Era","City","0102800000"],["0102815000","Pagudpud","City","0102800000"],["0102816000","Paoay","City","0102800000"],["0102817000","Pasuquin","City","0102800000"],["0102818000","Piddig","City","0102800000"],["0102819000","Pinili","City","0102800000"],["0102820000","San Nicolas","City","0102800000"],["0102821000","Sarrat","City","0102800000"],["0102822000","Solsona","City","0102800000"],["0102823000","Vintar","City","0102800000"],["0102901000","Alilem","City","0102900000"],["0102902000","Banayoyo","City","0102900000"],["0102903000","Bantay","City","0102900000"],["0102904000","Burgos","City","0102900000"],["0102905000","Cabugao","City","0102900000"],["0102906000","Candon City","City","0102900000"],["0102907000","Caoayan","City","0102900000"],["0102908000","Cervantes","City","0102900000"],["0102909000","Galimuyod","City","0102900000"],["0102910000","Gregorio del Pilar","City","0102900000"],["0102911000","Lidlidda","City","0102900000"],["0102912000","Magsingal","City","0102900000"],["0102913000","Nagbukel","City","0102900000"],["0102914000","Narvacan","City","0102900000"],["0102915000","Quirino","City","0102900000"],["0102916000","Salcedo","City","0102900000"],["0102917000","San Emilio","City","0102900000"],["0102918000","San Esteban","City","0102900000"],["0102919000","San Ildefonso","City","0102900000"],["0102920000","San Juan","City","0102900000"],["0102921000","San Vicente","City","0102900000"],["0102922000","Santa","City","0102900000"],["0102923000","Santa Catalina","City","0102900000"],["0102924000","Santa Cruz","City","0102900000"],["0102925000","Santa Lucia","City","0102900000"],["0102926000","Santa Maria","City","0102900000"],["0102927000","Santiago","City","0102900000"],["0102928000","Santo Domingo","City","0102900000"],["0102929000","Sigay","City","0102900000"],["0102930000","Sinait","City","0102900000"],["0102931000","Sugpon","City","0102900000"],["0102932000","Suyo","City","0102900000"],["0102933000","Tagudin","City","0102900000"],["0102934000","Vigan City","City","0102900000"],["0103301000","Agoo","City","0103300000"],["0103302000","Aringay","City","0103300000"],["0103303000","Bacnotan","City","0103300000"],["0103304000","Bagulin","City","0103300000"],["0103305000","Balaoan","City","0103300000"],["0103306000","Bangar","City","0103300000"],["0103307000","Bauang","City","0103300000"],["0103308000","Burgos","City","0103300000"],["0103309000","Caba","City","0103300000"],["0103310000","Luna","City","0103300000"],["0103311000","Naguilian","City","0103300000"],["0103312000","Pugo","City","0103300000"],["0103313000","Rosario","City","0103300000"],["0103314000","San Fernando City","City","0103300000"],["0103315000","San Gabriel","City","0103300000"],["0103316000","San Juan","City","0103300000"],["0103317000","Santo Tomas","City","0103300000"],["0103318000","Santol","City","0103300000"],["0103319000","Sudipen","City","0103300000"],["0103320000","Tubao","City","0103300000"],["0105501000","Agno","City","0105500000"],["0105502000","Aguilar","City","0105500000"],["0105503000","Alaminos City","City","0105500000"],["0105504000","Alcala","City","0105500000"],["0105505000","Anda","City","0105500000"],["0105506000","Asingan","City","0105500000"],["0105507000","Balungao","City","0105500000"],["0105508000","Bani","City","0105500000"],["0105509000","Basista","City","0105500000"],["0105510000","Bautista","City","0105500000"],["0105511000","Bayambang","City","0105500000"],["0105512000","Binalonan","City","0105500000"],["0105513000","Binmaley","City","0105500000"],["0105514000","Bolinao","City","0105500000"],["0105515000","Bugallon","City","0105500000"],["0105516000","Burgos","City","0105500000"],["0105517000","Calasiao","City","0105500000"],["0105518000","Dagupan City","City","0105500000"],["0105519000","Dasol","City","0105500000"],["0105520000","Infanta","City","0105500000"],["0105521000","Labrador","City","0105500000"],["0105522000","Lingayen","City","0105500000"],["0105523000","Mabini","City","0105500000"],["0105524000","Malasiqui","City","0105500000"],["0105525000","Manaoag","City","0105500000"],["0105526000","Mangaldan","City","0105500000"],["0105527000","Mangatarem","City","0105500000"],["0105528000","Mapandan","City","0105500000"],["0105529000","Natividad","City","0105500000"],["0105530000","Pozorrubio","City","0105500000"],["0105531000","Rosales","City","0105500000"],["0105532000","San Carlos City","City","0105500000"],["0105533000","San Fabian","City","0105500000"],["0105534000","San Jacinto","City","0105500000"],["0105535000","San Manuel","City","0105500000"],["0105536000","San Nicolas","City","0105500000"],["0105537000","San Quintin","City","0105500000"],["0105538000","Santa Barbara","City","0105500000"],["0105539000","Santa Maria","City","0105500000"],["0105540000","Santo Tomas","City","0105500000"],["0105541000","Sison","City","0105500000"],["0105542000","Sual","City","0105500000"],["0105543000","Tayug","City","0105500000"],["0105544000","Umingan","City","0105500000"],["0105545000","Urbiztondo","City","0105500000"],["0105546000","Urdaneta City","City","0105500000"],["0105547000","Villasis","City","0105500000"],["0105548000","Laoac","City","0105500000"],["0200901000","Basco","City","0200900000"],["0200902000","Itbayat","City","0200900000"],["0200903000","Ivana","City","0200900000"],["0200904000","Mahatao","City","0200900000"],["0200905000","Sabtang","City","0200900000"],["0200906000","Uyugan","City","0200900000"],["0201501000","Abulug","City","0201500000"],["0201502000","Alcala","City","0201500000"],["0201503000","Allacapan","City","0201500000"],["0201504000","Amulung","City","0201500000"],["0201505000","Aparri","City","0201500000"],["0201506000","Baggao","City","0201500000"],["0201507000","Ballesteros","City","0201500000"],["0201508000","Buguey","City","0201500000"],["0201509000","Calayan","City","0201500000"],["0201510000","Camalaniugan","City","0201500000"],["0201511000","Claveria","City","0201500000"],["0201512000","Enrile","City","0201500000"],["0201513000","Gattaran","City","0201500000"],["0201514000","Gonzaga","City","0201500000"],["0201515000","Iguig","City","0201500000"],["0201516000","Lal-Lo","City","0201500000"],["0201517000","Lasam","City","0201500000"],["0201518000","Pamplona","City","0201500000"],["0201519000","Peñablanca","City","0201500000"],["0201520000","Piat","City","0201500000"],["0201521000","Rizal","City","0201500000"],["0201522000","Sanchez-Mira","City","0201500000"],["0201523000","Santa Ana","City","0201500000"],["0201524000","Santa Praxedes","City","0201500000"],["0201525000","Santa Teresita","City","0201500000"],["0201526000","Santo Niño","City","0201500000"],["0201527000","Solana","City","0201500000"],["0201528000","Tuao","City","0201500000"],["0201529000","Tuguegarao City","City","0201500000"],["0203101000","Alicia","City","0203100000"],["0203102000","Angadanan","City","0203100000"],["0203103000","Aurora","City","0203100000"],["0203104000","Benito Soliven","City","0203100000"],["0203105000","Burgos","City","0203100000"],["0203106000","Cabagan","City","0203100000"],["0203107000","Cabatuan","City","0203100000"],["0203108000","Cauayan City","City","0203100000"],["0203109000","Cordon","City","0203100000"],["0203110000","Dinapigue","City","0203100000"],["0203111000","Divilacan","City","0203100000"],["0203112000","Echague","City","0203100000"],["0203113000","Gamu","City","0203100000"],["0203114000","Ilagan City","City","0203100000"],["0203115000","Jones","City","0203100000"],["0203116000","Luna","City","0203100000"],["0203117000","Maconacon","City","0203100000"],["0203118000","Delfin Albano","City","0203100000"],["0203119000","Mallig","City","0203100000"],["0203120000","Naguilian","City","0203100000"],["0203121000","Palanan","City","0203100000"],["0203122000","Quezon","City","0203100000"],["0203123000","Quirino","City","0203100000"],["0203124000","Ramon","City","0203100000"],["0203125000","Reina Mercedes","City","0203100000"],["0203126000","Roxas","City","0203100000"],["0203127000","San Agustin","City","0203100000"],["0203128000","San Guillermo","City","0203100000"],["0203129000","San Isidro","City","0203100000"],["0203130000","San Manuel","City","0203100000"],["0203131000","San Mariano","City","0203100000"],["0203132000","San Mateo","City","0203100000"],["0203133000","San Pablo","City","0203100000"],["0203134000","Santa Maria","City","0203100000"],["0203135000","Santiago City","City","0203100000"],["0203136000","Santo Tomas","City","0203100000"],["0203137000","Tumauini","City","0203100000"],["0205001000","Ambaguio","City","0205000000"],["0205002000","Aritao","City","0205000000"],["0205003000","Bagabag","City","0205000000"],["0205004000","Bambang","City","0205000000"],["0205005000","Bayombong","City","0205000000"],["0205006000","Diadi","City","0205000000"],["0205007000","Dupax del Norte","City","0205000000"],["0205008000","Dupax del Sur","City","0205000000"],["0205009000","Kasibu","City","0205000000"],["0205010000","Kayapa","City","0205000000"],["0205011000","Quezon","City","0205000000"],["0205012000","Santa Fe","City","0205000000"],["0205013000","Solano","City","0205000000"],["0205014000","Villaverde","City","0205000000"],["0205015000","Alfonso Castaneda","City","0205000000"],["0205701000","Aglipay","City","0205700000"],["0205702000","Cabarroguis","City","0205700000"],["0205703000","Diffun","City","0205700000"],["0205704000","Maddela","City","0205700000"],["0205705000","Saguday","City","0205700000"],["0205706000","Nagtipunan","City","0205700000"],["0300801000","Abucay","City","0300800000"],["0300802000","Bagac","City","0300800000"],["0300803000","Balanga City","City","0300800000"],["0300804000","Dinalupihan","City","0300800000"],["0300805000","Hermosa","City","0300800000"],["0300806000","Limay","City","0300800000"],["0300807000","Mariveles","City","0300800000"],["0300808000","Morong","City","0300800000"],["0300809000","Orani","City","0300800000"],["0300810000","Orion","City","0300800000"],["0300811000","Pilar","City","0300800000"],["0300812000","Samal","City","0300800000"],["0301401000","Angat","City","0301400000"],["0301402000","Balagtas","City","0301400000"],["0301403000","Baliwag City","City","0301400000"],["0301404000","Bocaue","City","0301400000"],["0301405000","Bulacan","City","0301400000"],["0301406000","Bustos","City","0301400000"],["0301407000","Calumpit","City","0301400000"],["0301408000","Guiguinto","City","0301400000"],["0301409000","Hagonoy","City","0301400000"],["0301410000","Malolos City","City","0301400000"],["0301411000","Marilao","City","0301400000"],["0301412000","Meycauayan City","City","0301400000"],["0301413000","Norzagaray","City","0301400000"],["0301414000","Obando","City","0301400000"],["0301415000","Pandi","City","0301400000"],["0301416000","Paombong","City","0301400000"],["0301417000","Plaridel","City","0301400000"],["0301418000","Pulilan","City","0301400000"],["0301419000","San Ildefonso","City","0301400000"],["0301420000","San Jose Del Monte City","City","0301400000"],["0301421000","San Miguel","City","0301400000"],["0301422000","San Rafael","City","0301400000"],["0301423000","Santa Maria","City","0301400000"],["0301424000","Doña Remedios Trinidad","City","0301400000"],["0304901000","Aliaga","City","0304900000"],["0304902000","Bongabon","City","0304900000"],["0304903000","Cabanatuan City","City","0304900000"],["0304904000","Cabiao","City","0304900000"],["0304905000","Carranglan","City","0304900000"],["0304906000","Cuyapo","City","0304900000"],["0304907000","Gabaldon","City","0304900000"],["0304908000","Gapan City","City","0304900000"],["0304909000","General Mamerto Natividad","City","0304900000"],["0304910000","General Tinio","City","0304900000"],["0304911000","Guimba","City","0304900000"],["0304912000","Jaen","City","0304900000"],["0304913000","Laur","City","0304900000"],["0304914000","Licab","City","0304900000"],["0304915000","Llanera","City","0304900000"],["0304916000","Lupao","City","0304900000"],["0304917000","Science City of Muñoz","City","0304900000"],["0304918000","Nampicuan","City","0304900000"],["0304919000","Palayan City","City","0304900000"],["0304920000","Pantabangan","City","0304900000"],["0304921000","Peñaranda","City","0304900000"],["0304922000","Quezon","City","0304900000"],["0304923000","Rizal","City","0304900000"],["0304924000","San Antonio","City","0304900000"],["0304925000","San Isidro","City","0304900000"],["0304926000","San Jose City","City","0304900000"],["0304927000","San Leonardo","City","0304900000"],["0304928000","Santa Rosa","City","0304900000"],["0304929000","Santo Domingo","City","0304900000"],["0304930000","Talavera","City","0304900000"],["0304931000","Talugtug","City","0304900000"],["0304932000","Zaragoza","City","0304900000"],["0305402000","Apalit","City","0305400000"],["0305403000","Arayat","City","0305400000"],["0305404000","Bacolor","City","0305400000"],["0305405000","Candaba","City","0305400000"],["0305406000","Floridablanca","City","0305400000"],["0305407000","Guagua","City","0305400000"],["0305408000","Lubao","City","0305400000"],["0305409000","Mabalacat City","City","0305400000"],["0305410000","Macabebe","City","0305400000"],["0305411000","Magalang","City","0305400000"],["0305412000","Masantol","City","0305400000"],["0305413000","Mexico","City","0305400000"],["0305414000","Minalin","City","0305400000"],["0305415000","Porac","City","0305400000"],["0305416000","San Fernando City","City","0305400000"],["0305417000","San Luis","City","0305400000"],["0305418000","San Simon","City","0305400000"],["0305419000","Santa Ana","City","0305400000"],["0305420000","Santa Rita","City","0305400000"],["0305421000","Sto. Tomas","City","0305400000"],["0305422000","Sasmuan","City","0305400000"],["0306901000","Anao","City","0306900000"],["0306902000","Bamban","City","0306900000"],["0306903000","Camiling","City","0306900000"],["0306904000","Capas","City","0306900000"],["0306905000","Concepcion","City","0306900000"],["0306906000","Gerona","City","0306900000"],["0306907000","La Paz","City","0306900000"],["0306908000","Mayantoc","City","0306900000"],["0306909000","Moncada","City","0306900000"],["0306910000","Paniqui","City","0306900000"],["0306911000","Pura","City","0306900000"],["0306912000","Ramos","City","0306900000"],["0306913000","San Clemente","City","0306900000"],["0306914000","San Manuel","City","0306900000"],["0306915000","Santa Ignacia","City","0306900000"],["0306916000","Tarlac City","City","0306900000"],["0306917000","Victoria","City","0306900000"],["0306918000","San Jose","City","0306900000"],["0307101000","Botolan","City","0307100000"],["0307102000","Cabangan","City","0307100000"],["0307103000","Candelaria","City","0307100000"],["0307104000","Castillejos","City","0307100000"],["0307105000","Iba","City","0307100000"],["0307106000","Masinloc","City","0307100000"],["0307108000","Palauig","City","0307100000"],["0307109000","San Antonio","City","0307100000"],["0307110000","San Felipe","City","0307100000"],["0307111000","San Marcelino","City","0307100000"],["0307112000","San Narciso","City","0307100000"],["0307113000","Santa Cruz","City","0307100000"],["0307114000","Subic","City","0307100000"],["0307701000","Baler","City","0307700000"],["0307702000","Casiguran","City","0307700000"],["0307703000","Dilasag","City","0307700000"],["0307704000","Dinalungan","City","0307700000"],["0307705000","Dingalan","City","0307700000"],["0307706000","Dipaculao","City","0307700000"],["0307707000","Maria Aurora","City","0307700000"],["0307708000","San Luis","City","0307700000"],["0330100000","Angeles City","City","0307700000"],["0331400000","Olongapo City","City","0307700000"],["0401001000","Agoncillo","City","0401000000"],["0401002000","Alitagtag","City","0401000000"],["0401003000","Balayan","City","0401000000"],["0401004000","Balete","City","0401000000"],["0401005000","Batangas City","City","0401000000"],["0401006000","Bauan","City","0401000000"],["0401007000","Calaca City","City","0401000000"],["0401008000","Calatagan","City","0401000000"],["0401009000","Cuenca","City","0401000000"],["0401010000","Ibaan","City","0401000000"],["0401011000","Laurel","City","0401000000"],["0401012000","Lemery","City","0401000000"],["0401013000","Lian","City","0401000000"],["0401014000","Lipa City","City","0401000000"],["0401015000","Lobo","City","0401000000"],["0401016000","Mabini","City","0401000000"],["0401017000","Malvar","City","0401000000"],["0401018000","Mataasnakahoy","City","0401000000"],["0401019000","Nasugbu","City","0401000000"],["0401020000","Padre Garcia","City","0401000000"],["0401021000","Rosario","City","0401000000"],["0401022000","San Jose","City","0401000000"],["0401023000","San Juan","City","0401000000"],["0401024000","San Luis","City","0401000000"],["0401025000","San Nicolas","City","0401000000"],["0401026000","San Pascual","City","0401000000"],["0401027000","Santa Teresita","City","0401000000"],["0401028000","Sto. Tomas City","City","0401000000"],["0401029000","Taal","City","0401000000"],["0401030000","Talisay","City","0401000000"],["0401031000","Tanauan City","City","0401000000"],["0401032000","Taysan","City","0401000000"],["0401033000","Tingloy","City","0401000000"],["0401034000","Tuy","City","0401000000"],["0402101000","Alfonso","City","0402100000"],["0402102000","Amadeo","City","0402100000"],["0402103000","Bacoor City","City","0402100000"],["0402104000","Bacoor City","City","0402100000"],["0402105000","Cavite City","City","0402100000"],["0402106000","Dasmariñas City","City","0402100000"],["0402107000","General Emilio Aguinaldo","City","0402100000"],["0402108000","General Trias City","City","0402100000"],["0402109000","Imus City","City","0402100000"],["0402110000","Indang","City","0402100000"],["0402111000","Kawit","City","0402100000"],["0402112000","Magallanes","City","0402100000"],["0402113000","Maragondon","City","0402100000"],["0402114000","Mendez","City","0402100000"],["0402115000","Naic","City","0402100000"],["0402116000","Noveleta","City","0402100000"],["0402117000","Rosario","City","0402100000"],["0402118000","Silang","City","0402100000"],["0402119000","Tagaytay City","City","0402100000"],["0402120000","Tanza","City","0402100000"],["0402121000","Ternate","City","0402100000"],["0402122000","Trece Martires City","City","0402100000"],["0402123000","Gen. Mariano Alvarez","City","0402100000"],["0403401000","Alaminos","City","0403400000"],["0403402000","Bay","City","0403400000"],["0403403000","Biñan City","City","0403400000"],["0403404000","Cabuyao City","City","0403400000"],["0403405000","Calamba City","City","0403400000"],["0403406000","Calauan","City","0403400000"],["0403407000","Cavinti","City","0403400000"],["0403408000","Famy","City","0403400000"],["0403409000","Kalayaan","City","0403400000"],["0403410000","Liliw","City","0403400000"],["0403411000","Los Baños","City","0403400000"],["0403412000","Luisiana","City","0403400000"],["0403413000","Lumban","City","0403400000"],["0403414000","Mabitac","City","0403400000"],["0403415000","Magdalena","City","0403400000"],["0403416000","Majayjay","City","0403400000"],["0403417000","Nagcarlan","City","0403400000"],["0403418000","Paete","City","0403400000"],["0403419000","Pagsanjan","City","0403400000"],["0403420000","Pakil","City","0403400000"],["0403421000","Pangil","City","0403400000"],["0403422000","Pila","City","0403400000"],["0403423000","Rizal","City","0403400000"],["0403424000","San Pablo City","City","0403400000"],["0403425000","San Pedro City","City","0403400000"],["0403426000","Santa Cruz","City","0403400000"],["0403427000","Santa Maria","City","0403400000"],["0403428000","Santa Rosa city","City","0403400000"],["0403429000","Siniloan","City","0403400000"],["0403430000","Victoria","City","0403400000"],["0405601000","Agdangan","City","0405600000"],["0405602000","Alabat","City","0405600000"],["0405603000","Atimonan","City","0405600000"],["0405605000","Buenavista","City","0405600000"],["0405606000","Burdeos","City","0405600000"],["0405607000","Calauag","City","0405600000"],["0405608000","Candelaria","City","0405600000"],["0405610000","Catanauan","City","0405600000"],["0405615000","Dolores","City","0405600000"],["0405616000","General Luna","City","0405600000"],["0405617000","General Nakar","City","0405600000"],["0405618000","Guinayangan","City","0405600000"],["0405619000","Gumaca","City","0405600000"],["0405620000","Infanta","City","0405600000"],["0405621000","Jomalig","City","0405600000"],["0405622000","Lopez","City","0405600000"],["0405623000","Lucban","City","0405600000"],["0405625000","Macalelon","City","0405600000"],["0405627000","Mauban","City","0405600000"],["0405628000","Mulanay","City","0405600000"],["0405629000","Padre Burgos","City","0405600000"],["0405630000","Pagbilao","City","0405600000"],["0405631000","Panukulan","City","0405600000"],["0405632000","Patnanungan","City","0405600000"],["0405633000","Perez","City","0405600000"],["0405634000","Pitogo","City","0405600000"],["0405635000","Plaridel","City","0405600000"],["0405636000","Polillo","City","0405600000"],["0405637000","Quezon","City","0405600000"],["0405638000","Real","City","0405600000"],["0405639000","Sampaloc","City","0405600000"],["0405640000","San Andres","City","0405600000"],["0405641000","San Antonio","City","0405600000"],["0405642000","San Francisco","City","0405600000"],["0405644000","San Narciso","City","0405600000"],["0405645000","Sariaya","City","0405600000"],["0405646000","Tagkawayan","City","0405600000"],["0405647000","Tayabas City","City","0405600000"],["0405648000","Tiaong","City","0405600000"],["0405649000","Unisan","City","0405600000"],["0405801000","Angono","City","0405800000"],["0405802000","Antipolo City","City","0405800000"],["0405803000","Baras","City","0405800000"],["0405804000","Binangonan","City","0405800000"],["0405805000","Cainta","City","0405800000"],["0405806000","Cardona","City","0405800000"],["0405807000","Jala-Jala","City","0405800000"],["0405808000","Rodriguez","City","0405800000"],["0405809000","Morong","City","0405800000"],["0405810000","Pililla","City","0405800000"],["0405811000","San Mateo","City","0405800000"],["0405812000","Tanay","City","0405800000"],["0405813000","Taytay","City","0405800000"],["0405814000","Teresa","City","0405800000"],["0431200000","Lucena City","City","0405800000"],["0500501000","Bacacay","City","0500500000"],["0500502000","Camalig","City","0500500000"],["0500503000","Daraga","City","0500500000"],["0500504000","Guinobatan","City","0500500000"],["0500505000","Jovellar","City","0500500000"],["0500506000","Legazpi City","City","0500500000"],["0500507000","Libon","City","0500500000"],["0500508000","Ligao City","City","0500500000"],["0500509000","Malilipot","City","0500500000"],["0500510000","Malinao","City","0500500000"],["0500511000","Manito","City","0500500000"],["0500512000","Oas","City","0500500000"],["0500513000","Pio Duran","City","0500500000"],["0500514000","Polangui","City","0500500000"],["0500515000","Rapu-Rapu","City","0500500000"],["0500516000","Santo Domingo","City","0500500000"],["0500517000","Tabaco City","City","0500500000"],["0500518000","Tiwi","City","0500500000"],["0501601000","Basud","City","0501600000"],["0501602000","Capalonga","City","0501600000"],["0501603000","Daet","City","0501600000"],["0501604000","San Lorenzo Ruiz","City","0501600000"],["0501605000","Jose Panganiban","City","0501600000"],["0501606000","Labo","City","0501600000"],["0501607000","Mercedes","City","0501600000"],["0501608000","Paracale","City","0501600000"],["0501609000","San Vicente","City","0501600000"],["0501610000","Santa Elena","City","0501600000"],["0501611000","Talisay","City","0501600000"],["0501612000","Vinzons","City","0501600000"],["0501701000","Baao","City","0501700000"],["0501702000","Balatan","City","0501700000"],["0501703000","Bato","City","0501700000"],["0501704000","Bombon","City","0501700000"],["0501705000","Buhi","City","0501700000"],["0501706000","Bula","City","0501700000"],["0501707000","Cabusao","City","0501700000"],["0501708000","Calabanga","City","0501700000"],["0501709000","Camaligan","City","0501700000"],["0501710000","Canaman","City","0501700000"],["0501711000","Caramoan","City","0501700000"],["0501712000","Del Gallego","City","0501700000"],["0501713000","Gainza","City","0501700000"],["0501714000","Garchitorena","City","0501700000"],["0501715000","Goa","City","0501700000"],["0501716000","Iriga City","City","0501700000"],["0501717000","Lagonoy","City","0501700000"],["0501718000","Libmanan","City","0501700000"],["0501719000","Lupi","City","0501700000"],["0501720000","Magarao","City","0501700000"],["0501721000","Milaor","City","0501700000"],["0501722000","Minalabac","City","0501700000"],["0501723000","Nabua","City","0501700000"],["0501724000","Naga City","City","0501700000"],["0501725000","Ocampo","City","0501700000"],["0501726000","Pamplona","City","0501700000"],["0501727000","Pasacao","City","0501700000"],["0501728000","Pili","City","0501700000"],["0501729000","Presentacion","City","0501700000"],["0501730000","Ragay","City","0501700000"],["0501731000","Sagñay","City","0501700000"],["0501732000","San Fernando","City","0501700000"],["0501733000","San Jose","City","0501700000"],["0501734000","Sipocot","City","0501700000"],["0501735000","Siruma","City","0501700000"],["0501736000","Tigaon","City","0501700000"],["0501737000","Tinambac","City","0501700000"],["0502001000","Bagamanoc","City","0502000000"],["0502002000","Baras","City","0502000000"],["0502003000","Bato","City","0502000000"],["0502004000","Caramoran","City","0502000000"],["0502005000","Gigmoto","City","0502000000"],["0502006000","Pandan","City","0502000000"],["0502007000","Panganiban","City","0502000000"],["0502008000","San Andres","City","0502000000"],["0502009000","San Miguel","City","0502000000"],["0502010000","Viga","City","0502000000"],["0502011000","Virac","City","0502000000"],["0504101000","Aroroy","City","0504100000"],["0504102000","Baleno","City","0504100000"],["0504103000","Balud","City","0504100000"],["0504104000","Batuan","City","0504100000"],["0504105000","Cataingan","City","0504100000"],["0504106000","Cawayan","City","0504100000"],["0504107000","Claveria","City","0504100000"],["0504108000","Dimasalang","City","0504100000"],["0504109000","Esperanza","City","0504100000"],["0504110000","Mandaon","City","0504100000"],["0504111000","Masbate City","City","0504100000"],["0504112000","Milagros","City","0504100000"],["0504113000","Mobo","City","0504100000"],["0504114000","Monreal","City","0504100000"],["0504115000","Palanas","City","0504100000"],["0504116000","Pio V. Corpus","City","0504100000"],["0504117000","Placer","City","0504100000"],["0504118000","San Fernando","City","0504100000"],["0504119000","San Jacinto","City","0504100000"],["0504120000","San Pascual","City","0504100000"],["0504121000","Uson","City","0504100000"],["0506202000","Barcelona","City","0506200000"],["0506203000","Bulan","City","0506200000"],["0506204000","Bulusan","City","0506200000"],["0506205000","Casiguran","City","0506200000"],["0506206000","Castilla","City","0506200000"],["0506207000","Donsol","City","0506200000"],["0506208000","Gubat","City","0506200000"],["0506209000","Irosin","City","0506200000"],["0506210000","Juban","City","0506200000"],["0506211000","Magallanes","City","0506200000"],["0506212000","Matnog","City","0506200000"],["0506213000","Pilar","City","0506200000"],["0506214000","Prieto Diaz","City","0506200000"],["0506215000","Santa Magdalena","City","0506200000"],["0506216000","Sorsogon City","City","0506200000"],["0600401000","Altavas","City","0600400000"],["0600402000","Balete","City","0600400000"],["0600403000","Banga","City","0600400000"],["0600404000","Batan","City","0600400000"],["0600405000","Buruanga","City","0600400000"],["0600406000","Ibajay","City","0600400000"],["0600407000","Kalibo","City","0600400000"],["0600408000","Lezo","City","0600400000"],["0600409000","Libacao","City","0600400000"],["0600410000","Madalag","City","0600400000"],["0600411000","Makato","City","0600400000"],["0600412000","Malay","City","0600400000"],["0600413000","Malinao","City","0600400000"],["0600414000","Nabas","City","0600400000"],["0600415000","New Washington","City","0600400000"],["0600416000","Numancia","City","0600400000"],["0600417000","Tangalan","City","0600400000"],["0600601000","Anini-Y","City","0600600000"],["0600602000","Barbaza","City","0600600000"],["0600603000","Belison","City","0600600000"],["0600604000","Bugasong","City","0600600000"],["0600605000","Caluya","City","0600600000"],["0600606000","Culasi","City","0600600000"],["0600607000","Tobias Fornier","City","0600600000"],["0600608000","Hamtic","City","0600600000"],["0600609000","Laua-An","City","0600600000"],["0600610000","Libertad","City","0600600000"],["0600611000","Pandan","City","0600600000"],["0600612000","Patnongon","City","0600600000"],["0600613000","San Jose","City","0600600000"],["0600614000","San Remigio","City","0600600000"],["0600615000","Sebaste","City","0600600000"],["0600616000","Sibalom","City","0600600000"],["0600617000","Tibiao","City","0600600000"],["0600618000","Valderrama","City","0600600000"],["0601901000","Cuartero","City","0601900000"],["0601902000","Dao","City","0601900000"],["0601903000","Dumalag","City","0601900000"],["0601904000","Dumarao","City","0601900000"],["0601905000","Ivisan","City","0601900000"],["0601906000","Jamindan","City","0601900000"],["0601907000","Ma-Ayon","City","0601900000"],["0601908000","Mambusao","City","0601900000"],["0601909000","Panay","City","0601900000"],["0601910000","Panitan","City","0601900000"],["0601911000","Pilar","City","0601900000"],["0601912000","Pontevedra","City","0601900000"],["0601913000","President Roxas","City","0601900000"],["0601914000","Roxas City","City","0601900000"],["0601915000","Sapi-An","City","0601900000"],["0601916000","Sigma","City","0601900000"],["0601917000","Tapaz","City","0601900000"],["0603001000","Ajuy","City","0603000000"],["0603002000","Alimodian","City","0603000000"],["0603003000","Anilao","City","0603000000"],["0603004000","Badiangan","City","0603000000"],["0603005000","Balasan","City","0603000000"],["0603006000","Banate","City","0603000000"],["0603007000","Barotac Nuevo","City","0603000000"],["0603008000","Barotac Viejo","City","0603000000"],["0603009000","Batad","City","0603000000"],["0603010000","Bingawan","City","0603000000"],["0603012000","Cabatuan","City","0603000000"],["0603013000","Calinog","City","0603000000"],["0603014000","Carles","City","0603000000"],["0603015000","Concepcion","City","0603000000"],["0603016000","Dingle","City","0603000000"],["0603017000","Dueñas","City","0603000000"],["0603018000","Dumangas","City","0603000000"],["0603019000","Estancia","City","0603000000"],["0603020000","Guimbal","City","0603000000"],["0603021000","Igbaras","City","0603000000"],["0603023000","Janiuay","City","0603000000"],["0603025000","Lambunao","City","0603000000"],["0603026000","Leganes","City","0603000000"],["0603027000","Lemery","City","0603000000"],["0603028000","Leon","City","0603000000"],["0603029000","Maasin","City","0603000000"],["0603030000","Miagao","City","0603000000"],["0603031000","Mina","City","0603000000"],["0603032000","New Lucena","City","0603000000"],["0603034000","Oton","City","0603000000"],["0603035000","Passi City","City","0603000000"],["0603036000","Pavia","City","0603000000"],["0603037000","Pototan","City","0603000000"],["0603038000","San Dionisio","City","0603000000"],["0603039000","San Enrique","City","0603000000"],["0603040000","San Joaquin","City","0603000000"],["0603041000","San Miguel","City","0603000000"],["0603042000","San Rafael","City","0603000000"],["0603043000","Santa Barbara","City","0603000000"],["0603044000","Sara","City","0603000000"],["0603045000","Tigbauan","City","0603000000"],["0603046000","Tubungan","City","0603000000"],["0603047000","Zarraga","City","0603000000"],["0607901000","Buenavista","City","0607900000"],["0607902000","Jordan","City","0607900000"],["0607903000","Nueva Valencia","City","0607900000"],["0607904000","San Lorenzo","City","0607900000"],["0607905000","Sibunag","City","0607900000"],["0631000000","Iloilo City","City","0607900000"],["0701201000","Alburquerque","City","0701200000"],["0701202000","Alicia","City","0701200000"],["0701203000","Anda","City","0701200000"],["0701204000","Antequera","City","0701200000"],["0701205000","Baclayon","City","0701200000"],["0701206000","Balilihan","City","0701200000"],["0701207000","Batuan","City","0701200000"],["0701208000","Bilar","City","0701200000"],["0701209000","Buenavista","City","0701200000"],["0701210000","Calape","City","0701200000"],["0701211000","Candijay","City","0701200000"],["0701212000","Carmen","City","0701200000"],["0701213000","Catigbian","City","0701200000"],["0701214000","Clarin","City","0701200000"],["0701215000","Corella","City","0701200000"],["0701216000","Cortes","City","0701200000"],["0701217000","Dagohoy","City","0701200000"],["0701218000","Danao","City","0701200000"],["0701219000","Dauis","City","0701200000"],["0701220000","Dimiao","City","0701200000"],["0701221000","Duero","City","0701200000"],["0701222000","Garcia Hernandez","City","0701200000"],["0701223000","Guindulman","City","0701200000"],["0701224000","Inabanga","City","0701200000"],["0701225000","Jagna","City","0701200000"],["0701226000","Getafe","City","0701200000"],["0701227000","Lila","City","0701200000"],["0701228000","Loay","City","0701200000"],["0701229000","Loboc","City","0701200000"],["0701230000","Loon","City","0701200000"],["0701231000","Mabini","City","0701200000"],["0701232000","Maribojoc","City","0701200000"],["0701233000","Panglao","City","0701200000"],["0701234000","Pilar","City","0701200000"],["0701235000","President Carlos P. Garcia","City","0701200000"],["0701236000","Sagbayan","City","0701200000"],["0701237000","San Isidro","City","0701200000"],["0701238000","San Miguel","City","0701200000"],["0701239000","Sevilla","City","0701200000"],["0701240000","Sierra Bullones","City","0701200000"],["0701241000","Sikatuna","City","0701200000"],["0701242000","Tagbilaran City","City","0701200000"],["0701243000","Talibon","City","0701200000"],["0701244000","Trinidad","City","0701200000"],["0701245000","Tubigon","City","0701200000"],["0701246000","Ubay","City","0701200000"],["0701247000","Valencia","City","0701200000"],["0701248000","Bien Unido","City","0701200000"],["0702201000","Alcantara","City","0702200000"],["0702202000","Alcoy","City","0702200000"],["0702203000","Alegria","City","0702200000"],["0702204000","Aloguinsan","City","0702200000"],["0702205000","Argao","City","0702200000"],["0702206000","Asturias","City","0702200000"],["0702207000","Badian","City","0702200000"],["0702208000","Balamban","City","0702200000"],["0702209000","Bantayan","City","0702200000"],["0702210000","Barili","City","0702200000"],["0702211000","Bogo City","City","0702200000"],["0702212000","Boljoon","City","0702200000"],["0702213000","Borbon","City","0702200000"],["0702214000","Carcar City","City","0702200000"],["0702215000","Carmen","City","0702200000"],["0702216000","Catmon","City","0702200000"],["0702218000","Compostela","City","0702200000"],["0702219000","Consolacion","City","0702200000"],["0702220000","Cordova","City","0702200000"],["0702221000","Daanbantayan","City","0702200000"],["0702222000","Dalaguete","City","0702200000"],["0702223000","Danao City","City","0702200000"],["0702224000","Dumanjug","City","0702200000"],["0702225000","Ginatilan","City","0702200000"],["0702227000","Liloan","City","0702200000"],["0702228000","Madridejos","City","0702200000"],["0702229000","Malabuyoc","City","0702200000"],["0702231000","Medellin","City","0702200000"],["0702232000","Minglanilla","City","0702200000"],["0702233000","Moalboal","City","0702200000"],["0702234000","Naga City","City","0702200000"],["0702235000","Oslob","City","0702200000"],["0702236000","Pilar","City","0702200000"],["0702237000","Pinamungajan","City","0702200000"],["0702238000","Poro","City","0702200000"],["0702239000","Ronda","City","0702200000"],["0702240000","Samboan","City","0702200000"],["0702241000","San Fernando","City","0702200000"],["0702242000","San Francisco","City","0702200000"],["0702243000","San Remigio","City","0702200000"],["0702244000","Santa Fe","City","0702200000"],["0702245000","Santander","City","0702200000"],["0702246000","Sibonga","City","0702200000"],["0702247000","Sogod","City","0702200000"],["0702248000","Tabogon","City","0702200000"],["0702249000","Tabuelan","City","0702200000"],["0702250000","Talisay City","City","0702200000"],["0702251000","Toledo City","City","0702200000"],["0702252000","Tuburan","City","0702200000"],["0702253000","Tudela","City","0702200000"],["0730600000","Cebu City","City","0702200000"],["0731100000","Lapu-Lapu City","City","0702200000"],["0731300000","Mandaue City","City","0702200000"],["0802601000","Arteche","City","0802600000"],["0802602000","Balangiga","City","0802600000"],["0802603000","Balangkayan","City","0802600000"],["0802604000","Borongan City","City","0802600000"],["0802605000","Can-Avid","City","0802600000"],["0802606000","Dolores","City","0802600000"],["0802607000","General Macarthur","City","0802600000"],["0802608000","Giporlos","City","0802600000"],["0802609000","Guiuan","City","0802600000"],["0802610000","Hernani","City","0802600000"],["0802611000","Jipapad","City","0802600000"],["0802612000","Lawaan","City","0802600000"],["0802613000","Llorente","City","0802600000"],["0802614000","Maslog","City","0802600000"],["0802615000","Maydolong","City","0802600000"],["0802616000","Mercedes","City","0802600000"],["0802617000","Oras","City","0802600000"],["0802618000","Quinapondan","City","0802600000"],["0802619000","Salcedo","City","0802600000"],["0802620000","San Julian","City","0802600000"],["0802621000","San Policarpo","City","0802600000"],["0802622000","Sulat","City","0802600000"],["0802623000","Taft","City","0802600000"],["0803701000","Abuyog","City","0803700000"],["0803702000","Alangalang","City","0803700000"],["0803703000","Albuera","City","0803700000"],["0803705000","Babatngon","City","0803700000"],["0803706000","Barugo","City","0803700000"],["0803707000","Bato","City","0803700000"],["0803708000","Baybay City","City","0803700000"],["0803710000","Burauen","City","0803700000"],["0803713000","Calubian","City","0803700000"],["0803714000","Capoocan","City","0803700000"],["0803715000","Carigara","City","0803700000"],["0803717000","Dagami","City","0803700000"],["0803718000","Dulag","City","0803700000"],["0803719000","Hilongos","City","0803700000"],["0803720000","Hindang","City","0803700000"],["0803721000","Inopacan","City","0803700000"],["0803722000","Isabel","City","0803700000"],["0803723000","Jaro","City","0803700000"],["0803724000","Javier","City","0803700000"],["0803725000","Julita","City","0803700000"],["0803726000","Kananga","City","0803700000"],["0803728000","La Paz","City","0803700000"],["0803729000","Leyte","City","0803700000"],["0803730000","Macarthur","City","0803700000"],["0803731000","Mahaplag","City","0803700000"],["0803733000","Matag-Ob","City","0803700000"],["0803734000","Matalom","City","0803700000"],["0803735000","Mayorga","City","0803700000"],["0803736000","Merida","City","0803700000"],["0803738000","Ormoc City","City","0803700000"],["0803739000","Palo","City","0803700000"],["0803740000","Palompon","City","0803700000"],["0803741000","Pastrana","City","0803700000"],["0803742000","San Isidro","City","0803700000"],["0803743000","San Miguel","City","0803700000"],["0803744000","Santa Fe","City","0803700000"],["0803745000","Tabango","City","0803700000"],["0803746000","Tabontabon","City","0803700000"],["0803748000","Tanauan","City","0803700000"],["0803749000","Tolosa","City","0803700000"],["0803750000","Tunga","City","0803700000"],["0803751000","Villaba","City","0803700000"],["0804801000","Allen","City","0804800000"],["0804802000","Biri","City","0804800000"],["0804803000","Bobon","City","0804800000"],["0804804000","Capul","City","0804800000"],["0804805000","Catarman","City","0804800000"],["0804806000","Catubig","City","0804800000"],["0804807000","Gamay","City","0804800000"],["0804808000","Laoang","City","0804800000"],["0804809000","Lapinig","City","0804800000"],["0804810000","Las Navas","City","0804800000"],["0804811000","Lavezares","City","0804800000"],["0804812000","Mapanas","City","0804800000"],["0804813000","Mondragon","City","0804800000"],["0804814000","Palapag","City","0804800000"],["0804815000","Pambujan","City","0804800000"],["0804816000","Rosario","City","0804800000"],["0804817000","San Antonio","City","0804800000"],["0804818000","San Isidro","City","0804800000"],["0804819000","San Jose","City","0804800000"],["0804820000","San Roque","City","0804800000"],["0804821000","San Vicente","City","0804800000"],["0804822000","Silvino Lobos","City","0804800000"],["0804823000","Victoria","City","0804800000"],["0804824000","Lope De Vega","City","0804800000"],["0806001000","Almagro","City","0806000000"],["0806002000","Basey","City","0806000000"],["0806003000","Calbayog City","City","0806000000"],["0806004000","Calbiga","City","0806000000"],["0806005000","Catbalogan City","City","0806000000"],["0806006000","Daram","City","0806000000"],["0806007000","Gandara","City","0806000000"],["0806008000","Hinabangan","City","0806000000"],["0806009000","Jiabong","City","0806000000"],["0806010000","Marabut","City","0806000000"],["0806011000","Matuguinao","City","0806000000"],["0806012000","Motiong","City","0806000000"],["0806013000","Pinabacdao","City","0806000000"],["0806014000","San Jose De Buan","City","0806000000"],["0806015000","San Sebastian","City","0806000000"],["0806016000","Santa Margarita","City","0806000000"],["0806017000","Santa Rita","City","0806000000"],["0806018000","Santo Niño","City","0806000000"],["0806019000","Talalora","City","0806000000"],["0806020000","Tarangnan","City","0806000000"],["0806021000","Villareal","City","0806000000"],["0806022000","Paranas","City","0806000000"],["0806023000","Zumarraga","City","0806000000"],["0806024000","Tagapul-An","City","0806000000"],["0806025000","San Jorge","City","0806000000"],["0806026000","Pagsanghan","City","0806000000"],["0806401000","Anahawan","City","0806400000"],["0806402000","Bontoc","City","0806400000"],["0806403000","Hinunangan","City","0806400000"],["0806404000","Hinundayan","City","0806400000"],["0806405000","Libagon","City","0806400000"],["0806406000","Liloan","City","0806400000"],["0806407000","Maasin City","City","0806400000"],["0806408000","Macrohon","City","0806400000"],["0806409000","Malitbog","City","0806400000"],["0806410000","Padre Burgos","City","0806400000"],["0806411000","Pintuyan","City","0806400000"],["0806412000","Saint Bernard","City","0806400000"],["0806413000","San Francisco","City","0806400000"],["0806414000","San Juan","City","0806400000"],["0806415000","San Ricardo","City","0806400000"],["0806416000","Silago","City","0806400000"],["0806417000","Sogod","City","0806400000"],["0806418000","Tomas Oppus","City","0806400000"],["0806419000","Limasawa","City","0806400000"],["0807801000","Almeria","City","0807800000"],["0807802000","Biliran","City","0807800000"],["0807803000","Cabucgayan","City","0807800000"],["0807804000","Caibiran","City","0807800000"],["0807805000","Culaba","City","0807800000"],["0807806000","Kawayan","City","0807800000"],["0807807000","Maripipi","City","0807800000"],["0807808000","Naval","City","0807800000"],["0831600000","Tacloban City","City","0807800000"],["0907201000","Dapitan City","City","0907200000"],["0907202000","Dipolog City","City","0907200000"],["0907203000","Katipunan","City","0907200000"],["0907204000","La Libertad","City","0907200000"],["0907205000","Labason","City","0907200000"],["0907206000","Liloy","City","0907200000"],["0907207000","Manukan","City","0907200000"],["0907208000","Mutia","City","0907200000"],["0907209000","Piñan","City","0907200000"],["0907210000","Polanco","City","0907200000"],["0907211000","Pres. Manuel A. Roxas","City","0907200000"],["0907212000","Rizal","City","0907200000"],["0907213000","Salug","City","0907200000"],["0907214000","Sergio Osmeña Sr.","City","0907200000"],["0907215000","Siayan","City","0907200000"],["0907216000","Sibuco","City","0907200000"],["0907217000","Sibutad","City","0907200000"],["0907218000","Sindangan","City","0907200000"],["0907219000","Siocon","City","0907200000"],["0907220000","Sirawai","City","0907200000"],["0907221000","Tampilisan","City","0907200000"],["0907222000","Jose Dalman","City","0907200000"],["0907223000","Gutalac","City","0907200000"],["0907224000","Baliguian","City","0907200000"],["0907225000","Godod","City","0907200000"],["0907226000","Leon T. Postigo","City","0907200000"],["0907227000","Kalawit","City","0907200000"],["0907302000","Aurora","City","0907300000"],["0907303000","Bayog","City","0907300000"],["0907305000","Dimataling","City","0907300000"],["0907306000","Dinas","City","0907300000"],["0907307000","Dumalinao","City","0907300000"],["0907308000","Dumingag","City","0907300000"],["0907311000","Kumalarang","City","0907300000"],["0907312000","Labangan","City","0907300000"],["0907313000","Lapuyan","City","0907300000"],["0907315000","Mahayag","City","0907300000"],["0907317000","Margosatubig","City","0907300000"],["0907318000","Midsalip","City","0907300000"],["0907319000","Molave","City","0907300000"],["0907322000","Pagadian City","City","0907300000"],["0907323000","Ramon Magsaysay","City","0907300000"],["0907324000","San Miguel","City","0907300000"],["0907325000","San Pablo","City","0907300000"],["0907327000","Tabina","City","0907300000"],["0907328000","Tambulig","City","0907300000"],["0907330000","Tukuran","City","0907300000"],["0907333000","Lakewood","City","0907300000"],["0907337000","Josefina","City","0907300000"],["0907338000","Pitogo","City","0907300000"],["0907340000","Sominot","City","0907300000"],["0907341000","Vincenzo A. Sagun","City","0907300000"],["0907343000","Guipos","City","0907300000"],["0907344000","Tigbao","City","0907300000"],["0908301000","Alicia","City","0908300000"],["0908302000","Buug","City","0908300000"],["0908303000","Diplahan","City","0908300000"],["0908304000","Imelda","City","0908300000"],["0908305000","Ipil","City","0908300000"],["0908306000","Kabasalan","City","0908300000"],["0908307000","Mabuhay","City","0908300000"],["0908308000","Malangas","City","0908300000"],["0908309000","Naga","City","0908300000"],["0908310000","Olutanga","City","0908300000"],["0908311000","Payao","City","0908300000"],["0908312000","Roseller Lim","City","0908300000"],["0908313000","Siay","City","0908300000"],["0908314000","Talusan","City","0908300000"],["0908315000","Titay","City","0908300000"],["0908316000","Tungawan","City","0908300000"],["0931700000","Zamboanga City","City","0908300000"],["0990101000","Isabela City","City","0908300000"],["1001301000","Baungon","City","1001300000"],["1001302000","Damulog","City","1001300000"],["1001303000","Dangcagan","City","1001300000"],["1001304000","Don Carlos","City","1001300000"],["1001305000","Impasug-ong","City","1001300000"],["1001306000","Kadingilan","City","1001300000"],["1001307000","Kalilangan","City","1001300000"],["1001308000","Kibawe","City","1001300000"],["1001309000","Kitaotao","City","1001300000"],["1001310000","Lantapan","City","1001300000"],["1001311000","Libona","City","1001300000"],["1001312000","City of Malaybalay","City","1001300000"],["1001313000","Malitbog","City","1001300000"],["1001314000","Manolo Fortich","City","1001300000"],["1001315000","Maramag","City","1001300000"],["1001316000","Pangantucan","City","1001300000"],["1001317000","Quezon","City","1001300000"],["1001318000","San Fernando","City","1001300000"],["1001319000","Sumilao","City","1001300000"],["1001320000","Talakag","City","1001300000"],["1001321000","City of Valencia","City","1001300000"],["1001322000","Cabanglasan","City","1001300000"],["1001801000","Catarman","City","1001800000"],["1001802000","Guinsiliban","City","1001800000"],["1001803000","Mahinog","City","1001800000"],["1001804000","Mambajao","City","1001800000"],["1001805000","Sagay","City","1001800000"],["1003501000","Bacolod","City","1003500000"],["1003502000","Baloi","City","1003500000"],["1003503000","Baroy","City","1003500000"],["1003505000","Kapatagan","City","1003500000"],["1003506000","Sultan Naga Dimaporo","City","1003500000"],["1003507000","Kauswagan","City","1003500000"],["1003508000","Kolambugan","City","1003500000"],["1003509000","Lala","City","1003500000"],["1003510000","Linamon","City","1003500000"],["1003511000","Magsaysay","City","1003500000"],["1003512000","Maigo","City","1003500000"],["1003513000","Matungao","City","1003500000"],["1003514000","Munai","City","1003500000"],["1003515000","Nunungan","City","1003500000"],["1003516000","Pantao Ragat","City","1003500000"],["1003517000","Poona Piagapo","City","1003500000"],["1003518000","Salvador","City","1003500000"],["1003519000","Sapad","City","1003500000"],["1003520000","Tagoloan","City","1003500000"],["1003521000","Tangcal","City","1003500000"],["1003522000","Tubod","City","1003500000"],["1003523000","Pantar","City","1003500000"],["1004201000","Aloran","City","1004200000"],["1004202000","Baliangao","City","1004200000"],["1004203000","Bonifacio","City","1004200000"],["1004204000","Calamba","City","1004200000"],["1004205000","Clarin","City","1004200000"],["1004206000","Concepcion","City","1004200000"],["1004207000","Jimenez","City","1004200000"],["1004208000","Lopez Jaena","City","1004200000"],["1004209000","City of Oroquieta","City","1004200000"],["1004210000","City of Ozamiz","City","1004200000"],["1004211000","Panaon","City","1004200000"],["1004212000","Plaridel","City","1004200000"],["1004213000","Sapang Dalaga","City","1004200000"],["1004214000","Sinacaban","City","1004200000"],["1004215000","City of Tangub","City","1004200000"],["1004216000","Tudela","City","1004200000"],["1004217000","Don Victoriano Chiongbian","City","1004200000"],["1004301000","Alubijid","City","1004300000"],["1004302000","Balingasag","City","1004300000"],["1004303000","Balingoan","City","1004300000"],["1004304000","Binuangan","City","1004300000"],["1004306000","Claveria","City","1004300000"],["1004307000","City of El Salvador","City","1004300000"],["1004308000","City of Gingoog","City","1004300000"],["1004309000","Gitagum","City","1004300000"],["1004310000","Initao","City","1004300000"],["1004311000","Jasaan","City","1004300000"],["1004312000","Kinoguitan","City","1004300000"],["1004313000","Lagonglong","City","1004300000"],["1004314000","Laguindingan","City","1004300000"],["1004315000","Libertad","City","1004300000"],["1004316000","Lugait","City","1004300000"],["1004317000","Magsaysay","City","1004300000"],["1004318000","Manticao","City","1004300000"],["1004319000","Medina","City","1004300000"],["1004320000","Naawan","City","1004300000"],["1004321000","Opol","City","1004300000"],["1004322000","Salay","City","1004300000"],["1004323000","Sugbongcogon","City","1004300000"],["1004324000","Tagoloan","City","1004300000"],["1004325000","Talisayan","City","1004300000"],["1004326000","Villanueva","City","1004300000"],["1030500000","City of Cagayan De Oro","City","1004300000"],["1030900000","City of Iligan","City","1004300000"],["1102301000","Asuncion","City","1102300000"],["1102303000","Carmen","City","1102300000"],["1102305000","Kapalong","City","1102300000"],["1102314000","New Corella","City","1102300000"],["1102315000","Panabo City","City","1102300000"],["1102317000","Island Garden City of Samal","City","1102300000"],["1102318000","Santo Tomas","City","1102300000"],["1102319000","Tagum City","City","1102300000"],["1102322000","Talaingod","City","1102300000"],["1102323000","Braulio E. Dujali","City","1102300000"],["1102324000","San Isidro","City","1102300000"],["1102401000","Bansalan","City","1102400000"],["1102403000","Digos City","City","1102400000"],["1102404000","Hagonoy","City","1102400000"],["1102406000","Kiblawan","City","1102400000"],["1102407000","Magsaysay","City","1102400000"],["1102408000","Malalag","City","1102400000"],["1102410000","Matanao","City","1102400000"],["1102411000","Padada","City","1102400000"],["1102412000","Santa Cruz","City","1102400000"],["1102414000","Sulop","City","1102400000"],["1102501000","Baganga","City","1102500000"],["1102502000","Banaybanay","City","1102500000"],["1102503000","Boston","City","1102500000"],["1102504000","Caraga","City","1102500000"],["1102505000","Cateel","City","1102500000"],["1102506000","Governor Generoso","City","1102500000"],["1102507000","Lupon","City","1102500000"],["1102508000","Manay","City","1102500000"],["1102509000","Mati City","City","1102500000"],["1102510000","San Isidro","City","1102500000"],["1102511000","Tarragona","City","1102500000"],["1108201000","Compostela","City","1108200000"],["1108202000","Laak","City","1108200000"],["1108203000","Mabini","City","1108200000"],["1108204000","Maco","City","1108200000"],["1108205000","Maragusan","City","1108200000"],["1108206000","Mawab","City","1108200000"],["1108207000","Monkayo","City","1108200000"],["1108208000","Montevista","City","1108200000"],["1108209000","Nabunturan","City","1108200000"],["1108210000","New Bataan","City","1108200000"],["1108211000","Pantukan","City","1108200000"],["1108601000","Don Marcelino","City","1108600000"],["1108602000","Jose Abad Santos","City","1108600000"],["1108603000","Malita","City","1108600000"],["1108604000","Santa Maria","City","1108600000"],["1108605000","Sarangani","City","1108600000"],["1130700000","Davao City","City","1108600000"],["1204701000","Alamada","City","1204700000"],["1204702000","Carmen","City","1204700000"],["1204703000","Kabacan","City","1204700000"],["1204704000","Kidapawan City","City","1204700000"],["1204705000","Libungan","City","1204700000"],["1204706000","Magpet","City","1204700000"],["1204707000","Makilala","City","1204700000"],["1204708000","Matalam","City","1204700000"],["1204709000","Midsayap","City","1204700000"],["1204710000","M'Lang","City","1204700000"],["1204711000","Pigkawayan","City","1204700000"],["1204712000","Pikit","City","1204700000"],["1204713000","President Roxas","City","1204700000"],["1204714000","Tulunan","City","1204700000"],["1204715000","Antipas","City","1204700000"],["1204716000","Banisilan","City","1204700000"],["1204717000","Aleosan","City","1204700000"],["1204718000","Arakan","City","1204700000"],["1206302000","Banga","City","1206300000"],["1206306000","Koronadal City","City","1206300000"],["1206311000","Norala","City","1206300000"],["1206312000","Polomolok","City","1206300000"],["1206313000","Surallah","City","1206300000"],["1206314000","Tampakan","City","1206300000"],["1206315000","Tantangan","City","1206300000"],["1206316000","T'Boli","City","1206300000"],["1206317000","Tupi","City","1206300000"],["1206318000","Santo Niño","City","1206300000"],["1206319000","Lake Sebu","City","1206300000"],["1206501000","Bagumbayan","City","1206500000"],["1206502000","Columbio","City","1206500000"],["1206503000","Esperanza","City","1206500000"],["1206504000","Isulan","City","1206500000"],["1206505000","Kalamansig","City","1206500000"],["1206506000","Lebak","City","1206500000"],["1206507000","Lutayan","City","1206500000"],["1206508000","Lambayong","City","1206500000"],["1206509000","Palimbang","City","1206500000"],["1206510000","President Quirino","City","1206500000"],["1206511000","Tacurong City","City","1206500000"],["1206512000","Sen. Ninoy Aquino","City","1206500000"],["1208001000","Alabel","City","1208000000"],["1208002000","Glan","City","1208000000"],["1208003000","Kiamba","City","1208000000"],["1208004000","Maasim","City","1208000000"],["1208005000","Maitum","City","1208000000"],["1208006000","Malapatan","City","1208000000"],["1208007000","Malungon","City","1208000000"],["1230800000","General Santos City","City","1208000000"],["1380100000C","Caloocan City","City","1380100000"],["1380200000C","Las Piñas City","City","1380200000"],["1380300000C","Makati City","City","1380300000"],["1380400000C","Malabon City","City","1380400000"],["1380500000C","Mandaluyong City","City","1380500000"],["1380601000","Tondo I/II","City","1380600000"],["1380602000","Binondo","City","1380600000"],["1380603000","Quiapo","City","1380600000"],["1380604000","San Nicolas","City","1380600000"],["1380605000","Santa Cruz","City","1380600000"],["1380606000","Sampaloc","City","1380600000"],["1380607000","San Miguel","City","1380600000"],["1380608000","Ermita","City","1380600000"],["1380609000","Intramuros","City","1380600000"],["1380610000","Malate","City","1380600000"],["1380611000","Paco","City","1380600000"],["1380612000","Pandacan","City","1380600000"],["1380613000","Port Area","City","1380600000"],["1380614000","Santa Ana","City","1380600000"],["1380700000C","Marikina City","City","1380700000"],["1380800000C","Muntinlupa City","City","1380800000"],["1380900000C","Navotas City","City","1380900000"],["1381000000C","Parañaque City","City","1381000000"],["1381100000C","Pasay City","City","1381100000"],["1381200000C","Pasig City","City","1381200000"],["1381300000C","Quezon City","City","1381300000"],["1381400000C","San Juan City","City","1381400000"],["1381500000C","Taguig City","City","1381500000"],["1381600000C","Valenzuela City","City","1381600000"],["1381701000C","Pateros","City","1381701000"],["1400101000","Bangued","City","1400100000"],["1400102000","Boliney","City","1400100000"],["1400103000","Bucay","City","1400100000"],["1400104000","Bucloc","City","1400100000"],["1400105000","Daguioman","City","1400100000"],["1400106000","Danglas","City","1400100000"],["1400107000","Dolores","City","1400100000"],["1400108000","La Paz","City","1400100000"],["1400109000","Lacub","City","1400100000"],["1400110000","Lagangilang","City","1400100000"],["1400111000","Lagayan","City","1400100000"],["1400112000","Langiden","City","1400100000"],["1400113000","Licuan-Baay","City","1400100000"],["1400114000","Luba","City","1400100000"],["1400115000","Malibcong","City","1400100000"],["1400116000","Manabo","City","1400100000"],["1400117000","Peñarrubia","City","1400100000"],["1400118000","Pidigan","City","1400100000"],["1400119000","Pilar","City","1400100000"],["1400120000","Sallapadan","City","1400100000"],["1400121000","San Isidro","City","1400100000"],["1400122000","San Juan","City","1400100000"],["1400123000","San Quintin","City","1400100000"],["1400124000","Tayum","City","1400100000"],["1400125000","Tineg","City","1400100000"],["1400126000","Tubo","City","1400100000"],["1400127000","Villaviciosa","City","1400100000"],["1401101000","Atok","City","1401100000"],["1401103000","Bakun","City","1401100000"],["1401104000","Bokod","City","1401100000"],["1401105000","Buguias","City","1401100000"],["1401106000","Itogon","City","1401100000"],["1401107000","Kabayan","City","1401100000"],["1401108000","Kapangan","City","1401100000"],["1401109000","Kibungan","City","1401100000"],["1401110000","La Trinidad","City","1401100000"],["1401111000","Mankayan","City","1401100000"],["1401112000","Sablan","City","1401100000"],["1401113000","Tuba","City","1401100000"],["1401114000","Tublay","City","1401100000"],["1402701000","Banaue","City","1402700000"],["1402702000","Hungduan","City","1402700000"],["1402703000","Kiangan","City","1402700000"],["1402704000","Lagawe","City","1402700000"],["1402705000","Lamut","City","1402700000"],["1402706000","Mayoyao","City","1402700000"],["1402707000","Alfonso Lista","City","1402700000"],["1402708000","Aguinaldo","City","1402700000"],["1402709000","Hingyon","City","1402700000"],["1402710000","Tinoc","City","1402700000"],["1402711000","Asipulo","City","1402700000"],["1403201000","Balbalan","City","1403200000"],["1403206000","Lubuagan","City","1403200000"],["1403208000","Pasil","City","1403200000"],["1403209000","Pinukpuk","City","1403200000"],["1403211000","Rizal","City","1403200000"],["1403213000","Tabuk City","City","1403200000"],["1403214000","Tanudan","City","1403200000"],["1403215000","Tinglayan","City","1403200000"],["1404401000","Barlig","City","1404400000"],["1404402000","Bauko","City","1404400000"],["1404403000","Besao","City","1404400000"],["1404404000","Bontoc","City","1404400000"],["1404405000","Natonin","City","1404400000"],["1404406000","Paracelis","City","1404400000"],["1404407000","Sabangan","City","1404400000"],["1404408000","Sadanga","City","1404400000"],["1404409000","Sagada","City","1404400000"],["1404410000","Tadian","City","1404400000"],["1408101000","Calanasan","City","1408100000"],["1408102000","Conner","City","1408100000"],["1408103000","Flora","City","1408100000"],["1408104000","Kabugao","City","1408100000"],["1408105000","Luna","City","1408100000"],["1408106000","Pudtol","City","1408100000"],["1408107000","Santa Marcela","City","1408100000"],["1430300000","Baguio City","City","1408100000"],["1600201000","Buenavista","City","1600200000"],["1600203000","Cabadbaran City","City","1600200000"],["1600204000","Carmen","City","1600200000"],["1600205000","Jabonga","City","1600200000"],["1600206000","Kitcharao","City","1600200000"],["1600207000","Las Nieves","City","1600200000"],["1600208000","Magallanes","City","1600200000"],["1600209000","Nasipit","City","1600200000"],["1600210000","Santiago","City","1600200000"],["1600211000","Tubay","City","1600200000"],["1600212000","Remedios T. Romualdez","City","1600200000"],["1600301000","Bayugan City","City","1600300000"],["1600302000","Bunawan","City","1600300000"],["1600303000","Esperanza","City","1600300000"],["1600304000","La Paz","City","1600300000"],["1600305000","Loreto","City","1600300000"],["1600306000","Prosperidad","City","1600300000"],["1600307000","Rosario","City","1600300000"],["1600308000","San Francisco","City","1600300000"],["1600309000","San Luis","City","1600300000"],["1600310000","Santa Josefa","City","1600300000"],["1600311000","Talacogon","City","1600300000"],["1600312000","Trento","City","1600300000"],["1600313000","Veruela","City","1600300000"],["1600314000","Sibagat","City","1600300000"],["1606701000","Alegria","City","1606700000"],["1606702000","Bacuag","City","1606700000"],["1606704000","Burgos","City","1606700000"],["1606706000","Claver","City","1606700000"],["1606707000","Dapa","City","1606700000"],["1606708000","Del Carmen","City","1606700000"],["1606710000","General Luna","City","1606700000"],["1606711000","Gigaquit","City","1606700000"],["1606714000","Mainit","City","1606700000"],["1606715000","Malimono","City","1606700000"],["1606716000","Pilar","City","1606700000"],["1606717000","Placer","City","1606700000"],["1606718000","San Benito","City","1606700000"],["1606719000","San Francisco","City","1606700000"],["1606720000","San Isidro","City","1606700000"],["1606721000","Santa Monica","City","1606700000"],["1606722000","Sison","City","1606700000"],["1606723000","Socorro","City","1606700000"],["1606724000","Surigao  City","City","1606700000"],["1606725000","Tagana-An","City","1606700000"],["1606727000","Tubod","City","1606700000"],["1606801000","Barobo","City","1606800000"],["1606802000","Bayabas","City","1606800000"],["1606803000","Bislig City","City","1606800000"],["1606804000","Cagwait","City","1606800000"],["1606805000","Cantilan","City","1606800000"],["1606806000","Carmen","City","1606800000"],["1606807000","Carrascal","City","1606800000"],["1606808000","Cortes","City","1606800000"],["1606809000","Hinatuan","City","1606800000"],["1606810000","Lanuza","City","1606800000"],["1606811000","Lianga","City","1606800000"],["1606812000","Lingig","City","1606800000"],["1606813000","Madrid","City","1606800000"],["1606814000","Marihatag","City","1606800000"],["1606815000","San Agustin","City","1606800000"],["1606816000","San Miguel","City","1606800000"],["1606817000","Tagbina","City","1606800000"],["1606818000","Tago","City","1606800000"],["1606819000","Tandag City","City","1606800000"],["1608501000","Basilisa","City","1608500000"],["1608502000","Cagdianao","City","1608500000"],["1608503000","Dinagat","City","1608500000"],["1608504000","Libjo","City","1608500000"],["1608505000","Loreto","City","1608500000"],["1608506000","San Jose","City","1608500000"],["1608507000","Tubajon","City","1608500000"],["1630400000","Butuan City","City","1608500000"],["1704001000","Boac","City","1704000000"],["1704002000","Buenavista","City","1704000000"],["1704003000","Gasan","City","1704000000"],["1704004000","Mogpog","City","1704000000"],["1704005000","Santa Cruz","City","1704000000"],["1704006000","Torrijos","City","1704000000"],["1705101000","Abra De Ilog","City","1705100000"],["1705102000","Calintaan","City","1705100000"],["1705103000","Looc","City","1705100000"],["1705104000","Lubang","City","1705100000"],["1705105000","Magsaysay","City","1705100000"],["1705106000","Mamburao","City","1705100000"],["1705107000","Paluan","City","1705100000"],["1705108000","Rizal","City","1705100000"],["1705109000","Sablayan","City","1705100000"],["1705110000","San Jose","City","1705100000"],["1705111000","Santa Cruz","City","1705100000"],["1705201000","Baco","City","1705200000"],["1705202000","Bansud","City","1705200000"],["1705203000","Bongabong","City","1705200000"],["1705204000","Bulalacao","City","1705200000"],["1705205000","Calapan City","City","1705200000"],["1705206000","Gloria","City","1705200000"],["1705207000","Mansalay","City","1705200000"],["1705208000","Naujan","City","1705200000"],["1705209000","Pinamalayan","City","1705200000"],["1705210000","Pola","City","1705200000"],["1705211000","Puerto Galera","City","1705200000"],["1705212000","Roxas","City","1705200000"],["1705213000","San Teodoro","City","1705200000"],["1705214000","Socorro","City","1705200000"],["1705215000","Victoria","City","1705200000"],["1705301000","Aborlan","City","1705300000"],["1705302000","Agutaya","City","1705300000"],["1705303000","Araceli","City","1705300000"],["1705304000","Balabac","City","1705300000"],["1705305000","Bataraza","City","1705300000"],["1705306000","Brooke's Point","City","1705300000"],["1705307000","Busuanga","City","1705300000"],["1705308000","Cagayancillo","City","1705300000"],["1705309000","Coron","City","1705300000"],["1705310000","Cuyo","City","1705300000"],["1705311000","Dumaran","City","1705300000"],["1705312000","El Nido","City","1705300000"],["1705313000","Linapacan","City","1705300000"],["1705314000","Magsaysay","City","1705300000"],["1705315000","Narra","City","1705300000"],["1705317000","Quezon","City","1705300000"],["1705318000","Roxas","City","1705300000"],["1705319000","San Vicente","City","1705300000"],["1705320000","Taytay","City","1705300000"],["1705321000","Kalayaan","City","1705300000"],["1705322000","Culion","City","1705300000"],["1705323000","Dr. Jose P. Rizal","City","1705300000"],["1705324000","Sofronio Española","City","1705300000"],["1705901000","Alcantara","City","1705900000"],["1705902000","Banton","City","1705900000"],["1705903000","Cajidiocan","City","1705900000"],["1705904000","Calatrava","City","1705900000"],["1705905000","Concepcion","City","1705900000"],["1705906000","Corcuera","City","1705900000"],["1705907000","Looc","City","1705900000"],["1705908000","Magdiwang","City","1705900000"],["1705909000","Odiongan","City","1705900000"],["1705910000","Romblon","City","1705900000"],["1705911000","San Agustin","City","1705900000"],["1705912000","San Andres","City","1705900000"],["1705913000","San Fernando","City","1705900000"],["1705914000","San Jose","City","1705900000"],["1705915000","Santa Fe","City","1705900000"],["1705916000","Ferrol","City","1705900000"],["1705917000","Santa Maria","City","1705900000"],["1731500000","Puerto Princesa City","City","1705900000"],["1804502000","Bago City","City","1804500000"],["1804503000","Binalbagan","City","1804500000"],["1804504000","Cadiz City","City","1804500000"],["1804505000","Calatrava","City","1804500000"],["1804506000","Candoni","City","1804500000"],["1804507000","Cauayan","City","1804500000"],["1804508000","Enrique B. Magalona","City","1804500000"],["1804509000","Escalante City","City","1804500000"],["1804510000","Himamaylan City","City","1804500000"],["1804511000","Hinigaran","City","1804500000"],["1804512000","Hinoba-an","City","1804500000"],["1804513000","Ilog","City","1804500000"],["1804514000","Isabela","City","1804500000"],["1804515000","Kabankalan City","City","1804500000"],["1804516000","La Carlota City","City","1804500000"],["1804517000","La Castellana","City","1804500000"],["1804518000","Manapla","City","1804500000"],["1804519000","Moises Padilla","City","1804500000"],["1804520000","Murcia","City","1804500000"],["1804521000","Pontevedra","City","1804500000"],["1804522000","Pulupandan","City","1804500000"],["1804523000","Sagay City","City","1804500000"],["1804524000","San Carlos City","City","1804500000"],["1804525000","San Enrique","City","1804500000"],["1804526000","Silay City","City","1804500000"],["1804527000","Sipalay City","City","1804500000"],["1804528000","Talisay City","City","1804500000"],["1804529000","Toboso","City","1804500000"],["1804530000","Valladolid","City","1804500000"],["1804531000","Victorias City","City","1804500000"],["1804532000","Salvador Benedicto","City","1804500000"],["1804601000","Amlan","City","1804600000"],["1804602000","Ayungon","City","1804600000"],["1804603000","Bacong","City","1804600000"],["1804604000","Bais City","City","1804600000"],["1804605000","Basay","City","1804600000"],["1804606000","Bayawan City","City","1804600000"],["1804607000","Bindoy","City","1804600000"],["1804608000","Canlaon City","City","1804600000"],["1804609000","Dauin","City","1804600000"],["1804610000","Dumaguete City","City","1804600000"],["1804611000","Guihulngan City","City","1804600000"],["1804612000","Jimalalud","City","1804600000"],["1804613000","La Libertad","City","1804600000"],["1804614000","Mabinay","City","1804600000"],["1804615000","Manjuyod","City","1804600000"],["1804616000","Pamplona","City","1804600000"],["1804617000","San Jose","City","1804600000"],["1804618000","Santa Catalina","City","1804600000"],["1804619000","Siaton","City","1804600000"],["1804620000","Sibulan","City","1804600000"],["1804621000","Tanjay City","City","1804600000"],["1804622000","Tayasan","City","1804600000"],["1804623000","Valencia","City","1804600000"],["1804624000","Vallehermoso","City","1804600000"],["1804625000","Zamboanguita","City","1804600000"],["1806101000","Enrique Villanueva","City","1806100000"],["1806102000","Larena","City","1806100000"],["1806103000","Lazi","City","1806100000"],["1806104000","Maria","City","1806100000"],["1806105000","San Juan","City","1806100000"],["1806106000","Siquijor","City","1806100000"],["1830200000","Bacolod City","City","1806100000"],["1900702000","Lamitan City","City","1900700000"],["1900703000","Lantawan","City","1900700000"],["1900704000","Maluso","City","1900700000"],["1900705000","Sumisip","City","1900700000"],["1900706000","Tipo-Tipo","City","1900700000"],["1900707000","Tuburan","City","1900700000"],["1900708000","Akbar","City","1900700000"],["1900709000","Al-Barka","City","1900700000"],["1900710000","Hadji Mohammad Ajul","City","1900700000"],["1900711000","Ungkaya Pukan","City","1900700000"],["1900712000","Hadji Muhtamad","City","1900700000"],["1900713000","Tabuan-Lasa","City","1900700000"],["1903601000","Bacolod-Kalawi","City","1903600000"],["1903602000","Balabagan","City","1903600000"],["1903603000","Balindong","City","1903600000"],["1903604000","Bayang","City","1903600000"],["1903605000","Binidayan","City","1903600000"],["1903606000","Bubong","City","1903600000"],["1903607000","Butig","City","1903600000"],["1903609000","Ganassi","City","1903600000"],["1903610000","Kapai","City","1903600000"],["1903611000","Lumba-Bayabao","City","1903600000"],["1903612000","Lumbatan","City","1903600000"],["1903613000","Madalum","City","1903600000"],["1903614000","Madamba","City","1903600000"],["1903615000","Malabang","City","1903600000"],["1903616000","Marantao","City","1903600000"],["1903617000","Marawi City","City","1903600000"],["1903618000","Masiu","City","1903600000"],["1903619000","Mulondo","City","1903600000"],["1903620000","Pagayawan","City","1903600000"],["1903621000","Piagapo","City","1903600000"],["1903622000","Poona Bayabao","City","1903600000"],["1903623000","Pualas","City","1903600000"],["1903624000","Ditsaan-Ramain","City","1903600000"],["1903625000","Saguiaran","City","1903600000"],["1903626000","Tamparan","City","1903600000"],["1903627000","Taraka","City","1903600000"],["1903628000","Tubaran","City","1903600000"],["1903629000","Tugaya","City","1903600000"],["1903630000","Wao","City","1903600000"],["1903631000","Marogong","City","1903600000"],["1903632000","Calanogas","City","1903600000"],["1903633000","Buadiposo-Buntong","City","1903600000"],["1903634000","Maguing","City","1903600000"],["1903635000","Picong","City","1903600000"],["1903636000","Lumbayanague","City","1903600000"],["1903637000","Amai Manabilang","City","1903600000"],["1903638000","Tagoloan Ii","City","1903600000"],["1903639000","Kapatagan","City","1903600000"],["1903640000","Sultan Dumalondong","City","1903600000"],["1903641000","Lumbaca-Unayan","City","1903600000"],["1906601000","Indanan","City","1906600000"],["1906602000","Jolo","City","1906600000"],["1906603000","Kalingalan Caluang","City","1906600000"],["1906604000","Luuk","City","1906600000"],["1906605000","Maimbung","City","1906600000"],["1906606000","Hadji Panglima Tahil","City","1906600000"],["1906607000","Old Panamao","City","1906600000"],["1906608000","Pangutaran","City","1906600000"],["1906609000","Parang","City","1906600000"],["1906610000","Pata","City","1906600000"],["1906611000","Patikul","City","1906600000"],["1906612000","Siasi","City","1906600000"],["1906613000","Talipao","City","1906600000"],["1906614000","Tapul","City","1906600000"],["1906615000","Tongkil","City","1906600000"],["1906616000","Panglima Estino","City","1906600000"],["1906617000","Lugus","City","1906600000"],["1906618000","Pandami","City","1906600000"],["1906619000","Omar","City","1906600000"],["1907001000","Panglima Sugala","City","1907000000"],["1907002000","Bongao","City","1907000000"],["1907003000","Mapun","City","1907000000"],["1907004000","Simunul","City","1907000000"],["1907005000","Sitangkai","City","1907000000"],["1907006000","South Ubian","City","1907000000"],["1907007000","Tandubas","City","1907000000"],["1907008000","Turtle Islands","City","1907000000"],["1907009000","Languyan","City","1907000000"],["1907010000","Sapa-Sapa","City","1907000000"],["1907011000","Sibutu","City","1907000000"],["1908701000","Barira","City","1908700000"],["1908702000","Buldon","City","1908700000"],["1908703000","Cotabato City","City","1908700000"],["1908704000","Datu Blah T. Sinsuat","City","1908700000"],["1908705000","Datu Odin Sinsuat","City","1908700000"],["1908706000","Kabuntalan","City","1908700000"],["1908707000","Matanog","City","1908700000"],["1908708000","Northern Kabuntalan","City","1908700000"],["1908709000","Parang","City","1908700000"],["1908710000","Sultan Kudarat","City","1908700000"],["1908711000","Sultan Mastura","City","1908700000"],["1908712000","Talitay","City","1908700000"],["1908713000","Upi","City","1908700000"],["1908801000","Ampatuan","City","1908800000"],["1908802000","Buluan","City","1908800000"],["1908803000","Datu Abdullah Sangki","City","1908800000"],["1908804000","Datu Anggal Midtimbang","City","1908800000"],["1908805000","Datu Hoffer Ampatuan","City","1908800000"],["1908806000","Datu Paglas","City","1908800000"],["1908807000","Datu Piang","City","1908800000"],["1908808000","Datu Salibo","City","1908800000"],["1908809000","Datu Saudi Ampatuan","City","1908800000"],["1908810000","Datu Unsay","City","1908800000"],["1908811000","Gen. S.K. Pendatun","City","1908800000"],["1908812000","Guindulungan","City","1908800000"],["1908813000","Mamasapano","City","1908800000"],["1908814000","Mangudadatu","City","1908800000"],["1908815000","Pagagawan","City","1908800000"],["1908816000","Pagalungan","City","1908800000"],["1908817000","Paglat","City","1908800000"],["1908818000","Pandag","City","1908800000"],["1908819000","Rajah Buayan","City","1908800000"],["1908820000","Shariff Aguak","City","1908800000"],["1908821000","Shariff Saydona Mustapha","City","1908800000"],["1908822000","South Upi","City","1908800000"],["1908823000","Sultan Sa Barongis","City","1908800000"],["1908824000","Talayan","City","1908800000"],["1999901000","Kapalawan","City","1908800000"],["1999902000","Old Kaabakan","City","1908800000"],["1999903000","Kadayangan","City","1908800000"],["1999904000","Nabalawag","City","1908800000"],["1999905000","Pahamuddin","City","1908800000"],["1999906000","Malidegao","City","1908800000"],["1999907000","Ligawasan","City","1908800000"],["1999908000","Tugunan","City","1908800000"]];
+  const PSGC_BY_CODE = new Map();
+  const PSGC_REGIONS = [];
+  const PSGC_PROVINCES_BY_REGION = new Map();
+  const PSGC_CITIES_BY_PARENT = new Map();
+
+  (function initPsgcLookupIndex() {
+    for (let i = 0; i < PSGC_COMPACT_DATA.length; i++) {
+      const [code, label, type, parent] = PSGC_COMPACT_DATA[i];
+      const item = { code, label, type, parent };
+      PSGC_BY_CODE.set(code, item);
+      if (type === 'Region') {
+        PSGC_REGIONS.push(item);
+      } else if (type === 'Province') {
+        if (!PSGC_PROVINCES_BY_REGION.has(parent)) PSGC_PROVINCES_BY_REGION.set(parent, []);
+        PSGC_PROVINCES_BY_REGION.get(parent).push(item);
+      } else if (type === 'City / Municipality') {
+        if (!PSGC_CITIES_BY_PARENT.has(parent)) PSGC_CITIES_BY_PARENT.set(parent, []);
+        PSGC_CITIES_BY_PARENT.get(parent).push(item);
+      }
+    }
+    PSGC_REGIONS.sort((a, b) => a.label.localeCompare(b.label));
+    PSGC_PROVINCES_BY_REGION.forEach(list => list.sort((a, b) => a.label.localeCompare(b.label)));
+    PSGC_CITIES_BY_PARENT.forEach(list => list.sort((a, b) => a.label.localeCompare(b.label)));
+  })();
+
+  function resolvePsgcLabel(codeOrName) {
+    const val = String(codeOrName || '').trim();
+    if (!val) return '';
+    const hit = PSGC_BY_CODE.get(val);
+    return hit ? hit.label : val;
+  }
+
+  const SFE_HOSPITAL_CAPABILITIES = ['Primary', 'Secondary', 'Tertiary'];
+  const SFE_CLINIC_CAPABILITIES = [
+    'Baranggay Health Center',
+    'Municipal Health Center',
+    'Lying-In Clinic',
+    'Dental Clinic',
+    'General Clinic'
+  ];
+
+  let sfeInstitutionsMasterlist = [];
+  let sfeInstStatusFilter = 'Pending Approval';
+  let sfeInstCurrentPage = 1;
+  let sfeInstPageSize = 15;
+  let sfeInstAutoPollTimer = null;
+  let sfeNormLeaseInterval = null;
+  let sfeNormLeaseSecondsRemaining = 60;
+  let sfeInstSyncInFlight = false;
+
+  function parsePimsMetaFromText(text) {
+    const raw = String(text || '');
+    const idx = raw.indexOf('<!--PIMS_META:');
+    if (idx === -1) return null;
+    const endIdx = raw.indexOf('-->', idx);
+    if (endIdx === -1) return null;
+    try {
+      return JSON.parse(raw.substring(idx + 14, endIdx).trim());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function normalizeInstitutionRecord(raw) {
+    const r = Object.assign({}, raw || {});
+    const name = String(r.name || r.institution_id || '').trim();
+    const instName = String(r.institution_name || r.facility_name || name || 'Unnamed Institution').trim();
+    const docstatus = Number(r.docstatus !== undefined && r.docstatus !== null ? r.docstatus : 0);
+    let wf = String(r.workflow_state || r.status || r.approval_status || '').trim();
+    if (!wf) {
+      if (docstatus === 1) wf = 'Approved';
+      else if (docstatus === 2) wf = 'Rejected';
+      else wf = 'Approved';
+    }
+    const ownership = String(r.ownership || r.custom_ownership || 'Private').trim() || 'Private';
+    const instType = String(r.institution_type || r.custom_institution_type || 'Hospital').trim() || 'Hospital';
+    const defaultCap = instType === 'Clinic' ? 'General Clinic' : 'Primary';
+    const capability = String(r.service_capability || r.custom_service_capability || defaultCap).trim() || defaultCap;
+    const requiresDsm = Boolean(
+      r.requires_dsm_approval === 1 ||
+      r.requires_dsm_approval === true ||
+      ownership.toLowerCase() === 'government' ||
+      capability.toLowerCase() === 'tertiary'
+    );
+    const isCertified = Boolean(r.is_certified === 1 || r.is_certified === true || r.custom_is_certified === 1);
+    const certNote = String(r.certification_note || r.custom_certification_note || '').trim();
+    const cityCode = String(r.city_municipality || '').trim();
+    const provCode = String(r.province_name || '').trim();
+    const regCode = String(r.region_name || '').trim();
+
+    return {
+      name: name,
+      institution_name: instName,
+      docstatus: docstatus,
+      workflow_state: wf,
+      ownership: ownership,
+      institution_type: instType,
+      service_capability: capability,
+      requires_dsm_approval: requiresDsm,
+      is_certified: isCertified,
+      certification_note: certNote,
+      city_municipality: cityCode,
+      province_name: provCode,
+      region_name: regCode,
+      city_label: resolvePsgcLabel(cityCode),
+      province_label: resolvePsgcLabel(provCode),
+      region_label: resolvePsgcLabel(regCode),
+      address_line1: String(r.address_line1 || '').trim(),
+      barangay: String(r.barangay || '').trim(),
+      zip_code: String(r.zip_code || '').trim(),
+      linked_doctor_name: String(r.linked_doctor_name || r.custom_linked_doctor_name || '').trim(),
+      submitted_by: String(r.submitted_by || r.owner || 'MedRep').trim(),
+      submitted_at: String(r.submitted_at || r.creation || '').trim(),
+      rejection_reason: String(r.rejection_reason || r.custom_rejection_reason || '').trim(),
+      resubmission_count: Number(r.resubmission_count || r.custom_resubmission_count || 0),
+      remapped_to_id: String(r.remapped_to_id || '').trim(),
+      remapped_to_name: String(r.remapped_to_name || '').trim(),
+      audit_trail: Array.isArray(r.audit_trail) ? r.audit_trail : []
+    };
+  }
+
+  function loadCachedSfeInstitutions() {
+    try {
+      const cached = localStorage.getItem('pims_sfe_institutions_v1');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          sfeInstitutionsMasterlist = parsed.map(normalizeInstitutionRecord);
+        }
+      }
+    } catch (_) {}
+  }
+
+  function saveCachedSfeInstitutions() {
+    try {
+      localStorage.setItem('pims_sfe_institutions_v1', JSON.stringify(sfeInstitutionsMasterlist));
+    } catch (_) {}
+  }
+
+  function ingestLiveInstitutionsFromServer(rawList, sourceLabel) {
+    if (!Array.isArray(rawList)) return;
+    const normalized = rawList.map(normalizeInstitutionRecord);
+    normalized.sort((a, b) => String(b.name).localeCompare(String(a.name)));
+    sfeInstitutionsMasterlist = normalized;
+    saveCachedSfeInstitutions();
+    updateSfeInstitutionBadgesAndKpis();
+    renderSfeInstitutionWorkbench();
+
+    const statusText = document.getElementById('sfeInstSyncStatusText');
+    if (statusText) {
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      statusText.textContent = `Synced (${sourceLabel || 'ERPNext'}) • ${nowStr}`;
+    }
+    const syncBtn = document.getElementById('btnSyncLiveInstitutions');
+    if (syncBtn) {
+      syncBtn.disabled = false;
+      syncBtn.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        <span>Sync Live from ERPNext</span>
+      `;
+    }
+  }
+
+  async function syncLiveInstitutionsFromErp(showToastFeedback) {
+    if (sfeInstSyncInFlight) return;
+    sfeInstSyncInFlight = true;
+    const syncBtn = document.getElementById('btnSyncLiveInstitutions');
+    if (syncBtn && showToastFeedback) {
+      syncBtn.disabled = true;
+      syncBtn.innerHTML = `<span>Syncing ERPNext...</span>`;
+    }
+
+    try {
+      if (isStreamlitActive) {
+        sendToStreamlit({
+          action: 'inst_refresh',
+          timestamp: Date.now()
+        });
+        if (showToastFeedback) {
+          showToast('Requesting live Institution Masterlist & MedRep proposals from ERPNext...', 'info');
+        }
+        setTimeout(() => {
+          sfeInstSyncInFlight = false;
+          if (syncBtn) {
+            syncBtn.disabled = false;
+            syncBtn.innerHTML = `
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>Sync Live from ERPNext</span>
+            `;
+          }
+        }, 2200);
+        return;
+      }
+
+      // Local Desktop Server (/api/resource/Institution) + Comment hydration
+      let instRows = [];
+      let resp = await fetch('/api/resource/Institution?fields=%5B%22*%22%5D&order_by=name%20desc&limit_page_length=0', {
+        credentials: 'include'
+      });
+      if (!resp.ok) {
+        resp = await fetch('/api/resource/Institution?fields=%5B%22name%22,%22institution_name%22,%22city_municipality%22,%22province_name%22,%22region_name%22,%22address_line1%22,%22barangay%22,%22zip_code%22,%22docstatus%22%5D&order_by=name%20desc&limit_page_length=0', {
+          credentials: 'include'
+        });
+      }
+      if (resp.ok) {
+        const data = await resp.json();
+        instRows = Array.isArray(data.data) ? data.data : [];
+      }
+
+      // Hydrate PIMS_META comments from ERPNext Comment doctype
+      try {
+        const cFilters = encodeURIComponent(JSON.stringify([['reference_doctype', '=', 'Institution'], ['comment_type', '=', 'Comment']]));
+        const cFields = encodeURIComponent(JSON.stringify(['name', 'reference_name', 'content', 'creation', 'owner']));
+        const cResp = await fetch(`/api/resource/Comment?filters=${cFilters}&fields=${cFields}&order_by=creation%20asc&limit_page_length=2000`, {
+          credentials: 'include'
+        });
+        if (cResp.ok) {
+          const cJson = await cResp.json();
+          const comments = Array.isArray(cJson.data) ? cJson.data : [];
+          const byInst = new Map();
+          for (const c of comments) {
+            const ref = String(c.reference_name || '').trim();
+            if (!ref) continue;
+            if (!byInst.has(ref)) byInst.set(ref, { meta: {}, trail: [] });
+            const entry = byInst.get(ref);
+            const rawContent = String(c.content || '');
+            const parsedMeta = parsePimsMetaFromText(rawContent);
+            if (parsedMeta && typeof parsedMeta === 'object') {
+              Object.assign(entry.meta, parsedMeta);
+            }
+            const cleanText = rawContent.replace(/<!--PIMS_META:[\s\S]*?-->/g, '').replace(/<[^>]+>/g, ' ').trim();
+            if (cleanText) {
+              entry.trail.push({
+                actor: String(c.owner || 'System'),
+                timestamp: String(c.creation || ''),
+                detail: cleanText
+              });
+            }
+          }
+          for (const row of instRows) {
+            const id = String(row.name || '').trim();
+            if (byInst.has(id)) {
+              const info = byInst.get(id);
+              Object.assign(row, info.meta);
+              row.audit_trail = info.trail;
+            }
+          }
+        }
+      } catch (cErr) {
+        console.warn('[Institution Comment Hydration Warning]', cErr);
+      }
+
+      if (instRows.length > 0) {
+        ingestLiveInstitutionsFromServer(instRows, 'Live ERPNext');
+        if (showToastFeedback) {
+          showToast(`Synced ${instRows.length} institutions from ERPNext.`, 'success');
+        }
+      }
+    } catch (err) {
+      console.warn('[syncLiveInstitutionsFromErp Warning]', err);
+      if (showToastFeedback) {
+        showToast('Using cached Institution Masterlist (ERPNext offline or unreachable).', 'warning');
+      }
+    } finally {
+      sfeInstSyncInFlight = false;
+      if (syncBtn) {
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = `
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <span>Sync Live from ERPNext</span>
+        `;
+      }
+    }
+  }
+
+  function updateSfeInstitutionBadgesAndKpis() {
+    let pendingSfe = 0;
+    let pendingDsm = 0;
+    let approved = 0;
+    let rejected = 0;
+    let certified = 0;
+
+    for (const inst of sfeInstitutionsMasterlist) {
+      const st = inst.workflow_state;
+      if (st === 'Pending Approval' || st === 'Pending SFE' || st === 'Draft') pendingSfe++;
+      else if (st === 'Pending DSM Approval') pendingDsm++;
+      else if (st === 'Rejected') rejected++;
+      else approved++;
+
+      if (inst.is_certified) certified++;
+    }
+
+    const totalPending = pendingSfe + pendingDsm;
+    const sidebarBadge = document.getElementById('instApprovalBadge');
+    if (sidebarBadge) {
+      sidebarBadge.textContent = `${totalPending} Pending`;
+      if (totalPending > 0) {
+        sidebarBadge.style.background = 'rgba(245,158,11,0.22)';
+        sidebarBadge.style.color = '#FCD34D';
+        sidebarBadge.style.border = '1px solid rgba(245,158,11,0.45)';
+      } else {
+        sidebarBadge.style.background = 'rgba(16,185,129,0.2)';
+        sidebarBadge.style.color = '#6EE7B7';
+        sidebarBadge.style.border = '1px solid rgba(16,185,129,0.35)';
+      }
+    }
+
+    const setElText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = Number(val).toLocaleString();
+    };
+    setElText('kpiInstPendingSfe', pendingSfe);
+    setElText('kpiInstPendingDsm', pendingDsm);
+    setElText('kpiInstApproved', approved);
+    setElText('kpiInstRejected', rejected);
+    setElText('kpiInstCertified', certified);
+
+    setElText('pillCountPendingSfe', pendingSfe);
+    setElText('pillCountPendingDsm', pendingDsm);
+    setElText('pillCountApproved', approved);
+    setElText('pillCountRejected', rejected);
+    setElText('pillCountAll', sfeInstitutionsMasterlist.length);
+  }
+
+  function setSfeInstStatusFilter(status) {
+    sfeInstStatusFilter = status;
+    sfeInstCurrentPage = 1;
+    document.querySelectorAll('#sfeInstStatusPillGroup .sfe-inst-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-status') === status);
+    });
+    renderSfeInstitutionWorkbench();
+  }
+
+  function onSfeInstFilterChange() {
+    sfeInstCurrentPage = 1;
+    renderSfeInstitutionWorkbench();
+  }
+
+  function clearSfeInstSearch() {
+    const inp = document.getElementById('sfeInstSearchInput');
+    if (inp) inp.value = '';
+    onSfeInstFilterChange();
+  }
+
+  function changeSfeInstPageSize(val) {
+    sfeInstPageSize = parseInt(val, 10) || 15;
+    sfeInstCurrentPage = 1;
+    renderSfeInstitutionWorkbench();
+  }
+
+  function changeSfeInstPage(delta) {
+    sfeInstCurrentPage += delta;
+    if (sfeInstCurrentPage < 1) sfeInstCurrentPage = 1;
+    renderSfeInstitutionWorkbench();
+  }
+
+  function getFilteredSfeInstitutions() {
+    const q = String((document.getElementById('sfeInstSearchInput') || {}).value || '').trim().toLowerCase();
+    const ownFilter = String((document.getElementById('sfeInstOwnershipFilter') || {}).value || 'ALL');
+    const typeFilter = String((document.getElementById('sfeInstTypeFilter') || {}).value || 'ALL');
+
+    return sfeInstitutionsMasterlist.filter(inst => {
+      const st = inst.workflow_state;
+      if (sfeInstStatusFilter === 'Pending Approval') {
+        if (st !== 'Pending Approval' && st !== 'Pending SFE' && st !== 'Draft') return false;
+      } else if (sfeInstStatusFilter === 'Pending DSM Approval') {
+        if (st !== 'Pending DSM Approval') return false;
+      } else if (sfeInstStatusFilter === 'Approved') {
+        if (st !== 'Approved') return false;
+      } else if (sfeInstStatusFilter === 'Rejected') {
+        if (st !== 'Rejected') return false;
+      }
+
+      if (ownFilter !== 'ALL' && inst.ownership.toLowerCase() !== ownFilter.toLowerCase()) return false;
+      if (typeFilter !== 'ALL' && inst.institution_type.toLowerCase() !== typeFilter.toLowerCase()) return false;
+
+      if (q) {
+        const hay = [
+          inst.name,
+          inst.institution_name,
+          inst.city_label,
+          inst.province_label,
+          inst.region_label,
+          inst.city_municipality,
+          inst.linked_doctor_name,
+          inst.submitted_by,
+          inst.ownership,
+          inst.institution_type,
+          inst.service_capability
+        ].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function escapeSfeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function renderSfeInstitutionWorkbench() {
+    updateSfeInstitutionBadgesAndKpis();
+    const tbody = document.getElementById('sfeInstitutionTableBody');
+    if (!tbody) return;
+
+    const filtered = getFilteredSfeInstitutions();
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / sfeInstPageSize));
+    if (sfeInstCurrentPage > totalPages) sfeInstCurrentPage = totalPages;
+
+    const startIdx = (sfeInstCurrentPage - 1) * sfeInstPageSize;
+    const pageRows = filtered.slice(startIdx, startIdx + sfeInstPageSize);
+
+    const summaryEl = document.getElementById('sfeInstPaginationSummary');
+    if (summaryEl) {
+      if (total === 0) {
+        summaryEl.textContent = `Showing 0 of 0 institutions (${sfeInstStatusFilter})`;
+      } else {
+        summaryEl.textContent = `Showing ${startIdx + 1}–${Math.min(startIdx + pageRows.length, total)} of ${total.toLocaleString()} institutions (${sfeInstStatusFilter})`;
+      }
+    }
+    const pageInd = document.getElementById('sfeInstPageIndicator');
+    if (pageInd) pageInd.textContent = `Page ${sfeInstCurrentPage} of ${totalPages}`;
+    const prevBtn = document.getElementById('btnSfeInstPrevPage');
+    if (prevBtn) prevBtn.disabled = sfeInstCurrentPage <= 1;
+    const nextBtn = document.getElementById('btnSfeInstNextPage');
+    if (nextBtn) nextBtn.disabled = sfeInstCurrentPage >= totalPages;
+
+    if (pageRows.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align:center; padding:36px 20px; color:#64748B;">
+            <div style="font-size:14px; font-weight:700; color:#334155; margin-bottom:4px;">No institutions match the current filter (${escapeSfeHtml(sfeInstStatusFilter)})</div>
+            <div style="font-size:12px;">Switch status tabs above or click <strong>Sync Live from ERPNext</strong> to check for new MedRep submissions.</div>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = pageRows.map(inst => {
+      const idEsc = escapeSfeHtml(inst.name);
+      const nameEsc = escapeSfeHtml(inst.institution_name);
+      const isGov = inst.ownership.toLowerCase() === 'government';
+      const ownBadge = isGov
+        ? `<span style="display:inline-block; padding:2px 7px; border-radius:4px; font-size:10.5px; font-weight:800; background:#DBEAFE; color:#1E40AF; border:1px solid #93C5FD;">🏛️ Government</span>`
+        : `<span style="display:inline-block; padding:2px 7px; border-radius:4px; font-size:10.5px; font-weight:800; background:#F1F5F9; color:#334155; border:1px solid #CBD5E1;">🏢 Private</span>`;
+      const typeBadge = `<span style="display:inline-block; padding:2px 7px; border-radius:4px; font-size:10.5px; font-weight:700; background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD;">${escapeSfeHtml(inst.institution_type)} &bull; ${escapeSfeHtml(inst.service_capability)}</span>`;
+      const certBadge = inst.is_certified
+        ? `<div style="margin-top:4px;"><span style="display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:800; background:#DCFCE7; color:#166534; border:1px solid #86EFAC;" title="${escapeSfeHtml(inst.certification_note || 'MedRep certified field accuracy')}">🛡️ MedRep Certified</span></div>`
+        : `<div style="margin-top:4px;"><span style="display:inline-flex; align-items:center; gap:4px; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700; background:#F8FAFC; color:#64748B; border:1px solid #E2E8F0;">Standard Record</span></div>`;
+
+      const resubBadge = inst.resubmission_count > 0
+        ? `<div style="margin-top:3px;"><span style="display:inline-block; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:800; background:#FEF3C7; color:#92400E;">Resubmission #${inst.resubmission_count}/2</span></div>`
+        : '';
+
+      let wfBadge = '';
+      const st = inst.workflow_state;
+      if (st === 'Pending Approval' || st === 'Pending SFE' || st === 'Draft') {
+        wfBadge = `<span style="display:inline-block; padding:4px 9px; border-radius:12px; font-size:11px; font-weight:800; background:#FEF3C7; color:#92400E; border:1px solid #FDE68A;">⏳ Pending SFE Review</span>`;
+      } else if (st === 'Pending DSM Approval') {
+        wfBadge = `<span style="display:inline-block; padding:4px 9px; border-radius:12px; font-size:11px; font-weight:800; background:#DBEAFE; color:#1E40AF; border:1px solid #93C5FD;">🏛️ Pending DSM Approval</span>`;
+      } else if (st === 'Rejected') {
+        wfBadge = `<span style="display:inline-block; padding:4px 9px; border-radius:12px; font-size:11px; font-weight:800; background:#FEE2E2; color:#991B1B; border:1px solid #FECACA;">🚫 Rejected</span>`;
+      } else {
+        wfBadge = `<span style="display:inline-block; padding:4px 9px; border-radius:12px; font-size:11px; font-weight:800; background:#DCFCE7; color:#166534; border:1px solid #86EFAC;">✅ Approved Directory</span>`;
+      }
+
+      const routingHint = (inst.requires_dsm_approval && (st === 'Pending Approval' || st === 'Pending SFE' || st === 'Draft'))
+        ? `<div style="font-size:10.5px; color:#B45309; font-weight:700; margin-top:4px;">Routes to DSM on SFE Approval</div>`
+        : '';
+
+      const rejectNoteHtml = (st === 'Rejected' && inst.rejection_reason)
+        ? `<div style="margin-top:5px; padding:4px 7px; border-radius:5px; background:#FEF2F2; border:1px solid #FECACA; font-size:11px; color:#991B1B;"><strong>Reason:</strong> ${escapeSfeHtml(inst.rejection_reason)}</div>`
+        : '';
+
+      const remapNoteHtml = inst.remapped_to_id
+        ? `<div style="margin-top:4px; font-size:11px; color:#5B21B6; font-weight:700;">🔀 Remapped &rarr; ${escapeSfeHtml(inst.remapped_to_id)}</div>`
+        : '';
+
+      const cityDisp = escapeSfeHtml(inst.city_label || inst.city_municipality || '—');
+      const provDisp = escapeSfeHtml(inst.province_label || inst.province_name || '—');
+      const regDisp = escapeSfeHtml(inst.region_label || inst.region_name || '—');
+      const addrDisp = inst.address_line1 ? `<div style="font-size:11px; color:#64748B; margin-top:2px;">${escapeSfeHtml(inst.address_line1)}${inst.barangay ? ', ' + escapeSfeHtml(inst.barangay) : ''}</div>` : '';
+
+      const approveBtnLabel = (inst.requires_dsm_approval && st !== 'Pending DSM Approval')
+        ? '🏛️ Route to DSM'
+        : '✅ Approve';
+
+      const canApprove = st !== 'Approved';
+      const canReject = st !== 'Rejected';
+
+      return `
+        <tr style="border-bottom:1px solid #E2E8F0; background:#FFFFFF;">
+          <td style="padding:10px 12px; vertical-align:top;">
+            <div style="font-family:monospace; font-weight:800; font-size:12.5px; color:#0F172A;">${idEsc}</div>
+            ${certBadge}
+            ${resubBadge}
+          </td>
+          <td style="padding:10px 12px; vertical-align:top;">
+            <div style="font-weight:800; font-size:13px; color:#0F172A;">${nameEsc}</div>
+            <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;">
+              ${ownBadge}
+              ${typeBadge}
+            </div>
+            ${rejectNoteHtml}
+            ${remapNoteHtml}
+          </td>
+          <td style="padding:10px 12px; vertical-align:top;">
+            <div style="font-weight:700; color:#0F172A;">${cityDisp}</div>
+            <div style="font-size:11.5px; color:#475569;">${provDisp} &bull; ${regDisp}</div>
+            ${addrDisp}
+          </td>
+          <td style="padding:10px 12px; vertical-align:top;">
+            <div style="font-weight:700; color:#0F172A;">${escapeSfeHtml(inst.linked_doctor_name || 'General Directory Proposal')}</div>
+            <div style="font-size:11px; color:#64748B; margin-top:2px;">Submitted by: <strong>${escapeSfeHtml(inst.submitted_by)}</strong></div>
+          </td>
+          <td style="padding:10px 12px; vertical-align:top;">
+            ${wfBadge}
+            ${routingHint}
+          </td>
+          <td style="padding:10px 12px; vertical-align:top; text-align:center;">
+            <div style="display:flex; flex-wrap:wrap; gap:5px; justify-content:center;">
+              ${canApprove ? `
+                <button type="button" class="sfe-inst-action-btn" onclick="quickApproveSfeInstitution('${idEsc}')" style="background:#16A34A; color:#FFFFFF; border-color:#15803D;" title="Approve and sync directly to HCP App Institution Directory">
+                  ${approveBtnLabel}
+                </button>
+              ` : ''}
+              <button type="button" class="sfe-inst-action-btn" onclick="openSfeNormalizeModal('${idEsc}')" style="background:#EFF6FF; color:#1D4ED8; border-color:#93C5FD;" title="Standardize name, classification, and official PSGC codes">
+                ✏️ Normalize
+              </button>
+              ${canReject ? `
+                <button type="button" class="sfe-inst-action-btn" onclick="openSfeRejectModal('${idEsc}')" style="background:#FEF2F2; color:#DC2626; border-color:#FECACA;" title="Reject with mandatory reason and notify MedRep">
+                  🚫 Reject
+                </button>
+              ` : ''}
+              ${canApprove ? `
+                <button type="button" class="sfe-inst-action-btn" onclick="openSfeRemapModal('${idEsc}')" style="background:#F5F3FF; color:#6D28D9; border-color:#DDD6FE;" title="Remap duplicate proposal to an existing Approved INST-XXXXX">
+                  🔀 Remap
+                </button>
+              ` : ''}
+              <button type="button" class="sfe-inst-action-btn" onclick="openSfeInstAuditModal('${idEsc}')" style="background:#F8FAFC; color:#334155; border-color:#CBD5E1;" title="View certification details and governance audit trail">
+                📋 Audit
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // --- HELPER: POST META COMMENT & PROPAGATE IN LOCAL DESKTOP MODE ---
+  async function dispatchLocalDesktopInstitutionSync(inst, actionLabel, extraMeta) {
+    const actor = (authenticatedUser && (authenticatedUser.full_name || authenticatedUser.email)) || 'SFE Specialist';
+    const metaPayload = Object.assign({
+      workflow_state: inst.workflow_state,
+      docstatus: inst.docstatus,
+      is_certified: inst.is_certified ? 1 : 0,
+      certification_note: inst.certification_note || '',
+      ownership: inst.ownership,
+      institution_type: inst.institution_type,
+      service_capability: inst.service_capability,
+      requires_dsm_approval: inst.requires_dsm_approval ? 1 : 0,
+      linked_doctor_name: inst.linked_doctor_name || '',
+      submitted_by: inst.submitted_by || '',
+      rejection_reason: inst.rejection_reason || '',
+      resubmission_count: inst.resubmission_count || 0,
+      actor: actor
+    }, extraMeta || {});
+
+    // 1. PUT /api/resource/Institution/<id>
+    const putBody = {
+      institution_name: inst.institution_name,
+      city_municipality: inst.city_municipality,
+      province_name: inst.province_name,
+      region_name: inst.region_name,
+      address_line1: inst.address_line1,
+      barangay: inst.barangay,
+      zip_code: inst.zip_code,
+      docstatus: inst.docstatus
+    };
+    try {
+      await fetch(`/api/resource/Institution/${encodeURIComponent(inst.name)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(putBody)
+      });
+    } catch (e) {
+      console.warn('[Local Desktop Institution PUT Warning]', e);
+    }
+
+    // 2. POST /api/resource/Comment with <!--PIMS_META:Ellipsis-->
+    try {
+      const commentHtml = `<p><strong>[SFE Governance — ${escapeSfeHtml(actionLabel)}]</strong> Facility: <b>${escapeSfeHtml(inst.institution_name)}</b> | State: <b>${escapeSfeHtml(inst.workflow_state)}</b> | Actor: ${escapeSfeHtml(actor)}</p><!--PIMS_META:${JSON.stringify(metaPayload)}-->`;
+      await fetch('/api/resource/Comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          doctype: 'Comment',
+          comment_type: 'Comment',
+          reference_doctype: 'Institution',
+          reference_name: inst.name,
+          content: commentHtml
+        })
+      });
+    } catch (e) {
+      console.warn('[Local Desktop Comment POST Warning]', e);
+    }
+
+    // 3. Propagate workplace_approval_note to linked HCP Account, HCP, and HCP Profile Submission
+    const approvalNote = inst.workflow_state === 'Approved'
+      ? 'this institution is now approved'
+      : (inst.workflow_state === 'Rejected'
+          ? `[REJECTED INSTITUTION: ${inst.rejection_reason}]`
+          : `Pending (${inst.workflow_state})`);
+    const targetId = inst.remapped_to_id || inst.name;
+    const targetName = inst.remapped_to_name || inst.institution_name;
+
+    for (const dt of ['HCP Account', 'HCP']) {
+      try {
+        const flt = encodeURIComponent(JSON.stringify([[dt, 'workplace_name', '=', inst.name]]));
+        const r = await fetch(`/api/resource/${encodeURIComponent(dt)}?filters=${flt}&fields=%5B%22name%22%5D&limit_page_length=200`, { credentials: 'include' });
+        if (r.ok) {
+          const j = await r.json();
+          for (const row of (j.data || [])) {
+            await fetch(`/api/resource/${encodeURIComponent(dt)}/${encodeURIComponent(row.name)}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                workplace_name: targetId,
+                hospital_affiliation: targetName,
+                workplace_approval_note: approvalNote
+              })
+            });
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  // --- QUICK APPROVE / ROUTE TO DSM ---
+  async function quickApproveSfeInstitution(instId) {
+    const inst = sfeInstitutionsMasterlist.find(x => x.name === instId);
+    if (!inst) return;
+
+    const actor = (authenticatedUser && (authenticatedUser.full_name || authenticatedUser.email)) || 'SFE Specialist';
+    const routeToDsm = inst.requires_dsm_approval && inst.workflow_state !== 'Pending DSM Approval';
+    const nextState = routeToDsm ? 'Pending DSM Approval' : 'Approved';
+    const nextDocstatus = nextState === 'Approved' ? 1 : 0;
+
+    inst.workflow_state = nextState;
+    inst.docstatus = nextDocstatus;
+    inst.rejection_reason = '';
+    inst.audit_trail.push({
+      actor: actor,
+      timestamp: new Date().toISOString(),
+      detail: `${routeToDsm ? 'Routed to Pending DSM Approval' : 'Approved for HCP App Institution Directory'} by ${actor}`
+    });
+
+    saveCachedSfeInstitutions();
+    renderSfeInstitutionWorkbench();
+
+    if (typeof recordAuditEvent === 'function') {
+      recordAuditEvent('INSTITUTION_APPROVAL', inst.name, `${inst.institution_name} -> ${nextState}`);
+    }
+
+    if (isStreamlitActive) {
+      sendToStreamlit({
+        action: 'inst_approve',
+        institution_id: inst.name,
+        institution_name: inst.institution_name,
+        ownership: inst.ownership,
+        institution_type: inst.institution_type,
+        service_capability: inst.service_capability,
+        requires_dsm_approval: inst.requires_dsm_approval,
+        is_certified: inst.is_certified,
+        certification_note: inst.certification_note,
+        linked_doctor_name: inst.linked_doctor_name,
+        submitted_by: inst.submitted_by,
+        route_to_dsm: routeToDsm,
+        actor: actor,
+        timestamp: Date.now()
+      });
+      showToast(
+        routeToDsm
+          ? `🏛️ '${inst.institution_name}' (${inst.name}) routed to Pending DSM Approval.`
+          : `✅ '${inst.institution_name}' (${inst.name}) Approved & synced to HCP App Institution Directory!`,
+        'success'
+      );
+    } else {
+      await dispatchLocalDesktopInstitutionSync(inst, routeToDsm ? 'Routed to DSM' : 'Approved');
+      showToast(
+        routeToDsm
+          ? `🏛️ '${inst.institution_name}' (${inst.name}) routed to Pending DSM Approval.`
+          : `✅ '${inst.institution_name}' (${inst.name}) Approved & synced to HCP App Institution Directory!`,
+        'success'
+      );
+    }
+  }
+
+  // --- NORMALIZE & STANDARDIZE MODAL ---
+  function populateSfeNormCapabilityOptions(typeVal, selectedCap) {
+    const capSelect = document.getElementById('sfeNormCapabilitySelect');
+    if (!capSelect) return;
+    const list = (String(typeVal).toLowerCase() === 'clinic') ? SFE_CLINIC_CAPABILITIES : SFE_HOSPITAL_CAPABILITIES;
+    capSelect.innerHTML = list.map(c => `<option value="${escapeSfeHtml(c)}">${escapeSfeHtml(c)}</option>`).join('');
+    if (selectedCap && list.includes(selectedCap)) {
+      capSelect.value = selectedCap;
+    } else {
+      capSelect.value = list[0];
+    }
+  }
+
+  function onSfeNormClassificationChange() {
+    const ownVal = (document.getElementById('sfeNormOwnershipSelect') || {}).value || 'Private';
+    const typeVal = (document.getElementById('sfeNormTypeSelect') || {}).value || 'Hospital';
+    const currentCap = (document.getElementById('sfeNormCapabilitySelect') || {}).value || '';
+    populateSfeNormCapabilityOptions(typeVal, currentCap);
+
+    const govAlert = document.getElementById('sfeNormGovRoutingAlert');
+    const isGov = ownVal.toLowerCase() === 'government';
+    if (govAlert) govAlert.style.display = isGov ? 'block' : 'none';
+  }
+
+  function populateSfeNormRegionSelect(selectedRegCode) {
+    const regSel = document.getElementById('sfeNormRegionSelect');
+    if (!regSel) return;
+    regSel.innerHTML = `<option value="">-- Select Official PSGC Region --</option>` +
+      PSGC_REGIONS.map(r => `<option value="${r.code}">${escapeSfeHtml(r.label)} (${r.code})</option>`).join('');
+    if (selectedRegCode && PSGC_BY_CODE.has(selectedRegCode)) {
+      regSel.value = selectedRegCode;
+    } else if (selectedRegCode) {
+      const match = PSGC_REGIONS.find(r => r.label.toLowerCase() === String(selectedRegCode).toLowerCase());
+      if (match) regSel.value = match.code;
+    }
+  }
+
+  function onSfeNormRegionChange(preselectProvCode, preselectCityCode) {
+    const regCode = (document.getElementById('sfeNormRegionSelect') || {}).value || '';
+    const provSel = document.getElementById('sfeNormProvinceSelect');
+    if (!provSel) return;
+    const provs = PSGC_PROVINCES_BY_REGION.get(regCode) || [];
+    if (provs.length === 0 && regCode) {
+      // NCR or direct region-parented cities
+      provSel.innerHTML = `<option value="${regCode}">Metro Manila / Direct Regional District (${regCode})</option>`;
+      provSel.value = regCode;
+    } else {
+      provSel.innerHTML = `<option value="">-- Select Province --</option>` +
+        provs.map(p => `<option value="${p.code}">${escapeSfeHtml(p.label)} (${p.code})</option>`).join('');
+      if (preselectProvCode) {
+        if (PSGC_BY_CODE.has(preselectProvCode)) {
+          provSel.value = preselectProvCode;
+        } else {
+          const m = provs.find(p => p.label.toLowerCase() === String(preselectProvCode).toLowerCase());
+          if (m) provSel.value = m.code;
+        }
+      }
+    }
+    onSfeNormProvinceChange(preselectCityCode);
+  }
+
+  function onSfeNormProvinceChange(preselectCityCode) {
+    const regCode = (document.getElementById('sfeNormRegionSelect') || {}).value || '';
+    const provCode = (document.getElementById('sfeNormProvinceSelect') || {}).value || '';
+    const citySel = document.getElementById('sfeNormCitySelect');
+    if (!citySel) return;
+
+    let cities = PSGC_CITIES_BY_PARENT.get(provCode) || [];
+    if (cities.length === 0 && regCode) {
+      cities = PSGC_CITIES_BY_PARENT.get(regCode) || [];
+    }
+    citySel.innerHTML = `<option value="">-- Select City / Municipality --</option>` +
+      cities.map(c => `<option value="${c.code}">${escapeSfeHtml(c.label)} (${c.code})</option>`).join('');
+
+    if (preselectCityCode) {
+      if (PSGC_BY_CODE.has(preselectCityCode)) {
+        citySel.value = preselectCityCode;
+      } else {
+        const m = cities.find(c => c.label.toLowerCase() === String(preselectCityCode).toLowerCase());
+        if (m) citySel.value = m.code;
+      }
+    }
+  }
+
+  function applyProperCaseToNormName() {
+    const inp = document.getElementById('sfeNormNameInput');
+    if (!inp) return;
+    const minorWords = new Set(['of', 'the', 'and', 'in', 'for', 'at', 'by', 'to']);
+    const upperAcronyms = new Set(['MMG', 'DOH', 'LGU', 'RHU', 'BHC', 'MHC', 'ENT', 'OB', 'GYN', 'PH', 'ST.', 'DR.']);
+    const words = String(inp.value || '').trim().replace(/\s+/g, ' ').split(' ');
+    inp.value = words.map((w, idx) => {
+      const up = w.toUpperCase();
+      if (upperAcronyms.has(up)) return up;
+      const low = w.toLowerCase();
+      if (idx > 0 && minorWords.has(low)) return low;
+      return low.charAt(0).toUpperCase() + low.slice(1);
+    }).join(' ');
+  }
+
+  function openSfeNormalizeModal(instId) {
+    const inst = sfeInstitutionsMasterlist.find(x => x.name === instId);
+    if (!inst) return;
+
+    document.getElementById('sfeNormInstId').value = inst.name;
+    document.getElementById('sfeNormModalTitle').textContent = `Normalize & Standardize — ${inst.name}`;
+    document.getElementById('sfeNormNameInput').value = inst.institution_name;
+    document.getElementById('sfeNormOwnershipSelect').value = inst.ownership === 'Government' ? 'Government' : 'Private';
+    document.getElementById('sfeNormTypeSelect').value = inst.institution_type === 'Clinic' ? 'Clinic' : 'Hospital';
+    populateSfeNormCapabilityOptions(inst.institution_type, inst.service_capability);
+    onSfeNormClassificationChange();
+
+    // Resolve PSGC codes even if only city_municipality is populated
+    let regCode = inst.region_name;
+    let provCode = inst.province_name;
+    let cityCode = inst.city_municipality;
+    if (cityCode && PSGC_BY_CODE.has(cityCode)) {
+      const cityItem = PSGC_BY_CODE.get(cityCode);
+      if (!provCode && cityItem.parent) provCode = cityItem.parent;
+      if (provCode && PSGC_BY_CODE.has(provCode)) {
+        const pItem = PSGC_BY_CODE.get(provCode);
+        if (pItem.type === 'Region') {
+          regCode = pItem.code;
+        } else if (!regCode && pItem.parent) {
+          regCode = pItem.parent;
+        }
+      }
+    }
+    populateSfeNormRegionSelect(regCode);
+    onSfeNormRegionChange(provCode, cityCode);
+
+    document.getElementById('sfeNormAddressInput').value = inst.address_line1 || '';
+    document.getElementById('sfeNormBarangayInput').value = inst.barangay || '';
+    document.getElementById('sfeNormZipInput').value = inst.zip_code || '';
+    document.getElementById('sfeNormNoteInput').value = '';
+
+    // Start 60-second edit lease countdown
+    sfeNormLeaseSecondsRemaining = 60;
+    const leaseTimerEl = document.getElementById('sfeNormLeaseTimer');
+    if (sfeNormLeaseInterval) clearInterval(sfeNormLeaseInterval);
+    sfeNormLeaseInterval = setInterval(() => {
+      sfeNormLeaseSecondsRemaining = Math.max(0, sfeNormLeaseSecondsRemaining - 1);
+      if (leaseTimerEl) leaseTimerEl.textContent = `${sfeNormLeaseSecondsRemaining}s`;
+      if (sfeNormLeaseSecondsRemaining === 0) {
+        sfeNormLeaseSecondsRemaining = 60; // Auto-renew while modal is actively open
+      }
+    }, 1000);
+
+    const overlay = document.getElementById('sfeInstNormalizeModalOverlay');
+    if (overlay) overlay.style.display = 'flex';
+  }
+
+  function closeSfeNormalizeModal() {
+    if (sfeNormLeaseInterval) {
+      clearInterval(sfeNormLeaseInterval);
+      sfeNormLeaseInterval = null;
+    }
+    const overlay = document.getElementById('sfeInstNormalizeModalOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  async function submitSfeNormalizeModal(approveAfterSave) {
+    const instId = document.getElementById('sfeNormInstId').value;
+    const inst = sfeInstitutionsMasterlist.find(x => x.name === instId);
+    if (!inst) return;
+
+    const newName = String(document.getElementById('sfeNormNameInput').value || '').trim();
+    if (!newName) {
+      showToast('Official Facility Name cannot be empty.', 'error');
+      return;
+    }
+    const ownVal = document.getElementById('sfeNormOwnershipSelect').value || 'Private';
+    const typeVal = document.getElementById('sfeNormTypeSelect').value || 'Hospital';
+    const capVal = document.getElementById('sfeNormCapabilitySelect').value || 'Primary';
+    const regCode = document.getElementById('sfeNormRegionSelect').value || inst.region_name;
+    const provCode = document.getElementById('sfeNormProvinceSelect').value || inst.province_name;
+    const cityCode = document.getElementById('sfeNormCitySelect').value || inst.city_municipality;
+    const addr = String(document.getElementById('sfeNormAddressInput').value || '').trim();
+    const brgy = String(document.getElementById('sfeNormBarangayInput').value || '').trim();
+    const zip = String(document.getElementById('sfeNormZipInput').value || '').trim();
+    const note = String(document.getElementById('sfeNormNoteInput').value || '').trim();
+
+    const requiresDsm = ownVal.toLowerCase() === 'government' || capVal.toLowerCase() === 'tertiary';
+    const routeToDsm = approveAfterSave && requiresDsm && inst.workflow_state !== 'Pending DSM Approval';
+
+    inst.institution_name = newName;
+    inst.ownership = ownVal;
+    inst.institution_type = typeVal;
+    inst.service_capability = capVal;
+    inst.requires_dsm_approval = requiresDsm;
+    inst.region_name = regCode;
+    inst.province_name = provCode;
+    inst.city_municipality = cityCode;
+    inst.region_label = resolvePsgcLabel(regCode);
+    inst.province_label = resolvePsgcLabel(provCode);
+    inst.city_label = resolvePsgcLabel(cityCode);
+    inst.address_line1 = addr;
+    inst.barangay = brgy;
+    inst.zip_code = zip;
+
+    const actor = (authenticatedUser && (authenticatedUser.full_name || authenticatedUser.email)) || 'SFE Specialist';
+    if (approveAfterSave) {
+      inst.workflow_state = routeToDsm ? 'Pending DSM Approval' : 'Approved';
+      inst.docstatus = inst.workflow_state === 'Approved' ? 1 : 0;
+      inst.rejection_reason = '';
+    }
+
+    inst.audit_trail.push({
+      actor: actor,
+      timestamp: new Date().toISOString(),
+      detail: `Normalized (${ownVal} / ${typeVal} / ${capVal}, PSGC: ${inst.city_label})${approveAfterSave ? ' & ' + inst.workflow_state : ''}${note ? ' — ' + note : ''}`
+    });
+
+    closeSfeNormalizeModal();
+    saveCachedSfeInstitutions();
+    renderSfeInstitutionWorkbench();
+
+    if (typeof recordAuditEvent === 'function') {
+      recordAuditEvent('INSTITUTION_NORMALIZE', inst.name, `${inst.institution_name} (${inst.workflow_state})`);
+    }
+
+    if (isStreamlitActive) {
+      sendToStreamlit({
+        action: 'inst_normalize',
+        institution_id: inst.name,
+        institution_name: inst.institution_name,
+        ownership: inst.ownership,
+        institution_type: inst.institution_type,
+        service_capability: inst.service_capability,
+        requires_dsm_approval: inst.requires_dsm_approval,
+        region_name: inst.region_name,
+        province_name: inst.province_name,
+        city_municipality: inst.city_municipality,
+        address_line1: inst.address_line1,
+        barangay: inst.barangay,
+        zip_code: inst.zip_code,
+        is_certified: inst.is_certified,
+        certification_note: inst.certification_note,
+        linked_doctor_name: inst.linked_doctor_name,
+        submitted_by: inst.submitted_by,
+        approve_after_normalize: approveAfterSave,
+        route_to_dsm: routeToDsm,
+        workflow_state: inst.workflow_state,
+        actor: actor,
+        timestamp: Date.now()
+      });
+    } else {
+      await dispatchLocalDesktopInstitutionSync(inst, approveAfterSave ? 'Normalized & Approved' : 'Normalized');
+    }
+
+    showToast(
+      approveAfterSave
+        ? (routeToDsm
+            ? `🏛️ Normalized '${inst.institution_name}' & routed to Pending DSM Approval.`
+            : `✅ Normalized & Approved '${inst.institution_name}' — now live in HCP App Directory!`)
+        : `💾 Saved normalized fields for '${inst.institution_name}'.`,
+      'success'
+    );
+  }
+
+  // --- REJECT INSTITUTION MODAL ---
+  function openSfeRejectModal(instId) {
+    const inst = sfeInstitutionsMasterlist.find(x => x.name === instId);
+    if (!inst) return;
+    document.getElementById('sfeRejectInstId').value = inst.name;
+    document.getElementById('sfeRejectModalTitle').textContent = `Reject Institution — ${inst.name}`;
+    document.getElementById('sfeRejectInstSummary').innerHTML = `
+      <div><strong>Facility:</strong> ${escapeSfeHtml(inst.institution_name)} (${escapeSfeHtml(inst.ownership)} &bull; ${escapeSfeHtml(inst.institution_type)})</div>
+      <div style="margin-top:3px;"><strong>Location:</strong> ${escapeSfeHtml(inst.city_label || inst.city_municipality)} &bull; <strong>Submitted by:</strong> ${escapeSfeHtml(inst.submitted_by)} (Resubmissions: ${inst.resubmission_count}/2)</div>
+    `;
+    document.getElementById('sfeInstRejectReasonInput').value = inst.rejection_reason || '';
+    const overlay = document.getElementById('sfeInstRejectModalOverlay');
+    if (overlay) overlay.style.display = 'flex';
+  }
+
+  function closeSfeRejectModal() {
+    const overlay = document.getElementById('sfeInstRejectModalOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function setSfeRejectPreset(text) {
+    const inp = document.getElementById('sfeInstRejectReasonInput');
+    if (inp) inp.value = text;
+  }
+
+  async function submitSfeRejectModal() {
+    const instId = document.getElementById('sfeRejectInstId').value;
+    const inst = sfeInstitutionsMasterlist.find(x => x.name === instId);
+    if (!inst) return;
+    const reason = String(document.getElementById('sfeInstRejectReasonInput').value || '').trim();
+    if (!reason) {
+      showToast('A mandatory rejection reason is required before rejecting.', 'error');
+      return;
+    }
+
+    const actor = (authenticatedUser && (authenticatedUser.full_name || authenticatedUser.email)) || 'SFE Specialist';
+    inst.workflow_state = 'Rejected';
+    inst.docstatus = 2;
+    inst.rejection_reason = reason;
+    inst.audit_trail.push({
+      actor: actor,
+      timestamp: new Date().toISOString(),
+      detail: `[REJECTED INSTITUTION: ${reason}] by ${actor}`
+    });
+
+    closeSfeRejectModal();
+    saveCachedSfeInstitutions();
+    renderSfeInstitutionWorkbench();
+
+    if (typeof recordAuditEvent === 'function') {
+      recordAuditEvent('INSTITUTION_REJECT', inst.name, `${inst.institution_name} — Reason: ${reason}`);
+    }
+
+    if (isStreamlitActive) {
+      sendToStreamlit({
+        action: 'inst_reject',
+        institution_id: inst.name,
+        institution_name: inst.institution_name,
+        rejection_reason: reason,
+        ownership: inst.ownership,
+        institution_type: inst.institution_type,
+        service_capability: inst.service_capability,
+        is_certified: inst.is_certified,
+        certification_note: inst.certification_note,
+        linked_doctor_name: inst.linked_doctor_name,
+        submitted_by: inst.submitted_by,
+        resubmission_count: inst.resubmission_count,
+        actor: actor,
+        timestamp: Date.now()
+      });
+    } else {
+      await dispatchLocalDesktopInstitutionSync(inst, 'Rejected');
+    }
+
+    showToast(`🚫 Rejected '${inst.institution_name}' (${inst.name}) & synced reason to MedRep Mobile App.`, 'warning');
+  }
+
+  // --- REMAP DUPLICATE INSTITUTION MODAL ---
+  function openSfeRemapModal(instId) {
+    const inst = sfeInstitutionsMasterlist.find(x => x.name === instId);
+    if (!inst) return;
+    document.getElementById('sfeRemapDuplicateId').value = inst.name;
+    document.getElementById('sfeRemapDuplicateSummary').innerHTML = `
+      <div><strong>Duplicate Proposal:</strong> ${escapeSfeHtml(inst.name)} — ${escapeSfeHtml(inst.institution_name)}</div>
+      <div style="margin-top:3px;"><strong>Linked Doctor:</strong> ${escapeSfeHtml(inst.linked_doctor_name || 'All linked HCP records')} &bull; <strong>City:</strong> ${escapeSfeHtml(inst.city_label || inst.city_municipality)}</div>
+    `;
+    document.getElementById('sfeInstRemapSearchInput').value = '';
+    document.getElementById('sfeInstRemapNoteInput').value = '';
+    populateSfeRemapTargetSelect();
+    const overlay = document.getElementById('sfeInstRemapModalOverlay');
+    if (overlay) overlay.style.display = 'flex';
+  }
+
+  function closeSfeRemapModal() {
+    const overlay = document.getElementById('sfeInstRemapModalOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function populateSfeRemapTargetSelect() {
+    const dupId = document.getElementById('sfeRemapDuplicateId').value;
+    const q = String((document.getElementById('sfeInstRemapSearchInput') || {}).value || '').trim().toLowerCase();
+    const sel = document.getElementById('sfeInstRemapTargetSelect');
+    if (!sel) return;
+
+    const approvedList = sfeInstitutionsMasterlist.filter(x => x.name !== dupId && x.workflow_state === 'Approved');
+    const matches = approvedList.filter(x => {
+      if (!q) return true;
+      return `${x.name} ${x.institution_name} ${x.city_label} ${x.province_label}`.toLowerCase().includes(q);
+    }).slice(0, 150);
+
+    sel.innerHTML = matches.map(x =>
+      `<option value="${escapeSfeHtml(x.name)}" data-name="${escapeSfeHtml(x.institution_name)}">${escapeSfeHtml(x.name)} — ${escapeSfeHtml(x.institution_name)} (${escapeSfeHtml(x.city_label || x.city_municipality || 'PH')})</option>`
+    ).join('');
+    if (matches.length > 0) sel.selectedIndex = 0;
+  }
+
+  async function submitSfeRemapModal() {
+    const dupId = document.getElementById('sfeRemapDuplicateId').value;
+    const inst = sfeInstitutionsMasterlist.find(x => x.name === dupId);
+    if (!inst) return;
+
+    const sel = document.getElementById('sfeInstRemapTargetSelect');
+    const targetId = sel ? sel.value : '';
+    if (!targetId) {
+      showToast('Please select a canonical Approved institution to remap to.', 'error');
+      return;
+    }
+    const targetInst = sfeInstitutionsMasterlist.find(x => x.name === targetId);
+    const targetName = targetInst ? targetInst.institution_name : targetId;
+    const note = String(document.getElementById('sfeInstRemapNoteInput').value || '').trim() || `Remapped duplicate to ${targetId} (${targetName})`;
+    const actor = (authenticatedUser && (authenticatedUser.full_name || authenticatedUser.email)) || 'SFE Specialist';
+
+    inst.workflow_state = 'Rejected';
+    inst.docstatus = 2;
+    inst.remapped_to_id = targetId;
+    inst.remapped_to_name = targetName;
+    inst.rejection_reason = `Remapped to canonical Approved Institution ${targetId} (${targetName}). ${note}`;
+    inst.audit_trail.push({
+      actor: actor,
+      timestamp: new Date().toISOString(),
+      detail: `Remapped duplicate -> ${targetId} (${targetName}) by ${actor}`
+    });
+
+    closeSfeRemapModal();
+    saveCachedSfeInstitutions();
+    renderSfeInstitutionWorkbench();
+
+    if (typeof recordAuditEvent === 'function') {
+      recordAuditEvent('INSTITUTION_REMAP', inst.name, `Remapped ${inst.name} -> ${targetId} (${targetName})`);
+    }
+
+    if (isStreamlitActive) {
+      sendToStreamlit({
+        action: 'inst_remap',
+        duplicate_institution_id: inst.name,
+        duplicate_institution_name: inst.institution_name,
+        target_institution_id: targetId,
+        target_institution_name: targetName,
+        remap_note: note,
+        actor: actor,
+        timestamp: Date.now()
+      });
+    } else {
+      await dispatchLocalDesktopInstitutionSync(inst, 'Duplicate Remapped', {
+        remapped_to_id: targetId,
+        remapped_to_name: targetName
+      });
+    }
+
+    showToast(`🔀 Remapped '${inst.institution_name}' (${inst.name}) to canonical ${targetId} (${targetName})!`, 'success');
+  }
+
+  // --- AUDIT TRAIL MODAL ---
+  function openSfeInstAuditModal(instId) {
+    const inst = sfeInstitutionsMasterlist.find(x => x.name === instId);
+    if (!inst) return;
+    document.getElementById('sfeAuditModalTitle').textContent = `Institution Governance Audit — ${inst.name}`;
+    const trail = Array.isArray(inst.audit_trail) && inst.audit_trail.length > 0
+      ? inst.audit_trail.map(item => `
+          <div style="padding:8px 10px; border-left:3px solid #0066FF; background:#F8FAFC; border-radius:4px; margin-bottom:8px;">
+            <div style="font-size:11px; color:#64748B;"><strong>${escapeSfeHtml(item.actor || 'System')}</strong> &bull; ${escapeSfeHtml(item.timestamp || 'Recorded')}</div>
+            <div style="font-size:12px; color:#0F172A; margin-top:2px;">${escapeSfeHtml(item.detail || '')}</div>
+          </div>
+        `).join('')
+      : `<div style="padding:12px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; color:#64748B; font-size:12px;">Initial masterlist / MedRep submission record. No additional SFE governance comments recorded yet.</div>`;
+
+    document.getElementById('sfeAuditModalBody').innerHTML = `
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px; margin-bottom:14px;">
+        <div><strong>Institution ID:</strong> <code>${escapeSfeHtml(inst.name)}</code></div>
+        <div><strong>Workflow State:</strong> ${escapeSfeHtml(inst.workflow_state)} (docstatus=${inst.docstatus})</div>
+        <div><strong>Official Name:</strong> ${escapeSfeHtml(inst.institution_name)}</div>
+        <div><strong>Classification:</strong> ${escapeSfeHtml(inst.ownership)} &bull; ${escapeSfeHtml(inst.institution_type)} (${escapeSfeHtml(inst.service_capability)})</div>
+        <div><strong>PSGC City / Mun:</strong> ${escapeSfeHtml(inst.city_label || '—')} (<code>${escapeSfeHtml(inst.city_municipality || '—')}</code>)</div>
+        <div><strong>PSGC Province / Region:</strong> ${escapeSfeHtml(inst.province_label || '—')} / ${escapeSfeHtml(inst.region_label || '—')}</div>
+        <div><strong>MedRep Certified:</strong> ${inst.is_certified ? '✅ Yes (Accuracy Attested)' : 'Standard'}</div>
+        <div><strong>Resubmission Count:</strong> ${inst.resubmission_count} of 2</div>
+      </div>
+      ${inst.certification_note ? `<div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:7px; padding:9px 12px; margin-bottom:12px; font-size:12px; color:#166534;"><strong>🛡️ MedRep Accuracy Certification:</strong> ${escapeSfeHtml(inst.certification_note)}</div>` : ''}
+      <div style="font-weight:800; font-size:12.5px; color:#0F172A; margin-bottom:8px;">Chronological Governance Events</div>
+      <div style="max-height:260px; overflow-y:auto;">${trail}</div>
+    `;
+    const overlay = document.getElementById('sfeInstAuditModalOverlay');
+    if (overlay) overlay.style.display = 'flex';
+  }
+
+  function closeSfeInstAuditModal() {
+    const overlay = document.getElementById('sfeInstAuditModalOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  // --- CSV EXPORT ---
+  function exportSfeInstitutionsCsv() {
+    const rows = getFilteredSfeInstitutions();
+    const headers = [
+      'Institution_ID', 'Facility_Name', 'Workflow_State', 'Docstatus',
+      'Ownership', 'Institution_Type', 'Service_Capability',
+      'PSGC_City_Code', 'City_Label', 'PSGC_Province_Code', 'Province_Label',
+      'PSGC_Region_Code', 'Region_Label', 'MedRep_Certified', 'Linked_Doctor',
+      'Submitted_By', 'Resubmission_Count', 'Rejection_Reason'
+    ];
+    const csvLines = [headers.join(',')];
+    for (const r of rows) {
+      const vals = [
+        r.name, r.institution_name, r.workflow_state, r.docstatus,
+        r.ownership, r.institution_type, r.service_capability,
+        r.city_municipality, r.city_label, r.province_name, r.province_label,
+        r.region_name, r.region_label, r.is_certified ? 'YES' : 'NO',
+        r.linked_doctor_name, r.submitted_by, r.resubmission_count, r.rejection_reason
+      ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`);
+      csvLines.push(vals.join(','));
+    }
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SFE_Institutions_${sfeInstStatusFilter.replace(/\s+/g, '_')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${rows.length} institutions to CSV.`, 'success');
+  }
+
+  // --- INITIALIZE & START 15s REAL-TIME AUTO-SYNC ---
+  function initSfeInstitutionWorkbench() {
+    loadCachedSfeInstitutions();
+    updateSfeInstitutionBadgesAndKpis();
+    renderSfeInstitutionWorkbench();
+    // Initial live fetch in local desktop mode
+    setTimeout(() => {
+      if (authenticatedUser && !isStreamlitActive) {
+        syncLiveInstitutionsFromErp(false);
+      }
+    }, 800);
+    // 15-second background sync timer for real-time MedRep submission discovery
+    if (!sfeInstAutoPollTimer) {
+      sfeInstAutoPollTimer = setInterval(() => {
+        if (!authenticatedUser) return;
+        if (!isStreamlitActive) {
+          syncLiveInstitutionsFromErp(false);
+        }
+      }, 15000);
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initSfeInstitutionWorkbench, 350);
+  });
+</script>
 
 </body>
 </html>
