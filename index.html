@@ -3079,81 +3079,50 @@
     <div id="tab-institutions" class="tab-content">
       <div class="card" style="padding:18px 20px; border-radius:12px; background:#FFFFFF; border:1px solid #E2E8F0; box-shadow:0 2px 8px rgba(15,23,42,0.04);">
 
-        <!-- Workbench Header & Live Sync Toolbar -->
-        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:14px; padding-bottom:16px; border-bottom:1.5px solid #E2E8F0; margin-bottom:16px;">
-          <div>
-            <div style="display:flex; align-items:center; gap:10px;">
-              <span style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg,#0066FF,#0284C7); color:#FFFFFF; font-weight:800; font-size:16px;">🏥</span>
-              <div>
-                <h2 style="margin:0; font-size:17px; font-weight:800; color:#0F172A; letter-spacing:-0.2px;">SFE Institution Approval &amp; Masterlist Governance Workbench</h2>
-                <div style="font-size:12px; color:#475569; margin-top:2px;">
-                  Review, normalize, remap duplicates, and approve new institutions discovered by Medical Representatives on the HCP Profiling Mobile App. Approved records sync directly to the App Institution Directory.
-                </div>
-              </div>
-            </div>
-          </div>
+        <!-- Minimalist Workbench Header (No subtitle, no icon box, no manual sync button) -->
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:14px; padding-bottom:14px; border-bottom:1.5px solid #E2E8F0; margin-bottom:16px;">
+          <h2 style="margin:0; font-size:16.5px; font-weight:800; color:#0F172A; letter-spacing:-0.2px;">SFE Institution Approval &amp; Masterlist Governance Workbench</h2>
 
-          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            <div id="sfeInstSyncStatusPill" style="display:inline-flex; align-items:center; gap:6px; padding:6px 11px; border-radius:20px; background:#F0FDF4; border:1px solid #BBF7D0; font-size:11.5px; font-weight:700; color:#15803D;">
-              <span style="width:7px; height:7px; border-radius:50%; background:#16A34A; box-shadow:0 0 6px rgba(22,163,74,0.8);"></span>
-              <span id="sfeInstSyncStatusText">Live Sync Active (15s Auto-Poll)</span>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div id="sfeInstSyncStatusPill" style="display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:20px; background:#F0FDF4; border:1px solid #BBF7D0; font-size:11.5px; font-weight:700; color:#15803D;">
+              <span style="width:7px; height:7px; border-radius:50%; background:#16A34A;"></span>
+              <span id="sfeInstSyncStatusText">Auto-Sync Active</span>
             </div>
 
-            <button type="button" class="btn btn-outline" id="btnSyncLiveInstitutions" onclick="syncLiveInstitutionsFromErp(true)" style="display:inline-flex; align-items:center; gap:6px; background:#EFF6FF; border:1px solid #93C5FD; color:#1D4ED8; font-weight:700; font-size:12px; padding:7px 13px; border-radius:7px; cursor:pointer;">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-              <span>Sync Live from ERPNext</span>
-            </button>
-
-            <button type="button" class="btn btn-outline" onclick="exportSfeInstitutionsCsv()" style="display:inline-flex; align-items:center; gap:6px; background:#F8FAFC; border:1px solid #CBD5E1; color:#0F172A; font-weight:700; font-size:12px; padding:7px 13px; border-radius:7px; cursor:pointer;">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <button type="button" class="btn btn-outline" onclick="exportSfeInstitutionsCsv()" style="display:inline-flex; align-items:center; gap:6px; background:#F8FAFC; border:1px solid #CBD5E1; color:#0F172A; font-weight:700; font-size:12px; padding:6px 13px; border-radius:7px; cursor:pointer;">
               <span>Export CSV</span>
             </button>
           </div>
         </div>
 
-        <!-- 5 Interactive Executive KPI Cards -->
+        <!-- 5 Minimalist KPI Cards (No decorative icons) -->
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(185px, 1fr)); gap:12px; margin-bottom:16px;">
-          <div onclick="setSfeInstStatusFilter('Pending Approval')" style="cursor:pointer; background:linear-gradient(135deg,#FFFBEB,#FEF3C7); border:1.5px solid #FDE68A; border-radius:10px; padding:12px 14px; transition:transform 0.12s ease;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:#B45309; letter-spacing:0.4px;">Pending SFE Review</span>
-              <span style="font-size:15px;">⏳</span>
-            </div>
+          <div onclick="setSfeInstStatusFilter('Pending Approval')" style="cursor:pointer; background:#FFFBEB; border:1px solid #FDE68A; border-radius:10px; padding:12px 14px;">
+            <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#B45309; letter-spacing:0.4px;">Pending SFE Review</div>
             <div id="kpiInstPendingSfe" style="font-size:24px; font-weight:900; color:#92400E; margin-top:4px;">0</div>
             <div style="font-size:11px; color:#B45309; margin-top:2px;">New MedRep discoveries awaiting SFE</div>
           </div>
 
-          <div onclick="setSfeInstStatusFilter('Pending DSM Approval')" style="cursor:pointer; background:linear-gradient(135deg,#EFF6FF,#DBEAFE); border:1.5px solid #BFDBFE; border-radius:10px; padding:12px 14px; transition:transform 0.12s ease;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:#1D4ED8; letter-spacing:0.4px;">Pending DSM Approval</span>
-              <span style="font-size:15px;">🏛️</span>
-            </div>
+          <div onclick="setSfeInstStatusFilter('Pending DSM Approval')" style="cursor:pointer; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px; padding:12px 14px;">
+            <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#1D4ED8; letter-spacing:0.4px;">Pending DSM Approval</div>
             <div id="kpiInstPendingDsm" style="font-size:24px; font-weight:900; color:#1E40AF; margin-top:4px;">0</div>
             <div style="font-size:11px; color:#1D4ED8; margin-top:2px;">Government / high-impact facilities</div>
           </div>
 
-          <div onclick="setSfeInstStatusFilter('Approved')" style="cursor:pointer; background:linear-gradient(135deg,#F0FDF4,#DCFCE7); border:1.5px solid #BBF7D0; border-radius:10px; padding:12px 14px; transition:transform 0.12s ease;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:#15803D; letter-spacing:0.4px;">Approved Masterlist</span>
-              <span style="font-size:15px;">✅</span>
-            </div>
+          <div onclick="setSfeInstStatusFilter('Approved')" style="cursor:pointer; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; padding:12px 14px;">
+            <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#15803D; letter-spacing:0.4px;">Approved Masterlist</div>
             <div id="kpiInstApproved" style="font-size:24px; font-weight:900; color:#166534; margin-top:4px;">0</div>
             <div style="font-size:11px; color:#15803D; margin-top:2px;">Live in HCP App Institution Directory</div>
           </div>
 
-          <div onclick="setSfeInstStatusFilter('Rejected')" style="cursor:pointer; background:linear-gradient(135deg,#FEF2F2,#FEE2E2); border:1.5px solid #FECACA; border-radius:10px; padding:12px 14px; transition:transform 0.12s ease;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:#B91C1C; letter-spacing:0.4px;">Rejected Proposals</span>
-              <span style="font-size:15px;">🚫</span>
-            </div>
+          <div onclick="setSfeInstStatusFilter('Rejected')" style="cursor:pointer; background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:12px 14px;">
+            <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#B91C1C; letter-spacing:0.4px;">Rejected Proposals</div>
             <div id="kpiInstRejected" style="font-size:24px; font-weight:900; color:#991B1B; margin-top:4px;">0</div>
             <div style="font-size:11px; color:#B91C1C; margin-top:2px;">Returned to MedRep with reason</div>
           </div>
 
-          <div onclick="setSfeInstStatusFilter('All')" style="cursor:pointer; background:linear-gradient(135deg,#F8FAFC,#F1F5F9); border:1.5px solid #CBD5E1; border-radius:10px; padding:12px 14px; transition:transform 0.12s ease;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:11px; font-weight:800; text-transform:uppercase; color:#334155; letter-spacing:0.4px;">MedRep Certified</span>
-              <span style="font-size:15px;">🛡️</span>
-            </div>
+          <div onclick="setSfeInstStatusFilter('All')" style="cursor:pointer; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:10px; padding:12px 14px;">
+            <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#334155; letter-spacing:0.4px;">MedRep Certified</div>
             <div id="kpiInstCertified" style="font-size:24px; font-weight:900; color:#0F172A; margin-top:4px;">0</div>
             <div style="font-size:11px; color:#475569; margin-top:2px;">Verified field accuracy attestation</div>
           </div>
@@ -3204,12 +3173,12 @@
           <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
             <thead>
               <tr>
-                <th style="width:13%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 12px; text-align:left;">INST ID &amp; Certification</th>
-                <th style="width:23%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 12px; text-align:left;">Facility Name &amp; Classification</th>
-                <th style="width:22%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 12px; text-align:left;">Official PSGC Location</th>
-                <th style="width:15%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 12px; text-align:left;">Linked Doctor &amp; Submitter</th>
-                <th style="width:11%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 12px; text-align:left;">Workflow State</th>
-                <th style="width:16%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 12px; text-align:center;">SFE Governance Actions</th>
+                <th style="width:14%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:left;">INST ID &amp; CERTIFICATION</th>
+                <th style="width:26%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:left;">FACILITY NAME &amp; CLASSIFICATION</th>
+                <th style="width:22%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:left;">OFFICIAL PSGC LOCATION</th>
+                <th style="width:16%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:left;">LINKED DOCTOR &amp; SUBMITTER</th>
+                <th style="width:12%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:center;">STATUS</th>
+                <th style="width:110px; min-width:110px; max-width:110px; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:center;">ACTIONS</th>
               </tr>
             </thead>
             <tbody id="sfeInstitutionTableBody">
@@ -20094,20 +20063,6 @@ const BASELINE_ERP_TERRITORIES = [
     background: rgba(255, 255, 255, 0.24);
     color: #FFFFFF;
   }
-  .sfe-inst-action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 5px 9px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.12s ease;
-    white-space: nowrap;
-  }
   .sfe-inst-modal-overlay {
     display: none;
     position: fixed;
@@ -20132,6 +20087,66 @@ const BASELINE_ERP_TERRITORIES = [
   }
 </style>
 
+<!-- GLOBAL FLOATING DROPDOWN FOR INSTITUTION ROW ACTIONS (Matches Image 3 Territory Actions 1:1) -->
+<div id="instRowActionsMenu" class="grid-actions-popover" style="display:none;" onclick="event.stopPropagation();">
+  <div class="grid-actions-header">
+    <span class="grid-actions-label">INSTITUTION ACTIONS</span>
+    <span class="grid-actions-terr-name" id="instActionHeaderId">---</span>
+  </div>
+  <div class="grid-actions-list">
+    <button type="button" class="grid-action-item" id="instActionApprove" onclick="handleInstActionMenuClick('approve')">
+      <span class="grid-action-icon add-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+      </span>
+      <span class="grid-action-title" id="instActionApproveLabel">Approve</span>
+    </button>
+
+    <button type="button" class="grid-action-item" id="instActionNormalize" onclick="handleInstActionMenuClick('normalize')">
+      <span class="grid-action-icon edit-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+      </span>
+      <span class="grid-action-title">Normalize &amp; Standardize</span>
+    </button>
+
+    <button type="button" class="grid-action-item" id="instActionRemap" onclick="handleInstActionMenuClick('remap')">
+      <span class="grid-action-icon" style="background:#EFF6FF; color:#0066FF; border:1px solid #BFDBFE;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path>
+        </svg>
+      </span>
+      <span class="grid-action-title">Remap Duplicate</span>
+    </button>
+
+    <button type="button" class="grid-action-item" id="instActionReject" onclick="handleInstActionMenuClick('reject')" style="color:#D97706;">
+      <span class="grid-action-icon" style="background:#FEF3C7; color:#D97706; border:1px solid #FDE68A;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+        </svg>
+      </span>
+      <span class="grid-action-title">Reject Proposal</span>
+    </button>
+
+    <div class="grid-actions-divider"></div>
+
+    <button type="button" class="grid-action-item" id="instActionAudit" onclick="handleInstActionMenuClick('audit')">
+      <span class="grid-action-icon audit-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </span>
+      <span class="grid-action-title">Audit Trail</span>
+    </button>
+  </div>
+</div>
+
 <!-- 1. NORMALIZE & STANDARDIZE INSTITUTION MODAL -->
 <div id="sfeInstNormalizeModalOverlay" class="sfe-inst-modal-overlay">
   <div class="sfe-inst-modal-card" style="max-width:680px;">
@@ -20145,13 +20160,13 @@ const BASELINE_ERP_TERRITORIES = [
 
     <!-- 60-Second Edit Lease / Concurrency Lock Banner -->
     <div id="sfeNormConcurrencyBanner" style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:11.5px; color:#1E40AF; font-weight:600;">
-      <span>🔒 Concurrency Edit Lease Active (60s) &bull; Record reserved for your SFE session</span>
+      <span>Concurrency Edit Lease Active (60s) &bull; Record reserved for your SFE session</span>
       <span id="sfeNormLeaseTimer" style="font-weight:800; color:#1D4ED8;">60s</span>
     </div>
 
     <!-- Government / High-Impact Routing Alert -->
     <div id="sfeNormGovRoutingAlert" style="display:none; background:#FFFBEB; border:1px solid #FDE68A; border-radius:8px; padding:9px 12px; margin-bottom:12px; font-size:11.5px; color:#92400E; font-weight:600;">
-      🏛️ <strong>Government / High-Impact Facility Rule:</strong> Approving a Government facility from SFE Review routes it to <strong>Pending DSM Approval</strong> before final masterlist activation (or directly approves if already in Pending DSM Approval).
+      <strong>Government / High-Impact Facility Rule:</strong> Approving a Government facility from SFE Review routes it to <strong>Pending DSM Approval</strong> before final masterlist activation (or directly approves if already in Pending DSM Approval).
     </div>
 
     <input type="hidden" id="sfeNormInstId" value="">
@@ -20162,7 +20177,7 @@ const BASELINE_ERP_TERRITORIES = [
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
           <label for="sfeNormNameInput" style="font-size:12px; font-weight:700; color:#0F172A;">Official Facility Name <span style="color:#EF4444;">*</span></label>
           <button type="button" onclick="applyProperCaseToNormName()" style="border:1px solid #93C5FD; background:#EFF6FF; color:#1D4ED8; border-radius:5px; padding:3px 8px; font-size:11px; font-weight:700; cursor:pointer;">
-            ✨ Format Proper Case
+            Format Proper Case
           </button>
         </div>
         <input type="text" id="sfeNormNameInput" placeholder="e.g., St. Luke's Medical Center - Global City" style="width:100%; box-sizing:border-box; padding:8px 11px; border:1px solid #CBD5E1; border-radius:7px; font-size:13px; font-weight:600; color:#0F172A;">
@@ -20196,7 +20211,7 @@ const BASELINE_ERP_TERRITORIES = [
       <!-- Cascading Official PSGC Hierarchy (Region -> Province -> City/Municipality) -->
       <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px;">
         <div style="font-size:11.5px; font-weight:800; color:#0F172A; margin-bottom:8px;">
-          📍 Official Philippine Standard Geographic Code (PSGC) Hierarchy
+          Official Philippine Standard Geographic Code (PSGC) Hierarchy
         </div>
         <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
           <div>
@@ -20245,10 +20260,10 @@ const BASELINE_ERP_TERRITORIES = [
       <button type="button" onclick="closeSfeNormalizeModal()" style="padding:8px 14px; border-radius:7px; border:1px solid #CBD5E1; background:#FFFFFF; color:#475569; font-weight:700; font-size:12px; cursor:pointer;">Cancel</button>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button type="button" onclick="submitSfeNormalizeModal(false)" style="padding:8px 14px; border-radius:7px; border:1px solid #0284C7; background:#F0F9FF; color:#0369A1; font-weight:700; font-size:12px; cursor:pointer;">
-          💾 Save Normalized Fields Only
+          Save Normalized Fields Only
         </button>
         <button type="button" id="btnSfeNormAndApprove" onclick="submitSfeNormalizeModal(true)" style="padding:8px 16px; border-radius:7px; border:none; background:#16A34A; color:#FFFFFF; font-weight:800; font-size:12px; cursor:pointer; box-shadow:0 2px 6px rgba(22,163,74,0.3);">
-          ✅ Normalize &amp; Approve (Sync to App Directory)
+          Normalize &amp; Approve (Sync to App Directory)
         </button>
       </div>
     </div>
@@ -20292,7 +20307,7 @@ const BASELINE_ERP_TERRITORIES = [
     <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; border-top:1px solid #E2E8F0; padding-top:14px; margin-top:14px;">
       <button type="button" onclick="closeSfeRejectModal()" style="padding:8px 14px; border-radius:7px; border:1px solid #CBD5E1; background:#FFFFFF; color:#475569; font-weight:700; font-size:12px; cursor:pointer;">Cancel</button>
       <button type="button" onclick="submitSfeRejectModal()" style="padding:8px 16px; border-radius:7px; border:none; background:#DC2626; color:#FFFFFF; font-weight:800; font-size:12px; cursor:pointer;">
-        🚫 Confirm Rejection &amp; Sync to MedRep App
+        Confirm Rejection &amp; Sync to MedRep App
       </button>
     </div>
   </div>
@@ -20315,7 +20330,7 @@ const BASELINE_ERP_TERRITORIES = [
     </div>
 
     <div style="margin-bottom:12px;">
-      <label for="sfeInstRemapSearchInput" style="display:block; font-size:12px; font-weight:700; color:#0F172A; margin-bottom:4px;">1. Filter Canonical Approved Institution (`INST-XXXXX`)</label>
+      <label for="sfeInstRemapSearchInput" style="display:block; font-size:12px; font-weight:700; color:#0F172A; margin-bottom:4px;">1. Filter Canonical Approved Institution (INST-XXXXX)</label>
       <input type="text" id="sfeInstRemapSearchInput" oninput="populateSfeRemapTargetSelect()" placeholder="Type facility name, INST ID, or city to filter approved masterlist..." style="width:100%; box-sizing:border-box; padding:7px 10px; border:1px solid #CBD5E1; border-radius:7px; font-size:12px; margin-bottom:6px;">
 
       <label for="sfeInstRemapTargetSelect" style="display:block; font-size:12px; font-weight:700; color:#0F172A; margin-bottom:4px;">2. Select Target Canonical Approved Institution <span style="color:#EF4444;">*</span></label>
@@ -20331,7 +20346,7 @@ const BASELINE_ERP_TERRITORIES = [
     <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; border-top:1px solid #E2E8F0; padding-top:14px; margin-top:14px;">
       <button type="button" onclick="closeSfeRemapModal()" style="padding:8px 14px; border-radius:7px; border:1px solid #CBD5E1; background:#FFFFFF; color:#475569; font-weight:700; font-size:12px; cursor:pointer;">Cancel</button>
       <button type="button" onclick="submitSfeRemapModal()" style="padding:8px 16px; border-radius:7px; border:none; background:#7C3AED; color:#FFFFFF; font-weight:800; font-size:12px; cursor:pointer;">
-        🔀 Remap Linked Doctors &amp; Close Duplicate
+        Remap Linked Doctors &amp; Close Duplicate
       </button>
     </div>
   </div>
@@ -20411,6 +20426,11 @@ const BASELINE_ERP_TERRITORIES = [
   let sfeNormLeaseInterval = null;
   let sfeNormLeaseSecondsRemaining = 60;
   let sfeInstSyncInFlight = false;
+  let activeInstActionId = null;
+
+  function isPortalInStreamlitMode() {
+    return Boolean(isStreamlitActive || (window.parent && window.parent !== window));
+  }
 
   function parsePimsMetaFromText(text) {
     const raw = String(text || '');
@@ -20425,28 +20445,76 @@ const BASELINE_ERP_TERRITORIES = [
     }
   }
 
+  function inferInstitutionOwnership(instName, rawOwnership, hasExplicitMeta) {
+    if (hasExplicitMeta && rawOwnership) {
+      return String(rawOwnership).trim();
+    }
+    const upper = String(instName || '').toUpperCase();
+    const govKeywords = [
+      'DISTRICT HOSPITAL', 'PROVINCIAL HOSPITAL', 'REGIONAL HOSPITAL',
+      'CITY HOSPITAL', 'MUNICIPAL HOSPITAL', 'MUNICIPAL HEALTH',
+      'BARANGAY HEALTH', 'BARANGGAY HEALTH', 'RHU', 'RURAL HEALTH',
+      'OSPITAL NG', 'PHILIPPINE GENERAL HOSPITAL', 'VETERANS MEMORIAL',
+      'EAST AVENUE MEDICAL', 'JOSE R. REYES MEMORIAL', 'SAN LAZARO HOSPITAL',
+      'TONDO MEDICAL CENTER', 'QUIRINO MEMORIAL', 'AMANG RODRIGUEZ',
+      'DR. JOSE FABELLA', 'NATIONAL CHILDREN', 'PHILIPPINE HEART CENTER',
+      'LUNG CENTER OF THE PHILIPPINES', 'NATIONAL KIDNEY', 'VICENTE SOTTO MEMORIAL',
+      'SOUTHERN PHILIPPINES MEDICAL', 'CORAZON LOCSIN MONTELIBANO',
+      'BAGUIO GENERAL HOSPITAL', 'BICOL REGIONAL', 'BATANGAS MEDICAL CENTER',
+      'JOSE B. LINGAD', 'MARIANO MARCOS MEMORIAL', 'ILOCOS TRAINING',
+      'CAGAYAN VALLEY MEDICAL', 'PAULINO J. GARCIA', 'NORTHERN MINDANAO MEDICAL',
+      'ZAMBOANGA CITY MEDICAL', 'COTABATO REGIONAL', 'GOV.', 'GOVERNOR '
+    ];
+    for (let i = 0; i < govKeywords.length; i++) {
+      if (upper.includes(govKeywords[i])) return 'Government';
+    }
+    return 'Private';
+  }
+
   function normalizeInstitutionRecord(raw) {
     const r = Object.assign({}, raw || {});
     const name = String(r.name || r.institution_id || '').trim();
     const instName = String(r.institution_name || r.facility_name || name || 'Unnamed Institution').trim();
     const docstatus = Number(r.docstatus !== undefined && r.docstatus !== null ? r.docstatus : 0);
-    let wf = String(r.workflow_state || r.status || r.approval_status || '').trim();
-    if (!wf) {
-      if (docstatus === 1) wf = 'Approved';
-      else if (docstatus === 2) wf = 'Rejected';
-      else wf = 'Approved';
+    const hasMeta = Boolean(r.has_pims_meta === 1 || r.has_pims_meta === true);
+    const isCustom = Boolean(r.is_custom === 1 || r.is_custom === true);
+    const isCertified = Boolean(r.is_certified === 1 || r.is_certified === true || r.custom_is_certified === 1);
+
+    let rawWf = String(r.workflow_state || r.status || r.approval_status || '').trim();
+    let wf = 'Approved';
+    const lowWf = rawWf.toLowerCase();
+
+    if (lowWf === 'rejected' || docstatus === 2) {
+      wf = 'Rejected';
+    } else if (lowWf === 'remapped') {
+      wf = 'Rejected';
+    } else if (lowWf === 'pending dsm approval') {
+      wf = 'Pending DSM Approval';
+    } else if (
+      lowWf === 'pending approval' ||
+      lowWf === 'pending sfe' ||
+      lowWf === 'pending sfe approval' ||
+      lowWf === 'for sfe approval'
+    ) {
+      wf = 'Pending Approval';
+    } else if (lowWf === 'approved' || docstatus === 1) {
+      wf = 'Approved';
+    } else if ((hasMeta || isCustom || isCertified) && (lowWf === 'draft' || !lowWf)) {
+      wf = 'Pending Approval';
+    } else {
+      // Pre-seeded ERPNext masterlist directory records default to Approved Directory
+      wf = 'Approved';
     }
-    const ownership = String(r.ownership || r.custom_ownership || 'Private').trim() || 'Private';
+
+    const rawOwnership = String(r.ownership || r.custom_ownership || '').trim();
+    const ownership = inferInstitutionOwnership(instName, rawOwnership, hasMeta || isCustom || isCertified);
     const instType = String(r.institution_type || r.custom_institution_type || 'Hospital').trim() || 'Hospital';
     const defaultCap = instType === 'Clinic' ? 'General Clinic' : 'Primary';
     const capability = String(r.service_capability || r.custom_service_capability || defaultCap).trim() || defaultCap;
     const requiresDsm = Boolean(
-      r.requires_dsm_approval === 1 ||
-      r.requires_dsm_approval === true ||
       ownership.toLowerCase() === 'government' ||
       capability.toLowerCase() === 'tertiary'
     );
-    const isCertified = Boolean(r.is_certified === 1 || r.is_certified === true || r.custom_is_certified === 1);
     const certNote = String(r.certification_note || r.custom_certification_note || '').trim();
     const cityCode = String(r.city_municipality || '').trim();
     const provCode = String(r.province_name || '').trim();
@@ -20469,8 +20537,8 @@ const BASELINE_ERP_TERRITORIES = [
       city_label: resolvePsgcLabel(cityCode),
       province_label: resolvePsgcLabel(provCode),
       region_label: resolvePsgcLabel(regCode),
-      address_line1: String(r.address_line1 || '').trim(),
-      barangay: String(r.barangay || '').trim(),
+      address_line1: String(r.address_line1 || r.street_address || '').trim(),
+      barangay: String(r.barangay || r.barangay_name || '').trim(),
       zip_code: String(r.zip_code || '').trim(),
       linked_doctor_name: String(r.linked_doctor_name || r.custom_linked_doctor_name || '').trim(),
       submitted_by: String(r.submitted_by || r.owner || 'MedRep').trim(),
@@ -20485,7 +20553,7 @@ const BASELINE_ERP_TERRITORIES = [
 
   function loadCachedSfeInstitutions() {
     try {
-      const cached = localStorage.getItem('pims_sfe_institutions_v1');
+      const cached = localStorage.getItem('pims_sfe_institutions_v2');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -20497,7 +20565,7 @@ const BASELINE_ERP_TERRITORIES = [
 
   function saveCachedSfeInstitutions() {
     try {
-      localStorage.setItem('pims_sfe_institutions_v1', JSON.stringify(sfeInstitutionsMasterlist));
+      localStorage.setItem('pims_sfe_institutions_v2', JSON.stringify(sfeInstitutionsMasterlist));
     } catch (_) {}
   }
 
@@ -20513,46 +20581,24 @@ const BASELINE_ERP_TERRITORIES = [
     const statusText = document.getElementById('sfeInstSyncStatusText');
     if (statusText) {
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      statusText.textContent = `Synced (${sourceLabel || 'ERPNext'}) • ${nowStr}`;
-    }
-    const syncBtn = document.getElementById('btnSyncLiveInstitutions');
-    if (syncBtn) {
-      syncBtn.disabled = false;
-      syncBtn.innerHTML = `
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-        <span>Sync Live from ERPNext</span>
-      `;
+      statusText.textContent = `Auto-Synced • ${nowStr}`;
     }
   }
 
   async function syncLiveInstitutionsFromErp(showToastFeedback) {
     if (sfeInstSyncInFlight) return;
     sfeInstSyncInFlight = true;
-    const syncBtn = document.getElementById('btnSyncLiveInstitutions');
-    if (syncBtn && showToastFeedback) {
-      syncBtn.disabled = true;
-      syncBtn.innerHTML = `<span>Syncing ERPNext...</span>`;
-    }
 
     try {
-      if (isStreamlitActive) {
+      if (isPortalInStreamlitMode()) {
         sendToStreamlit({
           action: 'inst_refresh',
+          silent: !showToastFeedback,
           timestamp: Date.now()
         });
-        if (showToastFeedback) {
-          showToast('Requesting live Institution Masterlist & MedRep proposals from ERPNext...', 'info');
-        }
         setTimeout(() => {
           sfeInstSyncInFlight = false;
-          if (syncBtn) {
-            syncBtn.disabled = false;
-            syncBtn.innerHTML = `
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-              <span>Sync Live from ERPNext</span>
-            `;
-          }
-        }, 2200);
+        }, 2000);
         return;
       }
 
@@ -20590,6 +20636,7 @@ const BASELINE_ERP_TERRITORIES = [
             const rawContent = String(c.content || '');
             const parsedMeta = parsePimsMetaFromText(rawContent);
             if (parsedMeta && typeof parsedMeta === 'object') {
+              entry.meta.has_pims_meta = 1;
               Object.assign(entry.meta, parsedMeta);
             }
             const cleanText = rawContent.replace(/<!--PIMS_META:[\s\S]*?-->/g, '').replace(/<[^>]+>/g, ' ').trim();
@@ -20616,24 +20663,11 @@ const BASELINE_ERP_TERRITORIES = [
 
       if (instRows.length > 0) {
         ingestLiveInstitutionsFromServer(instRows, 'Live ERPNext');
-        if (showToastFeedback) {
-          showToast(`Synced ${instRows.length} institutions from ERPNext.`, 'success');
-        }
       }
     } catch (err) {
-      console.warn('[syncLiveInstitutionsFromErp Warning]', err);
-      if (showToastFeedback) {
-        showToast('Using cached Institution Masterlist (ERPNext offline or unreachable).', 'warning');
-      }
+      console.warn('[syncLiveInstitutionsFromErp Notice]', err);
     } finally {
       sfeInstSyncInFlight = false;
-      if (syncBtn) {
-        syncBtn.disabled = false;
-        syncBtn.innerHTML = `
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-          <span>Sync Live from ERPNext</span>
-        `;
-      }
     }
   }
 
@@ -20646,7 +20680,7 @@ const BASELINE_ERP_TERRITORIES = [
 
     for (const inst of sfeInstitutionsMasterlist) {
       const st = inst.workflow_state;
-      if (st === 'Pending Approval' || st === 'Pending SFE' || st === 'Draft') pendingSfe++;
+      if (st === 'Pending Approval') pendingSfe++;
       else if (st === 'Pending DSM Approval') pendingDsm++;
       else if (st === 'Rejected') rejected++;
       else approved++;
@@ -20687,6 +20721,7 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function setSfeInstStatusFilter(status) {
+    closeInstActionDropdown();
     sfeInstStatusFilter = status;
     sfeInstCurrentPage = 1;
     document.querySelectorAll('#sfeInstStatusPillGroup .sfe-inst-pill').forEach(btn => {
@@ -20696,6 +20731,7 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function onSfeInstFilterChange() {
+    closeInstActionDropdown();
     sfeInstCurrentPage = 1;
     renderSfeInstitutionWorkbench();
   }
@@ -20707,12 +20743,14 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function changeSfeInstPageSize(val) {
+    closeInstActionDropdown();
     sfeInstPageSize = parseInt(val, 10) || 15;
     sfeInstCurrentPage = 1;
     renderSfeInstitutionWorkbench();
   }
 
   function changeSfeInstPage(delta) {
+    closeInstActionDropdown();
     sfeInstCurrentPage += delta;
     if (sfeInstCurrentPage < 1) sfeInstCurrentPage = 1;
     renderSfeInstitutionWorkbench();
@@ -20726,7 +20764,7 @@ const BASELINE_ERP_TERRITORIES = [
     return sfeInstitutionsMasterlist.filter(inst => {
       const st = inst.workflow_state;
       if (sfeInstStatusFilter === 'Pending Approval') {
-        if (st !== 'Pending Approval' && st !== 'Pending SFE' && st !== 'Draft') return false;
+        if (st !== 'Pending Approval') return false;
       } else if (sfeInstStatusFilter === 'Pending DSM Approval') {
         if (st !== 'Pending DSM Approval') return false;
       } else if (sfeInstStatusFilter === 'Approved') {
@@ -20767,6 +20805,109 @@ const BASELINE_ERP_TERRITORIES = [
       .replace(/'/g, '&#39;');
   }
 
+  // --- FLOATING DROPDOWN MENU FOR INSTITUTION ROW ACTIONS (Matches Image 3) ---
+  function toggleInstActionDropdown(event, instId) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const menu = document.getElementById('instRowActionsMenu');
+    if (!menu) return;
+
+    if (menu.style.display === 'block' && activeInstActionId === instId) {
+      closeInstActionDropdown();
+      return;
+    }
+
+    if (typeof closeGridActionDropdown === 'function') {
+      closeGridActionDropdown();
+    }
+    closeInstActionDropdown();
+
+    const inst = sfeInstitutionsMasterlist.find(x => x.name === instId);
+    if (!inst) return;
+
+    activeInstActionId = instId;
+
+    const headerEl = document.getElementById('instActionHeaderId');
+    if (headerEl) headerEl.textContent = `${inst.name} • ${inst.institution_name}`;
+
+    const st = inst.workflow_state;
+    const approveBtn = document.getElementById('instActionApprove');
+    const approveLbl = document.getElementById('instActionApproveLabel');
+    const remapBtn = document.getElementById('instActionRemap');
+    const rejectBtn = document.getElementById('instActionReject');
+
+    if (approveBtn) {
+      approveBtn.style.display = (st === 'Approved') ? 'none' : 'flex';
+    }
+    if (approveLbl) {
+      approveLbl.textContent = (inst.requires_dsm_approval && st !== 'Pending DSM Approval')
+        ? 'Route to DSM Approval'
+        : 'Approve Facility';
+    }
+    if (remapBtn) {
+      remapBtn.style.display = (st === 'Approved') ? 'none' : 'flex';
+    }
+    if (rejectBtn) {
+      rejectBtn.style.display = (st === 'Rejected') ? 'none' : 'flex';
+    }
+
+    const btn = event ? event.currentTarget : null;
+    if (btn) btn.classList.add('active');
+
+    menu.style.display = 'block';
+
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      const menuWidth = menu.offsetWidth || 235;
+      const menuHeight = menu.offsetHeight || 220;
+
+      let top = rect.bottom + 4;
+      if (top + menuHeight > window.innerHeight - 10) {
+        top = Math.max(10, rect.top - menuHeight - 4);
+      }
+
+      let left = rect.right - menuWidth;
+      if (left < 10) left = 10;
+      if (left + menuWidth > window.innerWidth - 10) {
+        left = window.innerWidth - menuWidth - 10;
+      }
+
+      menu.style.top = `${top}px`;
+      menu.style.left = `${left}px`;
+    }
+  }
+
+  function closeInstActionDropdown() {
+    const menu = document.getElementById('instRowActionsMenu');
+    if (menu) menu.style.display = 'none';
+    document.querySelectorAll('#sfeInstitutionTableBody .btn-grid-action-trigger.active').forEach(b => b.classList.remove('active'));
+    activeInstActionId = null;
+  }
+
+  function handleInstActionMenuClick(actionType) {
+    const instId = activeInstActionId;
+    closeInstActionDropdown();
+    if (!instId) return;
+
+    if (actionType === 'approve') {
+      quickApproveSfeInstitution(instId);
+    } else if (actionType === 'normalize') {
+      openSfeNormalizeModal(instId);
+    } else if (actionType === 'remap') {
+      openSfeRemapModal(instId);
+    } else if (actionType === 'reject') {
+      openSfeRejectModal(instId);
+    } else if (actionType === 'audit') {
+      openSfeInstAuditModal(instId);
+    }
+  }
+
+  document.addEventListener('click', function() {
+    closeInstActionDropdown();
+  });
+
   function renderSfeInstitutionWorkbench() {
     updateSfeInstitutionBadgesAndKpis();
     const tbody = document.getElementById('sfeInstitutionTableBody');
@@ -20799,8 +20940,8 @@ const BASELINE_ERP_TERRITORIES = [
       tbody.innerHTML = `
         <tr>
           <td colspan="6" style="text-align:center; padding:36px 20px; color:#64748B;">
-            <div style="font-size:14px; font-weight:700; color:#334155; margin-bottom:4px;">No institutions match the current filter (${escapeSfeHtml(sfeInstStatusFilter)})</div>
-            <div style="font-size:12px;">Switch status tabs above or click <strong>Sync Live from ERPNext</strong> to check for new MedRep submissions.</div>
+            <div style="font-size:13.5px; font-weight:700; color:#334155; margin-bottom:4px;">No institutions in ${escapeSfeHtml(sfeInstStatusFilter)}</div>
+            <div style="font-size:12px;">New institutions submitted by MedReps on the HCP Profiling Mobile App automatically appear here in real time.</div>
           </td>
         </tr>
       `;
@@ -20811,40 +20952,38 @@ const BASELINE_ERP_TERRITORIES = [
       const idEsc = escapeSfeHtml(inst.name);
       const nameEsc = escapeSfeHtml(inst.institution_name);
       const isGov = inst.ownership.toLowerCase() === 'government';
+
+      // Minimalist text-only badges (no decorative icons)
       const ownBadge = isGov
-        ? `<span style="display:inline-block; padding:2px 7px; border-radius:4px; font-size:10.5px; font-weight:800; background:#DBEAFE; color:#1E40AF; border:1px solid #93C5FD;">🏛️ Government</span>`
-        : `<span style="display:inline-block; padding:2px 7px; border-radius:4px; font-size:10.5px; font-weight:800; background:#F1F5F9; color:#334155; border:1px solid #CBD5E1;">🏢 Private</span>`;
-      const typeBadge = `<span style="display:inline-block; padding:2px 7px; border-radius:4px; font-size:10.5px; font-weight:700; background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD;">${escapeSfeHtml(inst.institution_type)} &bull; ${escapeSfeHtml(inst.service_capability)}</span>`;
+        ? `<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:10.5px; font-weight:700; background:#DBEAFE; color:#1E40AF; border:1px solid #93C5FD;">Government</span>`
+        : `<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:10.5px; font-weight:700; background:#F1F5F9; color:#334155; border:1px solid #CBD5E1;">Private</span>`;
+      const typeBadge = `<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:10.5px; font-weight:600; background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD;">${escapeSfeHtml(inst.institution_type)} &bull; ${escapeSfeHtml(inst.service_capability)}</span>`;
       const certBadge = inst.is_certified
-        ? `<div style="margin-top:4px;"><span style="display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:800; background:#DCFCE7; color:#166534; border:1px solid #86EFAC;" title="${escapeSfeHtml(inst.certification_note || 'MedRep certified field accuracy')}">🛡️ MedRep Certified</span></div>`
-        : `<div style="margin-top:4px;"><span style="display:inline-flex; align-items:center; gap:4px; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700; background:#F8FAFC; color:#64748B; border:1px solid #E2E8F0;">Standard Record</span></div>`;
+        ? `<div style="margin-top:4px;"><span style="display:inline-block; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; background:#DCFCE7; color:#166534; border:1px solid #86EFAC;" title="${escapeSfeHtml(inst.certification_note || 'MedRep certified field accuracy')}">MedRep Certified</span></div>`
+        : `<div style="margin-top:4px;"><span style="display:inline-block; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; background:#F8FAFC; color:#64748B; border:1px solid #E2E8F0;">Standard Record</span></div>`;
 
       const resubBadge = inst.resubmission_count > 0
-        ? `<div style="margin-top:3px;"><span style="display:inline-block; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:800; background:#FEF3C7; color:#92400E;">Resubmission #${inst.resubmission_count}/2</span></div>`
+        ? `<div style="margin-top:3px;"><span style="display:inline-block; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700; background:#FEF3C7; color:#92400E;">Resubmission ${inst.resubmission_count}/2</span></div>`
         : '';
 
       let wfBadge = '';
       const st = inst.workflow_state;
-      if (st === 'Pending Approval' || st === 'Pending SFE' || st === 'Draft') {
-        wfBadge = `<span style="display:inline-block; padding:4px 9px; border-radius:12px; font-size:11px; font-weight:800; background:#FEF3C7; color:#92400E; border:1px solid #FDE68A;">⏳ Pending SFE Review</span>`;
+      if (st === 'Pending Approval') {
+        wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#FEF3C7; color:#92400E; border:1px solid #FDE68A;">Pending SFE</span>`;
       } else if (st === 'Pending DSM Approval') {
-        wfBadge = `<span style="display:inline-block; padding:4px 9px; border-radius:12px; font-size:11px; font-weight:800; background:#DBEAFE; color:#1E40AF; border:1px solid #93C5FD;">🏛️ Pending DSM Approval</span>`;
+        wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#DBEAFE; color:#1E40AF; border:1px solid #93C5FD;">Pending DSM</span>`;
       } else if (st === 'Rejected') {
-        wfBadge = `<span style="display:inline-block; padding:4px 9px; border-radius:12px; font-size:11px; font-weight:800; background:#FEE2E2; color:#991B1B; border:1px solid #FECACA;">🚫 Rejected</span>`;
+        wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#FEE2E2; color:#991B1B; border:1px solid #FECACA;">Rejected</span>`;
       } else {
-        wfBadge = `<span style="display:inline-block; padding:4px 9px; border-radius:12px; font-size:11px; font-weight:800; background:#DCFCE7; color:#166534; border:1px solid #86EFAC;">✅ Approved Directory</span>`;
+        wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#DCFCE7; color:#166534; border:1px solid #86EFAC;">Approved</span>`;
       }
-
-      const routingHint = (inst.requires_dsm_approval && (st === 'Pending Approval' || st === 'Pending SFE' || st === 'Draft'))
-        ? `<div style="font-size:10.5px; color:#B45309; font-weight:700; margin-top:4px;">Routes to DSM on SFE Approval</div>`
-        : '';
 
       const rejectNoteHtml = (st === 'Rejected' && inst.rejection_reason)
         ? `<div style="margin-top:5px; padding:4px 7px; border-radius:5px; background:#FEF2F2; border:1px solid #FECACA; font-size:11px; color:#991B1B;"><strong>Reason:</strong> ${escapeSfeHtml(inst.rejection_reason)}</div>`
         : '';
 
       const remapNoteHtml = inst.remapped_to_id
-        ? `<div style="margin-top:4px; font-size:11px; color:#5B21B6; font-weight:700;">🔀 Remapped &rarr; ${escapeSfeHtml(inst.remapped_to_id)}</div>`
+        ? `<div style="margin-top:4px; font-size:11px; color:#5B21B6; font-weight:700;">Remapped &rarr; ${escapeSfeHtml(inst.remapped_to_id)}</div>`
         : '';
 
       const cityDisp = escapeSfeHtml(inst.city_label || inst.city_municipality || '—');
@@ -20852,21 +20991,14 @@ const BASELINE_ERP_TERRITORIES = [
       const regDisp = escapeSfeHtml(inst.region_label || inst.region_name || '—');
       const addrDisp = inst.address_line1 ? `<div style="font-size:11px; color:#64748B; margin-top:2px;">${escapeSfeHtml(inst.address_line1)}${inst.barangay ? ', ' + escapeSfeHtml(inst.barangay) : ''}</div>` : '';
 
-      const approveBtnLabel = (inst.requires_dsm_approval && st !== 'Pending DSM Approval')
-        ? '🏛️ Route to DSM'
-        : '✅ Approve';
-
-      const canApprove = st !== 'Approved';
-      const canReject = st !== 'Rejected';
-
       return `
         <tr style="border-bottom:1px solid #E2E8F0; background:#FFFFFF;">
-          <td style="padding:10px 12px; vertical-align:top;">
+          <td style="padding:10px 14px; vertical-align:middle;">
             <div style="font-family:monospace; font-weight:800; font-size:12.5px; color:#0F172A;">${idEsc}</div>
             ${certBadge}
             ${resubBadge}
           </td>
-          <td style="padding:10px 12px; vertical-align:top;">
+          <td style="padding:10px 14px; vertical-align:middle;">
             <div style="font-weight:800; font-size:13px; color:#0F172A;">${nameEsc}</div>
             <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;">
               ${ownBadge}
@@ -20875,43 +21007,25 @@ const BASELINE_ERP_TERRITORIES = [
             ${rejectNoteHtml}
             ${remapNoteHtml}
           </td>
-          <td style="padding:10px 12px; vertical-align:top;">
+          <td style="padding:10px 14px; vertical-align:middle;">
             <div style="font-weight:700; color:#0F172A;">${cityDisp}</div>
             <div style="font-size:11.5px; color:#475569;">${provDisp} &bull; ${regDisp}</div>
             ${addrDisp}
           </td>
-          <td style="padding:10px 12px; vertical-align:top;">
-            <div style="font-weight:700; color:#0F172A;">${escapeSfeHtml(inst.linked_doctor_name || 'General Directory Proposal')}</div>
+          <td style="padding:10px 14px; vertical-align:middle;">
+            <div style="font-weight:700; color:#0F172A;">${escapeSfeHtml(inst.linked_doctor_name || 'Directory Record')}</div>
             <div style="font-size:11px; color:#64748B; margin-top:2px;">Submitted by: <strong>${escapeSfeHtml(inst.submitted_by)}</strong></div>
           </td>
-          <td style="padding:10px 12px; vertical-align:top;">
+          <td style="padding:10px 14px; vertical-align:middle; text-align:center;">
             ${wfBadge}
-            ${routingHint}
           </td>
-          <td style="padding:10px 12px; vertical-align:top; text-align:center;">
-            <div style="display:flex; flex-wrap:wrap; gap:5px; justify-content:center;">
-              ${canApprove ? `
-                <button type="button" class="sfe-inst-action-btn" onclick="quickApproveSfeInstitution('${idEsc}')" style="background:#16A34A; color:#FFFFFF; border-color:#15803D;" title="Approve and sync directly to HCP App Institution Directory">
-                  ${approveBtnLabel}
-                </button>
-              ` : ''}
-              <button type="button" class="sfe-inst-action-btn" onclick="openSfeNormalizeModal('${idEsc}')" style="background:#EFF6FF; color:#1D4ED8; border-color:#93C5FD;" title="Standardize name, classification, and official PSGC codes">
-                ✏️ Normalize
-              </button>
-              ${canReject ? `
-                <button type="button" class="sfe-inst-action-btn" onclick="openSfeRejectModal('${idEsc}')" style="background:#FEF2F2; color:#DC2626; border-color:#FECACA;" title="Reject with mandatory reason and notify MedRep">
-                  🚫 Reject
-                </button>
-              ` : ''}
-              ${canApprove ? `
-                <button type="button" class="sfe-inst-action-btn" onclick="openSfeRemapModal('${idEsc}')" style="background:#F5F3FF; color:#6D28D9; border-color:#DDD6FE;" title="Remap duplicate proposal to an existing Approved INST-XXXXX">
-                  🔀 Remap
-                </button>
-              ` : ''}
-              <button type="button" class="sfe-inst-action-btn" onclick="openSfeInstAuditModal('${idEsc}')" style="background:#F8FAFC; color:#334155; border-color:#CBD5E1;" title="View certification details and governance audit trail">
-                📋 Audit
-              </button>
-            </div>
+          <td style="width:110px; min-width:110px; max-width:110px; padding:10px 14px; vertical-align:middle; text-align:center;">
+            <button type="button" class="btn btn-sm btn-grid-action-trigger" onclick="toggleInstActionDropdown(event, '${idEsc}')" title="Actions for ${idEsc}">
+              <span>Actions</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-top:1px;">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
           </td>
         </tr>
       `;
@@ -20937,7 +21051,6 @@ const BASELINE_ERP_TERRITORIES = [
       actor: actor
     }, extraMeta || {});
 
-    // 1. PUT /api/resource/Institution/<id>
     const putBody = {
       institution_name: inst.institution_name,
       city_municipality: inst.city_municipality,
@@ -20959,7 +21072,6 @@ const BASELINE_ERP_TERRITORIES = [
       console.warn('[Local Desktop Institution PUT Warning]', e);
     }
 
-    // 2. POST /api/resource/Comment with <!--PIMS_META:Ellipsis-->
     try {
       const commentHtml = `<p><strong>[SFE Governance — ${escapeSfeHtml(actionLabel)}]</strong> Facility: <b>${escapeSfeHtml(inst.institution_name)}</b> | State: <b>${escapeSfeHtml(inst.workflow_state)}</b> | Actor: ${escapeSfeHtml(actor)}</p><!--PIMS_META:${JSON.stringify(metaPayload)}-->`;
       await fetch('/api/resource/Comment', {
@@ -20978,7 +21090,6 @@ const BASELINE_ERP_TERRITORIES = [
       console.warn('[Local Desktop Comment POST Warning]', e);
     }
 
-    // 3. Propagate workplace_approval_note to linked HCP Account, HCP, and HCP Profile Submission
     const approvalNote = inst.workflow_state === 'Approved'
       ? 'this institution is now approved'
       : (inst.workflow_state === 'Rejected'
@@ -21036,9 +21147,10 @@ const BASELINE_ERP_TERRITORIES = [
       recordAuditEvent('INSTITUTION_APPROVAL', inst.name, `${inst.institution_name} -> ${nextState}`);
     }
 
-    if (isStreamlitActive) {
+    if (isPortalInStreamlitMode()) {
       sendToStreamlit({
         action: 'inst_approve',
+        name: inst.name,
         institution_id: inst.name,
         institution_name: inst.institution_name,
         ownership: inst.ownership,
@@ -21050,21 +21162,22 @@ const BASELINE_ERP_TERRITORIES = [
         linked_doctor_name: inst.linked_doctor_name,
         submitted_by: inst.submitted_by,
         route_to_dsm: routeToDsm,
+        user: actor,
         actor: actor,
         timestamp: Date.now()
       });
       showToast(
         routeToDsm
-          ? `🏛️ '${inst.institution_name}' (${inst.name}) routed to Pending DSM Approval.`
-          : `✅ '${inst.institution_name}' (${inst.name}) Approved & synced to HCP App Institution Directory!`,
+          ? `'${inst.institution_name}' (${inst.name}) routed to Pending DSM Approval.`
+          : `'${inst.institution_name}' (${inst.name}) Approved & synced to HCP App Institution Directory!`,
         'success'
       );
     } else {
       await dispatchLocalDesktopInstitutionSync(inst, routeToDsm ? 'Routed to DSM' : 'Approved');
       showToast(
         routeToDsm
-          ? `🏛️ '${inst.institution_name}' (${inst.name}) routed to Pending DSM Approval.`
-          : `✅ '${inst.institution_name}' (${inst.name}) Approved & synced to HCP App Institution Directory!`,
+          ? `'${inst.institution_name}' (${inst.name}) routed to Pending DSM Approval.`
+          : `'${inst.institution_name}' (${inst.name}) Approved & synced to HCP App Institution Directory!`,
         'success'
       );
     }
@@ -21113,7 +21226,6 @@ const BASELINE_ERP_TERRITORIES = [
     if (!provSel) return;
     const provs = PSGC_PROVINCES_BY_REGION.get(regCode) || [];
     if (provs.length === 0 && regCode) {
-      // NCR or direct region-parented cities
       provSel.innerHTML = `<option value="${regCode}">Metro Manila / Direct Regional District (${regCode})</option>`;
       provSel.value = regCode;
     } else {
@@ -21158,7 +21270,7 @@ const BASELINE_ERP_TERRITORIES = [
     const inp = document.getElementById('sfeNormNameInput');
     if (!inp) return;
     const minorWords = new Set(['of', 'the', 'and', 'in', 'for', 'at', 'by', 'to']);
-    const upperAcronyms = new Set(['MMG', 'DOH', 'LGU', 'RHU', 'BHC', 'MHC', 'ENT', 'OB', 'GYN', 'PH', 'ST.', 'DR.']);
+    const upperAcronyms = new Set(['MMG', 'DOH', 'LGU', 'RHU', 'BHC', 'MHC', 'ENT', 'OB', 'GYN', 'PH', 'ST.', 'DR.', 'INC.']);
     const words = String(inp.value || '').trim().replace(/\s+/g, ' ').split(' ');
     inp.value = words.map((w, idx) => {
       const up = w.toUpperCase();
@@ -21181,7 +21293,6 @@ const BASELINE_ERP_TERRITORIES = [
     populateSfeNormCapabilityOptions(inst.institution_type, inst.service_capability);
     onSfeNormClassificationChange();
 
-    // Resolve PSGC codes even if only city_municipality is populated
     let regCode = inst.region_name;
     let provCode = inst.province_name;
     let cityCode = inst.city_municipality;
@@ -21205,7 +21316,6 @@ const BASELINE_ERP_TERRITORIES = [
     document.getElementById('sfeNormZipInput').value = inst.zip_code || '';
     document.getElementById('sfeNormNoteInput').value = '';
 
-    // Start 60-second edit lease countdown
     sfeNormLeaseSecondsRemaining = 60;
     const leaseTimerEl = document.getElementById('sfeNormLeaseTimer');
     if (sfeNormLeaseInterval) clearInterval(sfeNormLeaseInterval);
@@ -21213,7 +21323,7 @@ const BASELINE_ERP_TERRITORIES = [
       sfeNormLeaseSecondsRemaining = Math.max(0, sfeNormLeaseSecondsRemaining - 1);
       if (leaseTimerEl) leaseTimerEl.textContent = `${sfeNormLeaseSecondsRemaining}s`;
       if (sfeNormLeaseSecondsRemaining === 0) {
-        sfeNormLeaseSecondsRemaining = 60; // Auto-renew while modal is actively open
+        sfeNormLeaseSecondsRemaining = 60;
       }
     }, 1000);
 
@@ -21240,6 +21350,7 @@ const BASELINE_ERP_TERRITORIES = [
       showToast('Official Facility Name cannot be empty.', 'error');
       return;
     }
+    const oldName = inst.institution_name;
     const ownVal = document.getElementById('sfeNormOwnershipSelect').value || 'Private';
     const typeVal = document.getElementById('sfeNormTypeSelect').value || 'Hospital';
     const capVal = document.getElementById('sfeNormCapabilitySelect').value || 'Primary';
@@ -21290,18 +21401,24 @@ const BASELINE_ERP_TERRITORIES = [
       recordAuditEvent('INSTITUTION_NORMALIZE', inst.name, `${inst.institution_name} (${inst.workflow_state})`);
     }
 
-    if (isStreamlitActive) {
+    if (isPortalInStreamlitMode()) {
       sendToStreamlit({
         action: 'inst_normalize',
+        name: inst.name,
         institution_id: inst.name,
         institution_name: inst.institution_name,
+        old_institution_name: oldName,
         ownership: inst.ownership,
         institution_type: inst.institution_type,
         service_capability: inst.service_capability,
         requires_dsm_approval: inst.requires_dsm_approval,
+        region_id: inst.region_name,
         region_name: inst.region_name,
+        province_id: inst.province_name,
         province_name: inst.province_name,
+        city_id: inst.city_municipality,
         city_municipality: inst.city_municipality,
+        street_address: inst.address_line1,
         address_line1: inst.address_line1,
         barangay: inst.barangay,
         zip_code: inst.zip_code,
@@ -21309,9 +21426,11 @@ const BASELINE_ERP_TERRITORIES = [
         certification_note: inst.certification_note,
         linked_doctor_name: inst.linked_doctor_name,
         submitted_by: inst.submitted_by,
+        auto_approve: approveAfterSave,
         approve_after_normalize: approveAfterSave,
         route_to_dsm: routeToDsm,
         workflow_state: inst.workflow_state,
+        user: actor,
         actor: actor,
         timestamp: Date.now()
       });
@@ -21322,9 +21441,9 @@ const BASELINE_ERP_TERRITORIES = [
     showToast(
       approveAfterSave
         ? (routeToDsm
-            ? `🏛️ Normalized '${inst.institution_name}' & routed to Pending DSM Approval.`
-            : `✅ Normalized & Approved '${inst.institution_name}' — now live in HCP App Directory!`)
-        : `💾 Saved normalized fields for '${inst.institution_name}'.`,
+            ? `Normalized '${inst.institution_name}' & routed to Pending DSM Approval.`
+            : `Normalized & Approved '${inst.institution_name}' — now live in HCP App Directory!`)
+        : `Saved normalized fields for '${inst.institution_name}'.`,
       'success'
     );
   }
@@ -21382,9 +21501,10 @@ const BASELINE_ERP_TERRITORIES = [
       recordAuditEvent('INSTITUTION_REJECT', inst.name, `${inst.institution_name} — Reason: ${reason}`);
     }
 
-    if (isStreamlitActive) {
+    if (isPortalInStreamlitMode()) {
       sendToStreamlit({
         action: 'inst_reject',
+        name: inst.name,
         institution_id: inst.name,
         institution_name: inst.institution_name,
         rejection_reason: reason,
@@ -21396,6 +21516,7 @@ const BASELINE_ERP_TERRITORIES = [
         linked_doctor_name: inst.linked_doctor_name,
         submitted_by: inst.submitted_by,
         resubmission_count: inst.resubmission_count,
+        user: actor,
         actor: actor,
         timestamp: Date.now()
       });
@@ -21403,7 +21524,7 @@ const BASELINE_ERP_TERRITORIES = [
       await dispatchLocalDesktopInstitutionSync(inst, 'Rejected');
     }
 
-    showToast(`🚫 Rejected '${inst.institution_name}' (${inst.name}) & synced reason to MedRep Mobile App.`, 'warning');
+    showToast(`Rejected '${inst.institution_name}' (${inst.name}) & synced reason to MedRep Mobile App.`, 'warning');
   }
 
   // --- REMAP DUPLICATE INSTITUTION MODAL ---
@@ -21480,14 +21601,20 @@ const BASELINE_ERP_TERRITORIES = [
       recordAuditEvent('INSTITUTION_REMAP', inst.name, `Remapped ${inst.name} -> ${targetId} (${targetName})`);
     }
 
-    if (isStreamlitActive) {
+    if (isPortalInStreamlitMode()) {
       sendToStreamlit({
         action: 'inst_remap',
+        old_id: inst.name,
+        old_name: inst.institution_name,
         duplicate_institution_id: inst.name,
         duplicate_institution_name: inst.institution_name,
+        replacement_id: targetId,
+        replacement_name: targetName,
         target_institution_id: targetId,
         target_institution_name: targetName,
+        resolution_note: note,
         remap_note: note,
+        user: actor,
         actor: actor,
         timestamp: Date.now()
       });
@@ -21498,7 +21625,7 @@ const BASELINE_ERP_TERRITORIES = [
       });
     }
 
-    showToast(`🔀 Remapped '${inst.institution_name}' (${inst.name}) to canonical ${targetId} (${targetName})!`, 'success');
+    showToast(`Remapped '${inst.institution_name}' (${inst.name}) to canonical ${targetId} (${targetName})!`, 'success');
   }
 
   // --- AUDIT TRAIL MODAL ---
@@ -21509,8 +21636,8 @@ const BASELINE_ERP_TERRITORIES = [
     const trail = Array.isArray(inst.audit_trail) && inst.audit_trail.length > 0
       ? inst.audit_trail.map(item => `
           <div style="padding:8px 10px; border-left:3px solid #0066FF; background:#F8FAFC; border-radius:4px; margin-bottom:8px;">
-            <div style="font-size:11px; color:#64748B;"><strong>${escapeSfeHtml(item.actor || 'System')}</strong> &bull; ${escapeSfeHtml(item.timestamp || 'Recorded')}</div>
-            <div style="font-size:12px; color:#0F172A; margin-top:2px;">${escapeSfeHtml(item.detail || '')}</div>
+            <div style="font-size:11px; color:#64748B;"><strong>${escapeSfeHtml(item.actor || item.user || 'System')}</strong> &bull; ${escapeSfeHtml(item.timestamp || 'Recorded')}</div>
+            <div style="font-size:12px; color:#0F172A; margin-top:2px;">${escapeSfeHtml(item.detail || item.details || '')}</div>
           </div>
         `).join('')
       : `<div style="padding:12px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; color:#64748B; font-size:12px;">Initial masterlist / MedRep submission record. No additional SFE governance comments recorded yet.</div>`;
@@ -21523,10 +21650,10 @@ const BASELINE_ERP_TERRITORIES = [
         <div><strong>Classification:</strong> ${escapeSfeHtml(inst.ownership)} &bull; ${escapeSfeHtml(inst.institution_type)} (${escapeSfeHtml(inst.service_capability)})</div>
         <div><strong>PSGC City / Mun:</strong> ${escapeSfeHtml(inst.city_label || '—')} (<code>${escapeSfeHtml(inst.city_municipality || '—')}</code>)</div>
         <div><strong>PSGC Province / Region:</strong> ${escapeSfeHtml(inst.province_label || '—')} / ${escapeSfeHtml(inst.region_label || '—')}</div>
-        <div><strong>MedRep Certified:</strong> ${inst.is_certified ? '✅ Yes (Accuracy Attested)' : 'Standard'}</div>
+        <div><strong>MedRep Certified:</strong> ${inst.is_certified ? 'Yes (Accuracy Attested)' : 'Standard'}</div>
         <div><strong>Resubmission Count:</strong> ${inst.resubmission_count} of 2</div>
       </div>
-      ${inst.certification_note ? `<div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:7px; padding:9px 12px; margin-bottom:12px; font-size:12px; color:#166534;"><strong>🛡️ MedRep Accuracy Certification:</strong> ${escapeSfeHtml(inst.certification_note)}</div>` : ''}
+      ${inst.certification_note ? `<div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:7px; padding:9px 12px; margin-bottom:12px; font-size:12px; color:#166534;"><strong>MedRep Accuracy Certification:</strong> ${escapeSfeHtml(inst.certification_note)}</div>` : ''}
       <div style="font-weight:800; font-size:12.5px; color:#0F172A; margin-bottom:8px;">Chronological Governance Events</div>
       <div style="max-height:260px; overflow-y:auto;">${trail}</div>
     `;
@@ -21572,22 +21699,45 @@ const BASELINE_ERP_TERRITORIES = [
     showToast(`Exported ${rows.length} institutions to CSV.`, 'success');
   }
 
-  // --- INITIALIZE & START 15s REAL-TIME AUTO-SYNC ---
+  function isAnySfeInstModalOpen() {
+    const ids = [
+      'sfeInstNormalizeModalOverlay',
+      'sfeInstRejectModalOverlay',
+      'sfeInstRemapModalOverlay',
+      'sfeInstAuditModalOverlay',
+      'instRowActionsMenu'
+    ];
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el && el.style.display && el.style.display !== 'none') return true;
+    }
+    return false;
+  }
+
+  // --- INITIALIZE & START AUTOMATIC 15s REAL-TIME SYNC ---
   function initSfeInstitutionWorkbench() {
     loadCachedSfeInstitutions();
     updateSfeInstitutionBadgesAndKpis();
     renderSfeInstitutionWorkbench();
-    // Initial live fetch in local desktop mode
+
     setTimeout(() => {
-      if (authenticatedUser && !isStreamlitActive) {
+      if (authenticatedUser && !isPortalInStreamlitMode()) {
         syncLiveInstitutionsFromErp(false);
       }
     }, 800);
-    // 15-second background sync timer for real-time MedRep submission discovery
+
+    // Automatic background sync every 15s when Institution Approvals tab is active and no modal/menu is open
     if (!sfeInstAutoPollTimer) {
       sfeInstAutoPollTimer = setInterval(() => {
         if (!authenticatedUser) return;
-        if (!isStreamlitActive) {
+        if (isAnySfeInstModalOpen()) return;
+        const instTab = document.getElementById('tab-institutions');
+        const isInstTabActive = instTab && instTab.classList.contains('active');
+        if (isPortalInStreamlitMode()) {
+          if (isInstTabActive) {
+            syncLiveInstitutionsFromErp(false);
+          }
+        } else {
           syncLiveInstitutionsFromErp(false);
         }
       }, 15000);

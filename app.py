@@ -507,6 +507,7 @@ def fetch_live_institutions(opener):
                     if m:
                         try:
                             meta_obj = json.loads(m.group(1))
+                            inst["has_pims_meta"] = 1
                             for mk, mv in meta_obj.items():
                                 if mv is not None and mv != "" and mk not in ("action", "user", "role", "timestamp", "details"):
                                     inst[mk] = mv
@@ -672,9 +673,9 @@ def execute_institution_action(opener, action, payload):
             return "success", f"Institution governance queue synced live from {get_server_display_name()}!"
 
         elif action == "inst_approve":
-            name = safe_str(payload.get("name"))
+            name = safe_str(payload.get("name") or payload.get("institution_id"))
             inst_title = safe_str(payload.get("institution_name")) or name
-            needs_dsm = bool(payload.get("requires_dsm_approval")) and safe_str(payload.get("current_state")) != "Pending DSM Approval"
+            needs_dsm = bool(payload.get("route_to_dsm")) if "route_to_dsm" in payload else (bool(payload.get("requires_dsm_approval")) and safe_str(payload.get("current_state")) != "Pending DSM Approval")
             target_state = "Pending DSM Approval" if needs_dsm else "Approved"
             target_docstatus = 0 if needs_dsm else 1
             wf_action = "Route to DSM" if needs_dsm else "Approve"
@@ -737,18 +738,18 @@ def execute_institution_action(opener, action, payload):
             return "success", f'Institution "{inst_title}" ({name}) {("routed to DSM" if needs_dsm else "approved and synced to Mobile App Directory")}!'
 
         elif action == "inst_normalize":
-            name = safe_str(payload.get("name"))
+            name = safe_str(payload.get("name") or payload.get("institution_id"))
             clean_wp = safe_str(payload.get("institution_name"))
             old_wp = safe_str(payload.get("old_institution_name")) or clean_wp
-            reg_id = safe_str(payload.get("region_id"))
-            prov_id = safe_str(payload.get("province_id"))
-            city_id = safe_str(payload.get("city_id"))
-            street = safe_str(payload.get("street_address"))
+            reg_id = safe_str(payload.get("region_id") or payload.get("region_name"))
+            prov_id = safe_str(payload.get("province_id") or payload.get("province_name"))
+            city_id = safe_str(payload.get("city_id") or payload.get("city_municipality"))
+            street = safe_str(payload.get("street_address") or payload.get("address_line1"))
             ownership = safe_str(payload.get("ownership"))
             inst_type = safe_str(payload.get("institution_type"))
             capability = safe_str(payload.get("service_capability"))
-            auto_approve = bool(payload.get("auto_approve", True))
-            needs_dsm = bool(payload.get("requires_dsm_approval")) and safe_str(payload.get("current_state")) != "Pending DSM Approval"
+            auto_approve = bool(payload.get("approve_after_normalize")) if "approve_after_normalize" in payload else bool(payload.get("auto_approve", True))
+            needs_dsm = bool(payload.get("route_to_dsm")) if "route_to_dsm" in payload else (bool(payload.get("requires_dsm_approval")) and safe_str(payload.get("current_state")) != "Pending DSM Approval")
 
             if not name or not clean_wp:
                 return "error", "Institution ID and standardized facility name are required."
@@ -867,7 +868,7 @@ def execute_institution_action(opener, action, payload):
             return "success", f'Normalized "{clean_wp}" ({name}) and synced live to ERPNext & Mobile App!'
 
         elif action == "inst_reject":
-            name = safe_str(payload.get("name"))
+            name = safe_str(payload.get("name") or payload.get("institution_id"))
             inst_title = safe_str(payload.get("institution_name")) or name
             reason = safe_str(payload.get("rejection_reason"))
             if not name or not reason:
@@ -915,11 +916,11 @@ def execute_institution_action(opener, action, payload):
             return "warning", f'Rejected "{inst_title}" ({name}) and propagated rejection notice to MedRep Mobile App!'
 
         elif action == "inst_remap":
-            old_id = safe_str(payload.get("old_id") or payload.get("name"))
-            old_name = safe_str(payload.get("old_name") or payload.get("institution_name")) or old_id
-            rep_id = safe_str(payload.get("replacement_id"))
-            rep_name = safe_str(payload.get("replacement_name")) or rep_id
-            note = safe_str(payload.get("resolution_note")) or f"Remapped duplicate/unprofiled institution to approved facility: {rep_name}"
+            old_id = safe_str(payload.get("old_id") or payload.get("duplicate_institution_id") or payload.get("name"))
+            old_name = safe_str(payload.get("old_name") or payload.get("duplicate_institution_name") or payload.get("institution_name")) or old_id
+            rep_id = safe_str(payload.get("replacement_id") or payload.get("target_institution_id"))
+            rep_name = safe_str(payload.get("replacement_name") or payload.get("target_institution_name")) or rep_id
+            note = safe_str(payload.get("resolution_note") or payload.get("remap_note")) or f"Remapped duplicate/unprofiled institution to approved facility: {rep_name}" 
             if not old_id or not rep_id:
                 return "error", "Both original and replacement canonical Institution IDs are required."
 
@@ -1537,12 +1538,13 @@ if component_val and isinstance(component_val, dict):
                 if action == "inst_refresh":
                     msg = f"Live ERPNext sync complete: {i_count} institutions loaded directly from {get_server_display_name()}!"
                     status = "success"
-            st.session_state["tree_sync_event"] = {
-                "action": action,
-                "status": status,
-                "message": msg,
-                "timestamp": ts
-            }
+            if not (action == "inst_refresh" and component_val.get("silent")):
+                st.session_state["tree_sync_event"] = {
+                    "action": action,
+                    "status": status,
+                    "message": msg,
+                    "timestamp": ts
+                }
             st.rerun()
         elif action in ["tree_add", "tree_edit", "tree_rename", "tree_delete", "territory_deactivate", "tree_refresh", "sales_person_create", "employee_create"]:
             opener = st.session_state.get("opener")
