@@ -102,14 +102,34 @@ def safe_str(val, default=""):
         return default
     return str(val).strip()
 
+def get_safe_secret(key, default=""):
+    """Safely reads a key from st.secrets without raising StreamlitSecretNotFoundError when secrets.toml is absent."""
+    try:
+        if hasattr(st, "secrets") and key in st.secrets:
+            val = st.secrets.get(key)
+            if val is not None:
+                return str(val).strip()
+    except Exception:
+        pass
+    return default
+
+@st.cache_resource
+def _get_shared_opener_store():
+    return {"opener": None}
+
 def get_authenticated_opener(force_refresh=False):
-    if not force_refresh and "opener" in st.session_state and st.session_state["opener"]:
-        return st.session_state["opener"]
+    if not force_refresh:
+        if "opener" in st.session_state and st.session_state["opener"]:
+            return st.session_state["opener"]
+        shared_op = _get_shared_opener_store().get("opener")
+        if shared_op:
+            st.session_state["opener"] = shared_op
+            return shared_op
 
     opener, cj = create_erpnext_opener()
     opener.cookie_jar = cj
-    svc_user = os.environ.get("PIMS_SERVICE_USER") or (st.secrets.get("PIMS_SERVICE_USER") if hasattr(st, "secrets") and "PIMS_SERVICE_USER" in st.secrets else "")
-    svc_pwd = os.environ.get("PIMS_SERVICE_PASSWORD") or (st.secrets.get("PIMS_SERVICE_PASSWORD") if hasattr(st, "secrets") and "PIMS_SERVICE_PASSWORD" in st.secrets else "")
+    svc_user = os.environ.get("PIMS_SERVICE_USER") or get_safe_secret("PIMS_SERVICE_USER")
+    svc_pwd = os.environ.get("PIMS_SERVICE_PASSWORD") or get_safe_secret("PIMS_SERVICE_PASSWORD")
     if svc_user and svc_pwd:
         try:
             login_data = json.dumps({"usr": svc_user, "pwd": svc_pwd}).encode("utf-8")
@@ -476,7 +496,7 @@ def fetch_live_institutions(opener):
             res = call_erpnext_resiliently(opener, req, timeout=15)
             data = json.loads(res.read().decode("utf-8")).get("data", [])
         except Exception:
-            core_fields = json.dumps(["name", "institution_name", "region_name", "province_name", "city_municipality", "workflow_state", "rejection_reason", "owner", "creation", "modified", "docstatus", "ownership", "institution_type", "service_capability"])
+            core_fields = json.dumps(["name", "institution_name", "ownership", "institution_type", "service_capability", "requires_dsm_approval", "linked_doctor_name", "region_name", "province_name", "city_municipality", "barangay_name", "street_address", "workflow_state", "rejection_reason", "is_resubmission", "owner", "creation", "modified", "docstatus"])
             fallback_url = f"{ERPNEXT_SERVER_URL}/api/resource/Institution?fields={urllib.parse.quote(core_fields)}&order_by=name%20desc&limit_page_length=0"
             req2 = urllib.request.Request(fallback_url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
             res2 = call_erpnext_resiliently(opener, req2, timeout=15)
@@ -1466,6 +1486,7 @@ if component_val and isinstance(component_val, dict):
             st.session_state["pending_auth_delivery"] = True
             if res.get("authorized") and opener:
                 st.session_state["opener"] = opener
+                _get_shared_opener_store()["opener"] = opener
                 try:
                     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
                         f_terrs = executor.submit(fetch_live_territories, opener)
@@ -1482,12 +1503,14 @@ if component_val and isinstance(component_val, dict):
                     print(f"[Streamlit Data Fetch Warning] {ex}")
                     st.session_state["live_territories"] = fetch_live_territories(opener)
                     st.session_state["live_users"] = fetch_live_users(opener)
+                    st.session_state["live_institutions"] = fetch_live_institutions(opener)
                 token = secrets.token_urlsafe(32)
                 st.session_state["session_token"] = token
                 clear_query_param("sfe_session")
             else:
                 # Failed login: strictly wipe lingering session credentials and tokens
                 st.session_state["opener"] = None
+                _get_shared_opener_store()["opener"] = None
                 st.session_state["session_token"] = None
                 st.session_state["live_territories"] = None
                 clear_query_param("sfe_session")
@@ -1516,6 +1539,7 @@ if component_val and isinstance(component_val, dict):
             st.session_state["pending_auth_delivery"] = False
             st.session_state["reset_password_response"] = None
             st.session_state["opener"] = None
+            _get_shared_opener_store()["opener"] = None
             st.session_state["live_territories"] = None
             st.session_state["live_sales_persons"] = None
             st.session_state["live_employees"] = None
@@ -1533,7 +1557,9 @@ if component_val and isinstance(component_val, dict):
             opener = st.session_state.get("opener") or get_authenticated_opener()
             if opener:
                 st.session_state["opener"] = opener
-                st.session_state["live_institutions"] = fetch_live_institutions(opener)
+                fresh_insts = fetch_live_institutions(opener)
+                if fresh_insts is not None:
+                    st.session_state["live_institutions"] = fresh_insts
                 i_count = len(st.session_state.get("live_institutions") or [])
                 if action == "inst_refresh":
                     msg = f"Live ERPNext sync complete: {i_count} institutions loaded directly from {get_server_display_name()}!"
