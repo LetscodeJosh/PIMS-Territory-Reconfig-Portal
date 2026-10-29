@@ -3079,9 +3079,9 @@
     <div id="tab-institutions" class="tab-content">
       <div class="card" style="padding:18px 20px; border-radius:12px; background:#FFFFFF; border:1px solid #E2E8F0; box-shadow:0 2px 8px rgba(15,23,42,0.04);">
 
-        <!-- Minimalist Workbench Header (No subtitle, no icon box, no manual sync button) -->
+        <!-- Minimalist Workbench Header -->
         <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:14px; padding-bottom:14px; border-bottom:1.5px solid #E2E8F0; margin-bottom:16px;">
-          <h2 style="margin:0; font-size:16.5px; font-weight:800; color:#0F172A; letter-spacing:-0.2px;">SFE Institution Approval &amp; Masterlist Governance Workbench</h2>
+          <h2 style="margin:0; font-size:16.5px; font-weight:800; color:#0F172A; letter-spacing:-0.2px;">Institution Approval</h2>
 
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             <div id="sfeInstSyncStatusPill" style="display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:20px; background:#F0FDF4; border:1px solid #BBF7D0; font-size:11.5px; font-weight:700; color:#15803D;">
@@ -3095,65 +3095,47 @@
           </div>
         </div>
 
-        <!-- 5 Minimalist KPI Cards (No decorative icons) -->
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(185px, 1fr)); gap:12px; margin-bottom:16px;">
-          <div onclick="setSfeInstStatusFilter('Pending Approval')" style="cursor:pointer; background:#FFFBEB; border:1px solid #FDE68A; border-radius:10px; padding:12px 14px;">
-            <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#B45309; letter-spacing:0.4px;">Pending SFE Review</div>
+        <!-- 5 Navigation Windows (KPI Cards) -->
+        <div id="sfeInstNavCards" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(185px, 1fr)); gap:12px; margin-bottom:16px;">
+          <div class="sfe-inst-nav-card active" data-status="Draft" onclick="setSfeInstStatusFilter('Draft')" style="cursor:pointer; background:#FFFBEB; border:1px solid #FDE68A; border-radius:10px; padding:12px 14px;">
+            <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#B45309; letter-spacing:0.4px;">Institution Directory</div>
             <div id="kpiInstPendingSfe" style="font-size:24px; font-weight:900; color:#92400E; margin-top:4px;">0</div>
-            <div style="font-size:11px; color:#B45309; margin-top:2px;">New MedRep discoveries awaiting SFE</div>
+            <div style="font-size:11px; color:#B45309; margin-top:2px;">Available in ERPNext Institution DocType</div>
           </div>
 
-          <div onclick="setSfeInstStatusFilter('Pending DSM Approval')" style="cursor:pointer; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px; padding:12px 14px;">
+          <div class="sfe-inst-nav-card" data-status="Pending DSM Approval" onclick="setSfeInstStatusFilter('Pending DSM Approval')" style="cursor:pointer; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px; padding:12px 14px;">
             <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#1D4ED8; letter-spacing:0.4px;">Pending DSM Approval</div>
             <div id="kpiInstPendingDsm" style="font-size:24px; font-weight:900; color:#1E40AF; margin-top:4px;">0</div>
             <div style="font-size:11px; color:#1D4ED8; margin-top:2px;">Government / high-impact facilities</div>
           </div>
 
-          <div onclick="setSfeInstStatusFilter('Approved')" style="cursor:pointer; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; padding:12px 14px;">
+          <div class="sfe-inst-nav-card" data-status="Approved" onclick="setSfeInstStatusFilter('Approved')" style="cursor:pointer; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; padding:12px 14px;">
             <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#15803D; letter-spacing:0.4px;">Approved Masterlist</div>
             <div id="kpiInstApproved" style="font-size:24px; font-weight:900; color:#166534; margin-top:4px;">0</div>
             <div style="font-size:11px; color:#15803D; margin-top:2px;">Live in HCP App Institution Directory</div>
           </div>
 
-          <div onclick="setSfeInstStatusFilter('Rejected')" style="cursor:pointer; background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:12px 14px;">
+          <div class="sfe-inst-nav-card" data-status="Rejected" onclick="setSfeInstStatusFilter('Rejected')" style="cursor:pointer; background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:12px 14px;">
             <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#B91C1C; letter-spacing:0.4px;">Rejected Proposals</div>
             <div id="kpiInstRejected" style="font-size:24px; font-weight:900; color:#991B1B; margin-top:4px;">0</div>
             <div style="font-size:11px; color:#B91C1C; margin-top:2px;">Returned to MedRep with reason</div>
           </div>
 
-          <div onclick="setSfeInstStatusFilter('All')" style="cursor:pointer; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:10px; padding:12px 14px;">
+          <div class="sfe-inst-nav-card" data-status="Certified" onclick="setSfeInstStatusFilter('Certified')" style="cursor:pointer; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:10px; padding:12px 14px;">
             <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#334155; letter-spacing:0.4px;">MedRep Certified</div>
             <div id="kpiInstCertified" style="font-size:24px; font-weight:900; color:#0F172A; margin-top:4px;">0</div>
             <div style="font-size:11px; color:#475569; margin-top:2px;">Verified field accuracy attestation</div>
           </div>
         </div>
 
-        <!-- Status Filter Tabs + Search & Classification Filters -->
+        <!-- Clean Search & Classification Filters (No redundant status pill row) -->
         <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; margin-bottom:14px;">
-          <div style="display:flex; flex-wrap:wrap; gap:6px;" id="sfeInstStatusPillGroup">
-            <button type="button" class="sfe-inst-pill active" data-status="Pending Approval" onclick="setSfeInstStatusFilter('Pending Approval')">
-              Pending SFE Review <span id="pillCountPendingSfe" class="sfe-inst-pill-count">0</span>
-            </button>
-            <button type="button" class="sfe-inst-pill" data-status="Pending DSM Approval" onclick="setSfeInstStatusFilter('Pending DSM Approval')">
-              Pending DSM <span id="pillCountPendingDsm" class="sfe-inst-pill-count">0</span>
-            </button>
-            <button type="button" class="sfe-inst-pill" data-status="Approved" onclick="setSfeInstStatusFilter('Approved')">
-              Approved Directory <span id="pillCountApproved" class="sfe-inst-pill-count">0</span>
-            </button>
-            <button type="button" class="sfe-inst-pill" data-status="Rejected" onclick="setSfeInstStatusFilter('Rejected')">
-              Rejected <span id="pillCountRejected" class="sfe-inst-pill-count">0</span>
-            </button>
-            <button type="button" class="sfe-inst-pill" data-status="All" onclick="setSfeInstStatusFilter('All')">
-              All Records <span id="pillCountAll" class="sfe-inst-pill-count">0</span>
-            </button>
+          <div style="position:relative; flex:1; min-width:240px;">
+            <input type="text" id="sfeInstSearchInput" oninput="onSfeInstFilterChange()" placeholder="Search INST ID, facility name, city, province, region..." style="width:100%; box-sizing:border-box; padding:7px 28px 7px 11px; border:1px solid #CBD5E1; border-radius:7px; font-size:12px; color:#0F172A; background:#FFFFFF;">
+            <button type="button" onclick="clearSfeInstSearch()" title="Clear search" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); border:none; background:transparent; color:#64748B; cursor:pointer; font-size:13px; padding:2px 4px;">&times;</button>
           </div>
 
-          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; flex:1; justify-content:flex-end; min-width:280px;">
-            <div style="position:relative; flex:1; max-width:320px; min-width:200px;">
-              <input type="text" id="sfeInstSearchInput" oninput="onSfeInstFilterChange()" placeholder="Search INST ID, facility name, city, doctor, MedRep..." style="width:100%; box-sizing:border-box; padding:7px 28px 7px 11px; border:1px solid #CBD5E1; border-radius:7px; font-size:12px; color:#0F172A; background:#FFFFFF;">
-              <button type="button" onclick="clearSfeInstSearch()" title="Clear search" style="position:absolute; right:6px; top:50%; transform:translateY(-50%); border:none; background:transparent; color:#64748B; cursor:pointer; font-size:13px; padding:2px 4px;">&times;</button>
-            </div>
-
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
             <select id="sfeInstOwnershipFilter" onchange="onSfeInstFilterChange()" style="padding:7px 10px; border:1px solid #CBD5E1; border-radius:7px; font-size:12px; color:#0F172A; background:#FFFFFF; font-weight:600;">
               <option value="ALL">All Ownerships</option>
               <option value="Private">Private</option>
@@ -3173,17 +3155,16 @@
           <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
             <thead>
               <tr>
-                <th style="width:14%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:left;">INST ID &amp; CERTIFICATION</th>
-                <th style="width:26%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:left;">FACILITY NAME &amp; CLASSIFICATION</th>
-                <th style="width:22%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:left;">OFFICIAL PSGC LOCATION</th>
-                <th style="width:16%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:left;">LINKED DOCTOR &amp; SUBMITTER</th>
+                <th style="width:16%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:left;">INST ID &amp; CERTIFICATION</th>
+                <th style="width:36%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:left;">FACILITY NAME &amp; CLASSIFICATION</th>
+                <th style="width:26%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:left;">OFFICIAL PSGC LOCATION</th>
                 <th style="width:12%; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:center;">STATUS</th>
                 <th style="width:110px; min-width:110px; max-width:110px; background:#0B192C; color:#FFFFFF; position:sticky; top:0; z-index:10; border-bottom:2px solid #0066FF; padding:11px 14px; text-align:center;">ACTIONS</th>
               </tr>
             </thead>
             <tbody id="sfeInstitutionTableBody">
               <tr>
-                <td colspan="6" style="text-align:center; padding:32px; color:#64748B;">Loading live institutions from ERPNext...</td>
+                <td colspan="5" style="text-align:center; padding:32px; color:#64748B;">Loading live institutions from ERPNext...</td>
               </tr>
             </tbody>
           </table>
@@ -20021,6 +20002,18 @@ const BASELINE_ERP_TERRITORIES = [
 <!-- SFE INSTITUTION GOVERNANCE MODALS & REAL-TIME SYNC ENGINE (v.0.8.0)       -->
 <!-- ========================================================================= -->
 <style>
+  .sfe-inst-nav-card {
+    position: relative;
+    user-select: none;
+    transition: all 0.15s ease;
+  }
+  .sfe-inst-nav-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+  }
+  .sfe-inst-nav-card.active {
+    box-shadow: 0 0 0 2px #0066FF, 0 4px 12px rgba(0, 102, 255, 0.16);
+  }
   .sfe-inst-pill {
     display: inline-flex;
     align-items: center;
@@ -20428,7 +20421,7 @@ const BASELINE_ERP_TERRITORIES = [
 
   let sfeInstitutionsMasterlist = [];
   let sfeInstLocalOverrides = {};
-  let sfeInstStatusFilter = 'Pending Approval';
+  let sfeInstStatusFilter = 'Draft';
   let sfeInstCurrentPage = 1;
   let sfeInstPageSize = 15;
   let sfeInstAutoPollTimer = null;
@@ -20485,7 +20478,7 @@ const BASELINE_ERP_TERRITORIES = [
     const isCertified = Boolean(r.is_certified === 1 || r.is_certified === true || r.custom_is_certified === 1);
 
     let rawWf = String(r.workflow_state || r.status || r.approval_status || '').trim();
-    let wf = 'Pending Approval';
+    let wf = 'Draft';
     const lowWf = rawWf.toLowerCase();
 
     if (lowWf === 'rejected' || lowWf === 'remapped' || docstatus === 2) {
@@ -20495,7 +20488,7 @@ const BASELINE_ERP_TERRITORIES = [
     } else if (lowWf === 'approved' || docstatus === 1) {
       wf = 'Approved';
     } else {
-      wf = 'Pending Approval';
+      wf = 'Draft';
     }
 
     const ownership = String(r.ownership || r.custom_ownership || 'Government').trim() || 'Government';
@@ -20601,7 +20594,7 @@ const BASELINE_ERP_TERRITORIES = [
       const srvRec = normalizeInstitutionRecord(rawList[i]);
       if (!srvRec.name) continue;
       const localOv = sfeInstLocalOverrides[srvRec.name];
-      if (localOv && !srvRec.has_pims_meta && srvRec.workflow_state === 'Pending Approval') {
+      if (localOv && !srvRec.has_pims_meta && (srvRec.workflow_state === 'Draft' || srvRec.workflow_state === 'Pending Approval')) {
         const preserved = normalizeInstitutionRecord(localOv);
         preserved.local_override = true;
         byId.set(srvRec.name, preserved);
@@ -20717,7 +20710,7 @@ const BASELINE_ERP_TERRITORIES = [
 
     for (const inst of sfeInstitutionsMasterlist) {
       const st = inst.workflow_state;
-      if (st === 'Pending Approval') pendingSfe++;
+      if (st === 'Draft' || st === 'Pending Approval') pendingSfe++;
       else if (st === 'Pending DSM Approval') pendingDsm++;
       else if (st === 'Rejected') rejected++;
       else approved++;
@@ -20725,7 +20718,7 @@ const BASELINE_ERP_TERRITORIES = [
       if (inst.is_certified) certified++;
     }
 
-    const totalPending = pendingSfe + pendingDsm;
+    const totalPending = pendingDsm;
     const sidebarBadge = document.getElementById('instApprovalBadge');
     if (sidebarBadge) {
       sidebarBadge.textContent = `${totalPending} Pending`;
@@ -20749,20 +20742,14 @@ const BASELINE_ERP_TERRITORIES = [
     setElText('kpiInstApproved', approved);
     setElText('kpiInstRejected', rejected);
     setElText('kpiInstCertified', certified);
-
-    setElText('pillCountPendingSfe', pendingSfe);
-    setElText('pillCountPendingDsm', pendingDsm);
-    setElText('pillCountApproved', approved);
-    setElText('pillCountRejected', rejected);
-    setElText('pillCountAll', sfeInstitutionsMasterlist.length);
   }
 
   function setSfeInstStatusFilter(status) {
     closeInstActionDropdown();
     sfeInstStatusFilter = status;
     sfeInstCurrentPage = 1;
-    document.querySelectorAll('#sfeInstStatusPillGroup .sfe-inst-pill').forEach(btn => {
-      btn.classList.toggle('active', btn.getAttribute('data-status') === status);
+    document.querySelectorAll('#sfeInstNavCards .sfe-inst-nav-card').forEach(card => {
+      card.classList.toggle('active', card.getAttribute('data-status') === status);
     });
     renderSfeInstitutionWorkbench();
   }
@@ -20800,14 +20787,16 @@ const BASELINE_ERP_TERRITORIES = [
 
     return sfeInstitutionsMasterlist.filter(inst => {
       const st = inst.workflow_state;
-      if (sfeInstStatusFilter === 'Pending Approval') {
-        if (st !== 'Pending Approval') return false;
+      if (sfeInstStatusFilter === 'Draft' || sfeInstStatusFilter === 'Pending Approval') {
+        if (st !== 'Draft' && st !== 'Pending Approval') return false;
       } else if (sfeInstStatusFilter === 'Pending DSM Approval') {
         if (st !== 'Pending DSM Approval') return false;
       } else if (sfeInstStatusFilter === 'Approved') {
         if (st !== 'Approved') return false;
       } else if (sfeInstStatusFilter === 'Rejected') {
         if (st !== 'Rejected') return false;
+      } else if (sfeInstStatusFilter === 'Certified') {
+        if (!inst.is_certified) return false;
       }
 
       if (ownFilter !== 'ALL' && inst.ownership.toLowerCase() !== ownFilter.toLowerCase()) return false;
@@ -20961,12 +20950,22 @@ const BASELINE_ERP_TERRITORIES = [
     const startIdx = (sfeInstCurrentPage - 1) * sfeInstPageSize;
     const pageRows = filtered.slice(startIdx, startIdx + sfeInstPageSize);
 
+    const filterLabelMap = {
+      'Draft': 'Institution Directory',
+      'Pending Approval': 'Institution Directory',
+      'Pending DSM Approval': 'Pending DSM Approval',
+      'Approved': 'Approved Masterlist',
+      'Rejected': 'Rejected Proposals',
+      'Certified': 'MedRep Certified'
+    };
+    const activeFilterLabel = filterLabelMap[sfeInstStatusFilter] || sfeInstStatusFilter;
+
     const summaryEl = document.getElementById('sfeInstPaginationSummary');
     if (summaryEl) {
       if (total === 0) {
-        summaryEl.textContent = `Showing 0 of 0 institutions (${sfeInstStatusFilter})`;
+        summaryEl.textContent = `Showing 0 of 0 institutions (${activeFilterLabel})`;
       } else {
-        summaryEl.textContent = `Showing ${startIdx + 1}–${Math.min(startIdx + pageRows.length, total)} of ${total.toLocaleString()} institutions (${sfeInstStatusFilter})`;
+        summaryEl.textContent = `Showing ${startIdx + 1}–${Math.min(startIdx + pageRows.length, total)} of ${total.toLocaleString()} institutions (${activeFilterLabel})`;
       }
     }
     const pageInd = document.getElementById('sfeInstPageIndicator');
@@ -20979,8 +20978,8 @@ const BASELINE_ERP_TERRITORIES = [
     if (pageRows.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" style="text-align:center; padding:36px 20px; color:#64748B;">
-            <div style="font-size:13.5px; font-weight:700; color:#334155; margin-bottom:4px;">No institutions in ${escapeSfeHtml(sfeInstStatusFilter)}</div>
+          <td colspan="5" style="text-align:center; padding:36px 20px; color:#64748B;">
+            <div style="font-size:13.5px; font-weight:700; color:#334155; margin-bottom:4px;">No institutions in ${escapeSfeHtml(activeFilterLabel)}</div>
             <div style="font-size:12px;">New institutions submitted by MedReps on the HCP Profiling Mobile App automatically appear here in real time.</div>
           </td>
         </tr>
@@ -21008,8 +21007,8 @@ const BASELINE_ERP_TERRITORIES = [
 
       let wfBadge = '';
       const st = inst.workflow_state;
-      if (st === 'Pending Approval') {
-        wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#FEF3C7; color:#92400E; border:1px solid #FDE68A;">Pending SFE</span>`;
+      if (st === 'Draft' || st === 'Pending Approval') {
+        wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#FEF3C7; color:#92400E; border:1px solid #FDE68A;">Draft</span>`;
       } else if (st === 'Pending DSM Approval') {
         wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#DBEAFE; color:#1E40AF; border:1px solid #93C5FD;">Pending DSM</span>`;
       } else if (st === 'Rejected') {
@@ -21051,10 +21050,6 @@ const BASELINE_ERP_TERRITORIES = [
             <div style="font-weight:700; color:#0F172A;">${cityDisp}</div>
             <div style="font-size:11.5px; color:#475569;">${provDisp} &bull; ${regDisp}</div>
             ${addrDisp}
-          </td>
-          <td style="padding:10px 14px; vertical-align:middle;">
-            <div style="font-weight:700; color:#0F172A;">${escapeSfeHtml(inst.linked_doctor_name || 'General Directory Proposal')}</div>
-            <div style="font-size:11px; color:#64748B; margin-top:2px;">Submitted by: <strong>${escapeSfeHtml(inst.submitted_by)}</strong></div>
           </td>
           <td style="padding:10px 14px; vertical-align:middle; text-align:center;">
             ${wfBadge}
