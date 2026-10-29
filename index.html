@@ -20005,14 +20005,55 @@ const BASELINE_ERP_TERRITORIES = [
   .sfe-inst-nav-card {
     position: relative;
     user-select: none;
-    transition: all 0.15s ease;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .sfe-inst-nav-card:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
   }
-  .sfe-inst-nav-card.active {
-    box-shadow: 0 0 0 2px #0066FF, 0 4px 12px rgba(0, 102, 255, 0.16);
+  /* 1. Institution Directory (Amber) */
+  .sfe-inst-nav-card[data-status="Draft"]:hover {
+    border-color: #F59E0B !important;
+    box-shadow: 0 0 0 1.5px #F59E0B, 0 4px 12px rgba(245, 158, 11, 0.16);
+  }
+  .sfe-inst-nav-card[data-status="Draft"].active {
+    border-color: #D97706 !important;
+    box-shadow: 0 0 0 2px #D97706, 0 4px 14px rgba(217, 119, 6, 0.22);
+  }
+  /* 2. Pending DSM Approval (Blue) */
+  .sfe-inst-nav-card[data-status="Pending DSM Approval"]:hover {
+    border-color: #3B82F6 !important;
+    box-shadow: 0 0 0 1.5px #3B82F6, 0 4px 12px rgba(59, 130, 246, 0.16);
+  }
+  .sfe-inst-nav-card[data-status="Pending DSM Approval"].active {
+    border-color: #2563EB !important;
+    box-shadow: 0 0 0 2px #2563EB, 0 4px 14px rgba(37, 99, 235, 0.22);
+  }
+  /* 3. Approved Masterlist (Green) */
+  .sfe-inst-nav-card[data-status="Approved"]:hover {
+    border-color: #22C55E !important;
+    box-shadow: 0 0 0 1.5px #22C55E, 0 4px 12px rgba(34, 197, 94, 0.16);
+  }
+  .sfe-inst-nav-card[data-status="Approved"].active {
+    border-color: #16A34A !important;
+    box-shadow: 0 0 0 2px #16A34A, 0 4px 14px rgba(22, 163, 74, 0.22);
+  }
+  /* 4. Rejected Proposals (Red) */
+  .sfe-inst-nav-card[data-status="Rejected"]:hover {
+    border-color: #EF4444 !important;
+    box-shadow: 0 0 0 1.5px #EF4444, 0 4px 12px rgba(239, 68, 68, 0.16);
+  }
+  .sfe-inst-nav-card[data-status="Rejected"].active {
+    border-color: #DC2626 !important;
+    box-shadow: 0 0 0 2px #DC2626, 0 4px 14px rgba(220, 38, 38, 0.22);
+  }
+  /* 5. MedRep Certified (Slate) */
+  .sfe-inst-nav-card[data-status="Certified"]:hover {
+    border-color: #64748B !important;
+    box-shadow: 0 0 0 1.5px #64748B, 0 4px 12px rgba(100, 116, 139, 0.16);
+  }
+  .sfe-inst-nav-card[data-status="Certified"].active {
+    border-color: #334155 !important;
+    box-shadow: 0 0 0 2px #334155, 0 4px 14px rgba(51, 65, 85, 0.22);
   }
   .sfe-inst-pill {
     display: inline-flex;
