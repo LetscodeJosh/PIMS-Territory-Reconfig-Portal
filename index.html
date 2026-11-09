@@ -2618,7 +2618,6 @@
                 <option value="activeCode">Active Code</option>
                 <option value="area">Area / District</option>
                 <option value="rep">Assigned MedRep</option>
-                <option value="userId">User ID</option>
                 <option value="recordId">Record ID</option>
                 <option value="docs">Doctor Count</option>
                 <option value="status">Status</option>
@@ -3265,7 +3264,7 @@
         <label>Record ID (Permanent Reference):</label>
         <input type="text" id="editRecordId" class="form-control" readonly>
       </div>
-      <div class="form-group">
+      <div class="form-group" style="display:none;">
         <label>User ID:</label>
         <div class="erp-search-container" id="editUserAccountContainer">
           <input type="hidden" id="editUserAccountInput" value="">
@@ -3387,7 +3386,7 @@
         <label>Assigned Medical Rep:</label>
         <input type="text" id="addRepName" class="form-control" placeholder="e.g. JUAN DELA CRUZ">
       </div>
-      <div class="form-group">
+      <div class="form-group" style="display:none;">
         <label>Unique User ID:</label>
         <input type="text" id="addUserId" class="form-control" placeholder="e.g. EMP-10992">
       </div>
@@ -3562,7 +3561,7 @@
           </select>
           <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; margin-bottom:8px;">
             <span id="targetRepDistrictLabel">District: ---</span>
-            <span id="targetRepUserIdLabel" class="badge badge-user-id">User ID: ---</span>
+            <span id="targetRepUserIdLabel" class="badge badge-user-id" style="display:none;">User ID: ---</span>
           </div>
           <input type="text" id="transferTargetSearchInput" class="form-control" placeholder="Search target doctors..." oninput="filterTransferDoctorsList('target')" style="font-size:11.5px; padding:5px 10px;">
         </div>
@@ -3713,14 +3712,14 @@
       <div style="font-size:12px; font-weight:800; color:#0F172A; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
         👤 DESIGNATE NEWLY ASSIGNED MEDREP
       </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div style="display:grid; grid-template-columns:1fr; gap:12px;">
         <div>
           <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">
             Newly Assigned MedRep Name <span style="color:#EF4444;">*</span>
           </label>
           <input type="text" id="resignNewRepInput" class="form-control" placeholder="Enter newly assigned MedRep..." style="font-size:12px; height:34px; padding:0 10px; border-radius:6px;">
         </div>
-        <div>
+        <div style="display:none;">
           <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">
             New MedRep User ID / Email
           </label>
@@ -4828,65 +4827,432 @@ const BASELINE_ERP_TERRITORIES = [
   // very END of this script, after every top-level let/const is initialized.
 
   // Resolve all allowed territory codes for a given program (baseline + branch descendants)
-  function detectNodeProgram(nodeOrName, parentMap, nodeMap) {
-    let currName = typeof nodeOrName === 'string' ? nodeOrName : (nodeOrName.name || nodeOrName.territory_name || '');
-    let visited = new Set();
-    while (currName && currName !== 'All Territories' && !visited.has(currName)) {
+  function normalizeProgramName(rawProg) {
+    if (!rawProg || typeof rawProg !== 'string') return null;
+    const low = rawProg.trim().toLowerCase();
+    if (low.includes('abbott') || low === 'adc' || low.includes('adc-detailing')) return 'Abbott Diabetes Care';
+    if (low.includes('bayer') || low === 'bch') return 'Bayer Consumer Health';
+    if (low.includes('ritemed') || low.includes('rite med') || low === 'rtmd') return 'RiteMed';
+    if (low.includes('vivaro') || low === 'vhsi') return 'Vivaro';
+    return null;
+  }
+
+  function getNodeProgramMap() {
+    try {
+      const raw = localStorage.getItem('pims_stg_node_program_map_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  function registerNodeProgram(nodeName, programName) {
+    if (!nodeName || nodeName === 'All Territories' || !programName) return;
+    try {
+      const map = getNodeProgramMap();
+      map[nodeName] = programName;
+      localStorage.setItem('pims_stg_node_program_map_v1', JSON.stringify(map));
+    } catch (_) {}
+  }
+
+  const PROGRAM_SALES_PERSON_ROSTER = {
+    "Abbott Diabetes Care": [
+      { name: "Jennifer Luna (ADC-NSM)", sales_person_name: "Jennifer Luna (ADC-NSM)", parent_sales_person: "Sales Team", is_group: 1, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Ruby Arceo (ADC-NSM)", sales_person_name: "Ruby Arceo (ADC-NSM)", parent_sales_person: "Jennifer Luna (ADC-NSM)", is_group: 1, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Salve Buiza De Luna", sales_person_name: "Salve Buiza De Luna", parent_sales_person: "Jennifer Luna (ADC-NSM)", is_group: 1, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Regalado Banasihan (AD1)", sales_person_name: "Regalado Banasihan (AD1)", parent_sales_person: "Jennifer Luna (ADC-NSM)", is_group: 1, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Adrian Mendoza (AD2)", sales_person_name: "Adrian Mendoza (AD2)", parent_sales_person: "Jennifer Luna (ADC-NSM)", is_group: 1, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Graziel Rivo", sales_person_name: "Graziel Rivo", parent_sales_person: "Regalado Banasihan (AD1)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Liza Roxas", sales_person_name: "Liza Roxas", parent_sales_person: "Regalado Banasihan (AD1)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Gretha Carlos", sales_person_name: "Gretha Carlos", parent_sales_person: "Regalado Banasihan (AD1)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Vina Tamayo", sales_person_name: "Vina Tamayo", parent_sales_person: "Adrian Mendoza (AD2)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Jonel Apsay", sales_person_name: "Jonel Apsay", parent_sales_person: "AD0105 (COOR)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Louie Glenn Minabes", sales_person_name: "Louie Glenn Minabes", parent_sales_person: "AD0105 (COOR)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Christian Martinez Linao", sales_person_name: "Christian Martinez Linao", parent_sales_person: "Adrian Mendoza (AD2)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Mariel Apple Sason", sales_person_name: "Mariel Apple Sason", parent_sales_person: "Regalado Banasihan (AD1)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Jorge Mengorio", sales_person_name: "Jorge Mengorio", parent_sales_person: "Adrian Mendoza (AD2)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Lauro Pantoja", sales_person_name: "Lauro Pantoja", parent_sales_person: "Adrian Mendoza (AD2)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Amivy Velasco Rubis", sales_person_name: "Amivy Velasco Rubis", parent_sales_person: "Adrian Mendoza (AD2)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "JP Gonzales", sales_person_name: "JP Gonzales", parent_sales_person: "Regalado Banasihan (AD1)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Aldrin Estorico", sales_person_name: "Aldrin Estorico", parent_sales_person: "Adrian Mendoza (AD2)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Laiza Placer", sales_person_name: "Laiza Placer", parent_sales_person: "Adrian Mendoza (AD2)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Arcene Piang", sales_person_name: "Arcene Piang", parent_sales_person: "AD0105 (COOR)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Richelle Berimoy", sales_person_name: "Richelle Berimoy", parent_sales_person: "AD0105 (COOR)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Angel Nasis", sales_person_name: "Angel Nasis", parent_sales_person: "AD0105 (COOR)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" },
+      { name: "Danilo Domingo", sales_person_name: "Danilo Domingo", parent_sales_person: "Regalado Banasihan (AD1)", is_group: 0, enabled: 1, program: "Abbott Diabetes Care" }
+    ],
+    "Bayer Consumer Health": [
+      { name: "Laiza Villarosa (BAYER GM)", sales_person_name: "Laiza Villarosa (BAYER GM)", parent_sales_person: "Sales Team", is_group: 1, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Raymond Viray (BA1)", sales_person_name: "Raymond Viray (BA1)", parent_sales_person: "Laiza Villarosa (BAYER GM)", is_group: 1, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Gin Orcullo (BA2)", sales_person_name: "Gin Orcullo (BA2)", parent_sales_person: "Laiza Villarosa (BAYER GM)", is_group: 1, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Christopher Rinon (BA4)", sales_person_name: "Christopher Rinon (BA4)", parent_sales_person: "Laiza Villarosa (BAYER GM)", is_group: 1, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Rico De Jesus Dizon", sales_person_name: "Rico De Jesus Dizon", parent_sales_person: "Laiza Villarosa (BAYER GM)", is_group: 1, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Mark Kevin Samante Carisma", sales_person_name: "Mark Kevin Samante Carisma", parent_sales_person: "Laiza Villarosa (BAYER GM)", is_group: 1, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "KC Cassandra Enriquez", sales_person_name: "KC Cassandra Enriquez", parent_sales_person: "Raymond Viray (BA1)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Dimple Mozo", sales_person_name: "Dimple Mozo", parent_sales_person: "Raymond Viray (BA1)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Emerine Plandez", sales_person_name: "Emerine Plandez", parent_sales_person: "Raymond Viray (BA1)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Jamil Villanueva", sales_person_name: "Jamil Villanueva", parent_sales_person: "Raymond Viray (BA1)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Arlane Ferraren", sales_person_name: "Arlane Ferraren", parent_sales_person: "Raymond Viray (BA1)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Arrianne Garcia", sales_person_name: "Arrianne Garcia", parent_sales_person: "Raymond Viray (BA1)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Jocelyn Dickinson", sales_person_name: "Jocelyn Dickinson", parent_sales_person: "Gin Orcullo (BA2)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Charisse Capulong", sales_person_name: "Charisse Capulong", parent_sales_person: "Gin Orcullo (BA2)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Jericho Mercado Agapito", sales_person_name: "Jericho Mercado Agapito", parent_sales_person: "Christopher Rinon (BA4)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Carmel Videna", sales_person_name: "Carmel Videna", parent_sales_person: "Christopher Rinon (BA4)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Richellyn Pancho Dimaunahan", sales_person_name: "Richellyn Pancho Dimaunahan", parent_sales_person: "Christopher Rinon (BA4)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Romana Ilao Dela Cuesta", sales_person_name: "Romana Ilao Dela Cuesta", parent_sales_person: "Christopher Rinon (BA4)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Almer Carasig Bautista", sales_person_name: "Almer Carasig Bautista", parent_sales_person: "Rico De Jesus Dizon", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Jhoan Yabut Dimalanta", sales_person_name: "Jhoan Yabut Dimalanta", parent_sales_person: "Rico De Jesus Dizon", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Jan Michael Santiago Casupanan", sales_person_name: "Jan Michael Santiago Casupanan", parent_sales_person: "Rico De Jesus Dizon", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Frenzel Ann Carmela Riano Blanco", sales_person_name: "Frenzel Ann Carmela Riano Blanco", parent_sales_person: "Rico De Jesus Dizon", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Richard Ramos Antipolo", sales_person_name: "Richard Ramos Antipolo", parent_sales_person: "Laiza Villarosa (BAYER GM)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Argel Joseph Cortez Dacillo", sales_person_name: "Argel Joseph Cortez Dacillo", parent_sales_person: "Mark Kevin Samante Carisma", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Jaymee Paborada Dimanarig", sales_person_name: "Jaymee Paborada Dimanarig", parent_sales_person: "Mark Kevin Samante Carisma", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Ruth Joy Danganan Bombita", sales_person_name: "Ruth Joy Danganan Bombita", parent_sales_person: "Mark Kevin Samante Carisma", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Marjoseph Salazar Agojo", sales_person_name: "Marjoseph Salazar Agojo", parent_sales_person: "Laiza Villarosa (BAYER GM)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" },
+      { name: "Ma. Angella Luzon Antonio", sales_person_name: "Ma. Angella Luzon Antonio", parent_sales_person: "Laiza Villarosa (BAYER GM)", is_group: 0, enabled: 1, program: "Bayer Consumer Health" }
+    ],
+    "RiteMed": [
+      { name: "RITEMED GM", sales_person_name: "RITEMED GM", parent_sales_person: "Sales Team", is_group: 1, enabled: 1, program: "RiteMed" },
+      { name: "Miriam Quinan", sales_person_name: "Miriam Quinan", parent_sales_person: "RITEMED GM", is_group: 1, enabled: 1, program: "RiteMed" },
+      { name: "Donato J B. Delos Santos", sales_person_name: "Donato J B. Delos Santos", parent_sales_person: "RITEMED GM", is_group: 1, enabled: 1, program: "RiteMed" },
+      { name: "Jenny Apura", sales_person_name: "Jenny Apura", parent_sales_person: "RITEMED GM", is_group: 1, enabled: 1, program: "RiteMed" },
+      { name: "Riegel Gajo", sales_person_name: "Riegel Gajo", parent_sales_person: "Donato J B. Delos Santos", is_group: 0, enabled: 1, program: "RiteMed" },
+      { name: "Jennifer Ferrer Meso", sales_person_name: "Jennifer Ferrer Meso", parent_sales_person: "Donato J B. Delos Santos", is_group: 0, enabled: 1, program: "RiteMed" },
+      { name: "Alvin Ong", sales_person_name: "Alvin Ong", parent_sales_person: "Donato J B. Delos Santos", is_group: 0, enabled: 1, program: "RiteMed" },
+      { name: "Jasmin Maliwat", sales_person_name: "Jasmin Maliwat", parent_sales_person: "Donato J B. Delos Santos", is_group: 0, enabled: 1, program: "RiteMed" },
+      { name: "Cathlyn Rosell Ariola", sales_person_name: "Cathlyn Rosell Ariola", parent_sales_person: "Donato J B. Delos Santos", is_group: 0, enabled: 1, program: "RiteMed" },
+      { name: "Argie Ian Lerit", sales_person_name: "Argie Ian Lerit", parent_sales_person: "Donato J B. Delos Santos", is_group: 0, enabled: 1, program: "RiteMed" },
+      { name: "Cecilia Mariz Nofuente", sales_person_name: "Cecilia Mariz Nofuente", parent_sales_person: "Donato J B. Delos Santos", is_group: 0, enabled: 1, program: "RiteMed" },
+      { name: "Ferdinand Litang", sales_person_name: "Ferdinand Litang", parent_sales_person: "Jenny Apura", is_group: 0, enabled: 1, program: "RiteMed" }
+    ],
+    "Vivaro": [
+      { name: "Edralin Bayona (VHSI GM)", sales_person_name: "Edralin Bayona (VHSI GM)", parent_sales_person: "Sales Team", is_group: 1, enabled: 1, program: "Vivaro" },
+      { name: "Sam Kabigting (VIV-1)", sales_person_name: "Sam Kabigting (VIV-1)", parent_sales_person: "Edralin Bayona (VHSI GM)", is_group: 1, enabled: 1, program: "Vivaro" },
+      { name: "Tin Ruadap", sales_person_name: "Tin Ruadap", parent_sales_person: "Sam Kabigting (VIV-1)", is_group: 0, enabled: 1, program: "Vivaro" },
+      { name: "Rogelio Rifareal", sales_person_name: "Rogelio Rifareal", parent_sales_person: "Sam Kabigting (VIV-1)", is_group: 0, enabled: 1, program: "Vivaro" },
+      { name: "Ashly Ancheta", sales_person_name: "Ashly Ancheta", parent_sales_person: "Sam Kabigting (VIV-1)", is_group: 0, enabled: 1, program: "Vivaro" },
+      { name: "Karen Romero Cruz", sales_person_name: "Karen Romero Cruz", parent_sales_person: "Sam Kabigting (VIV-1)", is_group: 0, enabled: 1, program: "Vivaro" },
+      { name: "Abegail Abaygar", sales_person_name: "Abegail Abaygar", parent_sales_person: "Sam Kabigting (VIV-1)", is_group: 0, enabled: 1, program: "Vivaro" },
+      { name: "Allyson Rose Domingo", sales_person_name: "Allyson Rose Domingo", parent_sales_person: "Sam Kabigting (VIV-1)", is_group: 0, enabled: 1, program: "Vivaro" },
+      { name: "Lyne Rodil", sales_person_name: "Lyne Rodil", parent_sales_person: "Sam Kabigting (VIV-1)", is_group: 0, enabled: 1, program: "Vivaro" }
+    ]
+  };
+
+  function getSalesPersonProgramMap() {
+    try {
+      const raw = localStorage.getItem('pims_stg_sp_program_map_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  function registerSalesPersonProgram(spName, programName) {
+    if (!spName || spName === 'Sales Team' || !programName) return;
+    try {
+      const map = getSalesPersonProgramMap();
+      map[spName] = programName;
+      localStorage.setItem('pims_stg_sp_program_map_v1', JSON.stringify(map));
+    } catch (_) {}
+  }
+
+  function detectTextProgram(text) {
+    if (!text || typeof text !== 'string') return null;
+    const low = text.trim().toLowerCase();
+    if (!low) return null;
+    if (
+      low.includes('abbott') ||
+      low.includes('adc') ||
+      low.includes('phsr') ||
+      low.includes('rnd team') ||
+      low.includes('old abbott') ||
+      low.includes('jennifer luna') ||
+      low.includes('salve de luna') ||
+      low.includes('ruby arceo') ||
+      low.includes('regalado banasihan') ||
+      low.includes('adrian mendoza') ||
+      /^ad\d/i.test(low) ||
+      /\b(ad\d{2,4}|adc)\b/i.test(low)
+    ) {
+      return 'Abbott Diabetes Care';
+    }
+    if (
+      low.includes('bayer') ||
+      low.includes('bch') ||
+      low.includes('laiza villarosa') ||
+      low.includes('raymond viray') ||
+      low.includes('gin orcullo') ||
+      low.includes('christopher rinon') ||
+      low.includes('jayrold bautista') ||
+      low.includes('reynaldoaderas') ||
+      low.includes('joseph mendoza') ||
+      low.includes('cherrie mae') ||
+      low.includes('generoso') ||
+      low.includes('rico dizon') ||
+      low.includes('mark kevin carisma') ||
+      /^ba\d/i.test(low) ||
+      /^bas[\s_-]/i.test(low) ||
+      /\b(ba\d[-\d]*|bch)\b/i.test(low)
+    ) {
+      return 'Bayer Consumer Health';
+    }
+    if (
+      low.includes('ritemed') ||
+      low.includes('rite med') ||
+      low.includes('rtmd') ||
+      low.includes('miriam quinan') ||
+      low.includes('donato') ||
+      low.includes('jenny apura') ||
+      low.includes('ngma/nlz/viz') ||
+      low.includes('sgma/slz/min') ||
+      /^rm\d/i.test(low) ||
+      /\b(rm\d{2,4}|rtmd)\b/i.test(low)
+    ) {
+      return 'RiteMed';
+    }
+    if (
+      low.includes('vivaro') ||
+      low.includes('vhsi') ||
+      low.includes('edralin bayona') ||
+      low.includes('daniel somera') ||
+      low.includes('sam kabigting') ||
+      /^viv/i.test(low) ||
+      /\b(viv[-\d]*|vhsi)\b/i.test(low)
+    ) {
+      return 'Vivaro';
+    }
+    if (
+      low.includes('exeltis') ||
+      low.includes('angelo palma') ||
+      low.includes('taisho') ||
+      low.includes('tppi') ||
+      low.includes('fonterra') ||
+      low.includes('pbeat') ||
+      low.includes('fleur') ||
+      low.includes('asap') ||
+      low.includes('i-care') ||
+      low.includes('gena') ||
+      low.includes('test general manager') ||
+      low === 'admin' ||
+      low.includes('old admin') ||
+      low === 'philippines' ||
+      low === 'rest of the world'
+    ) {
+      return 'OTHER_PROGRAM';
+    }
+    return null;
+  }
+
+  function detectSalesPersonProgram(spOrName) {
+    if (!spOrName) return null;
+    const spName = typeof spOrName === 'string'
+      ? spOrName.trim()
+      : String(spOrName.sales_person_name || spOrName.name || '').trim();
+    if (!spName || spName === 'Sales Team') return 'ROOT_SALES_TEAM';
+
+    const spMap = getSalesPersonProgramMap();
+    if (spMap[spName]) return spMap[spName];
+
+    const cleanLookupName = spName.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+    for (const [progKey, roster] of Object.entries(PROGRAM_SALES_PERSON_ROSTER || {})) {
+      for (const item of roster) {
+        const itemClean = (item.sales_person_name || item.name).replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+        if (item.name.toLowerCase() === spName.toLowerCase() || itemClean === cleanLookupName) {
+          return progKey;
+        }
+      }
+    }
+
+    const spList = (typeof availableSalesPersons !== 'undefined' && Array.isArray(availableSalesPersons))
+      ? availableSalesPersons
+      : [];
+    const lookup = {};
+    spList.forEach(s => {
+      if (s && s.name) lookup[s.name] = s;
+      if (s && s.sales_person_name) lookup[s.sales_person_name] = s;
+    });
+
+    const spObj = typeof spOrName === 'object' ? spOrName : lookup[spName];
+    if (spObj) {
+      const explicitProg = normalizeProgramName(spObj.program || spObj.custom_account_or_program || spObj.department || '');
+      if (explicitProg) return explicitProg;
+    }
+
+    // Walk up Sales Person parent_sales_person hierarchy
+    let currName = spName;
+    const visited = new Set();
+    while (currName && currName !== 'Sales Team' && !visited.has(currName)) {
       visited.add(currName);
-      const n = nodeMap ? nodeMap.get(currName) : null;
-      const explicitProg = n && n.custom_account_or_program ? String(n.custom_account_or_program).toLowerCase() : '';
-      const checkStr = (explicitProg + ' ' + currName).toLowerCase();
-      if (checkStr.includes('abbott') || checkStr.includes('adc') || /^ad\d/i.test(currName) || /^bas[-\d]/i.test(currName)) {
-        return 'Abbott Diabetes Care';
+      if (spMap[currName]) return spMap[currName];
+      const node = lookup[currName];
+      if (node) {
+        const nodeExplicit = normalizeProgramName(node.program || node.custom_account_or_program || '');
+        if (nodeExplicit) return nodeExplicit;
+        const combined = `${node.name || ''} ${node.sales_person_name || ''} ${node.department || ''}`;
+        const fromText = detectTextProgram(combined);
+        if (fromText) return fromText;
+        currName = node.parent_sales_person || null;
+      } else {
+        const fromText = detectTextProgram(currName);
+        if (fromText) return fromText;
+        break;
       }
-      if (checkStr.includes('bayer') || /^ba\d/i.test(currName)) {
-        return 'Bayer Consumer Health';
+    }
+
+    // Check linked Employee department / branch in availableEmployees
+    if (typeof availableEmployees !== 'undefined' && Array.isArray(availableEmployees)) {
+      const empId = spObj ? spObj.employee : null;
+      const cleanSpLower = spName.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+      const matchedEmp = availableEmployees.find(e => {
+        if (!e) return false;
+        if (empId && e.name === empId) return true;
+        const eName = (e.employee_name || `${e.first_name || ''} ${e.last_name || ''}`).trim().toLowerCase();
+        return eName && eName === cleanSpLower;
+      });
+      if (matchedEmp) {
+        const empProg = detectTextProgram(`${matchedEmp.department || ''} ${matchedEmp.branch || ''}`);
+        if (empProg) return empProg;
       }
-      if (checkStr.includes('ritemed') || checkStr.includes('rtmd') || /^rm\d/i.test(currName)) {
-        return 'RiteMed';
+    }
+
+    // Check if assigned as territory_manager / rep in LIVE_DATA or territoryTreeData
+    const nodeProgMap = getNodeProgramMap();
+    const cleanSp = spName.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+    for (const progKey of Object.keys(LIVE_DATA || {})) {
+      const pTerrs = (LIVE_DATA[progKey] && LIVE_DATA[progKey].territories) || [];
+      for (const t of pTerrs) {
+        const rClean = (t.rep || '').replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+        if (rClean && rClean !== 'unassigned rep' && (rClean === cleanSp || spName.toLowerCase().includes(rClean))) {
+          return progKey;
+        }
       }
-      if (checkStr.includes('vivaro') || checkStr.includes('vhsi') || /^viv/i.test(currName)) {
-        return 'Vivaro';
+    }
+    if (typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData)) {
+      for (const t of territoryTreeData) {
+        if (t && t.territory_manager) {
+          const mgrLower = t.territory_manager.trim().toLowerCase();
+          if (mgrLower === spName.toLowerCase() || mgrLower === cleanSp) {
+            if (nodeProgMap[t.name]) return nodeProgMap[t.name];
+            const tProg = detectTextProgram(`${t.name || ''} ${t.parent_territory || ''} ${t.custom_account_or_program || ''}`);
+            if (tProg && tProg !== 'OTHER_PROGRAM') return tProg;
+          }
+        }
       }
-      currName = parentMap ? parentMap.get(currName) : null;
+    }
+
+    return null;
+  }
+
+  function isSalesPersonInProgram(spOrName, programName, allowRootSalesTeam = false) {
+    const targetProg = programName || activeProgram || 'Abbott Diabetes Care';
+    const spName = typeof spOrName === 'string'
+      ? spOrName.trim()
+      : String((spOrName && (spOrName.sales_person_name || spOrName.name)) || '').trim();
+    if (!spName) return false;
+    if (spName === 'Sales Team') return Boolean(allowRootSalesTeam);
+
+    const detected = detectSalesPersonProgram(spOrName);
+    if (detected === 'ROOT_SALES_TEAM') return Boolean(allowRootSalesTeam);
+    if (detected === 'OTHER_PROGRAM') return false;
+    if (detected) {
+      return detected === targetProg;
+    }
+    return false;
+  }
+
+  function isEmployeeInProgram(emp, programName) {
+    if (!emp) return false;
+    const targetProg = programName || activeProgram || 'Abbott Diabetes Care';
+    const deptText = `${emp.department || ''} ${emp.branch || ''}`;
+    const detected = detectTextProgram(deptText);
+    if (detected === 'OTHER_PROGRAM') return false;
+    if (detected) {
+      return detected === targetProg;
+    }
+    // If employee has no specific program department tag, allow only for programs without dedicated HR branch tags
+    if (targetProg === 'Abbott Diabetes Care' || targetProg === 'Bayer Consumer Health') {
+      return false;
+    }
+    return true;
+  }
+
+  function detectNodeProgram(nodeOrName, parentMap, nodeMap) {
+    let curr = typeof nodeOrName === 'string' ? nodeOrName : (nodeOrName ? nodeOrName.name : '');
+    const nodeProgMap = getNodeProgramMap();
+    let visited = new Set();
+    while (curr && curr !== 'All Territories' && !visited.has(curr)) {
+      visited.add(curr);
+      if (nodeProgMap[curr]) {
+        return nodeProgMap[curr];
+      }
+      const node = nodeMap ? nodeMap[curr] : (typeof nodeOrName === 'object' && nodeOrName && nodeOrName.name === curr ? nodeOrName : null);
+      if (node) {
+        const explicitProg = normalizeProgramName(node.program || node.custom_account_or_program || '');
+        if (explicitProg) return explicitProg;
+      }
+      for (const progKey of Object.keys(LIVE_DATA || {})) {
+        const pd = LIVE_DATA[progKey];
+        if (!pd) continue;
+        if (pd.territoryBranch === curr) return progKey;
+        if (Array.isArray(pd.territories)) {
+          if (pd.territories.some(t => t.histCode === curr || t.activeCode === curr || t.newCode === curr || t.latestPrevCode === curr || t.district === curr)) {
+            return progKey;
+          }
+        }
+      }
+      const fromText = detectTextProgram(curr);
+      if (fromText) return fromText;
+
+      if (node && node.territory_manager) {
+        const mgrProg = detectSalesPersonProgram(node.territory_manager);
+        if (mgrProg && mgrProg !== 'ROOT_SALES_TEAM' && mgrProg !== 'OTHER_PROGRAM') {
+          return mgrProg;
+        }
+      }
+      curr = parentMap ? parentMap[curr] : (node ? node.parent_territory : null);
     }
     return null;
   }
 
   function getProgramTerritoryNames(programName) {
-    const progData = (typeof LIVE_DATA !== 'undefined' ? LIVE_DATA[programName] : null);
+    const targetProg = programName || activeProgram || 'Abbott Diabetes Care';
+    const progData = LIVE_DATA[targetProg] || { territories: [] };
     const allowedNames = new Set();
-
-    if (progData && Array.isArray(progData.territories)) {
+    if (progData.territoryBranch) allowedNames.add(progData.territoryBranch);
+    if (Array.isArray(progData.territories)) {
       progData.territories.forEach(t => {
         if (t.histCode) allowedNames.add(t.histCode);
-        if (t.newCode) allowedNames.add(t.newCode);
         if (t.activeCode) allowedNames.add(t.activeCode);
+        if (t.newCode) allowedNames.add(t.newCode);
         if (t.latestPrevCode) allowedNames.add(t.latestPrevCode);
+        if (t.district) allowedNames.add(t.district);
       });
     }
 
-    const terrTree = (typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData) && territoryTreeData.length > 0)
-      ? territoryTreeData
-      : (typeof BASELINE_ERP_TERRITORIES !== 'undefined' ? BASELINE_ERP_TERRITORIES : []);
+    const nodeProgMap = getNodeProgramMap();
+    Object.keys(nodeProgMap).forEach(k => {
+      if (nodeProgMap[k] === targetProg) {
+        allowedNames.add(k);
+      }
+    });
 
-    if (Array.isArray(terrTree) && terrTree.length > 0) {
-      const parentMap = new Map();
-      const nodeMap = new Map();
-      terrTree.forEach(t => {
-        const nm = t.name || t.territory_name;
-        if (nm) {
-          parentMap.set(nm, t.parent_territory);
-          nodeMap.set(nm, t);
-        }
+    // Check live territoryTreeData nodes — strictly match targetProg only (never leak across programs)
+    if (typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData)) {
+      const parentMap = {};
+      const nodeMap = {};
+      territoryTreeData.forEach(t => {
+        parentMap[t.name] = t.parent_territory;
+        nodeMap[t.name] = t;
       });
-
-      terrTree.forEach(t => {
-        const name = t.name || t.territory_name;
+      territoryTreeData.forEach(t => {
+        const name = t.name;
         if (!name || name === 'All Territories') return;
         const detected = detectNodeProgram(t, parentMap, nodeMap);
-        // Include if it matches the active program OR if it is a general/untagged territory created by SFE in Staging
-        if (!detected || detected === programName) {
+        if (detected === targetProg) {
           allowedNames.add(name);
         }
       });
@@ -5026,6 +5392,8 @@ const BASELINE_ERP_TERRITORIES = [
       selectedRowIndices.clear();
     }
     tableCurrentPage = 1;
+    if (typeof populateParentSalesPersonSelect === 'function') populateParentSalesPersonSelect();
+    if (typeof closeAllErpDropdowns === 'function') closeAllErpDropdowns();
     loadArchivedRecordsForProgram();
     rebuildGlobalAuditLogs();
     if (window.activeEditorViewMode === 'grid') {
@@ -5632,7 +6000,7 @@ const BASELINE_ERP_TERRITORIES = [
       select.appendChild(defOpt);
       availableSalesPersons.forEach(sp => {
         const name = typeof sp === 'string' ? sp : (sp.sales_person_name || sp.name);
-        if (name && name !== 'Sales Team') {
+        if (name && name !== 'Sales Team' && isSalesPersonInProgram(sp, activeProgram, false)) {
           const opt = document.createElement('option');
           opt.value = name;
           opt.textContent = name;
@@ -6643,8 +7011,7 @@ const BASELINE_ERP_TERRITORIES = [
             <td class="col-rep" style="${tableColumnVisibility.rep ? '' : 'display:none;'}">
               <div style="font-weight:600; color:#0F172A;">${escapeHtml(formattedAssignedMedRep)}</div>
               <div style="font-size:10.5px; color:#64748B; margin-top:2px;">
-                User ID: <span class="badge badge-user-id" style="${(!row.userId || !row.userId.includes('@') || (row.rep && row.rep.toLowerCase().includes('unassigned'))) ? 'background:#F4F4F5; color:#71717A; border:1px solid #E4E4E7; font-weight:600;' : ''}">${escapeHtml((row.userId && row.userId.includes('@') && (!row.rep || !row.rep.toLowerCase().includes('unassigned'))) ? row.userId : 'Unassigned')}</span>
-                &bull; Record: <code style="font-size:10px;">${escapeHtml(row.recordId)}</code>
+                Record: <code style="font-size:10px;">${escapeHtml(row.recordId)}</code>
               </div>
             </td>
             <td class="col-docs" style="text-align:center; ${tableColumnVisibility.docs ? '' : 'display:none;'}">
@@ -10832,7 +11199,55 @@ const BASELINE_ERP_TERRITORIES = [
       }
 
       // Filter Sales Persons across fields (name, sales_person_name, parent_sales_person, employee)
-      let matches = availableSalesPersons.filter(s => {
+      const allowRootSp = (fieldId === 'newSpParent');
+      const seenSpNames = new Set();
+      const programScopedPool = [];
+
+      if (Array.isArray(availableSalesPersons)) {
+        availableSalesPersons.forEach(s => {
+          const spName = (s && (s.sales_person_name || s.name)) ? String(s.sales_person_name || s.name).trim() : '';
+          if (!spName || seenSpNames.has(spName.toLowerCase())) return;
+          if (isSalesPersonInProgram(s, activeProgram, allowRootSp)) {
+            seenSpNames.add(spName.toLowerCase());
+            programScopedPool.push(s);
+          }
+        });
+      }
+
+      // Include the program-specific roster for activeProgram
+      const progRoster = (PROGRAM_SALES_PERSON_ROSTER && PROGRAM_SALES_PERSON_ROSTER[activeProgram]) || [];
+      progRoster.forEach(s => {
+        const spName = (s.sales_person_name || s.name || '').trim();
+        if (!spName || seenSpNames.has(spName.toLowerCase())) return;
+        seenSpNames.add(spName.toLowerCase());
+        programScopedPool.push(s);
+      });
+
+      // Also include any MedReps assigned to activeProgram territories if not yet in availableSalesPersons
+      if (typeof programTerritories !== 'undefined' && Array.isArray(programTerritories)) {
+        const allowedTerrs = getProgramTerritoryNames(activeProgram);
+        programTerritories.forEach(pt => {
+          const code = pt.activeCode || pt.histCode || pt.latestPrevCode;
+          if (code && !allowedTerrs.has(code)) return;
+          const rawRep = (pt.rep || '').replace(/\s*\([^)]*\)/g, '').replace(/\[RESIGNED\]/gi, '').trim();
+          if (!rawRep || rawRep.toLowerCase().includes('unassigned') || rawRep.toLowerCase().includes('folder')) return;
+          if (!seenSpNames.has(rawRep.toLowerCase())) {
+            seenSpNames.add(rawRep.toLowerCase());
+            programScopedPool.push({
+              name: rawRep,
+              sales_person_name: rawRep,
+              parent_sales_person: activeProgram,
+              is_group: 0,
+              enabled: 1,
+              program: activeProgram
+            });
+          }
+        });
+      }
+
+      let matches = programScopedPool.filter(s => {
+        if (s.enabled === 0 || s.enabled === false) return false;
+        if ((s.name || '').toUpperCase().includes('INACTIVE') || (s.sales_person_name || '').toUpperCase().includes('INACTIVE')) return false;
         if (!tokens.length) return true;
         const searchable = [
           s.sales_person_name || '',
@@ -10848,14 +11263,16 @@ const BASELINE_ERP_TERRITORIES = [
         if (rawQ || (fieldId !== 'treeAddManager' && fieldId !== 'treeEditManager')) {
           const emptyDiv = document.createElement('div');
           emptyDiv.style.cssText = 'padding: 10px 14px; color: #71717A; font-size: 11.5px;';
-          emptyDiv.innerText = rawQ ? `No Sales Person matching "${query}"` : 'No Sales Persons available';
+          emptyDiv.innerText = rawQ
+            ? `No ${activeProgram} Sales Person matching "${query}"`
+            : `No Sales Persons in ${activeProgram} yet`;
           menu.appendChild(emptyDiv);
         }
       } else {
         matches.slice(0, 50).forEach(s => {
           const item = document.createElement('div');
           const name = s.sales_person_name || s.name;
-          const parent = s.parent_sales_person ? s.parent_sales_person : (s.employee ? `Employee: ${s.employee}` : '');
+          const parent = s.parent_sales_person ? `${s.parent_sales_person} • ${activeProgram}` : (s.employee ? `Employee: ${s.employee} • ${activeProgram}` : activeProgram);
           
           // Check if this sales person is assigned to an Inactive territory in programTerritories
           const cleanSp = name.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
@@ -10895,7 +11312,7 @@ const BASELINE_ERP_TERRITORIES = [
       if (fieldId !== 'newSpParent') {
         const createRow = document.createElement('div');
         createRow.className = 'erp-dropdown-create-row';
-        createRow.innerHTML = `<span>+</span> <span>Create a new Sales Person</span>`;
+        createRow.innerHTML = `<span>+</span> <span>Create a new Sales Person (${escapeHtml(activeProgram)})</span>`;
         createRow.onclick = (e) => {
           e.stopPropagation();
           closeAllErpDropdowns();
@@ -10906,12 +11323,13 @@ const BASELINE_ERP_TERRITORIES = [
 
       const advRow = document.createElement('div');
       advRow.className = 'erp-dropdown-adv-search';
-      advRow.innerHTML = `<span>🔍</span> <span>Advanced Search (${matches.length} Sales Persons found)</span>`;
+      advRow.innerHTML = `<span>🔍</span> <span>${escapeHtml(activeProgram)} (${matches.length} Sales Persons found)</span>`;
       menu.appendChild(advRow);
 
     } else if (fieldId === 'newSpEmployee' || fieldId === 'newEmpReportsTo') {
-      // Filter Employees across all fields (name, employee_name, first_name, last_name, gender, department, designation)
+      // Filter Employees locked to activeProgram across all fields
       let matches = availableEmployees.filter(e => {
+        if (!isEmployeeInProgram(e, activeProgram)) return false;
         if (!tokens.length) return true;
         const searchable = [
           e.name || '',
@@ -11443,8 +11861,11 @@ const BASELINE_ERP_TERRITORIES = [
       employee: empId || null,
       user_id: userAcc || null,
       commission_rate: commRate,
-      targets: targets
+      targets: targets,
+      program: activeProgram,
+      custom_account_or_program: activeProgram
     };
+    registerSalesPersonProgram(spName, activeProgram);
 
     // Update local list
     const existingIdx = availableSalesPersons.findIndex(s => s.name === spName);
@@ -11860,18 +12281,20 @@ const BASELINE_ERP_TERRITORIES = [
   // 1. ADD CHILD
   function openTreeAddModal(parentName, event) {
     if (event) event.stopPropagation();
-    const parent = parentName || selectedTreeNode || 'All Territories';
+    const allowed = getProgramTerritoryNames(activeProgram);
+    const rawParent = parentName || selectedTreeNode || 'All Territories';
+    const parent = (rawParent === 'All Territories' || allowed.has(rawParent)) ? rawParent : 'All Territories';
     
-    // Populate Parent Territory select with all group nodes
+    // Populate Parent Territory select strictly with group nodes belonging to activeProgram
     const parentSelect = document.getElementById('treeAddParentSelect');
     if (parentSelect) {
       parentSelect.innerHTML = '';
-      const groupNodes = territoryTreeData.filter(t => t.is_group);
+      const groupNodes = territoryTreeData.filter(t => t.is_group && (t.name === 'All Territories' || allowed.has(t.name)));
       groupNodes.sort((a, b) => a.name.localeCompare(b.name));
       if (!groupNodes.some(g => g.name === 'All Territories')) {
         groupNodes.unshift({ name: 'All Territories' });
       }
-      if (parent && !groupNodes.some(g => g.name === parent)) {
+      if (parent && (parent === 'All Territories' || allowed.has(parent)) && !groupNodes.some(g => g.name === parent)) {
         groupNodes.push({ name: parent });
       }
       groupNodes.forEach(g => {
@@ -11939,86 +12362,8 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function onTreeAddNameInput(val) {
-    const code = (val || '').trim();
-    const mgrInp = document.getElementById('treeAddManagerInput');
-    const mgrDisp = document.getElementById('treeAddManagerDisplay');
-    const mgrClr = document.getElementById('treeAddManagerClear');
-    const userInp = document.getElementById('treeAddUserAccountInput');
-    const userDisp = document.getElementById('treeAddUserAccountDisplay');
-    const userClr = document.getElementById('treeAddUserAccountClear');
-
-    if (!code) {
-      if (mgrInp && !mgrInp.dataset.userManuallySelected) {
-        mgrInp.value = '';
-        if (mgrDisp) mgrDisp.value = '';
-        if (mgrClr) mgrClr.style.display = 'none';
-      }
-      return;
-    }
-
-    // Lookup if this territory code has an assigned territory manager
-    let assignedManager = '';
-    let assignedUserId = '';
-
-    // 1. Search in territoryTreeData
-    if (typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData)) {
-      const treeNode = territoryTreeData.find(t => 
-        (t.name && t.name.trim().toLowerCase() === code.toLowerCase()) ||
-        (t.territory_name && t.territory_name.trim().toLowerCase() === code.toLowerCase())
-      );
-      if (treeNode && treeNode.territory_manager && treeNode.territory_manager.trim()) {
-        assignedManager = treeNode.territory_manager.trim();
-      }
-    }
-
-    // 2. Search in programTerritories
-    if (!assignedManager && typeof programTerritories !== 'undefined' && Array.isArray(programTerritories)) {
-      const terrRow = programTerritories.find(t => 
-        (t.activeCode && t.activeCode.trim().toLowerCase() === code.toLowerCase()) ||
-        (t.latestPrevCode && t.latestPrevCode.trim().toLowerCase() === code.toLowerCase()) ||
-        (t.histCode && t.histCode.trim().toLowerCase() === code.toLowerCase()) ||
-        (t.recordId && t.recordId.trim().toLowerCase() === code.toLowerCase())
-      );
-      if (terrRow) {
-        if (terrRow.rep && !terrRow.rep.toLowerCase().includes('unassigned') && !terrRow.rep.toLowerCase().includes('folder')) {
-          assignedManager = terrRow.rep.replace(/\s*\([^)]*\)/g, '').trim() || terrRow.rep.trim();
-        }
-        if (terrRow.userId && !terrRow.userId.toLowerCase().includes('unassigned')) {
-          assignedUserId = terrRow.userId.trim();
-        }
-      }
-    }
-
-    // 3. Search in availableSalesPersons
-    if (!assignedManager && typeof availableSalesPersons !== 'undefined' && Array.isArray(availableSalesPersons)) {
-      const sp = availableSalesPersons.find(s => 
-        (s.name && s.name.trim().toLowerCase() === code.toLowerCase()) ||
-        (s.sales_person_name && s.sales_person_name.toLowerCase().includes(code.toLowerCase()))
-      );
-      if (sp) {
-        assignedManager = sp.sales_person_name || sp.name;
-      }
-    }
-
-    // If an assigned territory manager is found, update the field
-    if (assignedManager) {
-      if (mgrInp) mgrInp.value = assignedManager;
-      if (mgrDisp) mgrDisp.value = assignedManager;
-      if (mgrClr) mgrClr.style.display = 'block';
-
-      if (assignedUserId && userInp && !userInp.dataset.userManuallySelected) {
-        userInp.value = assignedUserId;
-        if (userDisp) userDisp.value = assignedUserId;
-        if (userClr) userClr.style.display = 'block';
-      }
-    } else {
-      // Revert to unassigned placeholder if user hasn't manually picked from dropdown
-      if (mgrInp && !mgrInp.dataset.userManuallySelected) {
-        mgrInp.value = '';
-        if (mgrDisp) mgrDisp.value = '';
-        if (mgrClr) mgrClr.style.display = 'none';
-      }
-    }
+    // UAT Invariant: Typing a Territory Name must NEVER override or auto-populate Territory Manager.
+    void val;
   }
 
   async function submitTreeAdd() {
@@ -12044,8 +12389,12 @@ const BASELINE_ERP_TERRITORIES = [
       territory_name: name,
       parent_territory: parent,
       is_group: isGroup,
-      territory_manager: mgr || ""
+      territory_manager: mgr || "",
+      custom_account_or_program: activeProgram,
+      program: activeProgram
     };
+    registerNodeProgram(name, activeProgram);
+    if (mgr) registerSalesPersonProgram(mgr, activeProgram);
 
     territoryTreeData.push(newNode);
 
@@ -12112,15 +12461,16 @@ const BASELINE_ERP_TERRITORIES = [
 
     // Dispatch to ERPNext API asynchronously
     try {
+      const postBody = {
+        territory_name: name,
+        parent_territory: parent,
+        is_group: isGroup,
+        ...(mgr ? { territory_manager: mgr } : {})
+      };
       fetch('/api/resource/Territory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          territory_name: name,
-          parent_territory: parent,
-          is_group: isGroup,
-          ...(mgr ? { territory_manager: mgr } : {})
-        })
+        body: JSON.stringify(postBody)
       }).then(async res => {
         if (res.ok) {
           console.log(`[ERPNext] Created Territory ${name} online`);
@@ -12128,7 +12478,18 @@ const BASELINE_ERP_TERRITORIES = [
         } else {
           try {
             const err = await res.json();
-            const msg = err.exception || err.message || (err._server_messages ? JSON.parse(err._server_messages)[0] : 'Server error');
+            const msg = String(err.exception || err.message || (err._server_messages ? JSON.parse(err._server_messages)[0] : 'Server error'));
+            if (msg.includes('LinkValidationError') && mgr) {
+              const fallbackRes = await fetch('/api/resource/Territory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ territory_name: name, parent_territory: parent, is_group: isGroup })
+              });
+              if (fallbackRes.ok) {
+                showToast(`Territory "${name}" synced live to ERPNext!`, 'success');
+                return;
+              }
+            }
             showToast(`ERPNext Warning: ${msg}`, 'warning');
           } catch (_) {}
         }
@@ -12199,8 +12560,12 @@ const BASELINE_ERP_TERRITORIES = [
     const parentSelect = document.getElementById('treeEditParentSelect');
     parentSelect.innerHTML = '';
     
-    const groupNodes = territoryTreeData.filter(t => t.is_group && !descendants.has(t.name));
+    const allowed = getProgramTerritoryNames(activeProgram);
+    const groupNodes = territoryTreeData.filter(t => t.is_group && !descendants.has(t.name) && (t.name === 'All Territories' || allowed.has(t.name)));
     groupNodes.sort((a, b) => a.name.localeCompare(b.name));
+    if (!groupNodes.some(g => g.name === 'All Territories') && !descendants.has('All Territories')) {
+      groupNodes.unshift({ name: 'All Territories' });
+    }
 
     groupNodes.forEach(g => {
       const opt = document.createElement('option');
@@ -12246,6 +12611,10 @@ const BASELINE_ERP_TERRITORIES = [
     node.parent_territory = newParent;
     node.territory_manager = newMgr || null;
     node.is_group = newIsGroup;
+    node.custom_account_or_program = activeProgram;
+    node.program = activeProgram;
+    registerNodeProgram(origName, activeProgram);
+    if (newMgr) registerSalesPersonProgram(newMgr, activeProgram);
 
     localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
 
@@ -12299,7 +12668,18 @@ const BASELINE_ERP_TERRITORIES = [
         } else {
           try {
             const err = await res.json();
-            const msg = err.exception || err.message || 'Server error';
+            const msg = String(err.exception || err.message || 'Server error');
+            if (msg.includes('LinkValidationError') && newMgr) {
+              const fallbackRes = await fetch(`/api/resource/Territory/${encodeURIComponent(origName)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ parent_territory: newParent, is_group: newIsGroup })
+              });
+              if (fallbackRes.ok) {
+                showToast(`Territory "${origName}" updated live on ERPNext!`, 'success');
+                return;
+              }
+            }
             showToast(`ERPNext Warning: ${msg}`, 'warning');
           } catch (_) {}
         }
@@ -12357,7 +12737,10 @@ const BASELINE_ERP_TERRITORIES = [
     if (node) {
       node.name = newName;
       node.territory_name = newName;
+      node.custom_account_or_program = activeProgram;
+      node.program = activeProgram;
     }
+    registerNodeProgram(newName, activeProgram);
 
     territoryTreeData.forEach(t => {
       if (t.parent_territory === oldName) {
@@ -12691,12 +13074,16 @@ const BASELINE_ERP_TERRITORIES = [
     }
     if (editMgrClr) editMgrClr.style.display = editMgrVal ? 'block' : 'none';
 
-    // Parent Territory select
+    // Parent Territory select (strictly locked to activeProgram)
     const parentSel = document.getElementById('editParentSelect');
     if (parentSel) {
       parentSel.innerHTML = '';
-      const groupNodes = territoryTreeData.filter(t => t.is_group);
+      const allowed = getProgramTerritoryNames(activeProgram);
+      const groupNodes = territoryTreeData.filter(t => t.is_group && (t.name === 'All Territories' || allowed.has(t.name)));
       groupNodes.sort((a, b) => a.name.localeCompare(b.name));
+      if (!groupNodes.some(g => g.name === 'All Territories')) {
+        groupNodes.unshift({ name: 'All Territories' });
+      }
       groupNodes.forEach(g => {
         const opt = document.createElement('option');
         opt.value = g.name;
@@ -14065,7 +14452,6 @@ const BASELINE_ERP_TERRITORIES = [
       <strong>${escapeHtml(activeProgram)}</strong> &bull; 
       Area: <strong style="color:#0284C7; background:#F0F9FF; padding:1px 6px; border-radius:4px; border:1px solid #BAE6FD;">${escapeHtml(modalAreaTag)}</strong> &bull; 
       District: <span style="color:#475569;">${escapeHtml(row.district || 'N/A')}</span> &bull; 
-      User ID: <span class="badge badge-user-id" style="${(!row.userId || !row.userId.includes('@') || (row.rep && row.rep.toLowerCase().includes('unassigned'))) ? 'background:#F4F4F5; color:#71717A; border:1px solid #E4E4E7; font-weight:600;' : ''}">${escapeHtml((row.userId && row.userId.includes('@') && (!row.rep || !row.rep.toLowerCase().includes('unassigned'))) ? row.userId : 'Unassigned')}</span> &bull; 
       Record: <code>${escapeHtml(row.recordId)}</code>
     `;
 
@@ -14212,33 +14598,50 @@ const BASELINE_ERP_TERRITORIES = [
     targetSel.innerHTML = '';
     sourceSel.innerHTML = '';
 
+    // Strictly filter programTerritories to activeProgram so no cross-program crossover can ever occur
+    const allowed = getProgramTerritoryNames(activeProgram);
+    const validEntries = [];
+    programTerritories.forEach((t, idx) => {
+      const code = t.activeCode || t.latestPrevCode || t.histCode || t.recordId;
+      const detected = detectTextProgram(code);
+      if (detected && detected !== activeProgram) return;
+      if (allowed.size > 0 && code && !allowed.has(code) && detected !== activeProgram) return;
+      validEntries.push({ t, idx });
+    });
+
+    if (validEntries.length === 0) return;
+
     let sourceIdx = -1;
     let targetIdx = -1;
 
-    // Find preselected territory
+    // Find preselected territory within validEntries of activeProgram
     if (preselectedRef) {
       const refClean = String(preselectedRef).trim().toLowerCase();
-      sourceIdx = programTerritories.findIndex(t => 
-        t.recordId.toLowerCase() === refClean ||
+      const found = validEntries.find(({ t }) =>
+        (t.recordId && t.recordId.toLowerCase() === refClean) ||
         (t.activeCode && t.activeCode.toLowerCase() === refClean) ||
         (t.latestPrevCode && t.latestPrevCode.toLowerCase() === refClean) ||
         (t.histCode && t.histCode.toLowerCase() === refClean)
       );
+      if (found) sourceIdx = found.idx;
     }
 
-    // Default to first resigned rep as source if found, else first territory
+    // Default to first resigned rep as source if found, else first valid territory in activeProgram
     if (sourceIdx === -1) {
-      sourceIdx = programTerritories.findIndex(t => (t.rep || '').toUpperCase().includes('RESIGNED'));
-      if (sourceIdx === -1) sourceIdx = 0;
+      const foundResigned = validEntries.find(({ t }) => (t.rep || '').toUpperCase().includes('RESIGNED'));
+      sourceIdx = foundResigned ? foundResigned.idx : validEntries[0].idx;
     }
 
-    // Pick target: first active (non-resigned) territory that is distinct from source
-    targetIdx = programTerritories.findIndex((t, i) => i !== sourceIdx && !(t.rep || '').toUpperCase().includes('RESIGNED'));
-    if (targetIdx === -1) {
-      targetIdx = (sourceIdx + 1) % programTerritories.length;
+    // Pick target: first active (non-resigned) territory in activeProgram distinct from source
+    const foundTarget = validEntries.find(({ t, idx }) => idx !== sourceIdx && !(t.rep || '').toUpperCase().includes('RESIGNED'));
+    if (foundTarget) {
+      targetIdx = foundTarget.idx;
+    } else {
+      const alt = validEntries.find(({ idx }) => idx !== sourceIdx);
+      targetIdx = alt ? alt.idx : sourceIdx;
     }
 
-    programTerritories.forEach((t, idx) => {
+    validEntries.forEach(({ t, idx }) => {
       const code = t.activeCode || t.latestPrevCode || t.histCode || t.recordId;
       const rep = t.rep ? t.rep.trim() : 'Unassigned Rep';
       const isInactive = (t.operationalStatus === 'Inactive' || t.isResigned === true || rep.toUpperCase().includes('RESIGNED'));
@@ -14965,8 +15368,8 @@ const BASELINE_ERP_TERRITORIES = [
       </div>
     </div>
 
-    <!-- Account / Program & User ID Dropdown (matching Image 1) -->
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+    <!-- Account / Program & User ID Dropdown (Hidden per SFE UAT specification) -->
+    <div style="display:none; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
       <div>
         <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Account / Program</label>
         <input type="text" id="treeAddProgramInput" placeholder="e.g. Abbott Diabetes Care" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px;">
@@ -15047,7 +15450,7 @@ const BASELINE_ERP_TERRITORIES = [
       </label>
     </div>
 
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+    <div style="display:none; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
       <div>
         <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Account / Program</label>
         <input type="text" id="treeEditProgramInput" placeholder="e.g. Abbott Diabetes Care" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px;">
@@ -15142,8 +15545,8 @@ const BASELINE_ERP_TERRITORIES = [
           <div style="font-size:10.5px; color:#71717A; margin-top:4px;">Select parent sales person in tree.</div>
         </div>
 
-        <!-- Row 2 Right: User ID (Labeled User ID to match ERPNext field label) -->
-        <div>
+        <!-- Row 2 Right: User ID (Hidden per SFE UAT specification) -->
+        <div style="display:none;">
           <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
             User ID
           </label>

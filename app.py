@@ -1059,7 +1059,7 @@ def execute_tree_action(opener, action, payload):
                 if "DuplicateEntryError" in err_text:
                     return "warning", f'Territory "{t_name}" already exists in ERPNext.'
                 if "LinkValidationError" in err_text:
-                    for lf in ["custom_account_or_program", "territory_manager", "custom_user_id"]:
+                    for lf in ["custom_account_or_program", "custom_user_id"]:
                         if lf in body:
                             del body[lf]
                     data = json.dumps(body).encode("utf-8")
@@ -1069,9 +1069,24 @@ def execute_tree_action(opener, action, payload):
                         headers=headers_json,
                         method="POST"
                     )
-                    res = call_erpnext_resiliently(opener, req, timeout=12)
-                    if res.status in [200, 201]:
-                        return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
+                    try:
+                        res = call_erpnext_resiliently(opener, req, timeout=12)
+                        if res.status in [200, 201]:
+                            return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
+                    except urllib.error.HTTPError as he2:
+                        if "territory_manager" in body:
+                            del body["territory_manager"]
+                            data = json.dumps(body).encode("utf-8")
+                            req = urllib.request.Request(
+                                f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+                                data=data,
+                                headers=headers_json,
+                                method="POST"
+                            )
+                            res = call_erpnext_resiliently(opener, req, timeout=12)
+                            if res.status in [200, 201]:
+                                return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
+                        raise he2
                 raise he
 
         elif action == "tree_edit":
@@ -1106,7 +1121,7 @@ def execute_tree_action(opener, action, payload):
             except urllib.error.HTTPError as he:
                 err_text = he.read().decode("utf-8", errors="ignore")
                 if "LinkValidationError" in err_text:
-                    for lf in ["custom_account_or_program", "territory_manager", "custom_user_id"]:
+                    for lf in ["custom_account_or_program", "custom_user_id"]:
                         if lf in body:
                             del body[lf]
                     data = json.dumps(body).encode("utf-8")
@@ -1116,9 +1131,24 @@ def execute_tree_action(opener, action, payload):
                         headers=headers_json,
                         method="PUT"
                     )
-                    res = call_erpnext_resiliently(opener, req, timeout=12)
-                    if res.status == 200:
-                        return "success", f'Territory "{orig_name}" updated live on {get_server_display_name()}!'
+                    try:
+                        res = call_erpnext_resiliently(opener, req, timeout=12)
+                        if res.status == 200:
+                            return "success", f'Territory "{orig_name}" updated live on {get_server_display_name()}!'
+                    except urllib.error.HTTPError as he2:
+                        if "territory_manager" in body:
+                            del body["territory_manager"]
+                            data = json.dumps(body).encode("utf-8")
+                            req = urllib.request.Request(
+                                f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name)}",
+                                data=data,
+                                headers=headers_json,
+                                method="PUT"
+                            )
+                            res = call_erpnext_resiliently(opener, req, timeout=12)
+                            if res.status == 200:
+                                return "success", f'Territory "{orig_name}" updated live on {get_server_display_name()}!'
+                        raise he2
                 raise he
 
         elif action == "tree_rename":
