@@ -1,4 +1,6 @@
-# PIMS Territory Reconfiguration Portal (v.0.1.2) • Production Guide
+# PIMS Territory Reconfiguration Portal (v.0.1.1) • Production Guide
+
+See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for the complete `v.0.1.1` release notes, UAT fixes (Items #4 and #7), and active feature matrix.
 
 
 This folder contains the complete, deployment-ready files to host the **Territory Reconfiguration Web App** on **Streamlit Community Cloud (100% Free)**.

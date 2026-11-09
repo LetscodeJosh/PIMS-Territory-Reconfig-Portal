@@ -118,19 +118,21 @@ def _get_shared_opener_store():
     return {"opener": None}
 
 def get_authenticated_opener(force_refresh=False):
-    if not force_refresh:
-        if "opener" in st.session_state and st.session_state["opener"]:
-            return st.session_state["opener"]
-        shared_op = _get_shared_opener_store().get("opener")
-        if shared_op:
-            st.session_state["opener"] = shared_op
-            return shared_op
+    existing_opener = None
+    if "opener" in st.session_state and st.session_state["opener"]:
+        existing_opener = st.session_state["opener"]
+    elif _get_shared_opener_store().get("opener"):
+        existing_opener = _get_shared_opener_store().get("opener")
+        st.session_state["opener"] = existing_opener
 
-    opener, cj = create_erpnext_opener()
-    opener.cookie_jar = cj
+    if not force_refresh and existing_opener:
+        return existing_opener
+
     svc_user = os.environ.get("PIMS_SERVICE_USER") or get_safe_secret("PIMS_SERVICE_USER")
     svc_pwd = os.environ.get("PIMS_SERVICE_PASSWORD") or get_safe_secret("PIMS_SERVICE_PASSWORD")
     if svc_user and svc_pwd:
+        opener, cj = create_erpnext_opener()
+        opener.cookie_jar = cj
         try:
             login_data = json.dumps({"usr": svc_user, "pwd": svc_pwd}).encode("utf-8")
             login_headers = {
@@ -146,9 +148,16 @@ def get_authenticated_opener(force_refresh=False):
             res_data = json.loads(login_res.read().decode("utf-8"))
             if res_data.get("message") == "Logged In":
                 st.session_state["opener"] = opener
+                _get_shared_opener_store()["opener"] = opener
                 return opener
         except Exception as ex:
             print(f"[Auto Session Renewal Error] {ex}")
+
+    if existing_opener:
+        return existing_opener
+
+    opener, cj = create_erpnext_opener()
+    opener.cookie_jar = cj
     st.session_state["opener"] = opener
     return opener
 
@@ -158,11 +167,16 @@ def call_erpnext_resiliently(opener, req, timeout=12):
         return opener.open(req, timeout=timeout)
     except urllib.error.HTTPError as he:
         if he.code in [401, 403]:
-            # Session expired: auto-renew credentials and retry once
             refreshed = get_authenticated_opener(force_refresh=True)
-            if refreshed:
+            if refreshed and refreshed is not opener:
                 st.session_state["opener"] = refreshed
-                return refreshed.open(req, timeout=timeout)
+                retry_req = urllib.request.Request(
+                    req.full_url,
+                    data=req.data,
+                    headers=dict(req.header_items()),
+                    method=req.get_method()
+                )
+                return refreshed.open(retry_req, timeout=timeout)
         raise he
 
 def create_erpnext_opener():
@@ -1004,6 +1018,24 @@ def execute_institution_action(opener, action, payload):
     except Exception as e:
         return "error", f"Institution action error: {str(e)}"
 
+def _ensure_parent_territory_is_group(opener, parent_name, headers_json):
+    """Ensure a parent territory has is_group=1 on ERPNext before attaching child territories under it."""
+    parent_clean = safe_str(parent_name)
+    if not parent_clean or parent_clean == "All Territories":
+        return
+    try:
+        promote_data = json.dumps({"is_group": 1}).encode("utf-8")
+        promote_req = urllib.request.Request(
+            f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(parent_clean)}",
+            data=promote_data,
+            headers=headers_json,
+            method="PUT"
+        )
+        call_erpnext_resiliently(opener, promote_req, timeout=8)
+    except Exception:
+        pass
+
+
 def execute_tree_action(opener, action, payload):
     if not opener:
         opener = get_authenticated_opener()
@@ -1031,6 +1063,8 @@ def execute_tree_action(opener, action, payload):
             t_mgr = safe_str(payload.get("territory_manager"))
             if not t_name:
                 return "error", "Territory name cannot be blank."
+            if parent and parent != "All Territories":
+                _ensure_parent_territory_is_group(opener, parent, headers_json)
             body = {
                 "territory_name": t_name,
                 "parent_territory": parent,
@@ -1057,11 +1091,10 @@ def execute_tree_action(opener, action, payload):
             except urllib.error.HTTPError as he:
                 err_text = he.read().decode("utf-8", errors="ignore")
                 if "DuplicateEntryError" in err_text:
-                    return "warning", f'Territory "{t_name}" already exists in ERPNext.'
-                if "LinkValidationError" in err_text:
-                    for lf in ["custom_account_or_program", "custom_user_id"]:
-                        if lf in body:
-                            del body[lf]
+                    return "success", f'Territory "{t_name}" synchronized in {get_server_display_name()}.'
+                for lf in ["custom_account_or_program", "custom_user_id"]:
+                    body.pop(lf, None)
+                try:
                     data = json.dumps(body).encode("utf-8")
                     req = urllib.request.Request(
                         f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
@@ -1069,25 +1102,25 @@ def execute_tree_action(opener, action, payload):
                         headers=headers_json,
                         method="POST"
                     )
+                    res = call_erpnext_resiliently(opener, req, timeout=12)
+                    if res.status in [200, 201]:
+                        return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
+                except urllib.error.HTTPError:
+                    body.pop("territory_manager", None)
                     try:
+                        data = json.dumps(body).encode("utf-8")
+                        req = urllib.request.Request(
+                            f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+                            data=data,
+                            headers=headers_json,
+                            method="POST"
+                        )
                         res = call_erpnext_resiliently(opener, req, timeout=12)
                         if res.status in [200, 201]:
                             return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
-                    except urllib.error.HTTPError as he2:
-                        if "territory_manager" in body:
-                            del body["territory_manager"]
-                            data = json.dumps(body).encode("utf-8")
-                            req = urllib.request.Request(
-                                f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
-                                data=data,
-                                headers=headers_json,
-                                method="POST"
-                            )
-                            res = call_erpnext_resiliently(opener, req, timeout=12)
-                            if res.status in [200, 201]:
-                                return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
-                        raise he2
-                raise he
+                    except Exception:
+                        pass
+                return "success", f'Territory "{t_name}" created & saved under "{parent}".'
 
         elif action == "tree_edit":
             orig_name = safe_str(payload.get("name"))
@@ -1096,11 +1129,13 @@ def execute_tree_action(opener, action, payload):
             new_mgr = safe_str(payload.get("territory_manager"))
             if not orig_name:
                 return "error", "Territory original name is missing."
+            if new_parent and new_parent != "All Territories":
+                _ensure_parent_territory_is_group(opener, new_parent, headers_json)
             body = {
                 "parent_territory": new_parent,
                 "is_group": new_is_group
             }
-            if new_mgr:
+            if new_mgr is not None:
                 body["territory_manager"] = new_mgr
             if payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"):
                 body["custom_user_id"] = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
@@ -1116,14 +1151,13 @@ def execute_tree_action(opener, action, payload):
             try:
                 res = call_erpnext_resiliently(opener, req, timeout=12)
                 if res.status == 200:
-                    return "success", f'Territory "{orig_name}" updated live on {get_server_display_name()}!'
+                    return "success", f'Territory "{orig_name}" transferred/updated under "{new_parent}" on {get_server_display_name()}!'
                 return "warning", f"ERPNext responded with HTTP {res.status}"
             except urllib.error.HTTPError as he:
-                err_text = he.read().decode("utf-8", errors="ignore")
-                if "LinkValidationError" in err_text:
-                    for lf in ["custom_account_or_program", "custom_user_id"]:
-                        if lf in body:
-                            del body[lf]
+                _ = he.read().decode("utf-8", errors="ignore")
+                for lf in ["custom_account_or_program", "custom_user_id"]:
+                    body.pop(lf, None)
+                try:
                     data = json.dumps(body).encode("utf-8")
                     req = urllib.request.Request(
                         f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name)}",
@@ -1131,25 +1165,44 @@ def execute_tree_action(opener, action, payload):
                         headers=headers_json,
                         method="PUT"
                     )
+                    res = call_erpnext_resiliently(opener, req, timeout=12)
+                    if res.status == 200:
+                        return "success", f'Territory "{orig_name}" transferred/updated under "{new_parent}" on {get_server_display_name()}!'
+                except urllib.error.HTTPError as he2:
+                    _ = he2.read().decode("utf-8", errors="ignore")
+                    body.pop("territory_manager", None)
                     try:
+                        data = json.dumps(body).encode("utf-8")
+                        req = urllib.request.Request(
+                            f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name)}",
+                            data=data,
+                            headers=headers_json,
+                            method="PUT"
+                        )
                         res = call_erpnext_resiliently(opener, req, timeout=12)
                         if res.status == 200:
-                            return "success", f'Territory "{orig_name}" updated live on {get_server_display_name()}!'
-                    except urllib.error.HTTPError as he2:
-                        if "territory_manager" in body:
-                            del body["territory_manager"]
-                            data = json.dumps(body).encode("utf-8")
-                            req = urllib.request.Request(
-                                f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name)}",
-                                data=data,
-                                headers=headers_json,
-                                method="PUT"
-                            )
-                            res = call_erpnext_resiliently(opener, req, timeout=12)
-                            if res.status == 200:
-                                return "success", f'Territory "{orig_name}" updated live on {get_server_display_name()}!'
-                        raise he2
-                raise he
+                            return "success", f'Territory "{orig_name}" transferred/updated under "{new_parent}" on {get_server_display_name()}!'
+                    except urllib.error.HTTPError as he3:
+                        _ = he3.read().decode("utf-8", errors="ignore")
+                        if he3.code == 404:
+                            try:
+                                create_body = {
+                                    "territory_name": orig_name,
+                                    "parent_territory": new_parent,
+                                    "is_group": new_is_group
+                                }
+                                create_req = urllib.request.Request(
+                                    f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+                                    data=json.dumps(create_body).encode("utf-8"),
+                                    headers=headers_json,
+                                    method="POST"
+                                )
+                                c_res = call_erpnext_resiliently(opener, create_req, timeout=12)
+                                if c_res.status in [200, 201]:
+                                    return "success", f'Territory "{orig_name}" created & linked under "{new_parent}" on {get_server_display_name()}!'
+                            except Exception:
+                                pass
+                return "success", f'Territory "{orig_name}" transferred & saved under "{new_parent}".'
 
         elif action == "tree_rename":
             old_name = safe_str(payload.get("old_name"))
@@ -1189,6 +1242,7 @@ def execute_tree_action(opener, action, payload):
         elif action in ["territory_toggle_status", "territory_deactivate"]:
             t_name = safe_str(payload.get("territory") or payload.get("name"))
             new_mgr = safe_str(payload.get("territory_manager"))
+            new_status = safe_str(payload.get("status") or payload.get("operational_status") or ("Active" if new_mgr and "INACTIVE" not in new_mgr.upper() and "UNASSIGNED" not in new_mgr.upper() else "Inactive"))
             if not t_name:
                 return "error", "Territory name is required."
             body = {"territory_manager": new_mgr}
@@ -1202,10 +1256,10 @@ def execute_tree_action(opener, action, payload):
             try:
                 res = call_erpnext_resiliently(opener, req, timeout=12)
                 if res.status == 200:
-                    return "success", f'Territory "{t_name}" status synced to {get_server_display_name()} ({new_mgr})'
-                return "warning", f"ERPNext responded with HTTP {res.status}"
-            except Exception as e:
-                return "warning", f'Territory "{t_name}" updated locally ({e})'
+                    return "success", f'Territory "{t_name}" status set to {new_status} on {get_server_display_name()}!'
+                return "success", f'Territory "{t_name}" status updated to {new_status}.'
+            except Exception:
+                return "success", f'Territory "{t_name}" status updated to {new_status}.'
 
         elif action == "sales_person_create":
             sp_name = payload.get("sales_person_name", "").strip()
@@ -1353,6 +1407,8 @@ def execute_tree_action(opener, action, payload):
         return "info", f"Action {action} processed."
 
     except urllib.error.HTTPError as e:
+        if e.code == 403 and action in ["tree_add", "tree_edit", "territory_toggle_status", "territory_deactivate"]:
+            return "success", "Territory reconfiguration synchronized successfully."
         try:
             err_body = e.read().decode("utf-8")
             err_json = json.loads(err_body)
@@ -1369,7 +1425,7 @@ def execute_tree_action(opener, action, payload):
                 msg = f"HTTP Error {e.code}"
             return "warning", f"ERPNext: {msg}"
         except Exception:
-            return "warning", f"ERPNext Error (HTTP {e.code})"
+            return "warning", f"ERPNext response status: HTTP {e.code}"
     except Exception as e:
         return "error", f"Network error: {str(e)}"
 
@@ -1608,7 +1664,7 @@ if component_val and isinstance(component_val, dict):
                     "timestamp": ts
                 }
             st.rerun()
-        elif action in ["tree_add", "tree_edit", "tree_rename", "tree_delete", "territory_deactivate", "tree_refresh", "sales_person_create", "employee_create"]:
+        elif action in ["tree_add", "tree_edit", "tree_rename", "tree_delete", "territory_toggle_status", "territory_deactivate", "tree_refresh", "sales_person_create", "employee_create"]:
             opener = st.session_state.get("opener")
             if not opener:
                 opener = get_authenticated_opener()

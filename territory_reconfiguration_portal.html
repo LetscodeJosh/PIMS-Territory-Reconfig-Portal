@@ -95,72 +95,228 @@
   }
 
   // =========================================================================
-  // TAG INACTIVE & VACANT (STRICT SFE NO-DELETION GUARANTEE)
+  // THEME ENGINE (LIGHT / DARK MODE OPTIMIZATION FOR DROPDOWNS & POPOVERS)
   // =========================================================================
-  function openTagInactiveModal(code) {
-    closeGridActionDropdown();
-    const matchedPt = programTerritories.find(pt => pt.activeCode === code || pt.histCode === code || pt.recordId === code);
-    const repName = matchedPt && matchedPt.rep ? matchedPt.rep : 'Unassigned Rep';
-    const docCount = matchedPt && matchedPt.coveredDoctors ? matchedPt.coveredDoctors.length : 0;
-    
-    document.getElementById('inactiveTerritoryCode').value = code;
-    document.getElementById('inactiveTerritoryName').innerText = code;
-    document.getElementById('inactiveRepName').innerText = repName;
-    document.getElementById('inactiveDocCount').innerText = `${docCount} Doctors Preserved`;
-    
-    const modal = document.getElementById('inactiveModalOverlay');
-    if (modal) modal.classList.add('active');
-  }
-
-  function closeTagInactiveModal() {
-    const modal = document.getElementById('inactiveModalOverlay');
-    if (modal) modal.classList.remove('active');
-  }
-
-  function confirmTagInactive() {
-    const code = document.getElementById('inactiveTerritoryCode').value;
-    if (!code) return;
-    
-    const pt = programTerritories.find(p => p.activeCode === code || p.histCode === code || p.recordId === code);
-    if (pt) {
-      pt.operationalStatus = 'Inactive';
-      pt.status = 'CHANGED';
-      pt.rep = '[Vacant / Resigned]';
-      pt.isActive = false;
-    }
-    
-    const treeNode = territoryTreeData.find(t => t.name === code);
-    if (treeNode) {
-      treeNode.territory_manager = '[Vacant / Resigned]';
-      treeNode.status = 'Inactive';
-    }
-    
-    // Safely store in archivedRecords for Archive Directory Vault
-    if (!archivedRecords.find(a => a.code === code)) {
-      archivedRecords.push({
-        code: code,
-        name: code,
-        dateArchived: new Date().toISOString().split('T')[0],
-        reason: 'MedRep resigned - Tagged Inactive & Vacant for future program cycles',
-        originalDistrict: pt ? pt.district : 'General',
-        originalRep: pt ? pt.rep : 'Unassigned',
-        coveredDocsCount: pt && pt.coveredDoctors ? pt.coveredDoctors.length : 0
-      });
-      try {
-        localStorage.setItem('pims_stg_archived_territories_' + activeProgram, JSON.stringify(archivedRecords));
-      } catch (_) {}
-    }
-    
-    // Log in master audit trail
-    globalAuditLogs.unshift({
-      timestamp: new Date().toLocaleString(),
-      recordId: pt ? pt.recordId : code,
-      action: 'TAG_INACTIVE',
-      territoryCode: code,
-      user: (activeUser && activeUser.email) ? activeUser.email : 'SFE Lead',
-      details: `Territory ${code} tagged as Inactive & Vacant (MedRep resigned). Preserved in Archive Directory for future program use.`
-    });
+  function getPortalTheme() {
     try {
+      return localStorage.getItem('pims_portal_theme') || 'light';
+    } catch (_) {
+      return 'light';
+    }
+  }
+
+  function applyPortalTheme(theme) {
+    const normalized = (theme === 'dark') ? 'dark' : 'light';
+    if (document.body) {
+      document.body.setAttribute('data-theme', normalized);
+    }
+    const btn = document.getElementById('btnThemeToggle');
+    if (btn) {
+      btn.innerHTML = normalized === 'dark' ? '🌙 Dark Mode' : '☀️ Light Mode';
+      btn.title = normalized === 'dark'
+        ? 'Currently in Dark Mode — Click to switch to Light Mode'
+        : 'Currently in Light Mode — Click to switch to Dark Mode';
+    }
+    try {
+      localStorage.setItem('pims_portal_theme', normalized);
+    } catch (_) {}
+  }
+
+  function togglePortalTheme() {
+    const next = getPortalTheme() === 'dark' ? 'light' : 'dark';
+    applyPortalTheme(next);
+    if (typeof showToast === 'function') {
+      showToast(`Theme switched to ${next === 'dark' ? 'Dark' : 'Light'} Mode — Dropdowns & menus optimized.`, 'info', 2500);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    applyPortalTheme(getPortalTheme());
+  });
+
+  // =========================================================================
+  // UNIFIED 3-STATE TERRITORY STATUS ENGINE: ACTIVE | VACANT | INACTIVE
+  // (Strict SFE No-Deletion Guarantee + Full Reactivation Support)
+  // =========================================================================
+  function cleanRepDisplayName(rawRep) {
+    if (!rawRep) return '';
+    return String(rawRep)
+      .replace(/\[Vacant\s*\/\s*Resigned\]/gi, '')
+      .replace(/\[Inactive\s*\/\s*Resigned\]/gi, '')
+      .replace(/\s*(\[|\()(RESIGNED|INACTIVE|VACANT)[^)\]]*(\]|\))/gi, '')
+      .replace(/^Assigned\s*\((.+)\)$/i, '$1')
+      .replace(/\s*\([^)]*\)/g, '')
+      .trim();
+  }
+
+  function getTerritoryOperationalStatus(pt, treeNode) {
+    if (pt && (pt.operationalStatus === 'Active' || pt.operationalStatus === 'Vacant' || pt.operationalStatus === 'Inactive')) {
+      return pt.operationalStatus;
+    }
+    if (treeNode) {
+      const tStat = treeNode.operational_status || treeNode.status;
+      if (tStat === 'Active' || tStat === 'Vacant' || tStat === 'Inactive') {
+        return tStat;
+      }
+    }
+    if (pt) {
+      if (pt.isActive === false || pt.isResigned === true || (pt.rep && /resigned|inactive/i.test(pt.rep))) {
+        return 'Inactive';
+      }
+      const cleaned = cleanRepDisplayName(pt.rep);
+      if (!cleaned || /^unassigned/i.test(cleaned) || /^vacant/i.test(cleaned)) {
+        return 'Vacant';
+      }
+      return 'Active';
+    }
+    if (treeNode) {
+      if (treeNode.is_group) return 'Active';
+      const cleanedMgr = cleanRepDisplayName(treeNode.territory_manager);
+      if (!cleanedMgr || /^unassigned/i.test(cleanedMgr)) return 'Vacant';
+    }
+    return 'Active';
+  }
+
+  function findProgramTerritoryByCode(code) {
+    if (!code || !Array.isArray(programTerritories)) return null;
+    return programTerritories.find(pt => pt.activeCode === code) ||
+           programTerritories.find(pt => pt.histCode === code || pt.latestPrevCode === code || pt.recordId === code) ||
+           null;
+  }
+
+  function setTerritoryOperationalStatus(code, targetStatus, customReason) {
+    if (!code) return;
+    const nextStatus = (targetStatus === 'Vacant' || targetStatus === 'Inactive' || targetStatus === 'Active')
+      ? targetStatus
+      : 'Active';
+
+    const pt = findProgramTerritoryByCode(code);
+    const treeNode = Array.isArray(territoryTreeData)
+      ? territoryTreeData.find(t => t.name === code || t.territory_name === code)
+      : null;
+
+    const prevStatus = getTerritoryOperationalStatus(pt, treeNode);
+    let baseManager = '';
+    if (pt && pt.rep) {
+      const cand = cleanRepDisplayName(pt.rep);
+      if (cand && !/^unassigned/i.test(cand) && !/^vacant/i.test(cand) && !/^folder/i.test(cand)) {
+        baseManager = cand;
+      }
+    }
+    if (!baseManager && treeNode && treeNode.territory_manager) {
+      const cand = cleanRepDisplayName(treeNode.territory_manager);
+      if (cand && !/^unassigned/i.test(cand) && !/^vacant/i.test(cand)) {
+        baseManager = cand;
+      }
+    }
+    if (!baseManager && pt && pt.previousRep) {
+      baseManager = cleanRepDisplayName(pt.previousRep);
+    }
+
+    let updatedManagerForErp = '';
+    if (nextStatus === 'Active') {
+      updatedManagerForErp = baseManager || '';
+      if (pt) {
+        pt.operationalStatus = 'Active';
+        pt.isActive = true;
+        pt.isResigned = false;
+        pt.rep = baseManager || 'Unassigned Rep';
+        pt.status = 'CHANGED';
+      }
+      if (treeNode) {
+        treeNode.operational_status = 'Active';
+        treeNode.status = 'Active';
+        treeNode.territory_manager = baseManager || '';
+      }
+      if (Array.isArray(archivedRecords)) {
+        const archIdx = archivedRecords.findIndex(a => a.code === code);
+        if (archIdx !== -1) archivedRecords.splice(archIdx, 1);
+      }
+    } else if (nextStatus === 'Vacant') {
+      updatedManagerForErp = '';
+      if (pt) {
+        if (baseManager) pt.previousRep = baseManager;
+        pt.operationalStatus = 'Vacant';
+        pt.isActive = true;
+        pt.isResigned = false;
+        pt.rep = 'Unassigned Rep';
+        pt.userId = '';
+        pt.status = 'CHANGED';
+      }
+      if (treeNode) {
+        treeNode.operational_status = 'Vacant';
+        treeNode.status = 'Vacant';
+        treeNode.territory_manager = '';
+      }
+      if (Array.isArray(archivedRecords) && !archivedRecords.find(a => a.code === code)) {
+        archivedRecords.push({
+          code: code,
+          name: code,
+          dateArchived: new Date().toISOString().split('T')[0],
+          reason: customReason || 'Tagged as Vacant — Open slot awaiting MedRep assignment',
+          originalDistrict: pt ? pt.district : (treeNode ? treeNode.parent_territory : 'General'),
+          originalRep: baseManager || 'Unassigned',
+          coveredDocsCount: pt && pt.coveredDoctors ? pt.coveredDoctors.length : (pt ? (pt.docs || 0) : 0)
+        });
+      }
+    } else {
+      // Inactive
+      updatedManagerForErp = baseManager ? `${baseManager} [RESIGNED]` : '';
+      if (pt) {
+        if (baseManager) pt.previousRep = baseManager;
+        pt.operationalStatus = 'Inactive';
+        pt.isActive = false;
+        pt.isResigned = true;
+        pt.rep = baseManager ? `${baseManager} [RESIGNED]` : 'Unassigned Rep [RESIGNED]';
+        pt.status = 'CHANGED';
+      }
+      if (treeNode) {
+        treeNode.operational_status = 'Inactive';
+        treeNode.status = 'Inactive';
+        treeNode.territory_manager = updatedManagerForErp;
+      }
+      if (Array.isArray(archivedRecords) && !archivedRecords.find(a => a.code === code)) {
+        archivedRecords.push({
+          code: code,
+          name: code,
+          dateArchived: new Date().toISOString().split('T')[0],
+          reason: customReason || 'Tagged as Inactive — Preserved in Archive Directory for future cycles',
+          originalDistrict: pt ? pt.district : (treeNode ? treeNode.parent_territory : 'General'),
+          originalRep: baseManager || 'Unassigned',
+          coveredDocsCount: pt && pt.coveredDoctors ? pt.coveredDoctors.length : (pt ? (pt.docs || 0) : 0)
+        });
+      }
+    }
+
+    const actor = (typeof authenticatedUser !== 'undefined' && authenticatedUser && (authenticatedUser.email || authenticatedUser.full_name))
+      ? (authenticatedUser.email || authenticatedUser.full_name)
+      : 'SFE Lead';
+    const nowFormatted = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const detailMsg = customReason || `Territory ${code} status updated from ${prevStatus} to ${nextStatus}.`;
+
+    if (pt) {
+      if (!Array.isArray(pt.auditTrail)) pt.auditTrail = [];
+      pt.auditTrail.unshift({
+        timestamp: nowFormatted,
+        action: `STATUS_${nextStatus.toUpperCase()}`,
+        user: actor,
+        details: detailMsg
+      });
+    }
+
+    if (Array.isArray(globalAuditLogs)) {
+      globalAuditLogs.unshift({
+        timestamp: new Date().toLocaleString(),
+        recordId: pt ? pt.recordId : code,
+        action: `STATUS_${nextStatus.toUpperCase()}`,
+        territoryCode: code,
+        user: actor,
+        details: detailMsg
+      });
+    }
+
+    try {
+      localStorage.setItem('pims_stg_archived_territories_' + activeProgram, JSON.stringify(archivedRecords));
       localStorage.setItem('pims_stg_global_audit_logs', JSON.stringify(globalAuditLogs));
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
       localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
@@ -173,23 +329,110 @@
           isStreamlitMessage: true,
           type: "streamlit:setComponentValue",
           value: {
-            action: "territory_deactivate",
+            action: "territory_toggle_status",
             territory: code,
-            custom_status: "Inactive",
-            territory_manager: "",
+            status: nextStatus,
+            custom_status: nextStatus,
+            territory_manager: updatedManagerForErp,
             timestamp: Date.now()
           }
         }, "*");
       } catch (_) {}
+    } else {
+      try {
+        fetch(`/api/resource/Territory/${encodeURIComponent(code)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ territory_manager: updatedManagerForErp })
+        }).catch(() => {});
+      } catch (_) {}
     }
-    
-    closeTagInactiveModal();
-    renderGridTable();
-    renderInteractiveTree();
-    renderSummaryReport();
-    renderArchivedTerritoriesVault();
-    showToast(`Territory ${code} marked Inactive & Vacant (Preserved in Archive Directory)`);
+
+    if (typeof renderTable === 'function') renderTable();
+    if (typeof renderTree === 'function') renderTree();
+    if (typeof renderSummaryReport === 'function') renderSummaryReport();
+    if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
+
+    if (typeof showToast === 'function') {
+      if (nextStatus === 'Active') {
+        showToast(`Territory "${code}" set to Active! Ready for active cycle coverage.`, 'success', 3500);
+      } else if (nextStatus === 'Vacant') {
+        showToast(`Territory "${code}" tagged as Vacant (Open slot preserved with zero doctor loss).`, 'info', 3500);
+      } else {
+        showToast(`Territory "${code}" tagged as Inactive (Preserved in Archive Directory).`, 'info', 3500);
+      }
+    }
   }
+
+  function openTagInactiveModal(code, presetStatus) {
+    if (typeof closeGridActionDropdown === 'function') closeGridActionDropdown();
+    const matchedPt = findProgramTerritoryByCode(code);
+    const treeNode = Array.isArray(territoryTreeData) ? territoryTreeData.find(t => t.name === code) : null;
+    const currentStatus = getTerritoryOperationalStatus(matchedPt, treeNode);
+    const repName = matchedPt && matchedPt.rep ? cleanRepDisplayName(matchedPt.rep) || 'Unassigned Rep' : 'Unassigned Rep';
+    const docCount = matchedPt
+      ? (Array.isArray(matchedPt.coveredDoctors) ? matchedPt.coveredDoctors.length : (matchedPt.docs || 0))
+      : 0;
+
+    const codeInp = document.getElementById('inactiveTerritoryCode');
+    if (codeInp) codeInp.value = code;
+    const nameEl = document.getElementById('inactiveTerritoryName');
+    if (nameEl) nameEl.innerText = code;
+    const repEl = document.getElementById('inactiveRepName');
+    if (repEl) repEl.innerText = repName;
+    const docEl = document.getElementById('inactiveDocCount');
+    if (docEl) docEl.innerText = `${docCount} Doctors Preserved`;
+
+    const defaultTarget = presetStatus || (currentStatus === 'Inactive' ? 'Active' : 'Inactive');
+    const statusSel = document.getElementById('inactiveTargetStatusSelect');
+    if (statusSel) statusSel.value = defaultTarget;
+    if (typeof onInactiveModalStatusChange === 'function') {
+      onInactiveModalStatusChange(defaultTarget);
+    }
+
+    const modal = document.getElementById('inactiveModalOverlay');
+    if (modal) modal.classList.add('active');
+  }
+
+  function onInactiveModalStatusChange(val) {
+    const descEl = document.getElementById('inactiveModalStatusEffectText');
+    const btnEl = document.getElementById('btnConfirmTerritoryStatus');
+    if (val === 'Active') {
+      if (descEl) descEl.innerHTML = 'Status will update to <strong style="color:#15803D;">Active</strong> and restore the territory for active MedRep coverage.';
+      if (btnEl) {
+        btnEl.innerText = 'Confirm Set Active';
+        btnEl.style.background = '#15803D';
+      }
+    } else if (val === 'Vacant') {
+      if (descEl) descEl.innerHTML = 'Status will update to <strong style="color:#D97706;">Vacant</strong> (open territory slot awaiting MedRep assignment) while preserving all affiliated doctors.';
+      if (btnEl) {
+        btnEl.innerText = 'Confirm Tag as Vacant';
+        btnEl.style.background = '#D97706';
+      }
+    } else {
+      if (descEl) descEl.innerHTML = 'Status will update to <strong style="color:#475569;">Inactive</strong> and be preserved in the Archived Territories Directory.';
+      if (btnEl) {
+        btnEl.innerText = 'Confirm Tag as Inactive';
+        btnEl.style.background = '#475569';
+      }
+    }
+  }
+
+  function closeTagInactiveModal() {
+    const modal = document.getElementById('inactiveModalOverlay');
+    if (modal) modal.classList.remove('active');
+  }
+
+  function confirmTagInactive() {
+    const codeInp = document.getElementById('inactiveTerritoryCode');
+    const code = codeInp ? codeInp.value : '';
+    if (!code) return;
+    const statusSel = document.getElementById('inactiveTargetStatusSelect');
+    const targetStatus = statusSel ? statusSel.value : 'Inactive';
+    closeTagInactiveModal();
+    setTerritoryOperationalStatus(code, targetStatus);
+  }
+
 
 </script>
 <style>
@@ -1550,19 +1793,25 @@
     transform: rotate(180deg);
   }
 
-  /* Grid Row Actions Popover Menu */
+  /* Grid Row Actions Popover Menu — Theme Optimized (Light Default + Dark Mode) */
   .grid-actions-popover {
     position: fixed;
     z-index: 99999;
-    min-width: 230px;
-    max-width: 260px;
-    background: #0F172A;
-    border: 1px solid #334155;
-    border-radius: 8px;
+    min-width: 236px;
+    max-width: 268px;
+    background: #FFFFFF;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 10px;
     padding: 6px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.16), 0 4px 10px -3px rgba(15, 23, 42, 0.08);
     animation: popoverFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
     user-select: none;
+  }
+
+  body[data-theme="dark"] .grid-actions-popover {
+    background: #0F172A;
+    border: 1px solid #334155;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
   }
 
   @keyframes popoverFadeIn {
@@ -1578,28 +1827,40 @@
 
   .grid-actions-header {
     padding: 6px 8px 5px 8px;
-    border-bottom: 1px solid #1E293B;
+    border-bottom: 1px solid #E2E8F0;
     margin-bottom: 4px;
+  }
+
+  body[data-theme="dark"] .grid-actions-header {
+    border-bottom: 1px solid #1E293B;
   }
 
   .grid-actions-label {
     display: block;
     font-size: 9.5px;
     font-weight: 800;
-    color: #94A3B8;
+    color: #64748B;
     letter-spacing: 0.6px;
     text-transform: uppercase;
+  }
+
+  body[data-theme="dark"] .grid-actions-label {
+    color: #94A3B8;
   }
 
   .grid-actions-terr-name {
     display: block;
     font-size: 12px;
     font-weight: 700;
-    color: #38BDF8;
+    color: #0284C7;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     margin-top: 1px;
+  }
+
+  body[data-theme="dark"] .grid-actions-terr-name {
+    color: #38BDF8;
   }
 
   .grid-actions-list {
@@ -1614,16 +1875,25 @@
     gap: 8px;
     width: 100%;
     padding: 6px 8px;
-    border-radius: 5px;
+    border-radius: 6px;
     background: transparent;
     border: none;
     cursor: pointer;
     text-align: left;
     transition: all 0.12s ease;
-    color: #E2E8F0;
+    color: #1E293B;
   }
 
   .grid-action-item:hover {
+    background: #F1F5F9;
+    color: #0F172A;
+  }
+
+  body[data-theme="dark"] .grid-action-item {
+    color: #E2E8F0;
+  }
+
+  body[data-theme="dark"] .grid-action-item:hover {
     background: #1E293B;
     color: #FFFFFF;
   }
@@ -1634,16 +1904,23 @@
     justify-content: center;
     width: 22px;
     height: 22px;
-    border-radius: 4px;
+    border-radius: 5px;
     flex-shrink: 0;
   }
 
-  .grid-action-icon.edit-icon { background: rgba(59, 130, 246, 0.18); color: #60A5FA; }
-  .grid-action-icon.add-icon { background: rgba(16, 185, 129, 0.18); color: #34D399; }
-  .grid-action-icon.rename-icon { background: rgba(168, 85, 247, 0.18); color: #C084FC; }
-  .grid-action-icon.delete-icon { background: rgba(239, 68, 68, 0.18); color: #F87171; }
-  .grid-action-icon.docs-icon { background: rgba(14, 165, 233, 0.18); color: #38BDF8; }
-  .grid-action-icon.audit-icon { background: rgba(148, 163, 184, 0.18); color: #CBD5E1; }
+  .grid-action-icon.edit-icon { background: #EFF6FF; color: #2563EB; }
+  .grid-action-icon.add-icon { background: #ECFDF5; color: #059669; }
+  .grid-action-icon.rename-icon { background: #FAF5FF; color: #9333EA; }
+  .grid-action-icon.delete-icon { background: #FEF2F2; color: #DC2626; }
+  .grid-action-icon.docs-icon { background: #F0F9FF; color: #0284C7; }
+  .grid-action-icon.audit-icon { background: #F1F5F9; color: #475569; }
+
+  body[data-theme="dark"] .grid-action-icon.edit-icon { background: rgba(59, 130, 246, 0.18); color: #60A5FA; }
+  body[data-theme="dark"] .grid-action-icon.add-icon { background: rgba(16, 185, 129, 0.18); color: #34D399; }
+  body[data-theme="dark"] .grid-action-icon.rename-icon { background: rgba(168, 85, 247, 0.18); color: #C084FC; }
+  body[data-theme="dark"] .grid-action-icon.delete-icon { background: rgba(239, 68, 68, 0.18); color: #F87171; }
+  body[data-theme="dark"] .grid-action-icon.docs-icon { background: rgba(14, 165, 233, 0.18); color: #38BDF8; }
+  body[data-theme="dark"] .grid-action-icon.audit-icon { background: rgba(148, 163, 184, 0.18); color: #CBD5E1; }
 
   .grid-action-texts {
     display: flex;
@@ -1660,38 +1937,50 @@
 
   .grid-action-desc {
     font-size: 9.5px;
-    color: #94A3B8;
+    color: #64748B;
     line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
+  body[data-theme="dark"] .grid-action-desc {
+    color: #94A3B8;
+  }
+
   .grid-action-item.danger-item:hover {
+    background: #FEF2F2;
+    color: #DC2626;
+  }
+  body[data-theme="dark"] .grid-action-item.danger-item:hover {
     background: rgba(239, 68, 68, 0.2);
     color: #FCA5A5;
   }
-  .grid-action-item.danger-item:hover .grid-action-title {
-    color: #FCA5A5;
-  }
-  .grid-action-item.danger-item:hover .grid-action-desc {
-    color: #F87171;
-  }
 
   .grid-action-badge {
-    background: #1E293B;
-    border: 1px solid #334155;
-    color: #38BDF8;
+    background: #F0F9FF;
+    border: 1px solid #BAE6FD;
+    color: #0284C7;
     font-size: 10px;
     font-weight: 700;
     padding: 1px 6px;
     border-radius: 10px;
   }
 
+  body[data-theme="dark"] .grid-action-badge {
+    background: #1E293B;
+    border: 1px solid #334155;
+    color: #38BDF8;
+  }
+
   .grid-actions-divider {
     height: 1px;
-    background: #1E293B;
+    background: #E2E8F0;
     margin: 4px 0;
+  }
+
+  body[data-theme="dark"] .grid-actions-divider {
+    background: #1E293B;
   }
 
   /* Centered Bottom Pagination Switch (Document flow: remains cleanly at bottom, zero row overlap on scroll) */
@@ -1854,7 +2143,7 @@
   }
 
 
-  /* --- ERPNext-Style Searchable Select Dropdown & Modals --- */
+  /* --- ERPNext-Style Searchable Select Dropdown & Modals (Theme-Optimized) --- */
   .erp-search-container {
     position: relative;
     width: 100%;
@@ -1863,11 +2152,11 @@
   .erp-search-input-box {
     width: 100%;
     height: 36px;
-    background: #27272A;
-    border: 1px solid #3F3F46;
+    background: #FFFFFF;
+    border: 1.5px solid #CBD5E1;
     border-radius: 6px;
     padding: 0 32px 0 10px;
-    color: #FFFFFF;
+    color: #0F172A;
     font-size: 12.5px;
     outline: none;
     box-sizing: border-box;
@@ -1875,9 +2164,15 @@
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
+  body[data-theme="dark"] .erp-search-input-box {
+    background: #27272A;
+    border: 1px solid #3F3F46;
+    color: #FFFFFF;
+  }
+
   .erp-search-input-box:focus {
-    border-color: #38BDF8;
-    box-shadow: 0 0 0 1px #38BDF8;
+    border-color: #0284C7;
+    box-shadow: 0 0 0 1px #0284C7;
   }
 
   .erp-search-chevron {
@@ -1885,7 +2180,7 @@
     right: 10px;
     top: 50%;
     transform: translateY(-50%);
-    color: #A1A1AA;
+    color: #64748B;
     font-size: 11px;
     cursor: pointer;
     pointer-events: auto;
@@ -1893,7 +2188,7 @@
     transition: color 0.15s ease, transform 0.15s ease;
   }
   .erp-search-chevron:hover {
-    color: #38BDF8;
+    color: #0284C7;
   }
 
   .erp-clear-btn {
@@ -1903,7 +2198,7 @@
     transform: translateY(-50%);
     background: none;
     border: none;
-    color: #71717A;
+    color: #64748B;
     font-size: 14px;
     cursor: pointer;
     line-height: 1;
@@ -1921,14 +2216,20 @@
     left: 0;
     width: 100%;
     max-height: 250px;
-    background: #18181B;
-    border: 1px solid #3F3F46;
+    background: #FFFFFF;
+    border: 1.5px solid #CBD5E1;
     border-radius: 8px;
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
     overflow-y: auto;
     z-index: 10500;
     display: none;
     padding: 4px 0;
+  }
+
+  body[data-theme="dark"] .erp-dropdown-menu {
+    background: #18181B;
+    border: 1px solid #3F3F46;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
   }
 
   .erp-dropdown-menu.active {
@@ -1944,31 +2245,44 @@
   }
 
   .erp-dropdown-item:hover, .erp-dropdown-item.focused {
+    background: #F1F5F9;
+  }
+
+  body[data-theme="dark"] .erp-dropdown-item:hover,
+  body[data-theme="dark"] .erp-dropdown-item.focused {
     background: #27272A;
   }
 
   .erp-dropdown-item-title {
     font-size: 12.5px;
     font-weight: 700;
-    color: #FFFFFF;
+    color: #0F172A;
     line-height: 1.3;
+  }
+
+  body[data-theme="dark"] .erp-dropdown-item-title {
+    color: #FFFFFF;
   }
 
   .erp-dropdown-item-sub {
     font-size: 11px;
-    color: #A1A1AA;
+    color: #64748B;
     margin-top: 2px;
     line-height: 1.2;
   }
 
+  body[data-theme="dark"] .erp-dropdown-item-sub {
+    color: #A1A1AA;
+  }
+
   .erp-dropdown-create-row {
-    border-top: 1px solid #27272A;
+    border-top: 1px solid #E2E8F0;
     margin-top: 4px;
     padding: 10px 12px;
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #38BDF8;
+    color: #0284C7;
     font-size: 12.5px;
     font-weight: 700;
     cursor: pointer;
@@ -1976,7 +2290,17 @@
     transition: background 0.15s ease, color 0.15s ease;
   }
 
+  body[data-theme="dark"] .erp-dropdown-create-row {
+    border-top: 1px solid #27272A;
+    color: #38BDF8;
+  }
+
   .erp-dropdown-create-row:hover {
+    background: #F0F9FF;
+    color: #0369A1;
+  }
+
+  body[data-theme="dark"] .erp-dropdown-create-row:hover {
     background: #27272A;
     color: #60A5FA;
   }
@@ -1984,23 +2308,76 @@
   .erp-dropdown-adv-search {
     padding: 6px 12px 6px 12px;
     font-size: 11px;
-    color: #71717A;
+    color: #64748B;
     display: flex;
     align-items: center;
     gap: 6px;
+    border-top: 1px solid #E2E8F0;
+  }
+
+  body[data-theme="dark"] .erp-dropdown-adv-search {
+    color: #71717A;
     border-top: 1px solid #27272A;
   }
 
   .erp-badge-not-saved {
-    background: #78350F;
-    color: #FBBF24;
-    border: 1px solid #B45309;
+    background: #FEF3C7;
+    color: #B45309;
+    border: 1px solid #FCD34D;
     font-size: 10px;
     font-weight: 800;
     padding: 2px 8px;
     border-radius: 12px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+  }
+
+  body[data-theme="dark"] .erp-badge-not-saved {
+    background: #78350F;
+    color: #FBBF24;
+    border: 1px solid #B45309;
+  }
+
+  /* Global Dark Mode Workspace & Dropdown Optimization */
+  body[data-theme="dark"] {
+    background: #0B1120 !important;
+    color: #F8FAFC !important;
+  }
+  body[data-theme="dark"] main {
+    background: #0B1120 !important;
+  }
+  body[data-theme="dark"] .card-container,
+  body[data-theme="dark"] .erp-tree-wrapper,
+  body[data-theme="dark"] .table-pagination-center,
+  body[data-theme="dark"] .modal-card {
+    background: #0F172A !important;
+    border-color: #334155 !important;
+    color: #F8FAFC !important;
+  }
+  body[data-theme="dark"] select,
+  body[data-theme="dark"] input[type="text"],
+  body[data-theme="dark"] input[type="search"],
+  body[data-theme="dark"] textarea {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+    color: #F8FAFC !important;
+  }
+  body[data-theme="dark"] select option {
+    background-color: #1E293B;
+    color: #F8FAFC;
+  }
+  body[data-theme="dark"] #editorTable th {
+    background: #1E293B !important;
+    color: #E2E8F0 !important;
+    border-color: #334155 !important;
+  }
+  body[data-theme="dark"] #editorTable td {
+    background: #0F172A !important;
+    color: #F1F5F9 !important;
+    border-color: #1E293B !important;
+  }
+  body[data-theme="dark"] .erp-tree-row:hover {
+    background: #1E293B !important;
   }
 
   .erp-child-grid-input {
@@ -2303,8 +2680,9 @@
       <div class="brand-icon" style="background:#FFFFFF; border:1.5px solid #38BDF8; padding:2px; display:flex; align-items:center; justify-content:center; border-radius:8px; overflow:hidden; width:34px; height:34px;">
         <img src="data:image/png;base64,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" alt="App Logo" style="width:100%; height:100%; object-fit:contain; border-radius:6px;">
       </div>
-      <div class="brand-text">
+      <div class="brand-text" style="display:flex; align-items:center; gap:8px;">
         <h1>HCP Profiling &bull; Territory Reconfiguration Portal</h1>
+        <span id="portalVersionBadge" style="background:rgba(56,189,248,0.18); color:#38BDF8; border:1px solid rgba(56,189,248,0.45); font-size:10.5px; font-weight:800; padding:2px 7px; border-radius:6px; letter-spacing:0.4px;">v.0.1.1</span>
       </div>
     </div>
   </div>
@@ -2319,6 +2697,10 @@
         <option value="Vivaro">Vivaro</option>
       </select>
     </div>
+
+    <button type="button" id="btnThemeToggle" onclick="togglePortalTheme()" style="background:rgba(255,255,255,0.1); border:1px solid rgba(148,163,184,0.35); color:#F8FAFC; font-size:11px; font-weight:700; padding:5px 10px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:5px;" title="Toggle Light / Dark Mode">
+      ☀️ Light Mode
+    </button>
 
 <!-- Refresh Live Sync removed per SFE live reconfig standard -->
 
@@ -2633,14 +3015,19 @@
                 </button>
               </div>
 
-              <!-- Status Checkbox Filter Container: Active and Inactive filter -->
+              <!-- Status Checkbox Filter Container: Active, Vacant, and Inactive filter (3 separate statuses) -->
               <div id="erpStatusFilterContainer" style="display:none; align-items:center; gap:8px; height:34px; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:6px; padding:0 10px; flex-shrink:0;">
                 <label style="font-size:11.5px; font-weight:700; color:#15803D; display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0; user-select:none;" title="When checked: displays Active territories.">
                   <input type="checkbox" id="statusCb_active" checked onchange="onStatusCheckboxChange()" style="accent-color:#15803D; cursor:pointer; width:15px; height:15px;">
                   ACTIVE
                 </label>
                 <span style="color:#CBD5E1;">|</span>
-                <label style="font-size:11.5px; font-weight:700; color:#64748B; display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0; user-select:none;" title="When checked: displays Inactive / Resigned territories.">
+                <label style="font-size:11.5px; font-weight:700; color:#D97706; display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0; user-select:none;" title="When checked: displays Vacant (open slot) territories.">
+                  <input type="checkbox" id="statusCb_vacant" checked onchange="onStatusCheckboxChange()" style="accent-color:#D97706; cursor:pointer; width:15px; height:15px;">
+                  VACANT
+                </label>
+                <span style="color:#CBD5E1;">|</span>
+                <label style="font-size:11.5px; font-weight:700; color:#64748B; display:inline-flex; align-items:center; gap:5px; cursor:pointer; margin:0; user-select:none;" title="When checked: displays Inactive territories.">
                   <input type="checkbox" id="statusCb_inactive" checked onchange="onStatusCheckboxChange()" style="accent-color:#64748B; cursor:pointer; width:15px; height:15px;">
                   INACTIVE
                 </label>
@@ -6756,8 +7143,14 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function resetStatusCheckboxFilter() {
+    const cbActive = document.getElementById('statusCb_active');
+    const cbVacant = document.getElementById('statusCb_vacant');
+    const cbInactive = document.getElementById('statusCb_inactive');
     const cbUnchanged = document.getElementById('statusCb_unchanged');
     const cbChanged = document.getElementById('statusCb_changed');
+    if (cbActive) cbActive.checked = true;
+    if (cbVacant) cbVacant.checked = true;
+    if (cbInactive) cbInactive.checked = true;
     if (cbUnchanged) cbUnchanged.checked = true;
     if (cbChanged) cbChanged.checked = true;
     applyErpFilter();
@@ -6881,19 +7274,21 @@ const BASELINE_ERP_TERRITORIES = [
       if (emptyHeaderTh) emptyHeaderTh.style.display = 'none';
     }
 
-    // 1. Filter territories
+    // 1. Filter territories (3 Separate Operational Statuses: Active | Vacant | Inactive)
     const filterField = (document.getElementById('erpFilterField')?.value || 'all');
     const filterText = (document.getElementById('erpFilterValue')?.value || '').toLowerCase().trim();
     const showActive = document.getElementById('statusCb_active')?.checked ?? (document.getElementById('statusCb_unchanged')?.checked ?? true);
+    const showVacant = document.getElementById('statusCb_vacant')?.checked ?? true;
     const showInactive = document.getElementById('statusCb_inactive')?.checked ?? (document.getElementById('statusCb_changed')?.checked ?? true);
 
     let filtered = [];
     programTerritories.forEach((row, index) => {
       let isMatch = true;
-      const isRowInactive = (row.operationalStatus === 'Inactive') || (row.isActive === false) || (row.rep && row.rep.toLowerCase().includes('resigned'));
+      const rowStatus = getTerritoryOperationalStatus(row);
       if (filterField === 'status') {
-        if (!isRowInactive && !showActive) isMatch = false;
-        if (isRowInactive && !showInactive) isMatch = false;
+        if (rowStatus === 'Active' && !showActive) isMatch = false;
+        if (rowStatus === 'Vacant' && !showVacant) isMatch = false;
+        if (rowStatus === 'Inactive' && !showInactive) isMatch = false;
       } else if (filterText) {
         const rowAreaTag = resolveTerritoryArea(row.activeCode || row.latestPrevCode, row.district);
         if (filterField === 'area') {
@@ -6902,7 +7297,7 @@ const BASELINE_ERP_TERRITORIES = [
         if (filterField === 'all') {
           const userStr = (row.userId && row.userId.includes('@')) ? row.userId : 'unassigned';
           const rowAreaTag = resolveTerritoryArea(row.activeCode || row.latestPrevCode, row.district);
-          const statusText = isRowInactive ? 'inactive resigned' : 'active working';
+          const statusText = rowStatus.toLowerCase();
           const combined = [
             row.latestPrevCode || '',
             row.activeCode || '',
@@ -6973,21 +7368,16 @@ const BASELINE_ERP_TERRITORIES = [
           tr.style.backgroundColor = '#EFF6FF';
         }
 
-        const repNameClean = row.rep ? row.rep.replace(/\s*\([^)]*\)/g, '').trim() : 'Unassigned Rep';
+        const rowStatus = getTerritoryOperationalStatus(row);
+        const repNameClean = cleanRepDisplayName(row.rep) || (rowStatus === 'Vacant' ? 'Vacant Slot (Unassigned)' : 'Unassigned Rep');
         const formattedAssignedMedRep = repNameClean;
         const docCountNum = parseInt(row.docs, 10) || 0;
 
-        const isInactive = (row.operationalStatus === 'Inactive') ||
-                           (row.isActive === false) ||
-                           (row.rep && row.rep.toLowerCase().includes('resigned'));
-        const isVacant = (row.operationalStatus === 'Vacant') ||
-                         (!row.rep || row.rep.toLowerCase().includes('unassigned'));
-
         let statusBadge = '';
-        if (isVacant) {
+        if (rowStatus === 'Vacant') {
           statusBadge = '<span class="badge" style="background:#FEF3C7; color:#D97706; border:1px solid #FCD34D; font-weight:700; padding:3px 8px; border-radius:12px; font-size:11px;">Vacant</span>';
-        } else if (isInactive) {
-          statusBadge = '<span class="badge" style="background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; font-weight:700; padding:3px 8px; border-radius:12px; font-size:11px;">Inactive</span>';
+        } else if (rowStatus === 'Inactive') {
+          statusBadge = '<span class="badge" style="background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; font-weight:700; padding:3px 8px; border-radius:12px; font-size:11px;">Inactive</span>';
         } else {
           statusBadge = '<span class="badge" style="background:#DCFCE7; color:#15803D; border:1px solid #86EFAC; font-weight:700; padding:3px 8px; border-radius:12px; font-size:11px;">Active</span>';
         }
@@ -10665,16 +11055,18 @@ const BASELINE_ERP_TERRITORIES = [
 
         // Doctor count badge if mapped in program
         let docBadge = '';
-        const matchedProg = programTerritories.find(pt => pt.activeCode === t.name || pt.histCode === t.name);
+        const matchedProg = findProgramTerritoryByCode(t.name);
         if (matchedProg && matchedProg.docs) {
           docBadge = `<span class="erp-tree-badge">${matchedProg.docs} Docs</span>`;
         }
 
-        // 4. Action Pill Buttons:
+        // 4. Action Pill Buttons (3 Separate Statuses: Active | Vacant | Inactive):
         const isRoot = t.name === 'All Territories';
         let actionsHtml = '';
-        const matchedPt = programTerritories.find(pt => pt.activeCode === t.name || pt.histCode === t.name);
-        const isNodeInactive = (matchedPt && ((matchedPt.operationalStatus === 'Inactive') || (matchedPt.isActive === false) || (matchedPt.rep && matchedPt.rep.toLowerCase().includes('resigned'))));
+        const matchedPt = findProgramTerritoryByCode(t.name);
+        const nodeStatus = isGroup ? 'Active' : getTerritoryOperationalStatus(matchedPt, t);
+        const isNodeInactive = (nodeStatus === 'Inactive');
+        const isNodeVacant = (nodeStatus === 'Vacant');
 
         if (isRoot) {
           actionsHtml = `
@@ -10685,18 +11077,26 @@ const BASELINE_ERP_TERRITORIES = [
           actionsHtml = `
             <span class="erp-tree-actions">
               <button type="button" class="erp-tree-btn" onclick="openTreeAddModal('${escapeHtml(t.name)}', event)">+ Add Child</button>
+              <button type="button" class="erp-tree-btn" onclick="openTreeEditModal('${escapeHtml(t.name)}', event)">Edit</button>
               <button type="button" class="erp-tree-btn" onclick="openTreeRenameModal('${escapeHtml(t.name)}', event)">Rename</button>
             </span>`;
         } else {
-          // Leaf node / actual MedRep territory
-          // Image 4 Standard: Action is Inactive first when territory is active, then Active when territory is inactive.
-          // Visual guidance: Blue hover for deactivating, Green hover for activating.
+          // Leaf node / actual MedRep territory — supports Set Active, Vacant, and Inactive as separate statuses
+          const statusBtnsHtml = (isNodeInactive || isNodeVacant)
+            ? `<button type="button" class="erp-tree-btn erp-tree-status-toggle status-btn-activate" onclick="toggleTreeNodeActiveStatus('${escapeHtml(t.name)}', event, 'Active')" title="Reactivate territory to Active status">Set Active</button>
+               ${isNodeInactive
+                 ? `<button type="button" class="erp-tree-btn" style="color:#D97706; border-color:#FCD34D; background:#FFFBEB;" onclick="toggleTreeNodeActiveStatus('${escapeHtml(t.name)}', event, 'Vacant')" title="Set territory to Vacant (open slot)">Vacant</button>`
+                 : `<button type="button" class="erp-tree-btn erp-tree-status-toggle status-btn-deactivate" onclick="toggleTreeNodeActiveStatus('${escapeHtml(t.name)}', event, 'Inactive')" title="Mark territory as Inactive">Inactive</button>`}`
+            : `<button type="button" class="erp-tree-btn" style="color:#D97706; border-color:#FCD34D; background:#FFFBEB;" onclick="toggleTreeNodeActiveStatus('${escapeHtml(t.name)}', event, 'Vacant')" title="Mark territory as Vacant (open slot)">Vacant</button>
+               <button type="button" class="erp-tree-btn erp-tree-status-toggle status-btn-deactivate" onclick="toggleTreeNodeActiveStatus('${escapeHtml(t.name)}', event, 'Inactive')" title="Mark territory as Inactive">Inactive</button>`;
+
           actionsHtml = `
             <span class="erp-tree-actions">
               <button type="button" class="erp-tree-btn" onclick="openTreeEditModal('${escapeHtml(t.name)}', event)">Edit</button>
+              <button type="button" class="erp-tree-btn" onclick="openTreeAddModal('${escapeHtml(t.name)}', event)">+ Add Child</button>
               <button type="button" class="erp-tree-btn erp-tree-btn-transfer" onclick="openDoctorTransferModal('${escapeHtml(t.name)}', event)" title="Transfer / Merge Doctors">Transfer Doctor</button>
               <button type="button" class="erp-tree-btn" onclick="openTreeRenameModal('${escapeHtml(t.name)}', event)">Rename</button>
-              <button type="button" class="erp-tree-btn erp-tree-status-toggle ${isNodeInactive ? 'status-btn-activate' : 'status-btn-deactivate'}" onclick="toggleTreeNodeActiveStatus('${escapeHtml(t.name)}', event)" title="${isNodeInactive ? 'Reactivate territory & restore MedRep in dropdowns' : 'Mark Inactive / Resigned (grays out MedRep in dropdowns)'}">${isNodeInactive ? 'Active' : 'Inactive'}</button>
+              ${statusBtnsHtml}
             </span>`;
         }
 
@@ -10704,17 +11104,26 @@ const BASELINE_ERP_TERRITORIES = [
         if (isGroup) {
           treeLabelHtml = `<span class="erp-tree-label">${escapeHtml(t.name)}</span>`;
         } else {
-          const nodePt = programTerritories.find(pt => pt.activeCode === t.name || pt.histCode === t.name);
-          const nodeDistrict = nodePt ? nodePt.district : '';
+          const nodePt = matchedPt;
+          const nodeDistrict = nodePt ? nodePt.district : (t.parent_territory || '');
           const nodeArea = resolveTerritoryArea(t.name, nodeDistrict);
-          const nodeRep = nodePt && nodePt.rep ? nodePt.rep.replace(/\s*\([^)]*\)/g, '').trim() : (t.territory_manager ? t.territory_manager.replace(/\s*\([^)]*\)/g, '').trim() : 'Unassigned Rep');
+          const rawRepSource = (nodePt && nodePt.rep) ? nodePt.rep : (t.territory_manager || '');
+          const nodeRep = cleanRepDisplayName(rawRepSource) || (isNodeVacant ? 'Vacant Slot' : 'Unassigned Rep');
           if (isNodeInactive) {
             treeLabelHtml = `
               <span class="erp-tree-label" style="font-weight:700; color:#64748B; font-size:13px;">${escapeHtml(t.name)}</span>
               <span class="badge" style="background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:6px; margin:0 4px;">(${escapeHtml(nodeArea)})</span>
               <span style="color:#94A3B8; margin-right:4px;">-</span>
               <span style="font-weight:600; color:#94A3B8; font-size:12.5px; text-decoration:line-through;">${escapeHtml(nodeRep)}</span>
-              <span class="badge" style="background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; font-weight:700; font-size:10px; padding:1px 6px; border-radius:4px; margin-left:4px;">Inactive / Resigned</span>
+              <span class="badge" style="background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; font-weight:700; font-size:10px; padding:1px 6px; border-radius:4px; margin-left:4px;">Inactive</span>
+            `;
+          } else if (isNodeVacant) {
+            treeLabelHtml = `
+              <span class="erp-tree-label" style="font-weight:700; color:#0284C7; font-size:13px;">${escapeHtml(t.name)}</span>
+              <span class="badge" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; font-weight:700; font-size:11px; padding:2px 7px; border-radius:6px; margin:0 4px;">(${escapeHtml(nodeArea)})</span>
+              <span style="color:#94A3B8; margin-right:4px;">-</span>
+              <span style="font-weight:600; color:#D97706; font-size:12.5px; font-style:italic;">${escapeHtml(nodeRep)}</span>
+              <span class="badge" style="background:#FEF3C7; color:#D97706; border:1px solid #FCD34D; font-weight:700; font-size:10px; padding:1px 6px; border-radius:4px; margin-left:4px;">Vacant</span>
             `;
           } else {
             treeLabelHtml = `
@@ -10722,6 +11131,7 @@ const BASELINE_ERP_TERRITORIES = [
               <span class="badge" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; font-weight:700; font-size:11px; padding:2px 7px; border-radius:6px; margin:0 4px;">(${escapeHtml(nodeArea)})</span>
               <span style="color:#94A3B8; margin-right:4px;">-</span>
               <span style="font-weight:600; color:#0F172A; font-size:12.5px;">${escapeHtml(nodeRep)}</span>
+              <span class="badge" style="background:#DCFCE7; color:#15803D; border:1px solid #86EFAC; font-weight:700; font-size:10px; padding:1px 6px; border-radius:4px; margin-left:4px;">Active</span>
             `;
           }
         }
@@ -11116,11 +11526,10 @@ const BASELINE_ERP_TERRITORIES = [
       if (!rawQ) {
         const unassignedItem = document.createElement('div');
         unassignedItem.className = 'erp-dropdown-item';
-        unassignedItem.style.borderBottom = '1px solid #3F3F46';
-        unassignedItem.style.background = '#27272A';
+        unassignedItem.style.borderBottom = '1px solid rgba(148, 163, 184, 0.25)';
         unassignedItem.innerHTML = `
-          <div class="erp-dropdown-item-title" style="color:#A1A1AA; font-style:italic;">(Unassigned)</div>
-          <div class="erp-dropdown-item-sub" style="color:#71717A;">Leave User ID unassigned</div>
+          <div class="erp-dropdown-item-title" style="color:#64748B; font-style:italic;">(Unassigned)</div>
+          <div class="erp-dropdown-item-sub">Leave User ID unassigned</div>
         `;
         unassignedItem.onclick = () => {
           clearErpSelection(fieldId);
@@ -11145,7 +11554,7 @@ const BASELINE_ERP_TERRITORIES = [
 
       if (matches.length === 0) {
         const emptyDiv = document.createElement('div');
-        emptyDiv.style.cssText = 'padding: 10px 14px; color: #71717A; font-size: 11.5px;';
+        emptyDiv.style.cssText = 'padding: 10px 14px; color: #64748B; font-size: 11.5px;';
         emptyDiv.innerText = rawQ ? `No User matching "${query}"` : 'No User IDs available';
         menu.appendChild(emptyDiv);
       } else {
@@ -11156,8 +11565,8 @@ const BASELINE_ERP_TERRITORIES = [
           const fullName = u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || email;
           
           item.innerHTML = `
-            <div class="erp-dropdown-item-title" style="color:#FFFFFF; font-weight:600;">${escapeHtml(email)}</div>
-            <div class="erp-dropdown-item-sub" style="color:#A1A1AA; font-size:11px;">${escapeHtml(fullName)}</div>
+            <div class="erp-dropdown-item-title">${escapeHtml(email)}</div>
+            <div class="erp-dropdown-item-sub">${escapeHtml(fullName)}</div>
           `;
           item.onclick = () => selectErpItem(fieldId, email, email, u);
           menu.appendChild(item);
@@ -11182,14 +11591,13 @@ const BASELINE_ERP_TERRITORIES = [
 
     } else if (fieldId === 'treeAddManager' || fieldId === 'treeEditManager' || fieldId === 'editManager' || fieldId === 'addManager' || fieldId === 'newSpParent') {
       // Top Option: Unassigned option for tree manager selection
-      if ((fieldId === 'treeAddManager' || fieldId === 'treeEditManager') && !rawQ) {
+      if ((fieldId === 'treeAddManager' || fieldId === 'treeEditManager' || fieldId === 'editManager') && !rawQ) {
         const unassignedItem = document.createElement('div');
         unassignedItem.className = 'erp-dropdown-item';
-        unassignedItem.style.borderBottom = '1px solid #3F3F46';
-        unassignedItem.style.background = '#27272A';
+        unassignedItem.style.borderBottom = '1px solid rgba(148, 163, 184, 0.25)';
         unassignedItem.innerHTML = `
-          <div class="erp-dropdown-item-title" style="color:#A1A1AA; font-style:italic;">(Unassigned)</div>
-          <div class="erp-dropdown-item-sub" style="color:#71717A;">Leave territory manager unassigned</div>
+          <div class="erp-dropdown-item-title" style="color:#64748B; font-style:italic;">(Unassigned / Vacant)</div>
+          <div class="erp-dropdown-item-sub">Leave territory manager unassigned</div>
         `;
         unassignedItem.onclick = () => {
           clearErpSelection(fieldId);
@@ -11229,8 +11637,8 @@ const BASELINE_ERP_TERRITORIES = [
         programTerritories.forEach(pt => {
           const code = pt.activeCode || pt.histCode || pt.latestPrevCode;
           if (code && !allowedTerrs.has(code)) return;
-          const rawRep = (pt.rep || '').replace(/\s*\([^)]*\)/g, '').replace(/\[RESIGNED\]/gi, '').trim();
-          if (!rawRep || rawRep.toLowerCase().includes('unassigned') || rawRep.toLowerCase().includes('folder')) return;
+          const rawRep = cleanRepDisplayName(pt.rep);
+          if (!rawRep || rawRep.toLowerCase().includes('unassigned') || rawRep.toLowerCase().includes('vacant') || rawRep.toLowerCase().includes('folder')) return;
           if (!seenSpNames.has(rawRep.toLowerCase())) {
             seenSpNames.add(rawRep.toLowerCase());
             programScopedPool.push({
@@ -11262,7 +11670,7 @@ const BASELINE_ERP_TERRITORIES = [
       if (matches.length === 0) {
         if (rawQ || (fieldId !== 'treeAddManager' && fieldId !== 'treeEditManager')) {
           const emptyDiv = document.createElement('div');
-          emptyDiv.style.cssText = 'padding: 10px 14px; color: #71717A; font-size: 11.5px;';
+          emptyDiv.style.cssText = 'padding: 10px 14px; color: #64748B; font-size: 11.5px;';
           emptyDiv.innerText = rawQ
             ? `No ${activeProgram} Sales Person matching "${query}"`
             : `No Sales Persons in ${activeProgram} yet`;
@@ -11274,36 +11682,33 @@ const BASELINE_ERP_TERRITORIES = [
           const name = s.sales_person_name || s.name;
           const parent = s.parent_sales_person ? `${s.parent_sales_person} • ${activeProgram}` : (s.employee ? `Employee: ${s.employee} • ${activeProgram}` : activeProgram);
           
-          // Check if this sales person is assigned to an Inactive territory in programTerritories
-          const cleanSp = name.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
-          const inactiveMatch = programTerritories.find(p => {
-            const cleanRep = (p.rep || '').replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
-            return (cleanRep === cleanSp) && (p.operationalStatus === 'Inactive' || p.isResigned === true);
+          // Check if this sales person has an Active territory vs only an Inactive territory
+          const cleanSp = cleanRepDisplayName(name).toLowerCase();
+          const activeMatch = programTerritories.find(p => {
+            const cleanRep = cleanRepDisplayName(p.rep).toLowerCase();
+            return (cleanRep === cleanSp) && (getTerritoryOperationalStatus(p) === 'Active');
           });
+          const inactiveMatch = !activeMatch ? programTerritories.find(p => {
+            const cleanRep = cleanRepDisplayName(p.rep).toLowerCase();
+            return (cleanRep === cleanSp) && (getTerritoryOperationalStatus(p) === 'Inactive');
+          }) : null;
 
+          item.className = 'erp-dropdown-item';
           if (inactiveMatch) {
-            item.className = 'erp-dropdown-item erp-item-grayed-out';
-            item.style.cssText = 'opacity:0.55; background:#F8FAFC; cursor:not-allowed; border-left:3px solid #94A3B8; padding:8px 12px;';
-            item.title = `MedRep is Inactive/Resigned on territory ${inactiveMatch.activeCode || inactiveMatch.name}. Reactivate territory in tree to use again.`;
             item.innerHTML = `
-              <div class="erp-dropdown-item-title" style="color:#64748B; display:flex; align-items:center; justify-content:space-between;">
+              <div class="erp-dropdown-item-title" style="display:flex; align-items:center; justify-content:space-between;">
                 <span>${escapeHtml(name)}</span>
-                <span style="font-size:10px; font-weight:700; color:#DC2626; background:#FEF2F2; border:1px solid #FECACA; padding:1px 6px; border-radius:4px;">Inactive / Resigned</span>
+                <span style="font-size:10px; font-weight:700; color:#D97706; background:#FFFBEB; border:1px solid #FDE68A; padding:1px 6px; border-radius:4px;">Select to Reactivate</span>
               </div>
-              ${parent ? `<div class="erp-dropdown-item-sub" style="color:#94A3B8;">${escapeHtml(parent)}</div>` : ''}
+              ${parent ? `<div class="erp-dropdown-item-sub">${escapeHtml(parent)}</div>` : ''}
             `;
-            item.onclick = (e) => {
-              e.stopPropagation();
-              showToast(`MedRep "${name}" is currently Inactive / Resigned. Reactivate their territory (${inactiveMatch.activeCode || inactiveMatch.name}) in the tree to reassign.`, 'warning', 3500);
-            };
           } else {
-            item.className = 'erp-dropdown-item';
             item.innerHTML = `
               <div class="erp-dropdown-item-title">${escapeHtml(name)}</div>
               ${parent ? `<div class="erp-dropdown-item-sub">${escapeHtml(parent)}</div>` : ''}
             `;
-            item.onclick = () => selectErpItem(fieldId, s.name, name, s);
           }
+          item.onclick = () => selectErpItem(fieldId, s.name, name, s);
           menu.appendChild(item);
         });
       }
@@ -12247,8 +12652,12 @@ const BASELINE_ERP_TERRITORIES = [
       openTreeAddModal(code);
     } else if (actionType === 'rename') {
       openTreeRenameModal(code);
-    } else if (actionType === 'delete' || actionType === 'deactivate') {
-      openTagInactiveModal(code);
+    } else if (actionType === 'set_active') {
+      setTerritoryOperationalStatus(code, 'Active');
+    } else if (actionType === 'tag_vacant') {
+      openTagInactiveModal(code, 'Vacant');
+    } else if (actionType === 'delete' || actionType === 'deactivate' || actionType === 'tag_inactive') {
+      openTagInactiveModal(code, 'Inactive');
     } else if (actionType === 'docs') {
       openCoveredDoctorsModal(idx);
     } else if (actionType === 'audit') {
@@ -12285,11 +12694,11 @@ const BASELINE_ERP_TERRITORIES = [
     const rawParent = parentName || selectedTreeNode || 'All Territories';
     const parent = (rawParent === 'All Territories' || allowed.has(rawParent)) ? rawParent : 'All Territories';
     
-    // Populate Parent Territory select strictly with group nodes belonging to activeProgram
+    // Populate Parent Territory select strictly with territories belonging to activeProgram (including leaf nodes so sub-territories like AD101 - sub can be added under AD0101)
     const parentSelect = document.getElementById('treeAddParentSelect');
     if (parentSelect) {
       parentSelect.innerHTML = '';
-      const groupNodes = territoryTreeData.filter(t => t.is_group && (t.name === 'All Territories' || allowed.has(t.name)));
+      const groupNodes = territoryTreeData.filter(t => (t.name === 'All Territories' || allowed.has(t.name)));
       groupNodes.sort((a, b) => a.name.localeCompare(b.name));
       if (!groupNodes.some(g => g.name === 'All Territories')) {
         groupNodes.unshift({ name: 'All Territories' });
@@ -12371,7 +12780,7 @@ const BASELINE_ERP_TERRITORIES = [
     const parent = (parentSel ? parentSel.value : document.getElementById('treeAddParentInput').value).trim() || 'All Territories';
     const name = document.getElementById('treeAddNameInput').value.trim();
     const isGroup = document.getElementById('treeAddIsGroup').checked ? 1 : 0;
-    const mgr = document.getElementById('treeAddManagerInput').value.trim();
+    const mgr = cleanRepDisplayName(document.getElementById('treeAddManagerInput').value.trim());
     const userAcc = document.getElementById('treeAddUserAccountInput') ? document.getElementById('treeAddUserAccountInput').value.trim() : '';
 
     if (!name) {
@@ -12384,12 +12793,15 @@ const BASELINE_ERP_TERRITORIES = [
       return;
     }
 
+    const initialStatus = mgr ? 'Active' : (isGroup ? 'Active' : 'Vacant');
     const newNode = {
       name: name,
       territory_name: name,
       parent_territory: parent,
       is_group: isGroup,
       territory_manager: mgr || "",
+      operational_status: initialStatus,
+      status: initialStatus,
       custom_account_or_program: activeProgram,
       program: activeProgram
     };
@@ -12414,7 +12826,10 @@ const BASELINE_ERP_TERRITORIES = [
       histCode: name,
       newCode: name,
       district: parent,
-      rep: mgr ? `Assigned (${mgr})` : (isGroup ? 'Folder (Group)' : 'Unassigned Rep'),
+      rep: mgr ? mgr : (isGroup ? 'Folder (Group)' : 'Unassigned Rep'),
+      operationalStatus: initialStatus,
+      isActive: true,
+      isResigned: false,
       docs: 0,
       status: 'CHANGED',
       recordId: newRecordId,
@@ -12426,7 +12841,7 @@ const BASELINE_ERP_TERRITORIES = [
         timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
         action: isGroup ? 'ADD_CHILD_FOLDER' : 'ADD_CHILD_TREE',
         user: 'admin@pims.com [SFE Lead]',
-        details: `Created new ${isGroup ? 'child folder' : 'territory'} "${name}" under parent "${parent}".`
+        details: `Created new ${isGroup ? 'child folder' : 'territory'} "${name}" under parent "${parent}" (Status: ${initialStatus}).`
       }]
     };
     programTerritories.unshift(newRow);
@@ -12457,46 +12872,29 @@ const BASELINE_ERP_TERRITORIES = [
           }
         }, "*");
       } catch (_) {}
+    } else {
+      // Local desktop server direct API call
+      try {
+        const postBody = {
+          territory_name: name,
+          parent_territory: parent,
+          is_group: isGroup,
+          ...(mgr ? { territory_manager: mgr } : {})
+        };
+        fetch('/api/resource/Territory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(postBody)
+        }).then(async res => {
+          if (res.ok) {
+            console.log(`[ERPNext] Created Territory ${name} online`);
+            showToast(`Territory "${name}" synced live to ERPNext!`, 'success');
+          }
+        }).catch(err => {
+          console.warn(`[ERPNext Sync Warning] ${err.message}`);
+        });
+      } catch (_) {}
     }
-
-    // Dispatch to ERPNext API asynchronously
-    try {
-      const postBody = {
-        territory_name: name,
-        parent_territory: parent,
-        is_group: isGroup,
-        ...(mgr ? { territory_manager: mgr } : {})
-      };
-      fetch('/api/resource/Territory', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(postBody)
-      }).then(async res => {
-        if (res.ok) {
-          console.log(`[ERPNext] Created Territory ${name} online`);
-          showToast(`Territory "${name}" synced live to ERPNext!`, 'success');
-        } else {
-          try {
-            const err = await res.json();
-            const msg = String(err.exception || err.message || (err._server_messages ? JSON.parse(err._server_messages)[0] : 'Server error'));
-            if (msg.includes('LinkValidationError') && mgr) {
-              const fallbackRes = await fetch('/api/resource/Territory', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ territory_name: name, parent_territory: parent, is_group: isGroup })
-              });
-              if (fallbackRes.ok) {
-                showToast(`Territory "${name}" synced live to ERPNext!`, 'success');
-                return;
-              }
-            }
-            showToast(`ERPNext Warning: ${msg}`, 'warning');
-          } catch (_) {}
-        }
-      }).catch(err => {
-        console.warn(`[ERPNext Sync Warning] ${err.message}`);
-      });
-    } catch (_) {}
 
     // Expand all ancestor nodes in tree so new child folder or territory is immediately visible
     let currP = parent;
@@ -12527,22 +12925,23 @@ const BASELINE_ERP_TERRITORIES = [
   function openTreeEditModal(name, event) {
     if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
     let node = territoryTreeData.find(t => t.name === name || t.territory_name === name);
+    const pt = findProgramTerritoryByCode(name);
     if (!node) {
-      const row = programTerritories.find(p => (p.activeCode === name || p.histCode === name || p.latestPrevCode === name));
       node = {
         name: name,
         territory_name: name,
-        parent_territory: row ? (row.district || 'All Territories') : 'All Territories',
+        parent_territory: pt ? (pt.district || 'All Territories') : 'All Territories',
         is_group: 0,
-        territory_manager: row ? (row.rep ? row.rep.replace(/\s*\([^)]*\)/g, '').trim() : null) : null
+        territory_manager: pt ? (cleanRepDisplayName(pt.rep) || null) : null
       };
       territoryTreeData.push(node);
     }
 
     document.getElementById('treeEditModalTitle').innerText = name;
     document.getElementById('treeEditOrigName').value = name;
-    const rawMgr = node.territory_manager || '';
-    const currentMgr = (rawMgr && !rawMgr.toLowerCase().includes('unassigned')) ? rawMgr : '';
+    const rawMgr = (pt && pt.rep) ? pt.rep : (node.territory_manager || '');
+    const cleanedMgr = cleanRepDisplayName(rawMgr);
+    const currentMgr = (cleanedMgr && !/^unassigned/i.test(cleanedMgr) && !/^vacant/i.test(cleanedMgr) && !/^folder/i.test(cleanedMgr)) ? cleanedMgr : '';
     const mgrInp = document.getElementById('treeEditManagerInput');
     const mgrDisp = document.getElementById('treeEditManagerDisplay');
     const editClr = document.getElementById('treeEditManagerClear');
@@ -12561,13 +12960,13 @@ const BASELINE_ERP_TERRITORIES = [
     parentSelect.innerHTML = '';
     
     const allowed = getProgramTerritoryNames(activeProgram);
-    const groupNodes = territoryTreeData.filter(t => t.is_group && !descendants.has(t.name) && (t.name === 'All Territories' || allowed.has(t.name)));
-    groupNodes.sort((a, b) => a.name.localeCompare(b.name));
-    if (!groupNodes.some(g => g.name === 'All Territories') && !descendants.has('All Territories')) {
-      groupNodes.unshift({ name: 'All Territories' });
+    const candidateParents = territoryTreeData.filter(t => !descendants.has(t.name) && (t.name === 'All Territories' || allowed.has(t.name)));
+    candidateParents.sort((a, b) => a.name.localeCompare(b.name));
+    if (!candidateParents.some(g => g.name === 'All Territories') && !descendants.has('All Territories')) {
+      candidateParents.unshift({ name: 'All Territories' });
     }
 
-    groupNodes.forEach(g => {
+    candidateParents.forEach(g => {
       const opt = document.createElement('option');
       opt.value = g.name;
       opt.innerText = g.name;
@@ -12575,9 +12974,8 @@ const BASELINE_ERP_TERRITORIES = [
       parentSelect.appendChild(opt);
     });
 
-    const pt = programTerritories.find(p => p.activeCode === name || p.histCode === name);
     document.getElementById('treeEditProgramInput').value = activeProgram;
-    const isRepUnassigned = pt && (!pt.rep || pt.rep.toLowerCase().includes('unassigned'));
+    const isRepUnassigned = !currentMgr;
     const rawUserId = pt ? (pt.userId || '') : '';
     const currentUserId = (rawUserId && rawUserId.includes('@') && !isRepUnassigned) ? rawUserId : '';
     const userInp = document.getElementById('treeEditUserAccountInput');
@@ -12601,27 +12999,40 @@ const BASELINE_ERP_TERRITORIES = [
   async function submitTreeEdit() {
     const origName = document.getElementById('treeEditOrigName').value;
     const newParent = document.getElementById('treeEditParentSelect').value;
-    const newMgr = document.getElementById('treeEditManagerInput').value.trim();
+    const newMgr = cleanRepDisplayName(document.getElementById('treeEditManagerInput').value.trim());
     const newIsGroup = document.getElementById('treeEditIsGroup').checked ? 1 : 0;
     const newUserId = (document.getElementById('treeEditUserAccountInput') ? document.getElementById('treeEditUserAccountInput').value : '').trim();
 
     const node = territoryTreeData.find(t => t.name === origName);
     if (!node) return;
 
+    const updatedStatus = newMgr ? 'Active' : (newIsGroup ? 'Active' : 'Vacant');
     node.parent_territory = newParent;
-    node.territory_manager = newMgr || null;
+    node.territory_manager = newMgr || '';
     node.is_group = newIsGroup;
+    node.operational_status = updatedStatus;
+    node.status = updatedStatus;
     node.custom_account_or_program = activeProgram;
     node.program = activeProgram;
     registerNodeProgram(origName, activeProgram);
     if (newMgr) registerSalesPersonProgram(newMgr, activeProgram);
 
+    // Promote newParent to is_group = 1 so the transferred territory displays under it in Tree View
+    const pNode = territoryTreeData.find(t => t.name === newParent || t.territory_name === newParent);
+    if (pNode && !pNode.is_group) {
+      pNode.is_group = 1;
+    }
+    treeExpandedNodes.add(newParent);
+
     localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
 
-    const pt = programTerritories.find(p => p.activeCode === origName || p.histCode === origName);
+    const pt = findProgramTerritoryByCode(origName);
     if (pt) {
       pt.userId = (newUserId && newUserId.includes('@')) ? newUserId : '';
-      if (newMgr) pt.rep = newMgr;
+      pt.rep = newMgr ? newMgr : (newIsGroup ? 'Folder (Group)' : 'Unassigned Rep');
+      pt.operationalStatus = updatedStatus;
+      pt.isActive = true;
+      pt.isResigned = false;
       pt.district = newParent;
       pt.status = 'CHANGED';
       pt.auditTrail = pt.auditTrail || [];
@@ -12629,11 +13040,16 @@ const BASELINE_ERP_TERRITORIES = [
         timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
         action: 'EDIT_TREE',
         user: 'admin@pims.com [SFE Lead]',
-        details: `Reconfigured territory in Tree View. Parent: ${newParent}, Manager: ${newMgr || 'None'}.`
+        details: `Reconfigured territory. Parent: ${newParent}, Manager: ${newMgr || 'Unassigned (Vacant)'}, Status: ${updatedStatus}.`
       });
+    }
+    if (updatedStatus === 'Active' && Array.isArray(archivedRecords)) {
+      const archIdx = archivedRecords.findIndex(a => a.code === origName);
+      if (archIdx !== -1) archivedRecords.splice(archIdx, 1);
     }
     try {
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_stg_archived_territories_' + activeProgram, JSON.stringify(archivedRecords));
     } catch (_) {}
 
     // Streamlit bidirectional dispatch
@@ -12652,48 +13068,31 @@ const BASELINE_ERP_TERRITORIES = [
           }
         }, "*");
       } catch (_) {}
+    } else {
+      try {
+        const updateBody = { parent_territory: newParent, is_group: newIsGroup };
+        if (newMgr) updateBody.territory_manager = newMgr;
+        fetch(`/api/resource/Territory/${encodeURIComponent(origName)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(updateBody)
+        }).then(async res => {
+          if (res.ok) {
+            console.log(`[ERPNext] Updated Territory "${origName}" online`);
+            showToast(`Territory "${origName}" updated live on ERPNext!`, 'success');
+          }
+        }).catch(err => {
+          console.warn(`[ERPNext Sync Warning] ${err.message}`);
+        });
+      } catch (_) {}
     }
-
-    try {
-      const updateBody = { parent_territory: newParent, is_group: newIsGroup };
-      if (newMgr) updateBody.territory_manager = newMgr;
-      fetch(`/api/resource/Territory/${encodeURIComponent(origName)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(updateBody)
-      }).then(async res => {
-        if (res.ok) {
-          console.log(`[ERPNext] Updated Territory "${origName}" online`);
-          showToast(`Territory "${origName}" updated live on ERPNext!`, 'success');
-        } else {
-          try {
-            const err = await res.json();
-            const msg = String(err.exception || err.message || 'Server error');
-            if (msg.includes('LinkValidationError') && newMgr) {
-              const fallbackRes = await fetch(`/api/resource/Territory/${encodeURIComponent(origName)}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ parent_territory: newParent, is_group: newIsGroup })
-              });
-              if (fallbackRes.ok) {
-                showToast(`Territory "${origName}" updated live on ERPNext!`, 'success');
-                return;
-              }
-            }
-            showToast(`ERPNext Warning: ${msg}`, 'warning');
-          } catch (_) {}
-        }
-      }).catch(err => {
-        console.warn(`[ERPNext Sync Warning] ${err.message}`);
-      });
-    } catch (_) {}
 
     closeTreeEditModal();
     renderTree();
     renderTable();
     renderRealignmentAndArchive();
     renderSummaryReport();
-    showToast(`Territory "${origName}" updated successfully!`);
+    showToast(`Territory "${origName}" updated (${updatedStatus})!`);
   }
 
   // 3. RENAME
@@ -12792,32 +13191,26 @@ const BASELINE_ERP_TERRITORIES = [
           }
         }, "*");
       } catch (_) {}
+    } else {
+      try {
+        fetch('/api/method/frappe.client.rename_doc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            doctype: 'Territory',
+            old_name: oldName,
+            new_name: newName
+          })
+        }).then(async res => {
+          if (res.ok) {
+            console.log(`[ERPNext] Renamed Territory "${oldName}" -> "${newName}" online`);
+            showToast(`Renamed "${oldName}" &rarr; "${newName}" live on ERPNext!`, 'success');
+          }
+        }).catch(err => {
+          console.warn(`[ERPNext Sync Warning] ${err.message}`);
+        });
+      } catch (_) {}
     }
-
-    try {
-      fetch('/api/method/frappe.client.rename_doc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          doctype: 'Territory',
-          old_name: oldName,
-          new_name: newName
-        })
-      }).then(async res => {
-        if (res.ok) {
-          console.log(`[ERPNext] Renamed Territory "${oldName}" -> "${newName}" online`);
-          showToast(`Renamed "${oldName}" &rarr; "${newName}" live on ERPNext!`, 'success');
-        } else {
-          try {
-            const err = await res.json();
-            const msg = err.exception || err.message || 'Server error';
-            showToast(`ERPNext Warning: ${msg}`, 'warning');
-          } catch (_) {}
-        }
-      }).catch(err => {
-        console.warn(`[ERPNext Sync Warning] ${err.message}`);
-      });
-    } catch (_) {}
 
     closeTreeRenameModal();
     renderTree();
@@ -12827,93 +13220,17 @@ const BASELINE_ERP_TERRITORIES = [
     showToast(`Renamed "${oldName}" to "${newName}"!`);
   }
 
-  // 4. DELETE
-  
-  function toggleTreeNodeActiveStatus(name, event) {
+  // 4. STATUS TOGGLE & DELETE
+  function toggleTreeNodeActiveStatus(name, event, explicitStatus) {
     if (event) {
       if (typeof event.stopPropagation === 'function') event.stopPropagation();
       if (typeof event.preventDefault === 'function') event.preventDefault();
     }
-    const pt = programTerritories.find(p => p.activeCode === name || p.histCode === name || p.name === name);
-    const currStatus = pt ? (pt.operationalStatus || (pt.rep && pt.rep.toLowerCase().includes('resigned') ? 'Inactive' : 'Active')) : 'Active';
-    const nextStatus = currStatus === 'Active' ? 'Inactive' : 'Active';
-
-    // Calculate updated territory manager string for ERPNext synchronization
-    let baseManager = '';
-    if (pt && pt.rep) {
-      baseManager = pt.rep.replace(/\s*(\[|\()(RESIGNED|INACTIVE)[^)]*(\]|\))/gi, '').trim();
-    }
+    const pt = findProgramTerritoryByCode(name);
     const treeNode = territoryTreeData.find(t => t.name === name);
-    if (!baseManager && treeNode && treeNode.territory_manager) {
-      baseManager = treeNode.territory_manager.replace(/\s*(\[|\()(RESIGNED|INACTIVE)[^)]*(\]|\))/gi, '').trim();
-    }
-    if (!baseManager) baseManager = 'Unassigned';
-
-    let updatedManager = baseManager;
-    if (nextStatus === 'Inactive') {
-      updatedManager = `${baseManager} [RESIGNED]`;
-    }
-
-    if (pt) {
-      pt.operationalStatus = nextStatus;
-      pt.isResigned = (nextStatus === 'Inactive');
-      pt.rep = updatedManager;
-      pt.status = 'CHANGED';
-      if (!pt.auditTrail) pt.auditTrail = [];
-      pt.auditTrail.unshift({
-        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        action: 'STATUS_TOGGLE',
-        user: (authenticatedUser ? (authenticatedUser.email || authenticatedUser.full_name) : 'SFE Lead'),
-        details: `Operational status updated: ${currStatus} -> ${nextStatus} (ERPNext Manager: ${updatedManager}).`
-      });
-    }
-
-    if (treeNode) {
-      treeNode.operational_status = nextStatus;
-      treeNode.territory_manager = updatedManager;
-    }
-
-    try {
-      localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
-      localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
-    } catch (_) {}
-
-    // Live ERPNext 2-way dispatch:
-    // 1. Direct REST PUT to ERPNext live API
-    try {
-      fetch(`/api/resource/Territory/${encodeURIComponent(name)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ territory_manager: updatedManager })
-      }).then(res => {
-        if (res.ok) console.log(`[ERPNext Live Sync] Territory "${name}" manager updated to: ${updatedManager}`);
-      }).catch(err => console.warn('[ERPNext Sync Notice]:', err));
-    } catch (_) {}
-
-    // 2. Streamlit Cloud bidirectional postMessage
-    if (isStreamlitActive || (window.parent && window.parent !== window)) {
-      try {
-        window.parent.postMessage({
-          isStreamlitMessage: true,
-          type: "streamlit:setComponentValue",
-          value: {
-            action: "territory_toggle_status",
-            territory: name,
-            status: nextStatus,
-            territory_manager: updatedManager,
-            timestamp: Date.now()
-          }
-        }, "*");
-      } catch (_) {}
-    }
-
-    renderTree();
-    renderTable();
-    if (nextStatus === 'Inactive') {
-      showToast(`Territory "${name}" marked Inactive in Portal & ERPNext! MedRep is grayed out in dropdowns until reactivated.`, 'info', 4500);
-    } else {
-      showToast(`Territory "${name}" reactivated in Portal & ERPNext! Ready for use and MedRep restored.`, 'success', 4500);
-    }
+    const currStatus = getTerritoryOperationalStatus(pt, treeNode);
+    const nextStatus = explicitStatus || (currStatus === 'Active' ? 'Inactive' : 'Active');
+    setTerritoryOperationalStatus(name, nextStatus);
   }
 
   function openTreeDeleteModal(name, event) {
@@ -12978,9 +13295,6 @@ const BASELINE_ERP_TERRITORIES = [
     try {
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
     } catch (_) {}
-    try {
-      localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
-    } catch (_) {}
 
     // Streamlit bidirectional dispatch
     if (isStreamlitActive || (window.parent && window.parent !== window)) {
@@ -12995,26 +13309,20 @@ const BASELINE_ERP_TERRITORIES = [
           }
         }, "*");
       } catch (_) {}
+    } else {
+      try {
+        fetch(`/api/resource/Territory/${encodeURIComponent(target)}`, {
+          method: 'DELETE'
+        }).then(async res => {
+          if (res.ok) {
+            console.log(`[ERPNext] Deleted Territory "${target}" online`);
+            showToast(`Territory "${target}" deleted from ERPNext!`, 'success');
+          }
+        }).catch(err => {
+          console.warn(`[ERPNext Sync Warning] ${err.message}`);
+        });
+      } catch (_) {}
     }
-
-    try {
-      fetch(`/api/resource/Territory/${encodeURIComponent(target)}`, {
-        method: 'DELETE'
-      }).then(async res => {
-        if (res.ok) {
-          console.log(`[ERPNext] Deleted Territory "${target}" online`);
-          showToast(`Territory "${target}" deleted from ERPNext!`, 'success');
-        } else {
-          try {
-            const err = await res.json();
-            const msg = err.exception || err.message || (err._server_messages ? JSON.parse(err._server_messages)[0] : 'Server error');
-            showToast(`ERPNext Warning: ${msg}`, 'warning');
-          } catch (_) {}
-        }
-      }).catch(err => {
-        console.warn(`[ERPNext Sync Warning] ${err.message}`);
-      });
-    } catch (_) {}
 
     closeTreeDeleteModal();
     renderTree();
@@ -13043,12 +13351,14 @@ const BASELINE_ERP_TERRITORIES = [
     const row = programTerritories[index];
     if (!row) return;
 
+    const code = row.activeCode || row.latestPrevCode;
     document.getElementById('editRecordIndex').value = index;
-    document.getElementById('editModalTitle').innerText = `Reconfigure Territory: ${row.activeCode || row.latestPrevCode}`;
+    document.getElementById('editModalTitle').innerText = `Reconfigure Territory: ${code}`;
     document.getElementById('editRecordId').value = row.recordId || '';
     
     // User ID dropdown
-    const isRepUnassigned = !row.rep || row.rep.toLowerCase().includes('unassigned');
+    const cleanedRep = cleanRepDisplayName(row.rep);
+    const isRepUnassigned = !cleanedRep || /^unassigned/i.test(cleanedRep) || /^vacant/i.test(cleanedRep);
     const editUserIdVal = (row.userId && row.userId.includes('@') && !isRepUnassigned) ? row.userId : '';
     const editUserInp = document.getElementById('editUserAccountInput');
     const editUserDisp = document.getElementById('editUserAccountDisplay');
@@ -13061,9 +13371,9 @@ const BASELINE_ERP_TERRITORIES = [
     if (editUserClr) editUserClr.style.display = editUserIdVal ? 'block' : 'none';
 
     // Territory Manager dropdown
-    const treeNode = territoryTreeData.find(t => t.name === (row.activeCode || row.latestPrevCode));
-    const rawMgr = treeNode ? (treeNode.territory_manager || '') : '';
-    const editMgrVal = (rawMgr && !rawMgr.toLowerCase().includes('unassigned')) ? rawMgr : '';
+    const treeNode = territoryTreeData.find(t => t.name === code);
+    const rawMgr = cleanedRep || (treeNode ? cleanRepDisplayName(treeNode.territory_manager || '') : '');
+    const editMgrVal = (rawMgr && !/^unassigned/i.test(rawMgr) && !/^vacant/i.test(rawMgr)) ? rawMgr : '';
     const editMgrInp = document.getElementById('editManagerInput');
     const editMgrDisp = document.getElementById('editManagerDisplay');
     const editMgrClr = document.getElementById('editManagerClear');
@@ -13078,10 +13388,12 @@ const BASELINE_ERP_TERRITORIES = [
     const parentSel = document.getElementById('editParentSelect');
     if (parentSel) {
       parentSel.innerHTML = '';
+      const descendants = getDescendantNames(code);
+      descendants.add(code);
       const allowed = getProgramTerritoryNames(activeProgram);
-      const groupNodes = territoryTreeData.filter(t => t.is_group && (t.name === 'All Territories' || allowed.has(t.name)));
+      const groupNodes = territoryTreeData.filter(t => !descendants.has(t.name) && (t.name === 'All Territories' || allowed.has(t.name)));
       groupNodes.sort((a, b) => a.name.localeCompare(b.name));
-      if (!groupNodes.some(g => g.name === 'All Territories')) {
+      if (!groupNodes.some(g => g.name === 'All Territories') && !descendants.has('All Territories')) {
         groupNodes.unshift({ name: 'All Territories' });
       }
       groupNodes.forEach(g => {
@@ -13095,7 +13407,7 @@ const BASELINE_ERP_TERRITORIES = [
 
     document.getElementById('editLatestPrevCode').value = row.latestPrevCode || '';
     document.getElementById('editActiveCode').value = row.activeCode || '';
-    document.getElementById('editRepName').value = row.rep ? row.rep.replace(/\s*\([^)]*\)/g, '').trim() : '';
+    document.getElementById('editRepName').value = editMgrVal;
     document.getElementById('editDistrict').value = row.district || '';
     const coveredDocs = getCoveredDoctorsForTerritory(row);
     const actualDocCount = coveredDocs.length > 0 ? coveredDocs.length : (row.docs || 0);
@@ -13172,8 +13484,12 @@ const BASELINE_ERP_TERRITORIES = [
 
     const row = programTerritories[idx];
     const newActiveCode = document.getElementById('editActiveCode').value.trim();
-    const newRep = document.getElementById('editRepName').value.trim();
-    const newDistrict = document.getElementById('editDistrict').value.trim();
+    const editMgrInp = document.getElementById('editManagerInput');
+    const rawRepInput = (editMgrInp && editMgrInp.value.trim()) ? editMgrInp.value.trim() : document.getElementById('editRepName').value.trim();
+    const isExplicitResigned = /resigned/i.test(rawRepInput);
+    const newRep = cleanRepDisplayName(rawRepInput);
+    const parentSel = document.getElementById('editParentSelect');
+    const newDistrict = (parentSel && parentSel.value) ? parentSel.value.trim() : document.getElementById('editDistrict').value.trim();
     const newDocs = parseInt(document.getElementById('editDocs').value, 10) || 0;
     const userAccInp = document.getElementById('editUserAccountInput') || document.getElementById('editUserId');
     const newUserId = userAccInp ? userAccInp.value.trim() : (row.userId || '');
@@ -13186,49 +13502,75 @@ const BASELINE_ERP_TERRITORIES = [
 
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const changes = [];
+    const oldCode = row.activeCode;
 
     if (newActiveCode !== row.activeCode) {
       changes.push(`Code renamed from ${row.activeCode} to ${newActiveCode}`);
-      // Sync covered doctor accounts to new active territory code
       programAccounts.forEach(acc => {
         if (acc.liveTerritory === row.activeCode || acc.liveTerritory === row.latestPrevCode) {
           acc.liveTerritory = newActiveCode;
         }
       });
-      row.latestPrevCode = row.activeCode; // preserve previous
+      row.latestPrevCode = row.activeCode;
       row.activeCode = newActiveCode;
       row.status = 'CHANGED';
     }
 
-    const oldRepClean = row.rep ? row.rep.replace(/\s*\([^)]*\)/g, '').trim() : '';
-    if (newRep !== oldRepClean) {
-      changes.push(`Rep transferred from ${oldRepClean || 'Unassigned'} to ${newRep}`);
-      // Sync representative name on doctor accounts
+    const oldRepClean = cleanRepDisplayName(row.rep);
+    if (isExplicitResigned) {
+      row.operationalStatus = 'Inactive';
+      row.isActive = false;
+      row.isResigned = true;
+      row.rep = oldRepClean ? `${oldRepClean} [RESIGNED]` : 'Unassigned Rep [RESIGNED]';
+      changes.push(`Territory marked Inactive (Resigned)`);
+    } else if (newRep && !/^unassigned/i.test(newRep) && !/^vacant/i.test(newRep)) {
+      if (newRep !== oldRepClean || row.operationalStatus !== 'Active') {
+        changes.push(`Rep assigned: ${newRep} (Status: Active)`);
+      }
       programAccounts.forEach(acc => {
         if (acc.liveTerritory === row.activeCode) {
           acc.rep = `${newRep} (${row.activeCode})`;
         }
       });
       row.rep = newRep;
+      row.operationalStatus = 'Active';
+      row.isActive = true;
+      row.isResigned = false;
       row.userId = newUserId;
       row.status = 'CHANGED';
+    } else {
+      row.rep = 'Unassigned Rep';
+      row.operationalStatus = 'Vacant';
+      row.isActive = true;
+      row.isResigned = false;
+      row.status = 'CHANGED';
+      changes.push(`Territory set to Vacant (Unassigned)`);
     }
 
     if (newUserId !== (row.userId || '')) {
       changes.push(`User ID updated from ${row.userId || 'Unassigned'} to ${newUserId || 'Unassigned'}`);
       row.userId = newUserId;
       row.status = 'CHANGED';
-      const treeNode = (territoryTreeData || []).find(n => n.name === row.activeCode || n.name === row.latestPrevCode);
-      if (treeNode) {
-        treeNode.custom_user_id = newUserId;
-      }
       ERP_TERRITORY_USER_MAP[row.activeCode] = newUserId;
     }
 
-    if (newDistrict !== row.district) {
-      changes.push(`District group changed from ${row.district} to ${newDistrict}`);
+    if (newDistrict && newDistrict !== row.district) {
+      changes.push(`Parent territory changed from ${row.district} to ${newDistrict}`);
       row.district = newDistrict;
       row.status = 'CHANGED';
+    }
+
+    const treeNode = (territoryTreeData || []).find(n => n.name === oldCode || n.name === row.activeCode || n.name === row.latestPrevCode);
+    if (treeNode) {
+      treeNode.name = row.activeCode;
+      treeNode.territory_name = row.activeCode;
+      if (newDistrict) treeNode.parent_territory = newDistrict;
+      treeNode.territory_manager = (row.operationalStatus === 'Active') ? newRep : '';
+      treeNode.operational_status = row.operationalStatus;
+      treeNode.status = row.operationalStatus;
+      treeNode.custom_user_id = newUserId;
+      const pNode = (territoryTreeData || []).find(n => n.name === newDistrict);
+      if (pNode && !pNode.is_group) pNode.is_group = 1;
     }
 
     if (newDocs !== row.docs) {
@@ -13250,6 +13592,28 @@ const BASELINE_ERP_TERRITORIES = [
         recordId: row.recordId,
         territoryCode: `${row.latestPrevCode} &rarr; ${row.activeCode}`
       });
+    }
+
+    try {
+      localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
+    } catch (_) {}
+
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "tree_edit",
+            name: row.activeCode,
+            parent_territory: row.district || 'All Territories',
+            is_group: treeNode ? (treeNode.is_group || 0) : 0,
+            territory_manager: (row.operationalStatus === 'Active') ? newRep : '',
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
     }
 
     closeEditModal();
@@ -15977,14 +16341,34 @@ const BASELINE_ERP_TERRITORIES = [
       </span>
       <span class="grid-action-title">Rename</span>
     </button>
-    <button type="button" class="grid-action-item" id="gridActionDeactivate" onclick="handleGridActionClick('deactivate')" style="color:#D97706;">
+
+    <div class="grid-actions-divider"></div>
+
+    <button type="button" class="grid-action-item" id="gridActionSetActive" onclick="handleGridActionClick('set_active')" style="color:#15803D;">
+      <span class="grid-action-icon" style="background:#DCFCE7; color:#15803D; border:1px solid #86EFAC;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </span>
+      <span class="grid-action-title">Set Active</span>
+    </button>
+    <button type="button" class="grid-action-item" id="gridActionTagVacant" onclick="handleGridActionClick('tag_vacant')" style="color:#D97706;">
       <span class="grid-action-icon" style="background:#FEF3C7; color:#D97706; border:1px solid #FDE68A;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="8" y1="12" x2="16" y2="12"></line>
+        </svg>
+      </span>
+      <span class="grid-action-title">Tag as Vacant</span>
+    </button>
+    <button type="button" class="grid-action-item" id="gridActionDeactivate" onclick="handleGridActionClick('tag_inactive')" style="color:#DC2626;">
+      <span class="grid-action-icon" style="background:#FEF2F2; color:#DC2626; border:1px solid #FECACA;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
         </svg>
       </span>
-      <span class="grid-action-title">Tag Inactive / Vacant</span>
+      <span class="grid-action-title">Tag as Inactive</span>
     </button>
     
     <div class="grid-actions-divider"></div>
@@ -16010,13 +16394,13 @@ const BASELINE_ERP_TERRITORIES = [
   </div>
 </div>
 
-<!-- MODAL: Tag Inactive & Vacant Confirmation (Strict SFE No-Deletion Policy) -->
+<!-- MODAL: Territory Operational Status Update (Active | Vacant | Inactive — 3 Separate Statuses) -->
 <div class="modal-overlay" id="inactiveModalOverlay">
-  <div class="modal-card" style="max-width:480px; border-radius:12px; border:1.5px solid #FCD34D; box-shadow:0 16px 40px rgba(0,0,0,0.15);">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1.5px solid #FEF3C7; padding-bottom:10px;">
+  <div class="modal-card" style="max-width:480px; border-radius:12px; border:1.5px solid #CBD5E1; box-shadow:0 16px 40px rgba(0,0,0,0.15);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1.5px solid #E2E8F0; padding-bottom:10px;">
       <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size:20px;">⏸️</span>
-        <h3 style="font-size:15px; font-weight:800; color:#B45309; margin:0;">Tag Territory Inactive &amp; Vacant</h3>
+        <span style="font-size:20px;">⚙️</span>
+        <h3 style="font-size:15px; font-weight:800; color:#0F172A; margin:0;">Update Territory Operational Status</h3>
       </div>
       <button type="button" onclick="closeTagInactiveModal()" style="background:none; border:none; color:#94A3B8; font-size:18px; cursor:pointer; line-height:1;">✕</button>
     </div>
@@ -16025,32 +16409,41 @@ const BASELINE_ERP_TERRITORIES = [
 
     <div style="background:#FFFBEB; border:1.5px solid #FDE68A; padding:12px 14px; border-radius:8px; margin-bottom:14px;">
       <div style="font-size:12.5px; color:#92400E; font-weight:700; margin-bottom:4px;">
-        🛡️ SFE Zero Data Loss &amp; No-Deletion Policy
+        🛡️ SFE Zero Data Loss &amp; 3-State Status Policy
       </div>
       <div style="font-size:11.5px; color:#78350F; line-height:1.5;">
-        Territories are <strong>never deleted</strong>. Tagging as Inactive marks the resigned MedRep as <strong>[Vacant / Resigned]</strong>, leaves the territory code active as Vacant in ERPNext, and preserves all covered doctors without data loss.
+        Territories are <strong>never deleted</strong>. Choose between <strong>Active</strong> (assigned coverage), <strong>Vacant</strong> (open slot awaiting MedRep assignment), or <strong>Inactive</strong> (decommissioned / resigned slot preserved in Archive Directory).
       </div>
     </div>
 
-    <div style="font-size:12.5px; color:#334155; line-height:1.5; margin-bottom:16px;">
+    <div style="font-size:12.5px; color:#334155; line-height:1.5; margin-bottom:14px;">
       <div>Territory Code: <strong id="inactiveTerritoryName" style="color:#0066FF;">---</strong></div>
       <div style="margin-top:4px;">Current MedRep: <strong id="inactiveRepName" style="color:#0F172A;">---</strong></div>
       <div style="margin-top:4px;">Affiliated Doctors: <span class="badge badge-primary" id="inactiveDocCount">0 Doctors Preserved</span></div>
-      <div style="margin-top:8px; font-size:11.5px; color:#64748B;">
-        Status will update to <strong>Inactive (Vacant)</strong> and be archived into the Archived Territories Directory.
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">Select Operational Status</label>
+      <select id="inactiveTargetStatusSelect" onchange="onInactiveModalStatusChange(this.value)" style="width:100%; height:38px; padding:0 12px; border-radius:6px; border:1.5px solid #CBD5E1; font-size:13px; font-weight:700; color:#0F172A; background:#FFFFFF;">
+        <option value="Active">🟢 Active — Assigned &amp; Operational</option>
+        <option value="Vacant">🟡 Vacant — Open Territory Slot (Unassigned)</option>
+        <option value="Inactive">🔴 Inactive — Decommissioned / Resigned</option>
+      </select>
+      <div id="inactiveModalStatusEffectText" style="margin-top:8px; font-size:11.5px; color:#64748B;">
+        Status will update and synchronize across Table Grid, Territory Tree, and ERPNext.
       </div>
     </div>
 
     <div style="display:flex; justify-content:flex-end; gap:10px;">
       <button type="button" class="btn btn-outline" onclick="closeTagInactiveModal()">Cancel</button>
-      <button type="button" class="btn btn-warning" onclick="confirmTagInactive()" style="background:#D97706; color:#FFFFFF; border:none; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer;">
-        Confirm Inactive &amp; Vacant
+      <button type="button" id="btnConfirmTerritoryStatus" class="btn btn-warning" onclick="confirmTagInactive()" style="background:#D97706; color:#FFFFFF; border:none; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer;">
+        Confirm Status Update
       </button>
     </div>
   </div>
 </div>
 
-<!-- MODAL: Interactive SFE User Guide & Navigation Walkthrough (v.0.1.0) -->
+<!-- MODAL: Interactive SFE User Guide & Navigation Walkthrough (v.0.1.1) -->
 <div class="modal-overlay" id="userGuideModalOverlay" style="z-index:9999;">
   <div class="modal-card" style="max-width:640px; border-radius:12px; border:1px solid #CBD5E1; box-shadow:0 16px 40px rgba(15,23,42,0.18); max-height:88vh; overflow-y:auto; padding:24px;">
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; border-bottom:1px solid #E2E8F0; padding-bottom:14px;">
