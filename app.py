@@ -1404,6 +1404,31 @@ def execute_tree_action(opener, action, payload):
         elif action == "tree_refresh":
             return "success", f"Territory tree synchronized live from {get_server_display_name()}!"
 
+        elif action == "doctor_transfer":
+            prog = safe_str(payload.get("program")) or "Abbott Diabetes Care"
+            src = safe_str(payload.get("source_territory"))
+            tgt = safe_str(payload.get("target_territory"))
+            cnt_tgt = int(payload.get("transferred_to_target", 0) or 0)
+            cnt_src = int(payload.get("transferred_to_source", 0) or 0)
+            accs = payload.get("accounts")
+
+            if "doctor_transfers" not in st.session_state:
+                st.session_state["doctor_transfers"] = []
+            st.session_state["doctor_transfers"].append({
+                "program": prog,
+                "source": src,
+                "target": tgt,
+                "transferred_to_target": cnt_tgt,
+                "transferred_to_source": cnt_src,
+                "timestamp": time.time()
+            })
+
+            if accs and isinstance(accs, list):
+                st.session_state[f"live_accounts_{prog}"] = accs
+
+            msg = f'Doctor portfolio transfer between "{src}" and "{tgt}" recorded successfully ({cnt_tgt} doctors assigned to {tgt}).'
+            return "success", msg
+
         return "info", f"Action {action} processed."
 
     except urllib.error.HTTPError as e:
@@ -1550,6 +1575,7 @@ if "last_action_timestamp" not in st.session_state:
     st.session_state["last_action_timestamp"] = 0
 
 # Render the web app component directly (Opens directly to the native login view)
+_active_prog = st.session_state.get("active_program", "Abbott Diabetes Care")
 component_val = portal_component(
     auth_response=auth_to_deliver,
     reset_password_response=st.session_state["reset_password_response"],
@@ -1558,6 +1584,7 @@ component_val = portal_component(
     live_employees=st.session_state["live_employees"],
     live_users=st.session_state["live_users"],
     live_institutions=st.session_state["live_institutions"],
+    live_accounts=st.session_state.get(f"live_accounts_{_active_prog}"),
     tree_sync_event=st.session_state["tree_sync_event"],
     key="pims_portal_app"
 )
@@ -1669,6 +1696,8 @@ if component_val and isinstance(component_val, dict):
             if not opener:
                 opener = get_authenticated_opener()
                 st.session_state["opener"] = opener
+            if action == "doctor_transfer" and component_val.get("program"):
+                st.session_state["active_program"] = component_val.get("program")
             status, msg = execute_tree_action(opener, action, component_val)
             opener = st.session_state.get("opener") or get_authenticated_opener()
             if opener:

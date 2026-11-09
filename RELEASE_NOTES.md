@@ -6,7 +6,37 @@
 
 ---
 
-## 🚀 1. Fixes Applied in `v.0.1.1` (UAT Item #8 — Tab 1 MedRep Resignation & Handover Advisory, Bulk Operations Persistence, Tree View Sync & HR Validation)
+## 🚀 1. Fixes Applied in `v.0.1.1` (UAT Item #9 — Transfer of Doctor Two-Window Drag-and-Drop)
+
+### 1.1 Doctor Transfer Persistence Bug Fix (Streamlit Cloud & Tab Refresh)
+- **Root Cause**:
+  1. `loadProgramTerritories()` / `switchProgram()` previously overwrote `programAccounts` on every page load with the static baseline `progData.accounts`, ignoring all transferred doctor assignments saved in browser `localStorage`.
+  2. In Streamlit Cloud (`app.py`), the `execute_tree_action()` dispatcher did not have a handler for `action == "doctor_transfer"`, causing Streamlit reruns to drop doctor transfer state.
+- **Fix**:
+  - `switchProgram()` now strictly loads `programAccounts` from `localStorage` (`pims_accounts_<program>` / `pims_global_doctor_assignments_<program>`) before falling back to baseline data.
+  - In `saveDoctorTransfer()`, doctor assignments are updated on both `programAccounts` and working arrays, persisted to `localStorage` under multiple redundant keys, and dispatched to Streamlit with the full `accounts` payload.
+  - In `app.py`, added a dedicated `doctor_transfer` handler in `execute_tree_action()` that logs the transfer, persists doctor accounts in `st.session_state[f"live_accounts_{prog}"]`, and passes `live_accounts` back to `portal_component`. Doctor transfers now fully survive browser refreshes, Streamlit reruns, and tab switches without resetting.
+
+### 1.2 Accurate Dynamic Doctor Count (Elimination of Double-Counting)
+- **Root Cause**:
+  - In `getCoveredDoctorsForTerritory()`, the previous matching condition matched any account where `accRep.includes(repClean)`. If a Medical Representative was assigned to multiple territories or shared common name tokens, their doctors were erroneously counted across every territory they touched, inflating doctor counts.
+  - Furthermore, `row.docs` was reading static baseline numbers rather than dynamically syncing with live account arrays.
+- **Fix**:
+  - Refactored `getCoveredDoctorsForTerritory()` to enforce **primary territory matching**: if `acc.liveTerritory` is present, it must strictly match the territory's active or previous code (`c1`, `c2`, or `c3`). Only if `acc.liveTerritory` is blank does it fall back to matching by rep name.
+  - Accounts with mismatched program tags are filtered out.
+  - Synchronized `row.docs` dynamically with `getCoveredDoctorsForTerritory(row).length` in `renderTable()`, `syncProgramTerritoriesWithTree()`, `switchProgram()`, and `populateTransferTerritoryDropdowns()`, ensuring 100% accurate doctor counts everywhere.
+
+### 1.3 Dedicated MedRep Search Feature Bar in Doctor Transfer Workbench
+- **Requirement**:
+  - In addition to the doctor search input, provide a dedicated MedRep search bar in both the Target and Source panes of the Doctor Transfer window, strictly filtered to the currently active program.
+- **Fix**:
+  - Added dedicated MedRep search input bars (`#transferTargetRepSearchInput`, `#transferSourceRepSearchInput`) above the territory dropdowns in both the Target (Destination) and Source panes.
+  - Implemented `filterTransferRepDropdown(side)` to filter the dropdown options in real time as the SFE Lead types a representative's name, territory code, or district.
+  - Ensured `populateTransferTerritoryDropdowns()` strictly isolates representatives and territories to `activeProgram` via `detectSalesPersonProgram(t.rep)`, `getProgramTerritoryNames(activeProgram)`, and `detectTextProgram(code)`, completely preventing cross-program MedRep leaks.
+
+---
+
+## 🚀 2. Fixes Applied in `v.0.1.1` (UAT Item #8 — Tab 1 MedRep Resignation & Handover Advisory, Bulk Operations Persistence, Tree View Sync & HR Validation)
 
 ### 1.1 Removed "Enter New MedRep Name" Freeform Input on Doctor Transfer & Handover Window
 - **Root Cause**:

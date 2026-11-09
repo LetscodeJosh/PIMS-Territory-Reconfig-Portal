@@ -3943,6 +3943,10 @@
             <span style="font-size:11.5px; font-weight:700; color:#0066FF;">Target Territory (Destination)</span>
             <span class="badge" id="targetDocsCountBadge" style="background:#0066FF; color:#FFF; font-weight:700; font-size:11px;">0 Doctors</span>
           </div>
+          <!-- Target MedRep Search Feature Bar -->
+          <div style="margin-bottom:6px; position:relative;">
+            <input type="text" id="transferTargetRepSearchInput" class="form-control" placeholder="Search / filter MedRep..." oninput="filterTransferRepDropdown('target')" style="font-size:11.5px; padding:6px 10px; border:1.5px solid #CBD5E1; border-radius:6px; width:100%; background:#F8FAFC; color:#0F172A;" title="Filter MedRep name or territory in the dropdown below">
+          </div>
           <select id="transferTargetTerritorySelect" class="form-control" style="font-size:12px; font-weight:700; padding:6px 10px; margin-bottom:6px;" onchange="onTransferTerritorySelectionChanged('target')">
           </select>
           <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; margin-bottom:8px;">
@@ -3979,6 +3983,10 @@
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <span style="font-size:11.5px; font-weight:700; color:#475569;">Source Territory</span>
             <span class="badge" id="sourceDocsCountBadge" style="background:#64748B; color:#FFF; font-weight:700; font-size:11px;">0 Doctors</span>
+          </div>
+          <!-- Source MedRep Search Feature Bar -->
+          <div style="margin-bottom:6px; position:relative;">
+            <input type="text" id="transferSourceRepSearchInput" class="form-control" placeholder="Search / filter MedRep..." oninput="filterTransferRepDropdown('source')" style="font-size:11.5px; padding:6px 10px; border:1.5px solid #CBD5E1; border-radius:6px; width:100%; background:#F8FAFC; color:#0F172A;" title="Filter MedRep name or territory in the dropdown below">
           </div>
           <select id="transferSourceTerritorySelect" class="form-control" style="font-size:12px; font-weight:700; padding:6px 10px; margin-bottom:6px;" onchange="onTransferTerritorySelectionChanged('source')">
           </select>
@@ -5723,7 +5731,30 @@ const BASELINE_ERP_TERRITORIES = [
       programTerritories = JSON.parse(JSON.stringify(progData.territories || []));
     }
 
-    programAccounts = JSON.parse(JSON.stringify(progData.accounts || []));
+    // Production Persistence Standard: Load saved programAccounts from localStorage or fallback to baseline
+    let savedAccounts = null;
+    try {
+      const savedAccountsRaw = localStorage.getItem('pims_accounts_' + activeProgram) || localStorage.getItem('pims_global_doctor_assignments_' + activeProgram);
+      if (savedAccountsRaw) {
+        savedAccounts = JSON.parse(savedAccountsRaw);
+      }
+    } catch (_) {
+      savedAccounts = null;
+    }
+
+    if (Array.isArray(savedAccounts) && savedAccounts.length > 0) {
+      programAccounts = savedAccounts;
+    } else {
+      programAccounts = JSON.parse(JSON.stringify(progData.accounts || []));
+    }
+
+    // Keep territory docs count strictly synchronized with live accounts
+    programTerritories.forEach(t => {
+      const dynamicDocs = getCoveredDoctorsForTerritory(t);
+      if (dynamicDocs && dynamicDocs.length >= 0) {
+        t.docs = dynamicDocs.length;
+      }
+    });
 
     // Ensure all rows have valid format and default to UNCHANGED if not modified
     programTerritories.forEach((t, i) => {
@@ -6406,7 +6437,22 @@ const BASELINE_ERP_TERRITORIES = [
         const liveEmployees = event.data.args ? event.data.args.live_employees : null;
         const liveUsers = event.data.args ? event.data.args.live_users : null;
         const liveInstitutions = event.data.args ? event.data.args.live_institutions : null;
+        const liveAccounts = event.data.args ? event.data.args.live_accounts : null;
         const treeSync = event.data.args ? event.data.args.tree_sync_event : null;
+
+        // Process Live Doctor Accounts from Streamlit Session State
+        if (liveAccounts && Array.isArray(liveAccounts) && liveAccounts.length > 0) {
+          programAccounts = liveAccounts;
+          try {
+            localStorage.setItem('pims_accounts_' + activeProgram, JSON.stringify(programAccounts));
+          } catch (_) {}
+          programTerritories.forEach(t => {
+            const dynamicDocs = getCoveredDoctorsForTerritory(t);
+            if (dynamicDocs && dynamicDocs.length >= 0) {
+              t.docs = dynamicDocs.length;
+            }
+          });
+        }
 
         // 0. Process ERPNext Password Reset Feedback
         if (resetResp && resetResp.timestamp && resetResp.timestamp > lastProcessedResetTs) {
@@ -7367,7 +7413,9 @@ const BASELINE_ERP_TERRITORIES = [
         const rowStatus = getTerritoryOperationalStatus(row);
         const repNameClean = cleanRepDisplayName(row.rep) || (rowStatus === 'Vacant' ? 'Vacant Slot (Unassigned)' : 'Unassigned Rep');
         const formattedAssignedMedRep = repNameClean;
-        const docCountNum = parseInt(row.docs, 10) || 0;
+        const dynamicDocs = getCoveredDoctorsForTerritory(row);
+        const docCountNum = (dynamicDocs && dynamicDocs.length >= 0) ? dynamicDocs.length : (parseInt(row.docs, 10) || 0);
+        row.docs = docCountNum;
 
         let statusBadge = '';
         if (rowStatus === 'Vacant') {
@@ -10894,7 +10942,7 @@ const BASELINE_ERP_TERRITORIES = [
           activeCode: t.name,
           district: t.parent_territory || (base ? base.district : (LIVE_DATA[activeProgram]?.territoryBranch || 'All Territories')),
           rep: t.territory_manager ? t.territory_manager : (base ? base.rep : 'Unassigned Rep'),
-          docs: base ? (base.docs || 0) : 0,
+          docs: getCoveredDoctorsForTerritory({ activeCode: t.name, latestPrevCode: t.name, histCode: t.name, rep: t.territory_manager }).length,
           status: base ? (base.status || 'UNCHANGED') : 'UNCHANGED',
           recordId: newRecordId,
           userId: t.custom_user_id || ERP_TERRITORY_USER_MAP[t.name] || (base ? (base.userId || '') : ''),
@@ -15036,10 +15084,22 @@ const BASELINE_ERP_TERRITORIES = [
     const repClean = (territoryRow.rep || '').replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
 
     return programAccounts.filter(acc => {
+      // Must match activeProgram if program tag is present on account
+      if (acc.program && activeProgram && acc.program !== activeProgram) return false;
+
       const accTerr = (acc.liveTerritory || '').trim().toLowerCase();
-      const accRep = (acc.rep || '').trim().toLowerCase();
-      if (accTerr && (accTerr === c1 || accTerr === c2 || accTerr === c3)) return true;
-      if (repClean && accRep && accRep.includes(repClean)) return true;
+      const accRep = (acc.rep || '').replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+
+      // Primary: exact territory assignment match
+      if (accTerr) {
+        return (c1 && accTerr === c1) || (c2 && accTerr === c2) || (c3 && accTerr === c3);
+      }
+
+      // Secondary: ONLY when account has no liveTerritory assigned, match rep name
+      if (repClean && accRep) {
+        return accRep === repClean || accRep.includes(repClean) || repClean.includes(accRep);
+      }
+
       return false;
     });
   }
@@ -15211,6 +15271,8 @@ const BASELINE_ERP_TERRITORIES = [
   let activeTransferTargetRow = null;
   let activeTransferSourceRow = null;
 
+  let cachedTransferValidEntries = [];
+
   function openDoctorTransferModal(preselectedRef, event) {
     if (event) {
       event.preventDefault();
@@ -15221,6 +15283,11 @@ const BASELINE_ERP_TERRITORIES = [
       showToast('No territories available for the current program.', 'error');
       return;
     }
+
+    const tgtRepSearch = document.getElementById('transferTargetRepSearchInput');
+    if (tgtRepSearch) tgtRepSearch.value = '';
+    const srcRepSearch = document.getElementById('transferSourceRepSearchInput');
+    if (srcRepSearch) srcRepSearch.value = '';
 
     populateTransferTerritoryDropdowns(preselectedRef);
     document.getElementById('transferAuditNotesInput').value = '';
@@ -15247,8 +15314,15 @@ const BASELINE_ERP_TERRITORIES = [
       const detected = detectTextProgram(code);
       if (detected && detected !== activeProgram) return;
       if (allowed.size > 0 && code && !allowed.has(code) && detected !== activeProgram) return;
+      if (t.program && t.program !== activeProgram) return;
+      if (t.rep && t.rep !== 'Unassigned Rep' && !t.rep.toLowerCase().includes('unassigned')) {
+        const repProg = detectSalesPersonProgram(t.rep);
+        if (repProg && repProg !== 'ROOT_SALES_TEAM' && repProg !== activeProgram) return;
+      }
       validEntries.push({ t, idx });
     });
+
+    cachedTransferValidEntries = validEntries;
 
     if (validEntries.length === 0) return;
 
@@ -15282,32 +15356,104 @@ const BASELINE_ERP_TERRITORIES = [
       targetIdx = alt ? alt.idx : sourceIdx;
     }
 
-    validEntries.forEach(({ t, idx }) => {
+    renderTransferSelectOptions('target', targetIdx);
+    renderTransferSelectOptions('source', sourceIdx);
+
+    onTransferTerritorySelectionChanged();
+  }
+
+  function renderTransferSelectOptions(side, selectedIdx) {
+    const isTarget = side === 'target';
+    const selectEl = document.getElementById(isTarget ? 'transferTargetTerritorySelect' : 'transferSourceTerritorySelect');
+    if (!selectEl) return;
+    selectEl.innerHTML = '';
+
+    cachedTransferValidEntries.forEach(({ t, idx }) => {
       const code = t.activeCode || t.latestPrevCode || t.histCode || t.recordId;
       const rep = t.rep ? t.rep.trim() : 'Unassigned Rep';
       const isInactive = (t.operationalStatus === 'Inactive' || t.isResigned === true || rep.toUpperCase().includes('RESIGNED'));
-      const optText = `${code} &bull; ${rep}${isInactive ? ' [INACTIVE / RESIGNED]' : ''} (${t.docs || 0} Docs)`;
+      const docCount = getCoveredDoctorsForTerritory(t).length;
+      t.docs = docCount;
+      const optText = `${code} &bull; ${rep}${isInactive ? ' [INACTIVE / RESIGNED]' : ''} (${docCount} Docs)`;
 
-      const optT = document.createElement('option');
-      optT.value = idx;
-      optT.innerHTML = optText;
-      if (isInactive) {
-        optT.disabled = true;
-        optT.style.color = '#94A3B8';
-        optT.style.background = '#F1F5F9';
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.innerHTML = optText;
+      if (isTarget && isInactive) {
+        opt.disabled = true;
+        opt.style.color = '#94A3B8';
+        opt.style.background = '#F1F5F9';
       }
-      targetSel.appendChild(optT);
-
-      const optS = document.createElement('option');
-      optS.value = idx;
-      optS.innerHTML = optText;
-      sourceSel.appendChild(optS);
+      if (idx === selectedIdx) {
+        opt.selected = true;
+      }
+      selectEl.appendChild(opt);
     });
 
-    targetSel.value = targetIdx;
-    sourceSel.value = sourceIdx;
+    if (selectedIdx !== undefined && selectedIdx !== null && selectedIdx !== -1) {
+      selectEl.value = selectedIdx;
+    }
+  }
 
-    onTransferTerritorySelectionChanged();
+  function filterTransferRepDropdown(side) {
+    const isTarget = side === 'target';
+    const selectEl = document.getElementById(isTarget ? 'transferTargetTerritorySelect' : 'transferSourceTerritorySelect');
+    const inputEl = document.getElementById(isTarget ? 'transferTargetRepSearchInput' : 'transferSourceRepSearchInput');
+    if (!selectEl || !inputEl) return;
+
+    const query = inputEl.value.trim().toLowerCase();
+    const currentVal = parseInt(selectEl.value, 10);
+    selectEl.innerHTML = '';
+
+    const matching = cachedTransferValidEntries.filter(({ t }) => {
+      if (!query) return true;
+      const code = (t.activeCode || t.latestPrevCode || t.histCode || t.recordId || '').toLowerCase();
+      const rep = (t.rep || '').toLowerCase();
+      const district = (t.district || '').toLowerCase();
+      return code.includes(query) || rep.includes(query) || district.includes(query);
+    });
+
+    if (matching.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.disabled = true;
+      opt.selected = true;
+      opt.innerText = `No matching MedRep found for "${query}"`;
+      selectEl.appendChild(opt);
+      return;
+    }
+
+    let preservedMatch = false;
+    matching.forEach(({ t, idx }) => {
+      const code = t.activeCode || t.latestPrevCode || t.histCode || t.recordId;
+      const rep = t.rep ? t.rep.trim() : 'Unassigned Rep';
+      const isInactive = (t.operationalStatus === 'Inactive' || t.isResigned === true || rep.toUpperCase().includes('RESIGNED'));
+      const docCount = getCoveredDoctorsForTerritory(t).length;
+      t.docs = docCount;
+      const optText = `${code} &bull; ${rep}${isInactive ? ' [INACTIVE / RESIGNED]' : ''} (${docCount} Docs)`;
+
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.innerHTML = optText;
+      if (isTarget && isInactive) {
+        opt.disabled = true;
+        opt.style.color = '#94A3B8';
+        opt.style.background = '#F1F5F9';
+      }
+      if (idx === currentVal) {
+        opt.selected = true;
+        preservedMatch = true;
+      }
+      selectEl.appendChild(opt);
+    });
+
+    if (!preservedMatch && matching.length > 0) {
+      const firstEnabled = isTarget 
+        ? (matching.find(({ t }) => !(t.operationalStatus === 'Inactive' || t.isResigned === true || (t.rep || '').toUpperCase().includes('RESIGNED'))) || matching[0])
+        : matching[0];
+      selectEl.value = firstEnabled.idx;
+      onTransferTerritorySelectionChanged(side);
+    }
   }
 
   function onTransferTerritorySelectionChanged() {
@@ -15588,28 +15734,37 @@ const BASELINE_ERP_TERRITORIES = [
     let transferredToTargetCount = 0;
     let transferredToSourceCount = 0;
 
-    // Mutate programAccounts
+    // Mutate programAccounts and working doctor objects
     transferWorkingDocsTarget.forEach(targetDoc => {
+      targetDoc.liveTerritory = targetCode;
+      targetDoc.rep = targetRep;
       const match = programAccounts.find(acc => acc.accName === targetDoc.accName);
-      if (match && (match.liveTerritory !== targetCode || match.rep !== targetRep)) {
-        match.liveTerritory = targetCode;
-        match.rep = targetRep;
-        transferredToTargetCount++;
+      if (match) {
+        if (match.liveTerritory !== targetCode || match.rep !== targetRep) {
+          match.liveTerritory = targetCode;
+          match.rep = targetRep;
+          transferredToTargetCount++;
+        }
       }
     });
 
     transferWorkingDocsSource.forEach(sourceDoc => {
+      sourceDoc.liveTerritory = sourceCode;
+      sourceDoc.rep = sourceRep;
       const match = programAccounts.find(acc => acc.accName === sourceDoc.accName);
-      if (match && (match.liveTerritory !== sourceCode || match.rep !== sourceRep)) {
-        match.liveTerritory = sourceCode;
-        match.rep = sourceRep;
-        transferredToSourceCount++;
+      if (match) {
+        if (match.liveTerritory !== sourceCode || match.rep !== sourceRep) {
+          match.liveTerritory = sourceCode;
+          match.rep = sourceRep;
+          transferredToSourceCount++;
+        }
       }
     });
 
-    // Update docs count in programTerritories
-    activeTransferTargetRow.docs = transferWorkingDocsTarget.length;
-    activeTransferSourceRow.docs = transferWorkingDocsSource.length;
+    // Dynamically update docs count for all territories in programTerritories
+    programTerritories.forEach(row => {
+      row.docs = getCoveredDoctorsForTerritory(row).length;
+    });
 
     // Record Audit Trails
     const auditDetail = `Reassignment Handover: ${transferredToTargetCount} docs moved from ${sourceRep} (${sourceCode}) to ${targetRep} (${targetCode}). ${customNotes ? `Note: ${customNotes}` : ''}`;
@@ -15629,10 +15784,11 @@ const BASELINE_ERP_TERRITORIES = [
       details: auditDetail
     });
 
-    // Persist changes to localStorage
+    // Persist changes to localStorage (Bulletproof Multi-Key Persistence)
     try {
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
       localStorage.setItem('pims_accounts_' + activeProgram, JSON.stringify(programAccounts));
+      localStorage.setItem('pims_global_doctor_assignments_' + activeProgram, JSON.stringify(programAccounts));
     } catch (_) {}
 
     // Streamlit bidirectional dispatch
@@ -15643,10 +15799,12 @@ const BASELINE_ERP_TERRITORIES = [
           type: "streamlit:setComponentValue",
           value: {
             action: "doctor_transfer",
+            program: activeProgram,
             source_territory: sourceCode,
             target_territory: targetCode,
             transferred_to_target: transferredToTargetCount,
             transferred_to_source: transferredToSourceCount,
+            accounts: programAccounts,
             timestamp: Date.now()
           }
         }, "*");
