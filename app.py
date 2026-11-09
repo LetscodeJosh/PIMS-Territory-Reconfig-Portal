@@ -75,18 +75,18 @@ def load_dotenv_safely(env_path=".env"):
 load_dotenv_safely(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 def get_erpnext_url():
-    """Dynamically resolves ERPNext server endpoint strictly from Streamlit secrets, environment, or .env."""
+    """Dynamically resolves ERPNext server endpoint strictly targeting Staging (https://staging.pmii-marketing.com)."""
     try:
         if hasattr(st, "secrets") and "ERPNEXT_URL" in st.secrets:
             val = str(st.secrets["ERPNEXT_URL"]).strip().rstrip("/")
-            if val:
+            if val and "dev.pmii-marketing.com" not in val.lower():
                 return val
     except Exception:
         pass
     env_url = os.environ.get("ERPNEXT_URL") or os.environ.get("ERPNEXT_SERVER_URL")
-    if env_url:
+    if env_url and "dev.pmii-marketing.com" not in env_url.lower():
         return env_url.strip().rstrip("/")
-    return "https://dev.pmii-marketing.com"
+    return "https://staging.pmii-marketing.com"
 
 ERPNEXT_SERVER_URL = get_erpnext_url()
 
@@ -196,7 +196,7 @@ def request_erpnext_password_reset(user_email):
     """
     Safely processes password reset requests with cyber-grade security.
     STRICT SECURITY INVARIANT: Under NO circumstances will automated test reset emails
-    be dispatched to real employees on live ERPNext instances (dev.pmii-marketing.com).
+    be dispatched to real employees on live ERPNext instances (staging.pmii-marketing.com).
     """
     if not user_email or not isinstance(user_email, str):
         return {
@@ -1058,8 +1058,10 @@ def execute_tree_action(opener, action, payload):
                 err_text = he.read().decode("utf-8", errors="ignore")
                 if "DuplicateEntryError" in err_text:
                     return "warning", f'Territory "{t_name}" already exists in ERPNext.'
-                if "LinkValidationError" in err_text and "territory_manager" in err_text and "territory_manager" in body:
-                    del body["territory_manager"]
+                if "LinkValidationError" in err_text:
+                    for lf in ["custom_account_or_program", "territory_manager", "custom_user_id"]:
+                        if lf in body:
+                            del body[lf]
                     data = json.dumps(body).encode("utf-8")
                     req = urllib.request.Request(
                         f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
@@ -1103,8 +1105,10 @@ def execute_tree_action(opener, action, payload):
                 return "warning", f"ERPNext responded with HTTP {res.status}"
             except urllib.error.HTTPError as he:
                 err_text = he.read().decode("utf-8", errors="ignore")
-                if "LinkValidationError" in err_text and "territory_manager" in err_text and "territory_manager" in body:
-                    del body["territory_manager"]
+                if "LinkValidationError" in err_text:
+                    for lf in ["custom_account_or_program", "territory_manager", "custom_user_id"]:
+                        if lf in body:
+                            del body[lf]
                     data = json.dumps(body).encode("utf-8")
                     req = urllib.request.Request(
                         f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name)}",
@@ -1436,8 +1440,10 @@ if st.session_state.get("pending_auth_delivery"):
 if st.session_state.get("auth_response") and st.session_state["auth_response"].get("authorized"):
     if not st.session_state.get("opener"):
         st.session_state["opener"] = get_authenticated_opener()
-    if "live_territories" not in st.session_state or not st.session_state["live_territories"]:
+    if "live_territories" not in st.session_state or st.session_state["live_territories"] is None:
         st.session_state["live_territories"] = fetch_live_territories(st.session_state["opener"]) if st.session_state["opener"] else None
+    if "live_sales_persons" not in st.session_state or st.session_state["live_sales_persons"] is None:
+        st.session_state["live_sales_persons"] = fetch_live_sales_persons(st.session_state["opener"]) if st.session_state["opener"] else None
     if "live_institutions" not in st.session_state or st.session_state["live_institutions"] is None:
         st.session_state["live_institutions"] = fetch_live_institutions(st.session_state["opener"]) if st.session_state["opener"] else None
 else:
