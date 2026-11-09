@@ -6,67 +6,113 @@
 
 ---
 
-## 🚀 1. Fixes Applied in `v.0.1.1` (UAT Item #7 — Table Grid Row Actions, Territory Status & Parent Transfer)
+## 🚀 1. Fixes Applied in `v.0.1.1` (UAT Item #8 — Tab 1 MedRep Resignation & Handover Advisory, Bulk Operations Persistence, Tree View Sync & HR Validation)
 
-### 1.1 Eliminated False `"ERPNext Error (HTTP 403)"` Toast on Parent Territory Transfer & Sub-Territory Creation
+### 1.1 Removed "Enter New MedRep Name" Freeform Input on Doctor Transfer & Handover Window
 - **Root Cause**:
-  1. When `get_authenticated_opener(force_refresh=True)` was triggered in `app.py` without `PIMS_SERVICE_USER` environment variables configured, it replaced the logged-in SFE user's authenticated ERPNext session opener in `st.session_state["opener"]` with an unauthenticated `Guest` opener, causing subsequent `PUT /api/resource/Territory/<name>` calls to return `HTTP 403 Forbidden`.
-  2. Transferring a territory or adding a sub-territory (e.g., `AD101 - sub`) under a leaf territory (`AD0101`) required promoting the parent territory to `is_group = 1` on ERPNext first.
-  3. Direct browser `fetch('/api/resource/Territory/...')` calls inside `territory_reconfiguration_portal.html` hit Streamlit's Tornado server when running on Streamlit Cloud.
+  1. The Doctor Transfer & Handover workbench header previously contained an unvalidated text input (`#handoverNewRepInput` with placeholder `"Enter new MedRep name..."`), allowing ad-hoc typing of arbitrary representative names that bypassed ERPNext HR records.
+  2. The Territory Edit modal's `Transfer Rep` button invoked a browser prompt dialog `prompt('Enter new Medical Representative name to transfer territory:')`, which also bypassed validated program rosters.
+  3. The Resigned Representative Handover modal contained a freeform text input (`#resignNewRepInput`).
 - **Fix**:
-  - Preserved the authenticated user session opener in `st.session_state["opener"]` across `get_authenticated_opener()` and `call_erpnext_resiliently()`.
-  - Added automatic parent promotion (`_ensure_parent_territory_is_group`) in `app.py` (`tree_add` and `tree_edit`) and in `territory_reconfiguration_portal.html` so any territory (including `AD0101`) can accept sub-territories (`AD101 - sub`) or transferred child territories without HTTP 403/404 errors.
-  - Guarded browser-direct `/api/resource/...` calls so they only execute in standalone local desktop mode (`server.py`), while Streamlit Cloud exclusively uses the authenticated `streamlit:setComponentValue` bridge.
+  - Completely removed `#handoverNewRepInput` from the Doctor Transfer & Handover window. The workbench header now cleanly displays the source representative, 3-state operational status toggles, and an informational subtitle (`Direct Doctor Portfolio Transfer between Territories`).
+  - Refactored `transferRepPrompt()` to immediately open the Doctor Transfer & Handover workbench (`openDoctorTransferModal(terrCode)`) with the target territory preselected, eliminating browser prompt dialogs.
+  - In `resignedHandoverPromptModalOverlay`, removed `#resignNewRepInput` and dynamically populated `#resignNewRepSelect` strictly from active program MedReps and ERPNext HR `Sales Person` masterlists. Selecting a representative automatically validates and displays their ERPNext User ID (`onResignNewRepSelectChanged`).
 
-### 1.2 Theme-Optimized Dropdowns & Popover Menus (Light Mode & Dark Mode)
-- **Root Cause**: The Table Grid Row Actions popover (`.grid-actions-popover`), searchable ERP dropdowns (`.erp-search-input-box`, `.erp-dropdown-menu`), and `(Unassigned)` dropdown items had hardcoded Dark Mode colors (`#0F172A`, `#18181B`, `#27272A`), appearing dark even when the portal was in Light Mode.
-- **Fix**:
-  - Redesigned `.grid-actions-popover`, `.erp-search-input-box`, `.erp-dropdown-menu`, and dropdown item styles to automatically match the active theme: crisp white surfaces (`#FFFFFF` background, `#CBD5E1` border, `#0F172A` text) in **Light Mode** and slate dark surfaces (`#0F172A` / `#18181B` background, `#334155` border, `#F8FAFC` text) in **Dark Mode**.
-  - Added a persistent **Light / Dark Mode toggle button** (`☀️ Light Mode` / `🌙 Dark Mode`) in the top header bar (`localStorage` key `pims_portal_theme`).
-
-### 1.3 Three Separate Operational Statuses (`Active`, `Vacant`, `Inactive`) & Full Territory/MedRep Reactivation
+### 1.2 Bulk Operations Tab Refresh Persistence Bug Fix
 - **Root Cause**:
-  1. `Vacant` and `Inactive` were previously conflated into a single combined state (`Inactive / Vacant`).
-  2. `toggleTreeNodeActiveStatus()` toggled `pt.operationalStatus` but never reset `pt.isActive = true`, leaving `isNodeInactive` permanently `true` so territories and MedReps could never be reactivated.
-  3. Assigning a new active MedRep (`LAIZA PLACER`) in `submitTreeEdit()` or `saveRecordChanges()` updated `pt.rep` without resetting `pt.operationalStatus = 'Active'`, `pt.isActive = true`, and `pt.isResigned = false`, causing the newly assigned MedRep to be automatically tagged `Inactive / Resigned`.
-  4. Clicking **Confirm** inside the `Tag Territory Inactive & Vacant` modal (`confirmTagInactive()`) threw an uncaught `ReferenceError: activeUser is not defined` and called non-existent functions (`renderGridTable`, `renderInteractiveTree`, `renderArchivedTerritoriesVault`).
+  1. In `applyBulkEdit()`, `applyBulkRename()`, and `applyBulkAdd()`, modifications were applied to in-memory arrays (`programTerritories`, `programAccounts`), but were **never saved to `localStorage`** (`pims_stg_program_territories_<program>`, `pims_stg_territory_tree_v1`, `pims_accounts_<program>`).
+  2. On tab refresh or page reload, `loadProgramTerritories()` retrieved the stale previous state from `localStorage`, causing all newly created MedReps, clusters, and bulk edits to vanish.
 - **Fix**:
-  - Implemented the unified 3-state status engine (`getTerritoryOperationalStatus`, `setTerritoryOperationalStatus`, `cleanRepDisplayName`) supporting **three separate operational statuses**:
-    - 🟢 **`Active`**: Assigned & operational territory.
-    - 🟡 **`Vacant`**: Open territory slot awaiting MedRep assignment (all covered doctors preserved).
-    - 🔴 **`Inactive`**: Decommissioned / resigned territory preserved in the Archive Directory.
-  - Updated **Table Grid** (status filter checkboxes `ACTIVE | VACANT | INACTIVE`, status badges, and Row Actions menu items `Set Active`, `Tag as Vacant`, `Tag as Inactive`), **Territory Tree** (`Set Active`, `Vacant`, `Inactive` action buttons and distinct badges), and **Status Update Modal** (`#inactiveModalOverlay`) to support seamless transitions among all 3 statuses.
-  - Assigning a MedRep via **Edit Territory** automatically transitions the territory back to **`Active`** and clears any prior `Inactive`/`Vacant` flags.
-  - Resolved conflicting MedRep status in dropdowns (`ALDRIN ESTORICO`) so active MedReps are never falsely locked out, and MedReps on inactive territories can be selected to reactivate/reassign.
+  - Implemented automatic, comprehensive `localStorage` persistence across all bulk operations (`applyBulkEdit`, `applyBulkRename`, `applyBulkAdd`, and `applyBulkDelete`). All bulk edits and newly added territories survive tab refreshes, browser reloads, and cycle navigation 100%.
+
+### 1.3 Bulk Operations UI Cleanup & Removal of "Update Status" Selector
+- **Root Cause**:
+  1. Unnecessary emojis and decorative icons (`⚡`, `✏️`, `🏷️`, `🗑️`, `➕`, `ℹ️`, `✨`) cluttered modal titles, tabs, and form labels.
+  2. The Modify tab contained an `"Update Status"` dropdown (`#bulkEditStatus` with options `CHANGED` / `UNCHANGED`), which was redundant because operational statuses (`Active`, `Vacant`, `Inactive`) are managed via dedicated status engines and row actions.
+- **Fix**:
+  - Cleaned all bulk operations modal headers, tabs, and labels to adhere to clean enterprise design standards without decorative emojis.
+  - Completely removed the `#bulkEditStatus` dropdown from the Modify tab and `applyBulkEdit()` handler. Bulk modifications focus cleanly on MedRep reassignment, cluster regrouping, and audit logging.
+
+### 1.4 Bulk Operations Territory Tree Synchronization Bug Fix
+- **Root Cause**:
+  1. `applyBulkAdd()` and `applyBulkEdit()` only pushed records into the flat table grid array (`programTerritories`), but never created or updated corresponding nodes in `territoryTreeData`.
+  2. Newly created clusters and territories appeared in the Table Grid view but were completely missing from the Territory Tree hierarchy.
+- **Fix**:
+  - `applyBulkAdd()` now automatically detects if a district cluster exists in `territoryTreeData`. If not, it creates a new group node (`is_group = 1`, `parent_territory = programBranch`) and expands the branch in `treeExpandedNodes`.
+  - For each added territory, `applyBulkAdd()` inserts a leaf node (`is_group = 0`, `parent_territory = cluster`, `territory_manager = rep`, `operational_status = initialStatus`) into `territoryTreeData`.
+  - `applyBulkEdit()` automatically synchronizes cluster changes (`parent_territory`) and representative reassignments (`territory_manager`) into `territoryTreeData` and re-renders both views immediately (`renderTable()`, `renderTree()`).
+
+### 1.5 Flexible Per-Territory MedRep Assignment in Bulk Add
+- **Root Cause**:
+  - `applyBulkAdd()` previously forced a single hardcoded representative across all entered territory codes, preventing SFE Leads from allocating multiple territories across different MedReps who share the same coverage area.
+- **Fix**:
+  - Added an interactive **Per-Territory Assignment Grid** (`#bulkAddRowsContainer`, `#bulkAddTableBody`, `renderBulkAddAssignmentRows()`) that dynamically parses entered codes and renders individual rows with editable District Cluster and Assigned MedRep selectors per territory.
+  - SFE Leads can freely assign each territory to different representatives or vacant slots, or click **"Fill All"** (`applyBulkAddDefaultsToAllRows()`) to apply uniform defaults when desired.
+
+### 1.6 HR Record Validation for New MedReps & Auto-Populating User ID
+- **Root Cause**:
+  - Previously, representatives could be entered as arbitrary names without verifying that an official Employee record was created by the HR Department in ERPNext, resulting in missing User IDs and broken mobile sync.
+- **Fix**:
+  - Enforced strict HR validation in `submitNewSalesPerson()`: every new representative must be linked to an official ERPNext Employee record (`empId` from `availableEmployees`), and must have an active User ID (`userAcc` email). If either is missing, creation is blocked with a clear warning directive.
+  - Selecting an employee in `selectErpItem('newSpEmployee')` automatically searches `availableUsers` and auto-populates the matching User ID and email into `newSpUserAccount`.
+
+### 1.7 Strict Zero-Deletion Standard (Elimination of Permanent Delete)
+- **Root Cause**:
+  - The Bulk Operations modal previously included a `"Delete"` tab with a radio option `"Permanently remove territory records"` and a red `"Confirm & Delete Selected"` button, violating the enterprise zero-deletion invariant.
+- **Fix**:
+  - Converted Tab 3 from `"Delete"` to **`"Decommission"`** (`#btnBulkTab_decommission`, `#bulkPane_decommission`).
+  - Completely eliminated the permanent deletion option from the UI and backend logic.
+  - Replaced the action with **Tag as Inactive & Move to Archive Vault**: decommissioned territories are marked `operationalStatus = 'Inactive'`, added to `archivedRecords` (Archive Vault — Tab 2), excluded from active dropdowns, and preserved with 100% doctor history without data loss. Button renamed to **`Confirm & Decommission to Archive`**.
 
 ---
 
-## 🛠️ 2. Fixes Applied in Previous Version (`v.0.1.0` & UAT Item #4 — Reconfiguration Editor & Staging Cutover)
+## 🚀 2. Fixes Applied in `v.0.1.1` (UAT Item #7 — Table Grid Row Actions, Territory Status & Parent Transfer)
+
+### 2.1 Eliminated False `"ERPNext Error (HTTP 403)"` Toast on Parent Territory Transfer & Sub-Territory Creation
+- Preserved the authenticated user session opener in `st.session_state["opener"]` across `get_authenticated_opener()` and `call_erpnext_resiliently()`.
+- Added automatic parent promotion (`_ensure_parent_territory_is_group`) in `app.py` (`tree_add` and `tree_edit`) and in `territory_reconfiguration_portal.html` so any territory (including `AD0101`) can accept sub-territories (`AD101 - sub`) or transferred child territories without HTTP 403/404 errors.
+- Guarded browser-direct `/api/resource/...` calls so they only execute in standalone local desktop mode (`server.py`), while Streamlit Cloud exclusively uses the authenticated `streamlit:setComponentValue` bridge.
+
+### 2.2 Theme-Optimized Dropdowns & Popover Menus (Light Mode & Dark Mode)
+- Redesigned `.grid-actions-popover`, `.erp-search-input-box`, `.erp-dropdown-menu`, and dropdown item styles to automatically match the active theme: crisp white surfaces in **Light Mode** and slate dark surfaces in **Dark Mode**.
+- Added a persistent **Light / Dark Mode toggle button** (`☀️ Light Mode` / `🌙 Dark Mode`) in the top header bar (`localStorage` key `pims_portal_theme`).
+
+### 2.3 Three Separate Operational Statuses (`Active`, `Vacant`, `Inactive`) & Full Territory/MedRep Reactivation
+- Implemented the unified 3-state status engine (`getTerritoryOperationalStatus`, `setTerritoryOperationalStatus`, `cleanRepDisplayName`) supporting **three separate operational statuses**:
+  - 🟢 **`Active`**: Assigned & operational territory.
+  - 🟡 **`Vacant`**: Open territory slot awaiting MedRep assignment (all covered doctors preserved).
+  - 🔴 **`Inactive`**: Decommissioned / resigned territory preserved in the Archive Directory.
+- Updated **Table Grid**, **Territory Tree**, and **Status Update Modal** (`#inactiveModalOverlay`) to support seamless transitions among all 3 statuses.
+- Assigning a MedRep via **Edit Territory** automatically transitions the territory back to **`Active`** and clears any prior `Inactive`/`Vacant` flags.
+
+---
+
+## 🛠️ 3. Fixes Applied in Previous Version (`v.0.1.0` & UAT Item #4 — Reconfiguration Editor & Staging Cutover)
 
 1. **Staging Environment API Cutover (`https://staging.pmii-marketing.com`)**:
    - Switched all REST endpoints, authentication handlers, and bidirectional sync connectors in `app.py`, `server.py`, and `territory_reconfiguration_portal.html` from Dev to Staging (`https://staging.pmii-marketing.com`), with blank-tree readiness for SFE live data entry.
 2. **Program-Locked Territory Manager Dropdowns (UAT #4.1)**:
-   - Locked all Territory Manager (`Sales Person`) dropdowns (`treeAddManager`, `treeEditManager`, `editManager`, `addManager`, `newSpParent`) strictly to members of the currently selected program (`activeProgram`, e.g., `Abbott Diabetes Care`, `Bayer Consumer Health`, `RiteMed`, `Vivaro`) via `isSalesPersonInProgram()` and `PROGRAM_SALES_PERSON_ROSTER`.
+   - Locked all Territory Manager (`Sales Person`) dropdowns (`treeAddManager`, `treeEditManager`, `editManager`, `addManager`, `newSpParent`) strictly to members of the currently selected program (`activeProgram`) via `isSalesPersonInProgram()` and `PROGRAM_SALES_PERSON_ROSTER`.
 3. **Territory Name Never Overrides Territory Manager (UAT #4.2)**:
-   - Removed the auto-matching logic in `onTreeAddNameInput()` so typing a Territory Name in the `Add Territory` modal never overrides or auto-populates the `Territory Manager` field.
-4. **Removed `User ID` and `Account / Program` Fields from Display (UAT #4.3)**:
-   - Hidden `User ID` and `Account / Program` fields across the Add Territory modal, Edit Territory modal, Reconfigure Territory modal, Add Sales Person modal, and Table Grid filters.
-5. **Program-Locked Parent Territory & Doctor Transfer Dropdowns (UAT #4.4)**:
-   - Locked `Parent Territory` selectors and `Transfer & Handover` destination territory dropdowns strictly to territories within the currently selected program (`getProgramTerritoryNames(activeProgram)`), preventing cross-program territory transfers.
+   - Fixed the event handler on territory name input fields so typing or editing a territory name never overrides or modifies the territory manager.
+4. **Clean Presentation (User ID & Program Fields Hidden from Standard UI) (UAT #4.3)**:
+   - Hid technical internal fields (`User ID`, `Account/Program`) from standard view, keeping them strictly in the background for automated ERPNext payload construction.
+5. **Program-Isolated Territory Transfers (No Cross-Program Crossover) (UAT #4.4)**:
+   - Enforced strict program boundaries on all parent territory dropdowns (`editParentSelect`, `treeAddParentSelect`, `treeEditParentSelect`) so territories can only be reparented within their own program.
 
 ---
 
-## ✅ 3. Currently Working Functionalities in `v.0.1.1`
+## 📦 4. Comprehensive Feature Matrix & Operational Status
 
-| Module / Feature | Status | Description |
+| Module / Workbench | Operational Status | Summary of Capabilities |
 | :--- | :---: | :--- |
-| **Dual-Environment Authentication** | ✅ Working | Authenticates against ERPNext Staging (`https://staging.pmii-marketing.com`) on Streamlit Cloud & Desktop (`server.py`) with session persistence (`?sfe_session=`). |
-| **Program Selector & Strict Isolation** | ✅ Working | Switches cleanly across `Abbott Diabetes Care`, `Bayer Consumer Health`, `RiteMed`, and `Vivaro` with zero cross-program leakage in territories or MedReps. |
-| **Interactive Territory Tree View** | ✅ Working | Expand/collapse hierarchy, search filter, `+ Add Child` (folders & sub-territories like `AD101 - sub` under `AD0101`), `Edit`, `Transfer Doctor`, `Rename`, and 1-click `Set Active` / `Vacant` / `Inactive` buttons. |
-| **Table Grid View & Filtering** | ✅ Working | Multi-column search, `ACTIVE \| VACANT \| INACTIVE` status filter checkboxes, column visibility selector, pagination (`10`, `20`, `50`, `All`), and theme-adaptive Row Actions menu. |
-| **3-State Operational Status Engine** | ✅ Working | Separate `Active` (Green), `Vacant` (Amber), and `Inactive` (Red) statuses with full reactivation via button click, modal confirmation, or MedRep assignment. |
-| **Light & Dark Mode Optimization** | ✅ Working | Header theme toggle (`☀️ Light Mode` / `🌙 Dark Mode`) optimizing all popovers, searchable ERP dropdowns, tables, and modals. |
-| **Doctor Transfer & Handover** | ✅ Working | Two-pane doctor transfer & merge modal (`openDoctorTransferModal`) scoped to the active program with real-time doctor count recalculation. |
+| **Authentication & Session Bridge** | ✅ Working | Seamless single-click and URL token (`?sfe_session=...`) auth with 24/7 session persistence across page refreshes. |
+| **Staging Environment API** | ✅ Working | Direct REST communication with `https://staging.pmii-marketing.com` with blank-tree onboarding readiness. |
+| **Program-Locked Selection** | ✅ Working | Program switcher strictly isolates territories, managers, and doctors to the active program. |
+| **Territory Reconfiguration Editor** | ✅ Working | Real-time inline editing of territory names, parent hierarchy, clusters, and representative assignments. |
+| **Bulk Operations Workbench** | ✅ Working | Bulk modify, rename, decommission to archive vault, and bulk add with per-territory MedRep assignment, zero-deletion safety, clean UI, and full reload persistence. |
+| **Territory Tree Hierarchy** | ✅ Working | Interactive collapsible tree with parent group auto-promotion, instant cluster/MedRep synchronization, and 3 distinct operational statuses. |
+| **Doctor Transfer & Handover** | ✅ Working | Two-pane transfer tool for reassigning doctors between source and target territories with real-time recalculation and zero freeform prompt leaks. |
 | **Covered Doctors & Audit Trail** | ✅ Working | Per-territory Covered Doctors viewer (`openCoveredDoctorsModal`) and full timestamped change ledger (`openAuditModal` & Summary Report). |
 | **Archive Directory Vault** | ✅ Working | Zero-deletion preservation of `Vacant` and `Inactive` territories with 1-click restoration to active cycles. |
 | **SFE Institution Approvals** | ✅ Working | Review, normalize, deduplicate, and approve new medical institutions submitted from the HCP Profiling Mobile App. |

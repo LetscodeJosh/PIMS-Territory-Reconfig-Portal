@@ -3929,9 +3929,8 @@
           <button type="button" id="btnTransferStatus_vacant" onclick="setTransferSourceOperationalStatus('Vacant')" style="padding:3px 9px; font-size:11px; font-weight:700; border:none; border-left:1px solid #CBD5E1; cursor:pointer; background:#F8FAFC; color:#64748B;">Vacant</button>
         </div>
       </div>
-      <div style="display:flex; align-items:center; gap:8px; font-size:12px; flex:1; max-width:360px;">
-        <span style="font-weight:700; color:#475569; white-space:nowrap;">New Rep:</span>
-        <input type="text" id="handoverNewRepInput" class="form-control" placeholder="Enter new MedRep name..." style="font-size:12px; padding:4px 10px; height:32px;">
+      <div style="font-size:11.5px; color:#64748B;">
+        <span>Direct Doctor Portfolio Transfer between Territories</span>
       </div>
     </div>
 
@@ -4094,23 +4093,28 @@
       </div>
     </div>
 
-    <!-- Reassignment Inputs for Newly Assigned MedRep -->
+    <!-- Reassignment Inputs for Newly Assigned MedRep (Strictly Validated with ERPNext HR) -->
     <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; padding:14px 16px; margin-bottom:18px;">
       <div style="font-size:12px; font-weight:800; color:#0F172A; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
-        👤 DESIGNATE NEWLY ASSIGNED MEDREP
+        Designate Newly Assigned MedRep (ERPNext HR Masterlist)
       </div>
-      <div style="display:grid; grid-template-columns:1fr; gap:12px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
         <div>
           <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">
-            Newly Assigned MedRep Name <span style="color:#EF4444;">*</span>
+            Newly Assigned MedRep <span style="color:#EF4444;">*</span>
           </label>
-          <input type="text" id="resignNewRepInput" class="form-control" placeholder="Enter newly assigned MedRep..." style="font-size:12px; height:34px; padding:0 10px; border-radius:6px;">
+          <select id="resignNewRepSelect" class="form-control" onchange="onResignNewRepSelectChanged(this)" style="font-size:12px; height:34px; padding:0 10px; border-radius:6px; font-weight:600;">
+            <option value="">-- Select Newly Assigned MedRep --</option>
+          </select>
         </div>
-        <div style="display:none;">
+        <div>
           <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">
-            New MedRep User ID / Email
+            MedRep User ID / Email <span style="color:#0066FF;">(Auto-Populated)</span>
           </label>
-          <input type="text" id="resignNewUserIdInput" class="form-control" placeholder="e.g. rep@company.com" style="font-size:12px; height:34px; padding:0 10px; border-radius:6px;">
+          <input type="text" id="resignNewUserIdInput" class="form-control" readonly placeholder="Auto-populated from ERPNext User ID..." style="font-size:12px; height:34px; padding:0 10px; border-radius:6px; background:#F8FAFC; color:#0F172A; font-weight:600;">
+          <div id="resignHrValidationNotice" style="font-size:11px; margin-top:4px; font-weight:600; color:#15803D;">
+            ✓ Validated against ERPNext HR Masterlist
+          </div>
         </div>
       </div>
     </div>
@@ -4139,8 +4143,8 @@
   <div class="modal-card" style="max-width:640px; width:92%;">
     <div class="modal-header">
       <div>
-        <h2 style="font-size:16px; font-weight:800; color:#0F172A; display:flex; align-items:center; gap:8px;">
-          <span>⚡ Bulk Operations Workbench</span>
+        <h2 style="font-size:16px; font-weight:800; color:#0F172A;">
+          Bulk Operations Workbench
         </h2>
         <div style="font-size:11.5px; color:var(--text-secondary); margin-top:2px;" id="bulkModalSubtitle">
           Apply actions across <strong id="bulkModalCount" style="color:#0066FF;">0</strong> selected territories in <span id="bulkModalProgram" style="font-weight:700; color:#0F172A;">Abbott Diabetes Care</span>
@@ -4149,19 +4153,19 @@
       <button class="btn btn-sm btn-outline" onclick="closeBulkEditModal()">✕</button>
     </div>
 
-    <!-- 4 Operation Tabs -->
+    <!-- 4 Operation Tabs (Icons Cleaned for Professional SFE Reconfiguration) -->
     <div class="bulk-tabs-bar">
       <button type="button" class="bulk-tab-btn active" id="btnBulkTab_modify" onclick="switchBulkTab('modify')">
-        <span>✏️</span> Modify
+        Modify
       </button>
       <button type="button" class="bulk-tab-btn" id="btnBulkTab_rename" onclick="switchBulkTab('rename')">
-        <span>🏷️</span> Rename
+        Rename
       </button>
-      <button type="button" class="bulk-tab-btn" id="btnBulkTab_delete" onclick="switchBulkTab('delete')">
-        <span>🗑️</span> Delete
+      <button type="button" class="bulk-tab-btn" id="btnBulkTab_decommission" onclick="switchBulkTab('decommission')">
+        Decommission
       </button>
       <button type="button" class="bulk-tab-btn" id="btnBulkTab_add" onclick="switchBulkTab('add')">
-        <span>➕</span> Bulk Add
+        Bulk Add
       </button>
     </div>
 
@@ -4176,32 +4180,24 @@
       </div>
     </div>
 
-    <!-- TAB 1: MODIFY PANE -->
+    <!-- TAB 1: MODIFY PANE (Status Selector Removed per SFE Reconfiguration Standard) -->
     <div id="bulkPane_modify" class="bulk-tab-pane active">
       <div class="form-group">
-        <label>Update Status:</label>
-        <select id="bulkEditStatus" class="form-control" style="font-weight:600;">
+        <label>Reassign Assigned MedRep (ERPNext HR Registered):</label>
+        <select id="bulkEditRepSelect" class="form-control" style="font-weight:600;" onchange="onBulkRepSelectChange(this)">
           <option value="">-- No Change (Keep Current) --</option>
-          <option value="CHANGED">CHANGED</option>
-          <option value="UNCHANGED">UNCHANGED</option>
         </select>
-      </div>
-      <div class="form-group">
-        <label>Reassign Assigned MedRep (Optional):</label>
-        <div style="display:flex; gap:6px;">
-          <select id="bulkEditRepSelect" class="form-control" style="font-weight:600; width:50%;" onchange="onBulkRepSelectChange(this)">
-            <option value="">-- Select MedRep --</option>
-          </select>
-          <input type="text" id="bulkEditRep" class="form-control" style="width:50%;" placeholder="Or type new MedRep name...">
+        <div id="bulkEditUserIdNotice" style="font-size:11px; margin-top:4px; font-weight:600; color:#15803D; display:none;">
+          User ID: <span id="bulkEditUserIdDisplay">---</span>
         </div>
       </div>
       <div class="form-group">
-        <label>Reassign District Group / Cluster (Optional):</label>
+        <label>Reassign District Group / Cluster:</label>
         <div style="display:flex; gap:6px;">
-          <select id="bulkEditDistrictSelect" class="form-control" style="font-weight:600; width:50%;" onchange="onBulkDistrictSelectChange(this)">
-            <option value="">-- Select Cluster --</option>
+          <select id="bulkEditDistrictSelect" class="form-control" style="font-weight:600; flex:1;" onchange="onBulkDistrictSelectChange(this)">
+            <option value="">-- No Change (Keep Current) --</option>
           </select>
-          <input type="text" id="bulkEditDistrict" class="form-control" style="width:50%;" placeholder="Or type custom cluster...">
+          <input type="text" id="bulkEditDistrict" class="form-control" style="display:none; flex:1;" placeholder="Enter custom cluster name...">
         </div>
       </div>
       <div class="form-group">
@@ -4209,7 +4205,7 @@
         <input type="text" id="bulkEditReason" class="form-control" value="Bulk reconfiguration by SFE Lead">
       </div>
       <div style="background:#EFF6FF; border:1.5px solid #BFDBFE; border-radius:6px; padding:9px 12px; font-size:11.5px; color:#1E40AF; margin-bottom:14px; line-height:1.4;">
-        ℹ️ Bulk modifications apply immediately to all selected records, logging an audit trail for each territory and instantly updating the <strong>Summary Report & Audit Trail</strong>.
+        Bulk modifications apply immediately to all selected records, updating territory and tree hierarchies, and logging an audit trail for each territory in the <strong>Summary Report &amp; Audit Trail</strong>.
       </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; border-top:1px solid var(--border); padding-top:14px;">
         <button class="btn btn-outline" onclick="closeBulkEditModal()">Cancel</button>
@@ -4323,103 +4319,103 @@
       </div>
     </div>
 
-    <!-- TAB 3: DELETE PANE -->
-    <div id="bulkPane_delete" class="bulk-tab-pane">
-      <div style="background:#FEF2F2; border:1.5px solid #FCA5A5; border-radius:8px; padding:12px 14px; margin-bottom:14px;">
-        <div style="display:flex; align-items:center; gap:8px; color:#991B1B; font-weight:800; font-size:13px; margin-bottom:6px;">
-          <span>⚠️ Warning: Irreversible Action</span>
+    <!-- TAB 3: DECOMMISSION PANE (Strict Zero-Deletion Architecture - Permanent Delete Removed) -->
+    <div id="bulkPane_decommission" class="bulk-tab-pane">
+      <div style="background:#FFFBEB; border:1.5px solid #FCD34D; border-radius:8px; padding:12px 14px; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:8px; color:#92400E; font-weight:800; font-size:13px; margin-bottom:4px;">
+          <span>Decommission &amp; Archive Policy (Zero Data Loss Guarantee)</span>
         </div>
-        <div style="font-size:12px; color:#7F1D1D; line-height:1.4;">
-          You have selected <strong id="deleteTerritoryCount" style="color:#B91C1C;">0</strong> territory records.
-          Total Covered Doctors: <strong id="deleteDoctorCount" style="color:#B91C1C;">0</strong> doctors mapped to these territories.
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label style="font-weight:700; font-size:12px; color:#1E293B; display:block; margin-bottom:6px;">Select Deletion Method:</label>
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; cursor:pointer; background:#F8FAFC; border:1.5px solid #CBD5E1; padding:8px 10px; border-radius:6px;">
-            <input type="radio" name="deleteMethod" value="archive" checked style="accent-color:#0066FF; margin-top:2px;">
-            <div>
-              <strong style="color:#0F172A;">Decommission & Move to Archive Vault (Recommended)</strong>
-              <div style="font-size:11px; color:#64748B; margin-top:2px;">Safely preserves territory history, past MedRep assignment, and doctor counts in the Archive Vault (Tab 2).</div>
-            </div>
-          </label>
-          <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; cursor:pointer; background:#F8FAFC; border:1.5px solid #CBD5E1; padding:8px 10px; border-radius:6px;">
-            <input type="radio" name="deleteMethod" value="permanent" style="accent-color:#DC2626; margin-top:2px;">
-            <div>
-              <strong style="color:#DC2626;">Permanently Remove Territory Records</strong>
-              <div style="font-size:11px; color:#64748B; margin-top:2px;">Removes the records completely from the masterlist. Logs a permanent deletion audit entry.</div>
-            </div>
-          </label>
+        <div style="font-size:12px; color:#78350F; line-height:1.4;">
+          You have selected <strong id="deleteTerritoryCount" style="color:#B45309;">0</strong> territory records.
+          Total Covered Doctors: <strong id="deleteDoctorCount" style="color:#B45309;">0</strong> doctors mapped to these territories.
         </div>
       </div>
 
       <div class="form-group">
-        <label>Decommission / Deletion Reason (Required):</label>
+        <div style="background:#F8FAFC; border:1.5px solid #CBD5E1; padding:10px 12px; border-radius:6px;">
+          <strong style="color:#0F172A; font-size:12px;">Tag as Inactive &amp; Move to Archive Vault</strong>
+          <div style="font-size:11px; color:#64748B; margin-top:3px; line-height:1.4;">
+            Safely preserves all territory records, past MedRep affiliations, and doctor assignments in the <strong>Archive Vault (Tab 2)</strong>. Decommissioned territories are marked as <strong>Inactive</strong> and excluded from active reconfiguration dropdowns. Permanent deletion is prohibited.
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Decommission Reason (Required):</label>
         <input type="text" id="bulkDeleteReason" class="form-control" value="Decommissioned during SFE cycle realignment">
       </div>
 
-      <div class="form-group" style="margin-bottom:14px; background:#FFFBEB; border:1.5px solid #FCD34D; padding:8px 10px; border-radius:6px;">
-        <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:#92400E; cursor:pointer; margin:0; user-select:none;">
-          <input type="checkbox" id="bulkDeleteConfirmCheckbox" onchange="onBulkDeleteConfirmChange()" style="cursor:pointer; width:16px; height:16px; accent-color:#DC2626;">
-          I confirm the deletion / decommissioning of these selected territories.
+      <div class="form-group" style="margin-bottom:14px; background:#F8FAFC; border:1.5px solid #CBD5E1; padding:8px 10px; border-radius:6px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:#334155; cursor:pointer; margin:0; user-select:none;">
+          <input type="checkbox" id="bulkDeleteConfirmCheckbox" onchange="onBulkDeleteConfirmChange()" style="cursor:pointer; width:16px; height:16px; accent-color:#0066FF;">
+          I confirm decommissioning of these selected territories (tag Inactive and move to Archive).
         </label>
       </div>
 
       <div style="display:flex; justify-content:flex-end; gap:8px; border-top:1px solid var(--border); padding-top:14px;">
         <button class="btn btn-outline" onclick="closeBulkEditModal()">Cancel</button>
-        <button class="btn btn-danger" id="btnExecuteBulkDelete" onclick="applyBulkDelete()" disabled style="font-weight:700; opacity:0.5; cursor:not-allowed;">Confirm & Delete Selected</button>
+        <button class="btn btn-primary" id="btnExecuteBulkDelete" onclick="applyBulkDelete()" disabled style="background:#D97706; border-color:#D97706; color:#FFF; font-weight:700; opacity:0.5; cursor:not-allowed;">Confirm &amp; Decommission to Archive</button>
       </div>
     </div>
 
-    <!-- TAB 4: BULK ADD PANE -->
+    <!-- TAB 4: BULK ADD PANE (Flexible Per-Territory Assignment Grid & Tree Sync) -->
     <div id="bulkPane_add" class="bulk-tab-pane">
       <div class="form-group">
         <label style="display:flex; justify-content:space-between;">
           <span>Enter Territory Codes (One per line or comma-separated):</span>
           <span id="bulkAddCountBadge" style="font-size:11px; color:#0066FF; font-weight:700;">0 Valid Codes</span>
         </label>
-        <textarea id="bulkAddCodesTextarea" class="form-control" rows="4" placeholder="e.g.&#10;ADC0120&#10;ADC0121&#10;ADC0122" style="font-family:monospace; font-size:12px; font-weight:600;" oninput="onBulkAddCodesInput()"></textarea>
+        <textarea id="bulkAddCodesTextarea" class="form-control" rows="3" placeholder="e.g.&#10;ADC0120&#10;ADC0121&#10;ADC0122" style="font-family:monospace; font-size:12px; font-weight:600;" oninput="onBulkAddCodesInput()"></textarea>
         <div id="bulkAddWarningBox" style="display:none; color:#DC2626; font-size:11px; font-weight:700; margin-top:4px;"></div>
       </div>
 
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-        <div class="form-group">
-          <label>District Group / Cluster:</label>
-          <select id="bulkAddDistrictSelect" class="form-control" style="font-weight:600;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Default District Cluster:</label>
+          <select id="bulkAddDistrictSelect" class="form-control" style="font-weight:600;" onchange="onBulkAddDefaultDistrictChange()">
             <!-- Populated dynamically -->
           </select>
         </div>
-        <div class="form-group">
-          <label>Initial Assigned MedRep:</label>
-          <select id="bulkAddRepSelect" class="form-control" style="font-weight:600;">
-            <!-- Populated dynamically -->
-          </select>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Default Assigned MedRep:</label>
+          <div style="display:flex; gap:6px;">
+            <select id="bulkAddRepSelect" class="form-control" style="font-weight:600; flex:1;" onchange="onBulkAddDefaultRepChange()">
+              <!-- Populated dynamically -->
+            </select>
+            <button type="button" class="btn btn-sm btn-outline" onclick="applyBulkAddDefaultsToAllRows()" style="font-size:11px; padding:4px 8px; white-space:nowrap;" title="Apply default cluster & rep to all rows below">Fill All</button>
+          </div>
         </div>
       </div>
 
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-        <div class="form-group">
-          <label>Initial Status:</label>
-          <select id="bulkAddStatus" class="form-control" style="font-weight:600;">
-            <option value="CHANGED" selected>CHANGED (New Reconfiguration)</option>
-            <option value="UNCHANGED">UNCHANGED</option>
-          </select>
+      <!-- Per-Territory Custom Assignment Grid (Freedom to Assign Different MedReps to Shared Coverage) -->
+      <div id="bulkAddRowsContainer" style="display:none; margin-top:8px; margin-bottom:12px;">
+        <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+          <span>Territory MedRep &amp; Cluster Allocation:</span>
+          <span style="font-size:10.5px; color:#64748B; font-weight:500;">Assign freely across MedReps sharing coverage</span>
         </div>
-        <div class="form-group">
-          <label>Initial Doctor Count:</label>
-          <input type="number" id="bulkAddDocs" class="form-control" value="0" min="0">
+        <div style="max-height:160px; overflow-y:auto; border:1.5px solid #CBD5E1; border-radius:6px; background:#FFF;">
+          <table class="preview-table" style="font-size:11.5px; margin:0;">
+            <thead>
+              <tr style="position:sticky; top:0; background:#F8FAFC; z-index:1;">
+                <th style="width:25%; padding:6px 8px;">Code</th>
+                <th style="width:35%; padding:6px 8px;">Cluster</th>
+                <th style="width:40%; padding:6px 8px;">Assigned MedRep</th>
+              </tr>
+            </thead>
+            <tbody id="bulkAddTableBody">
+              <!-- Dynamically generated rows -->
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div style="background:#F0FDF4; border:1.5px solid #BBF7D0; border-radius:6px; padding:8px 12px; font-size:11.5px; color:#166534; margin-bottom:14px; line-height:1.4;">
-        ✨ Bulk Add creates new territory records with generated record IDs and audit trails, then automatically selects them for immediate inspection.
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#F0FDF4; border:1.5px solid #BBF7D0; border-radius:6px; padding:8px 12px; font-size:11.5px; color:#166534; margin-bottom:14px; line-height:1.4;">
+        <span>Bulk Add creates and links records in both Table Grid and Territory Tree with automatic persistence and zero data loss.</span>
       </div>
 
       <div style="display:flex; justify-content:flex-end; gap:8px; border-top:1px solid var(--border); padding-top:14px;">
         <button class="btn btn-outline" onclick="closeBulkEditModal()">Cancel</button>
-        <button class="btn btn-success" id="btnExecuteBulkAdd" onclick="applyBulkAdd()" style="font-weight:700;">Create Territories in Bulk</button>
+        <button class="btn btn-success" id="btnExecuteBulkAdd" onclick="applyBulkAdd()" style="font-weight:700; background:#16A34A; border-color:#16A34A; color:#FFF;">Create Territories in Bulk</button>
       </div>
     </div>
 
@@ -7554,19 +7550,21 @@ const BASELINE_ERP_TERRITORIES = [
   let activeBulkTab = 'modify';
 
   function switchBulkTab(tabName) {
-    activeBulkTab = tabName;
-    ['modify', 'rename', 'delete', 'add'].forEach(t => {
-      const btn = document.getElementById('btnBulkTab_' + t);
-      const pane = document.getElementById('bulkPane_' + t);
-      if (btn) btn.classList.toggle('active', t === tabName);
-      if (pane) pane.classList.toggle('active', t === tabName);
+    // Aliasing for decommission / delete backward compatibility
+    const targetTab = (tabName === 'delete') ? 'decommission' : tabName;
+    activeBulkTab = targetTab;
+    ['modify', 'rename', 'decommission', 'add'].forEach(t => {
+      const btn = document.getElementById('btnBulkTab_' + t) || document.getElementById('btnBulkTab_' + (t === 'decommission' ? 'delete' : t));
+      const pane = document.getElementById('bulkPane_' + t) || document.getElementById('bulkPane_' + (t === 'decommission' ? 'delete' : t));
+      if (btn) btn.classList.toggle('active', t === targetTab);
+      if (pane) pane.classList.toggle('active', t === targetTab);
     });
 
     const chipsContainer = document.getElementById('bulkSelectedChipsContainer');
     const subtitle = document.getElementById('bulkModalSubtitle');
     const count = selectedRowIndices.size;
 
-    if (tabName === 'add') {
+    if (targetTab === 'add') {
       if (chipsContainer) chipsContainer.style.display = 'none';
       if (subtitle) subtitle.innerHTML = `Create new territory records in bulk for <strong style="color:#0066FF;">${escapeHtml(activeProgram)}</strong>`;
       populateBulkAddDropdowns();
@@ -7575,11 +7573,11 @@ const BASELINE_ERP_TERRITORIES = [
       if (subtitle) subtitle.innerHTML = `Apply actions across <strong id="bulkModalCount" style="color:#0066FF;">${count}</strong> selected territories in <span id="bulkModalProgram" style="font-weight:700; color:#0F172A;">${escapeHtml(activeProgram)}</span>`;
     }
 
-    if (tabName === 'modify') {
+    if (targetTab === 'modify') {
       populateBulkModifyDropdowns();
-    } else if (tabName === 'rename') {
+    } else if (targetTab === 'rename') {
       updateRenamePreview();
-    } else if (tabName === 'delete') {
+    } else if (targetTab === 'decommission' || targetTab === 'delete') {
       updateBulkDeleteSummary();
     }
   }
@@ -7626,37 +7624,75 @@ const BASELINE_ERP_TERRITORIES = [
     const repSelect = document.getElementById('bulkEditRepSelect');
     const distSelect = document.getElementById('bulkEditDistrictSelect');
 
-    const uniqueReps = [...new Set(programTerritories.map(t => (t.rep || '').replace(/\s*\([^)]*\)/g, '').trim()).filter(Boolean))].sort();
+    const programReps = new Set();
+    programTerritories.forEach(t => {
+      const r = cleanRepDisplayName(t.rep);
+      if (r && !r.toLowerCase().includes('unassigned') && !r.toLowerCase().includes('resigned') && !r.toLowerCase().includes('folder')) {
+        programReps.add(r);
+      }
+    });
+    availableSalesPersons.forEach(s => {
+      const prog = s.custom_account_or_program || s.program;
+      if (!prog || prog === activeProgram || activeProgram.includes(prog) || prog.includes(activeProgram)) {
+        const r = cleanRepDisplayName(s.sales_person_name || s.name);
+        if (r) programReps.add(r);
+      }
+    });
+
     const uniqueDistricts = [...new Set(programTerritories.map(t => (t.district || '').trim()).filter(Boolean))].sort();
 
     if (repSelect) {
-      repSelect.innerHTML = '<option value="">-- Select MedRep --</option>' + 
-        uniqueReps.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+      repSelect.innerHTML = '<option value="">-- No Change (Keep Current) --</option>' +
+        '<option value="Unassigned Slot">Unassigned (Vacant Slot)</option>' +
+        Array.from(programReps).sort().map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
     }
     if (distSelect) {
-      distSelect.innerHTML = '<option value="">-- Select Cluster --</option>' + 
-        uniqueDistricts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+      distSelect.innerHTML = '<option value="">-- No Change (Keep Current) --</option>' +
+        uniqueDistricts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('') +
+        '<option value="CUSTOM_CLUSTER">+ Enter Custom Cluster...</option>';
     }
   }
 
   function onBulkRepSelectChange(sel) {
-    const repInput = document.getElementById('bulkEditRep');
-    if (repInput && sel.value) repInput.value = sel.value;
+    const repVal = sel ? sel.value : '';
+    const noticeEl = document.getElementById('bulkEditUserIdNotice');
+    const dispEl = document.getElementById('bulkEditUserIdDisplay');
+    if (repVal && repVal !== 'Unassigned Slot') {
+      const clean = repVal.trim().toLowerCase();
+      const matchedUser = availableUsers.find(u => {
+        const fn = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
+        const email = (u.email || u.name || '').toLowerCase();
+        return (fn && (fn === clean || fn.includes(clean) || clean.includes(fn))) || email.includes(clean.replace(/\s+/g, '.'));
+      });
+      const uid = matchedUser ? (matchedUser.email || matchedUser.name) : '';
+      if (dispEl) dispEl.innerText = uid || 'Pending HR creation';
+      if (noticeEl) {
+        noticeEl.style.display = 'block';
+        noticeEl.style.color = (uid && uid.includes('@')) ? '#15803D' : '#B45309';
+      }
+    } else {
+      if (noticeEl) noticeEl.style.display = 'none';
+    }
   }
 
   function onBulkDistrictSelectChange(sel) {
     const distInput = document.getElementById('bulkEditDistrict');
-    if (distInput && sel.value) distInput.value = sel.value;
+    if (distInput) {
+      distInput.style.display = (sel && sel.value === 'CUSTOM_CLUSTER') ? 'block' : 'none';
+      if (sel.value !== 'CUSTOM_CLUSTER') distInput.value = sel.value;
+    }
   }
 
   function applyBulkEdit() {
-    const newStatus = document.getElementById('bulkEditStatus')?.value || '';
-    const newRep = (document.getElementById('bulkEditRep')?.value || '').trim();
-    const newDistrict = (document.getElementById('bulkEditDistrict')?.value || '').trim();
-    const reason = (document.getElementById('bulkEditReason')?.value || '').trim() || 'Bulk update by SFE Lead';
+    const newRep = (document.getElementById('bulkEditRepSelect')?.value || '').trim();
+    let newDistrict = document.getElementById('bulkEditDistrictSelect')?.value || '';
+    if (newDistrict === 'CUSTOM_CLUSTER') {
+      newDistrict = (document.getElementById('bulkEditDistrict')?.value || '').trim();
+    }
+    const reason = (document.getElementById('bulkEditReason')?.value || '').trim() || 'Bulk reconfiguration by SFE Lead';
 
-    if (!newStatus && !newRep && !newDistrict) {
-      showToast('Please specify at least one field to update in bulk!', 'error');
+    if (!newRep && !newDistrict) {
+      showToast('Please specify a MedRep or Cluster to update in bulk!', 'error');
       return;
     }
 
@@ -7664,6 +7700,31 @@ const BASELINE_ERP_TERRITORIES = [
     const loggedUser = (authenticatedUser && authenticatedUser.email)
       ? `${authenticatedUser.email} [${authenticatedUser.role_title || 'SFE Lead'}]`
       : 'admin@pims.com [SFE Lead]';
+
+    // Find User ID for newRep
+    let matchedUserId = '';
+    if (newRep && newRep !== 'Unassigned Slot') {
+      const clean = newRep.trim().toLowerCase();
+      const matchedUser = availableUsers.find(u => {
+        const fn = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
+        const email = (u.email || u.name || '').toLowerCase();
+        return (fn && (fn === clean || fn.includes(clean) || clean.includes(fn))) || email.includes(clean.replace(/\s+/g, '.'));
+      });
+      matchedUserId = matchedUser ? (matchedUser.email || matchedUser.name) : '';
+    }
+
+    // Ensure cluster exists in territoryTreeData
+    const progBranch = (LIVE_DATA[activeProgram] && LIVE_DATA[activeProgram].territoryBranch) ? LIVE_DATA[activeProgram].territoryBranch : 'All Territories';
+    if (newDistrict && !territoryTreeData.some(t => t.name === newDistrict || t.territory_name === newDistrict)) {
+      territoryTreeData.push({
+        name: newDistrict,
+        territory_name: newDistrict,
+        parent_territory: progBranch,
+        is_group: 1,
+        territory_manager: ''
+      });
+      treeExpandedNodes.add(newDistrict);
+    }
 
     let affectedCount = 0;
 
@@ -7673,14 +7734,18 @@ const BASELINE_ERP_TERRITORIES = [
 
       const changeNotes = [];
 
-      if (newStatus && row.status !== newStatus) {
-        changeNotes.push(`Status: ${row.status} -> ${newStatus}`);
-        row.status = newStatus;
-      }
-
       if (newRep && row.rep !== newRep) {
         changeNotes.push(`Assigned Rep: ${row.rep || 'Unassigned'} -> ${newRep}`);
         row.rep = newRep;
+        row.userId = matchedUserId;
+        row.status = 'CHANGED';
+        if (newRep === 'Unassigned Slot') {
+          row.operationalStatus = 'Vacant';
+        } else {
+          row.operationalStatus = 'Active';
+          row.isResigned = false;
+        }
+
         // Update rep in doctor accounts
         programAccounts.forEach(acc => {
           if (acc.liveTerritory === row.activeCode) {
@@ -7692,6 +7757,17 @@ const BASELINE_ERP_TERRITORIES = [
       if (newDistrict && row.district !== newDistrict) {
         changeNotes.push(`Cluster: ${row.district || 'Unassigned'} -> ${newDistrict}`);
         row.district = newDistrict;
+        row.status = 'CHANGED';
+      }
+
+      // Sync into territoryTreeData
+      const terrCode = row.activeCode || row.latestPrevCode || row.recordId;
+      const treeNode = territoryTreeData.find(t => t.name === terrCode || t.territory_name === terrCode);
+      if (treeNode) {
+        if (newRep) treeNode.territory_manager = (newRep === 'Unassigned Slot') ? '' : newRep;
+        if (newDistrict) treeNode.parent_territory = newDistrict;
+        treeNode.status = row.operationalStatus;
+        treeNode.operational_status = row.operationalStatus;
       }
 
       if (changeNotes.length > 0) {
@@ -7708,6 +7784,13 @@ const BASELINE_ERP_TERRITORIES = [
       }
     });
 
+    // CRITICAL: Persist to localStorage for 100% reload survival
+    try {
+      localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
+      localStorage.setItem('pims_accounts_' + activeProgram, JSON.stringify(programAccounts));
+    } catch (_) {}
+
     rebuildGlobalAuditLogs();
     closeBulkEditModal();
     selectedRowIndices.clear();
@@ -7717,7 +7800,7 @@ const BASELINE_ERP_TERRITORIES = [
     renderRealignmentAndArchive();
     renderSummaryReport();
 
-    showToast(`Applied bulk changes across ${affectedCount} territories!`);
+    showToast(`Applied bulk changes across ${affectedCount} territories! Saved successfully.`, 'success');
   }
 
   // --- TAB 2: BULK RENAME HANDLERS ---
@@ -7926,13 +8009,11 @@ const BASELINE_ERP_TERRITORIES = [
   function applyBulkDelete() {
     const confirmCb = document.getElementById('bulkDeleteConfirmCheckbox');
     if (!confirmCb || !confirmCb.checked) {
-      showToast('Please confirm the deletion checkbox before proceeding.', 'error');
+      showToast('Please confirm the decommission checkbox before proceeding.', 'error');
       return;
     }
 
-    const method = document.querySelector('input[name="deleteMethod"]:checked')?.value || 'archive';
     const reason = (document.getElementById('bulkDeleteReason')?.value || '').trim() || 'Bulk decommissioned by SFE Lead';
-
     const count = selectedRowIndices.size;
     if (count === 0) return;
 
@@ -7947,38 +8028,45 @@ const BASELINE_ERP_TERRITORIES = [
       const row = programTerritories[idx];
       if (!row) return;
 
-      if (method === 'archive') {
-        archivedRecords.unshift({
-          archiveDate: nowStr.substring(0, 10),
-          recordId: row.recordId,
-          histCode: row.activeCode || row.latestPrevCode,
-          rep: row.rep || 'Unassigned',
-          docs: row.docs || 0,
-          reason: reason
-        });
+      const terrCode = row.activeCode || row.latestPrevCode || row.recordId;
 
-        globalAuditLogs.unshift({
-          timestamp: nowStr,
-          recordId: row.recordId,
-          action: 'BULK_DECOMMISSION',
-          territoryCode: row.activeCode || row.latestPrevCode,
-          user: loggedUser,
-          details: `Decommissioned to Archive Vault. Covered doctors: ${row.docs}. (Reason: ${reason})`
-        });
-      } else {
-        globalAuditLogs.unshift({
-          timestamp: nowStr,
-          recordId: row.recordId,
-          action: 'BULK_DELETE',
-          territoryCode: row.activeCode || row.latestPrevCode,
-          user: loggedUser,
-          details: `Permanently deleted territory record ${row.activeCode} (${row.recordId}). (Reason: ${reason})`
-        });
+      // Invariant: Zero permanent deletion. Tag Inactive and transfer to Archive Vault
+      row.operationalStatus = 'Inactive';
+      row.status = 'CHANGED';
+      row.isResigned = true;
+
+      archivedRecords.unshift({
+        archiveDate: nowStr.substring(0, 10),
+        recordId: row.recordId,
+        histCode: terrCode,
+        rep: row.rep || 'Unassigned',
+        docs: row.docs || 0,
+        reason: reason
+      });
+
+      // Update tree node to Inactive status
+      const treeNode = territoryTreeData.find(t => t.name === terrCode || t.territory_name === terrCode);
+      if (treeNode) {
+        treeNode.operational_status = 'Inactive';
+        treeNode.status = 'Inactive';
       }
 
-      // Remove from programTerritories
-      programTerritories.splice(idx, 1);
+      globalAuditLogs.unshift({
+        timestamp: nowStr,
+        recordId: row.recordId,
+        action: 'BULK_DECOMMISSION',
+        territoryCode: terrCode,
+        user: loggedUser,
+        details: `Decommissioned to Archive Vault. Tagged as Inactive. Covered doctors preserved: ${row.docs}. (Reason: ${reason})`
+      });
     });
+
+    // CRITICAL: Persist to localStorage
+    try {
+      localStorage.setItem('pims_stg_archived_territories_' + activeProgram, JSON.stringify(archivedRecords));
+      localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
+    } catch (_) {}
 
     closeBulkEditModal();
     selectedRowIndices.clear();
@@ -7988,26 +8076,43 @@ const BASELINE_ERP_TERRITORIES = [
     renderRealignmentAndArchive();
     renderSummaryReport();
 
-    showToast(method === 'archive' 
-      ? `Decommissioned ${count} territories to Archive Vault!` 
-      : `Permanently removed ${count} territory records!`);
+    showToast(`Successfully decommissioned ${count} territories to Archive Vault (Tagged as Inactive). Doctor data preserved.`, 'success');
   }
 
   // --- TAB 4: BULK ADD HANDLERS ---
+  let cachedBulkAddOptions = { districts: [], reps: [] };
+
   function populateBulkAddDropdowns() {
     const distSelect = document.getElementById('bulkAddDistrictSelect');
     const repSelect = document.getElementById('bulkAddRepSelect');
 
     const uniqueDistricts = [...new Set(programTerritories.map(t => (t.district || '').trim()).filter(Boolean))].sort();
-    const uniqueReps = [...new Set(programTerritories.map(t => (t.rep || '').replace(/\s*\([^)]*\)/g, '').trim()).filter(Boolean))].sort();
+    
+    const programReps = new Set();
+    programTerritories.forEach(t => {
+      const r = cleanRepDisplayName(t.rep);
+      if (r && !r.toLowerCase().includes('unassigned') && !r.toLowerCase().includes('resigned') && !r.toLowerCase().includes('folder')) {
+        programReps.add(r);
+      }
+    });
+    availableSalesPersons.forEach(s => {
+      const prog = s.custom_account_or_program || s.program;
+      if (!prog || prog === activeProgram || activeProgram.includes(prog) || prog.includes(activeProgram)) {
+        const r = cleanRepDisplayName(s.sales_person_name || s.name);
+        if (r) programReps.add(r);
+      }
+    });
+
+    cachedBulkAddOptions.districts = uniqueDistricts;
+    cachedBulkAddOptions.reps = Array.from(programReps).sort();
 
     if (distSelect) {
       distSelect.innerHTML = uniqueDistricts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('') +
-        '<option value="NEW_CLUSTER">+ Create New District Cluster...</option>';
+        '<option value="NEW_CLUSTER">+ Enter New District Cluster...</option>';
     }
     if (repSelect) {
-      repSelect.innerHTML = '<option value="Unassigned MedRep">Unassigned MedRep</option>' +
-        uniqueReps.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+      repSelect.innerHTML = '<option value="Unassigned Slot">Unassigned (Vacant Slot)</option>' +
+        cachedBulkAddOptions.reps.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
     }
 
     onBulkAddCodesInput();
@@ -8023,13 +8128,15 @@ const BASELINE_ERP_TERRITORIES = [
     const codes = parseBulkAddCodes();
     const badge = document.getElementById('bulkAddCountBadge');
     const warning = document.getElementById('bulkAddWarningBox');
+    const gridWrap = document.getElementById('bulkAddRowsContainer');
+    const tbody = document.getElementById('bulkAddTableBody');
 
     if (badge) badge.innerText = `${codes.length} Valid Codes`;
 
-    if (!warning) return;
-
     if (codes.length === 0) {
-      warning.style.display = 'none';
+      if (warning) warning.style.display = 'none';
+      if (gridWrap) gridWrap.style.display = 'none';
+      if (tbody) tbody.innerHTML = '';
       return;
     }
 
@@ -8037,11 +8144,102 @@ const BASELINE_ERP_TERRITORIES = [
     const conflicts = codes.filter(c => existingActive.has(c));
 
     if (conflicts.length > 0) {
-      warning.style.display = 'block';
-      warning.innerText = `Warning: ${conflicts.length} codes already exist in this program (${conflicts.slice(0, 3).join(', ')}${conflicts.length > 3 ? '...' : ''})`;
+      if (warning) {
+        warning.style.display = 'block';
+        warning.innerText = `Warning: ${conflicts.length} codes already exist in this program (${conflicts.slice(0, 3).join(', ')}${conflicts.length > 3 ? '...' : ''})`;
+      }
     } else {
-      warning.style.display = 'none';
+      if (warning) warning.style.display = 'none';
     }
+
+    renderBulkAddAssignmentRows(codes);
+  }
+
+  function renderBulkAddAssignmentRows(codes) {
+    const gridWrap = document.getElementById('bulkAddRowsContainer');
+    const tbody = document.getElementById('bulkAddTableBody');
+    if (!gridWrap || !tbody) return;
+
+    if (codes.length === 0) {
+      gridWrap.style.display = 'none';
+      tbody.innerHTML = '';
+      return;
+    }
+
+    gridWrap.style.display = 'block';
+
+    const defaultDist = document.getElementById('bulkAddDistrictSelect')?.value || (cachedBulkAddOptions.districts[0] || 'Unassigned Cluster');
+    const defaultRep = document.getElementById('bulkAddRepSelect')?.value || 'Unassigned Slot';
+
+    // Build district and rep options HTML
+    const distOptsHtml = cachedBulkAddOptions.districts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+    const repOptsHtml = '<option value="Unassigned Slot">Unassigned (Vacant Slot)</option>' +
+      cachedBulkAddOptions.reps.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+
+    tbody.innerHTML = codes.map((code, idx) => `
+      <tr style="border-bottom:1px solid #E2E8F0;">
+        <td style="padding:5px 8px; font-weight:700; color:#0F172A; font-family:monospace; font-size:12px;">
+          <input type="hidden" class="bulk-add-row-code" value="${escapeHtml(code)}">
+          ${escapeHtml(code)}
+        </td>
+        <td style="padding:4px 6px;">
+          <select class="form-control bulk-add-row-dist" style="font-size:11px; padding:3px 6px; height:28px;">
+            ${distOptsHtml}
+          </select>
+        </td>
+        <td style="padding:4px 6px;">
+          <select class="form-control bulk-add-row-rep" style="font-size:11px; padding:3px 6px; height:28px;">
+            ${repOptsHtml}
+          </select>
+        </td>
+      </tr>
+    `).join('');
+
+    // Preselect defaults
+    tbody.querySelectorAll('.bulk-add-row-dist').forEach(sel => {
+      if (defaultDist && defaultDist !== 'NEW_CLUSTER') sel.value = defaultDist;
+    });
+    tbody.querySelectorAll('.bulk-add-row-rep').forEach(sel => {
+      if (defaultRep) sel.value = defaultRep;
+    });
+  }
+
+  function onBulkAddDefaultDistrictChange() {
+    const distSel = document.getElementById('bulkAddDistrictSelect');
+    if (distSel && distSel.value === 'NEW_CLUSTER') {
+      const customCluster = prompt('Enter new District Cluster name:');
+      if (customCluster && customCluster.trim()) {
+        const clean = customCluster.trim();
+        if (!cachedBulkAddOptions.districts.includes(clean)) {
+          cachedBulkAddOptions.districts.push(clean);
+          const opt = document.createElement('option');
+          opt.value = clean;
+          opt.innerText = clean;
+          distSel.insertBefore(opt, distSel.lastElementChild);
+        }
+        distSel.value = clean;
+        renderBulkAddAssignmentRows(parseBulkAddCodes());
+      }
+    }
+  }
+
+  function onBulkAddDefaultRepChange() {
+    // When default rep changes, user can click 'Fill All' or individually customize rows
+  }
+
+  function applyBulkAddDefaultsToAllRows() {
+    const defaultDist = document.getElementById('bulkAddDistrictSelect')?.value || '';
+    const defaultRep = document.getElementById('bulkAddRepSelect')?.value || '';
+    const tbody = document.getElementById('bulkAddTableBody');
+    if (!tbody) return;
+
+    if (defaultDist && defaultDist !== 'NEW_CLUSTER') {
+      tbody.querySelectorAll('.bulk-add-row-dist').forEach(sel => { sel.value = defaultDist; });
+    }
+    if (defaultRep) {
+      tbody.querySelectorAll('.bulk-add-row-rep').forEach(sel => { sel.value = defaultRep; });
+    }
+    showToast('Applied default cluster & representative to all rows below!', 'info');
   }
 
   function applyBulkAdd() {
@@ -8051,20 +8249,6 @@ const BASELINE_ERP_TERRITORIES = [
       return;
     }
 
-    let district = document.getElementById('bulkAddDistrictSelect')?.value || 'Unassigned Cluster';
-    if (district === 'NEW_CLUSTER') {
-      const customD = prompt('Enter new District Cluster name:');
-      if (!customD || !customD.trim()) {
-        showToast('District Cluster name is required!', 'error');
-        return;
-      }
-      district = customD.trim();
-    }
-
-    const repName = document.getElementById('bulkAddRepSelect')?.value || 'Unassigned MedRep';
-    const status = document.getElementById('bulkAddStatus')?.value || 'CHANGED';
-    const docs = parseInt(document.getElementById('bulkAddDocs')?.value, 10) || 0;
-
     const existingActive = new Set(programTerritories.map(t => (t.activeCode || '').toUpperCase()));
     const validCodesToAdd = codes.filter(c => !existingActive.has(c));
 
@@ -8073,28 +8257,65 @@ const BASELINE_ERP_TERRITORIES = [
       return;
     }
 
+    const tbody = document.getElementById('bulkAddTableBody');
+    const rowCodeEls = tbody ? tbody.querySelectorAll('.bulk-add-row-code') : [];
+    const rowDistEls = tbody ? tbody.querySelectorAll('.bulk-add-row-dist') : [];
+    const rowRepEls = tbody ? tbody.querySelectorAll('.bulk-add-row-rep') : [];
+
+    const rowMap = new Map();
+    for (let i = 0; i < rowCodeEls.length; i++) {
+      const c = rowCodeEls[i].value;
+      const d = rowDistEls[i] ? rowDistEls[i].value : 'Unassigned Cluster';
+      const r = rowRepEls[i] ? rowRepEls[i].value : 'Unassigned Slot';
+      rowMap.set(c, { district: d, rep: r });
+    }
+
+    const defaultDist = document.getElementById('bulkAddDistrictSelect')?.value || 'Unassigned Cluster';
+    const defaultRep = document.getElementById('bulkAddRepSelect')?.value || 'Unassigned Slot';
+
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const loggedUser = (authenticatedUser && authenticatedUser.email)
       ? `${authenticatedUser.email} [${authenticatedUser.role_title || 'SFE Lead'}]`
       : 'admin@pims.com [SFE Lead]';
 
     const pfx = activeProgram.includes('Abbott') ? 'ADC' : activeProgram.includes('Bayer') ? 'BAY' : 'COR';
+    const progBranch = (LIVE_DATA[activeProgram] && LIVE_DATA[activeProgram].territoryBranch) ? LIVE_DATA[activeProgram].territoryBranch : 'All Territories';
 
     selectedRowIndices.clear();
 
     validCodesToAdd.forEach((code, i) => {
+      const alloc = rowMap.get(code) || { district: defaultDist, rep: defaultRep };
+      const rowDistrict = (alloc.district && alloc.district !== 'NEW_CLUSTER') ? alloc.district : defaultDist;
+      const rowRep = alloc.rep || defaultRep;
+
+      // Lookup user ID from availableUsers
+      let userId = '';
+      if (rowRep && rowRep !== 'Unassigned Slot') {
+        const clean = rowRep.trim().toLowerCase();
+        const matchedUser = availableUsers.find(u => {
+          const fn = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
+          const email = (u.email || u.name || '').toLowerCase();
+          return (fn && (fn === clean || fn.includes(clean) || clean.includes(fn))) || email.includes(clean.replace(/\s+/g, '.'));
+        });
+        userId = matchedUser ? (matchedUser.email || matchedUser.name) : '';
+      }
+
       const newRecordId = `TERR-${pfx}-${Math.floor(1000 + Math.random() * 8999)}`;
-      const userId = '';
+      const isVacant = (!rowRep || rowRep === 'Unassigned Slot' || rowRep.toLowerCase().includes('unassigned'));
+      const initialOpStatus = isVacant ? 'Vacant' : 'Active';
 
       const newRecord = {
         histCode: code,
         newCode: code,
         latestPrevCode: code,
         activeCode: code,
-        district: district,
-        rep: repName,
-        docs: docs,
-        status: status,
+        district: rowDistrict,
+        rep: rowRep,
+        docs: 0,
+        status: 'CHANGED',
+        operationalStatus: initialOpStatus,
+        isActive: !isVacant,
+        isResigned: false,
         recordId: newRecordId,
         userId: userId,
         coveredDoctors: [],
@@ -8102,12 +8323,49 @@ const BASELINE_ERP_TERRITORIES = [
           timestamp: nowStr,
           action: 'BULK_ADD',
           user: loggedUser,
-          details: `Created in bulk by SFE: ${code} in ${district} assigned to ${repName} (${userId}).`
+          details: `Created in bulk by SFE: ${code} in ${rowDistrict} assigned to ${rowRep} (${userId || 'Unassigned'}).`
         }]
       };
 
       programTerritories.unshift(newRecord);
-      selectedRowIndices.add(0); // Select the newly added row
+      selectedRowIndices.add(0);
+
+      // 1. Ensure district cluster exists in territoryTreeData
+      if (!territoryTreeData.some(t => t.name === rowDistrict || t.territory_name === rowDistrict)) {
+        territoryTreeData.push({
+          name: rowDistrict,
+          territory_name: rowDistrict,
+          parent_territory: progBranch,
+          is_group: 1,
+          territory_manager: '',
+          operational_status: 'Active',
+          status: 'Active',
+          custom_account_or_program: activeProgram,
+          program: activeProgram
+        });
+        treeExpandedNodes.add(rowDistrict);
+      }
+
+      // 2. Add territory node to territoryTreeData
+      const existingTreeNode = territoryTreeData.find(t => t.name === code || t.territory_name === code);
+      if (existingTreeNode) {
+        existingTreeNode.parent_territory = rowDistrict;
+        existingTreeNode.territory_manager = (rowRep === 'Unassigned Slot') ? '' : rowRep;
+        existingTreeNode.operational_status = initialOpStatus;
+        existingTreeNode.status = initialOpStatus;
+      } else {
+        territoryTreeData.push({
+          name: code,
+          territory_name: code,
+          parent_territory: rowDistrict,
+          is_group: 0,
+          territory_manager: (rowRep === 'Unassigned Slot') ? '' : rowRep,
+          operational_status: initialOpStatus,
+          status: initialOpStatus,
+          custom_account_or_program: activeProgram,
+          program: activeProgram
+        });
+      }
 
       globalAuditLogs.unshift({
         timestamp: nowStr,
@@ -8115,9 +8373,15 @@ const BASELINE_ERP_TERRITORIES = [
         action: 'BULK_ADD',
         territoryCode: code,
         user: loggedUser,
-        details: `Created in bulk: territory ${code} in cluster ${district}.`
+        details: `Created in bulk: territory ${code} in cluster ${rowDistrict} assigned to ${rowRep}.`
       });
     });
+
+    // CRITICAL: Persist to localStorage for 100% reload survival
+    try {
+      localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
+    } catch (_) {}
 
     closeBulkEditModal();
 
@@ -8126,7 +8390,7 @@ const BASELINE_ERP_TERRITORIES = [
     renderRealignmentAndArchive();
     renderSummaryReport();
 
-    showToast(`Created ${validCodesToAdd.length} territories in bulk! Highlighted for inspection.`);
+    showToast(`Created ${validCodesToAdd.length} territories in bulk! Synced to Table Grid and Territory Tree.`, 'success');
   }
 
   // ========================================================
@@ -11502,12 +11766,24 @@ const BASELINE_ERP_TERRITORIES = [
     if (disp) disp.value = displayLabel;
     if (clr) clr.style.display = 'block';
 
-    // If selecting employee in New Sales Person modal, auto-fill Sales Person Name if blank
+    // If selecting employee in New Sales Person modal, auto-fill Sales Person Name and User ID
     if (fieldId === 'newSpEmployee' && extraData) {
       const empName = extraData.employee_name || `${extraData.first_name || ''} ${extraData.last_name || ''}`.trim();
       const spNameInp = document.getElementById('newSpNameInput');
       if (spNameInp && !spNameInp.value.trim() && empName) {
         spNameInp.value = empName;
+      }
+      // Auto-match user account (User ID) from availableUsers
+      const empEmail = (extraData.company_email || extraData.personal_email || '').toLowerCase();
+      const cleanEmpName = empName.toLowerCase();
+      const matchedUser = availableUsers.find(u => {
+        const uEmail = (u.email || u.name || '').toLowerCase();
+        const uName = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).toLowerCase();
+        return (empEmail && uEmail === empEmail) || (uName && (uName === cleanEmpName || uName.includes(cleanEmpName) || cleanEmpName.includes(uName)));
+      });
+      if (matchedUser) {
+        const matchedUid = matchedUser.email || matchedUser.name;
+        selectErpItem('newSpUserAccount', matchedUid, `${matchedUid} (${matchedUser.full_name || empName})`, matchedUser);
       }
     }
 
@@ -12239,12 +12515,27 @@ const BASELINE_ERP_TERRITORIES = [
     }
 
     const empId = document.getElementById('newSpEmployeeInput').value.trim();
+    const userAcc = document.getElementById('newSpUserAccountInput') ? document.getElementById('newSpUserAccountInput').value.trim() : '';
+
+    // HR Department Invariant: MedReps must have an existing Employee record created by HR in ERPNext & active User ID
+    if (!empId) {
+      showToast('HR Record Required: MedRep must be registered by HR in the ERPNext Employee masterlist first!', 'error');
+      const empDisp = document.getElementById('newSpEmployeeDisplay');
+      if (empDisp) empDisp.focus();
+      return;
+    }
+
+    if (!userAcc || !userAcc.includes('@')) {
+      showToast('Active User ID Required: MedRep must have an active ERPNext User ID (email) before creation!', 'error');
+      const userDisp = document.getElementById('newSpUserAccountDisplay');
+      if (userDisp) userDisp.focus();
+      return;
+    }
+
     const parentSp = (document.getElementById('newSpParentInput') ? document.getElementById('newSpParentInput').value.trim() : '') || 'Sales Team';
     const commRate = parseFloat(document.getElementById('newSpCommissionInput').value) || 0;
     const isGrp = document.getElementById('newSpIsGroup').checked ? 1 : 0;
     const isEnabled = document.getElementById('newSpEnabled').checked ? 1 : 0;
-
-    const userAcc = document.getElementById('newSpUserAccountInput') ? document.getElementById('newSpUserAccountInput').value.trim() : '';
 
     // Collect child table targets (ERPNext Target Detail parity)
     const targets = newSpTargetsList
@@ -13447,28 +13738,14 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function transferRepPrompt() {
-    const newRep = prompt('Enter new Medical Representative name to transfer territory:');
-    if (newRep && newRep.trim()) {
-      const cleanName = newRep.trim().toUpperCase();
-      document.getElementById('editRepName').value = cleanName;
-      // Lookup user email for new MedRep (or leave empty if unassigned)
-      const cleanRepName = cleanName.toLowerCase();
-      const matchedUser = (availableUsers && availableUsers.length > 0)
-        ? availableUsers.find(u => {
-            const fn = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
-            return fn && (fn === cleanRepName || fn.includes(cleanRepName) || cleanRepName.includes(fn));
-          })
-        : null;
-      const newUserId = matchedUser ? (matchedUser.email || matchedUser.name) : '';
-      const userAccInp = document.getElementById('editUserAccountInput') || document.getElementById('editUserId');
-      if (userAccInp) userAccInp.value = newUserId;
-      const userAccDisp = document.getElementById('editUserAccountDisplay');
-      if (userAccDisp) {
-        userAccDisp.value = newUserId;
-        userAccDisp.placeholder = 'Unassigned';
-      }
-      document.getElementById('editNotes').value = `Territory transferred to new MedRep: ${cleanName} (${newUserId})`;
-      showToast(`Transferred to ${cleanName}! Remember to click Save Changes.`);
+    const idx = parseInt(document.getElementById('editRecordIndex')?.value, 10);
+    const row = (!isNaN(idx) && programTerritories[idx]) ? programTerritories[idx] : null;
+    const terrCode = row ? (row.activeCode || row.latestPrevCode || row.recordId) : null;
+    closeEditModal();
+    if (terrCode) {
+      openDoctorTransferModal(terrCode);
+    } else {
+      openDoctorTransferModal();
     }
   }
 
@@ -15300,17 +15577,6 @@ const BASELINE_ERP_TERRITORIES = [
       return;
     }
 
-    const newRepVal = (document.getElementById('handoverNewRepInput') ? document.getElementById('handoverNewRepInput').value : '').trim();
-    if (newRepVal && activeTransferSourceRow) {
-      activeTransferSourceRow.rep = newRepVal;
-      activeTransferSourceRow.status = 'CHANGED';
-      const sCode = activeTransferSourceRow.activeCode || activeTransferSourceRow.latestPrevCode || activeTransferSourceRow.recordId;
-      if (typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData)) {
-        const treeNode = territoryTreeData.find(t => t.name === activeTransferSourceRow.recordId || t.name === sCode);
-        if (treeNode) treeNode.territory_manager = newRepVal;
-      }
-    }
-
     const targetCode = activeTransferTargetRow.activeCode || activeTransferTargetRow.latestPrevCode;
     const targetRep = activeTransferTargetRow.rep ? activeTransferTargetRow.rep.trim() : 'Unassigned Rep';
     const sourceCode = activeTransferSourceRow.activeCode || activeTransferSourceRow.latestPrevCode;
@@ -15490,11 +15756,39 @@ const BASELINE_ERP_TERRITORIES = [
     if (listWrap) listWrap.style.display = 'none';
     if (toggleBtn) toggleBtn.innerText = `View Doctors List (${count}) ▼`;
 
-    // Reset new rep inputs
-    const newRepInp = document.getElementById('resignNewRepInput');
+    // Populate Newly Assigned MedRep dropdown strictly from active program & ERPNext HR
+    const newRepSel = document.getElementById('resignNewRepSelect');
+    if (newRepSel) {
+      newRepSel.innerHTML = '<option value="">-- Select Newly Assigned MedRep --</option>';
+      const programReps = new Set();
+      programTerritories.forEach(t => {
+        const r = cleanRepDisplayName(t.rep);
+        if (r && !r.toLowerCase().includes('unassigned') && !r.toLowerCase().includes('resigned') && !r.toLowerCase().includes('folder')) {
+          programReps.add(r);
+        }
+      });
+      availableSalesPersons.forEach(s => {
+        const prog = s.custom_account_or_program || s.program;
+        if (!prog || prog === activeProgram || activeProgram.includes(prog) || prog.includes(activeProgram)) {
+          const r = cleanRepDisplayName(s.sales_person_name || s.name);
+          if (r) programReps.add(r);
+        }
+      });
+      Array.from(programReps).sort().forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r;
+        opt.innerText = r;
+        newRepSel.appendChild(opt);
+      });
+    }
+
     const newUserIdInp = document.getElementById('resignNewUserIdInput');
-    if (newRepInp) newRepInp.value = '';
     if (newUserIdInp) newUserIdInp.value = '';
+    const noticeEl = document.getElementById('resignHrValidationNotice');
+    if (noticeEl) {
+      noticeEl.innerText = '⚠️ Please select a registered MedRep';
+      noticeEl.style.color = '#B45309';
+    }
 
     // Show modal
     document.getElementById('resignedHandoverPromptModalOverlay').classList.add('active');
@@ -15532,6 +15826,39 @@ const BASELINE_ERP_TERRITORIES = [
     openDoctorTransferModal(terrCode);
   }
 
+  function onResignNewRepSelectChanged(sel) {
+    const repName = sel ? sel.value.trim() : '';
+    const userIdInp = document.getElementById('resignNewUserIdInput');
+    const noticeEl = document.getElementById('resignHrValidationNotice');
+    if (!repName) {
+      if (userIdInp) userIdInp.value = '';
+      if (noticeEl) {
+        noticeEl.innerText = '⚠️ Please select a registered MedRep';
+        noticeEl.style.color = '#B45309';
+      }
+      return;
+    }
+
+    // Auto-match User ID from availableUsers / availableSalesPersons
+    const clean = repName.toLowerCase();
+    const matchedUser = availableUsers.find(u => {
+      const fn = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
+      const email = (u.email || u.name || '').toLowerCase();
+      return (fn && (fn === clean || fn.includes(clean) || clean.includes(fn))) || email.includes(clean.replace(/\s+/g, '.'));
+    });
+    const uid = matchedUser ? (matchedUser.email || matchedUser.name) : '';
+    if (userIdInp) userIdInp.value = uid || 'Pending HR User Creation';
+    if (noticeEl) {
+      if (uid && uid.includes('@')) {
+        noticeEl.innerText = '✓ Validated against ERPNext HR Masterlist (' + uid + ')';
+        noticeEl.style.color = '#15803D';
+      } else {
+        noticeEl.innerText = '⚠️ User ID pending creation in ERPNext User Doctype';
+        noticeEl.style.color = '#B45309';
+      }
+    }
+  }
+
   async function executeQuickResignAndMerge() {
     if (!activeResignTerritoryRow) {
       showToast('Territory record missing.', 'error');
@@ -15540,13 +15867,13 @@ const BASELINE_ERP_TERRITORIES = [
 
     const terrCode = document.getElementById('resignTerritoryCodeInput').value;
     const oldRep = document.getElementById('resignTerritoryOrigRepInput').value;
-    const newRep = (document.getElementById('resignNewRepInput').value || '').trim();
-    const newUserId = (document.getElementById('resignNewUserIdInput').value || '').trim();
+    const newRep = (document.getElementById('resignNewRepSelect')?.value || '').trim();
+    const newUserId = (document.getElementById('resignNewUserIdInput')?.value || '').trim();
 
     if (!newRep) {
-      showToast('Please specify the Newly Assigned MedRep name before proceeding.', 'warning');
-      const inputEl = document.getElementById('resignNewRepInput');
-      if (inputEl) inputEl.focus();
+      showToast('Please select the Newly Assigned MedRep before proceeding.', 'warning');
+      const selEl = document.getElementById('resignNewRepSelect');
+      if (selEl) selEl.focus();
       return;
     }
 
