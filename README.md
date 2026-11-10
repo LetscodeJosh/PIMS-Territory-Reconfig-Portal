@@ -1,87 +1,71 @@
-# PIMS Territory Reconfiguration Portal (v.0.1.1) • Cloud Deployment Guide
+# PIMS Territory Reconfiguration Portal (v.0.1.1)
 
-See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for the active `v.0.1.1` release notes, UAT fixes, and operational feature matrix.  
-See [`GCP_DEPLOYMENT_GUIDE.md`](./GCP_DEPLOYMENT_GUIDE.md) for the complete, step-by-step **Google Cloud Platform (GCP)** deployment manual.
+Welcome to the **PIMS Territory Reconfiguration Portal** repository. This enterprise web application allows Sales Force Effectiveness (SFE) Leads and District Managers to reconfigure territories, manage MedRep resignations, execute portfolio doctor handovers, and review institution proposals with 1:1 ERPNext masterlist synchronization.
 
-This repository is fully configured and containerized for deployment on:
-1. **Google Cloud Platform (GCP)** — via **Google Cloud Run**, **Cloud Build**, or **Google App Engine** (Enterprise Containerized Standard).
-2. **Streamlit Community Cloud** — 1-click free hosting.
+See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for the complete `v.0.1.1` release notes and active feature matrix.
+
+---
+
+## 🚀 Deployment Options
+
+This repository supports two production deployment models:
+
+### Option 1: Pure GCP Compute Engine (Bare-Metal Linux via PuTTY) — Recommended for Enterprise
+Deploy directly onto a **Google Cloud Platform (GCP) Compute Engine VM** using standard Linux tools (`systemd`, `nginx`, `python3-venv`).
+* **Zero Docker, Zero Container Extensions**.
+* Runs 24/7 as an autonomous background service (`pims-portal.service`).
+* Includes Nginx reverse proxy with WebSocket support and optional free Let's Encrypt SSL.
+* 👉 **Follow the complete step-by-step runbook in [`GCP_DEPLOYMENT_GUIDE.md`](./GCP_DEPLOYMENT_GUIDE.md)**.
+
+**Quick 1-Command Installation via PuTTY:**
+```bash
+git clone https://github.com/LetscodeJosh/PIMS-Territory-Reconfig-Portal.git ~/pims-portal
+cd ~/pims-portal
+bash deploy/gcp/install.sh
+```
+
+---
+
+### Option 2: Streamlit Community Cloud (Zero Server Management)
+Deploy in 3 minutes via Streamlit's hosted cloud service:
+1. Fork or push this repository to GitHub.
+2. Sign in to **[share.streamlit.io](https://share.streamlit.io/)**.
+3. Select this repository (`main` branch) with main file path `app.py`.
+4. Add secrets in Streamlit Cloud Settings $\rightarrow$ Secrets if connecting to a custom ERPNext endpoint:
+   ```toml
+   ERPNEXT_URL = "https://your-erpnext-domain.com"
+   ```
+5. Click **Deploy!**
 
 ---
 
 ## 📁 Repository Structure
 
 ```
-├── Dockerfile                              # Production container for Google Cloud Run
-├── .dockerignore                           # Build context exclusions
-├── cloudbuild.yaml                         # Google Cloud Build CI/CD deployment pipeline
-├── app.yaml                                # Google App Engine runtime configuration
-├── app.py                                  # Streamlit cloud runner (full-screen responsive)
-├── secure_frappe_gateway.py                # Server-side Frappe validation & session gateway
-├── requirements.txt                        # Cloud container requirements
-├── territory_reconfiguration_portal.html   # Complete interactive web app (1:1 ERPNext Tree, CRUD, Login)
-├── index.html                              # High-speed static web asset
-├── GCP_DEPLOYMENT_GUIDE.md                 # Detailed GCP Cloud Run & App Engine guide
-├── RELEASE_NOTES.md                        # Active release notes & bug fix tracking
+PIMS-Territory-Reconfig-Portal/
+├── app.py                                  # Streamlit enterprise runner & gateway connector
+├── requirements.txt                        # Python dependencies (streamlit>=1.35.0)
+├── territory_reconfiguration_portal.html   # Standalone web app (1:1 ERPNext Tree, CRUD, Login)
+├── index.html                              # Web app alias for hosting platforms
+├── secure_frappe_gateway.py                # Cyber-grade Frappe API proxy & anti-BOLA/IDOR sentinel
+├── .env.example                            # Production environment template
+├── GCP_DEPLOYMENT_GUIDE.md                 # Complete GCP bare-metal deployment runbook
+├── RELEASE_NOTES.md                        # Formal release notes & UAT changelog
 ├── .streamlit/
-│   └── config.toml                         # Enterprise theme & performance configuration
-└── README.md                               # This deployment guide
+│   └── config.toml                         # Port binding, theme & performance configuration
+└── deploy/
+    └── gcp/                                # Pure GCP bare-metal deployment suite
+        ├── install.sh                      # Turnkey 1-command installer script
+        ├── nginx-pims.conf                 # Hardened Nginx reverse proxy with WebSocket support
+        ├── pims-portal.service             # Production systemd unit file (24/7 auto-restart)
+        ├── update.sh                       # 1-command update script for future releases
+        └── setup_ssl.sh                    # Free Let's Encrypt SSL certificate installer
 ```
 
 ---
 
-## ☁️ Deploying to Google Cloud Platform (GCP)
+## 🔒 Security & ERPNext Integration Standard
 
-### Method A: Google Cloud Run via Cloud Console (1-Click UI / Zero CLI)
-1. Go to [console.cloud.google.com/run](https://console.cloud.google.com/run).
-2. Click **Create Service** $\rightarrow$ **Continuously deploy from a repository**.
-3. Connect your repository: `LetscodeJosh/PIMS-Territory-Reconfig-Portal` (`main` branch).
-4. Select **Dockerfile** as the build type.
-5. Select region `asia-southeast1 (Singapore)`.
-6. Set port to `8080`, memory `1 GiB`, CPU `1`.
-7. Select **Allow unauthenticated invocations** and click **Create**!
-
-### Method B: Google Cloud Shell / `gcloud` CLI
-Run directly in Google Cloud Shell:
-```bash
-gcloud run deploy pims-territory-portal \
-  --source . \
-  --region asia-southeast1 \
-  --platform managed \
-  --allow-unauthenticated \
-  --port 8080 \
-  --memory 1Gi \
-  --cpu 1 \
-  --min-instances 0 \
-  --max-instances 10 \
-  --set-env-vars ERPNEXT_URL=https://staging.pmii-marketing.com
-```
-
-### Method C: Automated CI/CD with Cloud Build
-Trigger automated deployment on git push using `cloudbuild.yaml`:
-```bash
-gcloud builds submit --config cloudbuild.yaml
-```
-
-*For complete GCP custom domain mapping, SSL certificate setup, and cost optimization, refer to [`GCP_DEPLOYMENT_GUIDE.md`](./GCP_DEPLOYMENT_GUIDE.md).*
-
----
-
-## 🚀 Deploying to Streamlit Community Cloud (Free)
-
-1. Go to **[share.streamlit.io](https://share.streamlit.io/)**.
-2. Click **Create app** $\rightarrow$ select `LetscodeJosh/PIMS-Territory-Reconfig-Portal` $\rightarrow$ branch `main` $\rightarrow$ file `app.py`.
-3. In App Settings $\rightarrow$ **Secrets**, configure:
-   ```toml
-   ERPNEXT_URL = "https://staging.pmii-marketing.com"
-   ```
-4. Click **Deploy!**
-
----
-
-## 📱 Cross-Device Installation (PWA)
-
-Once deployed to GCP or Streamlit:
-- **PC & Mac Desktop App**: Open in Chrome/Edge $\rightarrow$ click the **Install App** icon in the address bar.
-- **iPhone / iPad**: Open in Safari $\rightarrow$ tap Share $\rightarrow$ **"Add to Home Screen"**.
-- **Android**: Open in Chrome $\rightarrow$ tap `⋮` $\rightarrow$ **"Install app"** / **"Add to Home screen"**.
+* **Zero Hardcoded Secrets**: All endpoints and service account credentials can be configured via environment variables (`.env`) or Streamlit secrets.
+* **Masterlist Protection**: Permanent deletion is disabled in the web portal. Unused territories are safely archived to the Archive Vault.
+* **Resilient Failover**: Cached structures and session recovery ensure the portal remains responsive during transient backend interruptions.
