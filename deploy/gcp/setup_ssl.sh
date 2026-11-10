@@ -41,3 +41,4 @@ echo -e "${GREEN}  SSL CONFIGURATION COMPLETE!${NC}"
 echo -e "  Your portal is now securely accessible via HTTPS:"
 echo -e "  🔒 ${YELLOW}https://${DOMAIN}${NC}"
 echo -e "${BLUE}======================================================================${NC}"
+

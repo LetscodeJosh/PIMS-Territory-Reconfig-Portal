@@ -158,3 +158,4 @@ else
     echo -e "Check logs:   ${YELLOW}sudo journalctl -u pims-portal -f${NC}"
 fi
 echo -e "${BLUE}======================================================================${NC}"
+

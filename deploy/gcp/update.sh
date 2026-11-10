@@ -37,3 +37,4 @@ sudo systemctl status pims-portal.service --no-pager
 echo -e "\n${BLUE}======================================================================${NC}"
 echo -e "${GREEN}  UPDATE COMPLETED SUCCESSFULLY!${NC}"
 echo -e "${BLUE}======================================================================${NC}"
+

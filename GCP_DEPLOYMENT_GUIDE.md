@@ -237,3 +237,4 @@ This will automatically:
   # Set ERPNEXT_URL=https://your-live-domain.com
   sudo systemctl restart pims-portal
   ```
+
