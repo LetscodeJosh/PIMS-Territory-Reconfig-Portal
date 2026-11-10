@@ -5749,6 +5749,10 @@ const BASELINE_ERP_TERRITORIES = [
       if (node) {
         const explicitProg = normalizeProgramName(node.program || node.custom_account_or_program || '');
         if (explicitProg) return explicitProg;
+        if (node.territory_name) {
+          const fromNameText = detectTextProgram(node.territory_name);
+          if (fromNameText) return fromNameText;
+        }
       }
       for (const progKey of Object.keys(LIVE_DATA || {})) {
         const pd = LIVE_DATA[progKey];
@@ -8606,6 +8610,33 @@ const BASELINE_ERP_TERRITORIES = [
       localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
     } catch (_) {}
 
+    // Streamlit bidirectional dispatch for bulk creation on ERPNext
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        const payloadList = validCodesToAdd.map(code => {
+          const alloc = rowMap.get(code) || { district: defaultDist, rep: defaultRep };
+          const rowDistrict = (alloc.district && alloc.district !== 'NEW_CLUSTER') ? alloc.district : defaultDist;
+          const rowRep = alloc.rep || defaultRep;
+          return {
+            territory_name: code,
+            parent_territory: rowDistrict,
+            is_group: 0,
+            territory_manager: (rowRep === 'Unassigned Slot') ? '' : rowRep,
+            custom_account_or_program: activeProgram
+          };
+        });
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "bulk_tree_add",
+            territories: payloadList,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
+
     closeBulkEditModal();
 
     renderTable();
@@ -11194,7 +11225,7 @@ const BASELINE_ERP_TERRITORIES = [
       await syncSalesPersonsAndEmployeesWithERPNext();
     } catch (_) {}
 
-    if (triggerServerRefresh && (isStreamlitActive || (window.parent && window.parent !== window))) {
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
       try {
         window.parent.postMessage({
           isStreamlitMessage: true,
@@ -13295,9 +13326,11 @@ const BASELINE_ERP_TERRITORIES = [
 
   async function submitTreeAdd() {
     const parentSel = document.getElementById('treeAddParentSelect');
-    const parent = (parentSel ? parentSel.value : document.getElementById('treeAddParentInput').value).trim() || 'All Territories';
-    const name = document.getElementById('treeAddNameInput').value.trim();
+    const rawParent = (parentSel ? parentSel.value : document.getElementById('treeAddParentInput').value).trim() || 'All Territories';
     const isGroup = document.getElementById('treeAddIsGroup').checked ? 1 : 0;
+    const progBranch = (LIVE_DATA[activeProgram] && LIVE_DATA[activeProgram].territoryBranch) ? LIVE_DATA[activeProgram].territoryBranch : 'All Territories';
+    const parent = (rawParent === 'All Territories' && !isGroup) ? progBranch : rawParent;
+    const name = document.getElementById('treeAddNameInput').value.trim();
     const mgr = cleanRepDisplayName(document.getElementById('treeAddManagerInput').value.trim());
     const userAcc = document.getElementById('treeAddUserAccountInput') ? document.getElementById('treeAddUserAccountInput').value.trim() : '';
 
@@ -14193,7 +14226,9 @@ const BASELINE_ERP_TERRITORIES = [
     const repName = document.getElementById('addRepName').value.trim() || 'Unassigned Rep';
     const userAccVal = document.getElementById('addUserId') ? document.getElementById('addUserId').value.trim() : '';
     const userId = (userAccVal && userAccVal.includes('@')) ? userAccVal : '';
-    const district = document.getElementById('addDistrict').value.trim() || 'General Territory District';
+    const progBranch = (LIVE_DATA[activeProgram] && LIVE_DATA[activeProgram].territoryBranch) ? LIVE_DATA[activeProgram].territoryBranch : 'All Territories';
+    const inputDistrict = document.getElementById('addDistrict').value.trim();
+    const district = inputDistrict || progBranch;
     const docs = parseInt(document.getElementById('addDocs').value, 10) || 0;
 
     if (!activeCode) {
@@ -14201,9 +14236,17 @@ const BASELINE_ERP_TERRITORIES = [
       return;
     }
 
+    if (programTerritories.some(t => (t.activeCode || '').toLowerCase() === activeCode.toLowerCase())) {
+      showToast(`Territory "${activeCode}" already exists in ${activeProgram}!`, 'error');
+      return;
+    }
+
     const cleanCode = activeCode.replace(/[^A-Za-z0-9]/g, '');
     const newRecordId = `REC-${cleanCode}-${Date.now().toString().slice(-4)}`;
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    const isRepAssigned = repName && repName !== 'Unassigned Rep' && repName !== 'Unassigned Slot';
+    const initialStatus = isRepAssigned ? 'Active' : 'Vacant';
 
     const newRecord = {
       recordId: newRecordId,
@@ -14214,21 +14257,95 @@ const BASELINE_ERP_TERRITORIES = [
       district: district,
       docs: docs,
       status: 'CHANGED',
+      operationalStatus: initialStatus,
+      isActive: isRepAssigned,
+      isResigned: false,
       auditTrail: [{
         timestamp: nowStr,
         action: 'NEW_RECORD_ADDED',
-        user: 'admin@pims.com [SFE Lead]',
-        details: `Created new territory record ${activeCode} assigned to ${repName} (${userId}).`
+        user: (authenticatedUser && authenticatedUser.email) ? `${authenticatedUser.email} [${authenticatedUser.role_title || 'SFE Lead'}]` : 'admin@pims.com [SFE Lead]',
+        details: `Created new territory record ${activeCode} in ${district} assigned to ${repName} (${userId || 'Unassigned'}).`
       }]
     };
 
     programTerritories.unshift(newRecord);
+
+    // 1. Ensure district cluster exists in territoryTreeData
+    if (district && district !== 'All Territories' && district !== progBranch) {
+      if (!territoryTreeData.some(t => t.name === district || t.territory_name === district)) {
+        territoryTreeData.push({
+          name: district,
+          territory_name: district,
+          parent_territory: progBranch,
+          is_group: 1,
+          territory_manager: '',
+          operational_status: 'Active',
+          status: 'Active',
+          custom_account_or_program: activeProgram,
+          program: activeProgram
+        });
+        treeExpandedNodes.add(district);
+      }
+    }
+
+    // 2. Add territory node to territoryTreeData & register program
+    const existingNode = territoryTreeData.find(t => t.name === activeCode || t.territory_name === activeCode);
+    if (existingNode) {
+      existingNode.parent_territory = district;
+      existingNode.territory_manager = isRepAssigned ? repName : '';
+      existingNode.operational_status = initialStatus;
+      existingNode.status = initialStatus;
+      existingNode.custom_account_or_program = activeProgram;
+      existingNode.program = activeProgram;
+    } else {
+      territoryTreeData.push({
+        name: activeCode,
+        territory_name: activeCode,
+        parent_territory: district,
+        is_group: 0,
+        territory_manager: isRepAssigned ? repName : '',
+        operational_status: initialStatus,
+        status: initialStatus,
+        custom_account_or_program: activeProgram,
+        program: activeProgram
+      });
+    }
+
+    registerNodeProgram(activeCode, activeProgram);
+    if (isRepAssigned) registerSalesPersonProgram(repName, activeProgram);
+
+    // 3. Persist to localStorage for 100% reload survival
+    try {
+      localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
+    } catch (_) {}
+
+    // 4. Streamlit bidirectional dispatch to sync live to ERPNext
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "tree_add",
+            territory_name: activeCode,
+            parent_territory: district,
+            is_group: 0,
+            territory_manager: isRepAssigned ? repName : "",
+            custom_user_id: userId || "",
+            custom_account_or_program: activeProgram || "",
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
+
     globalAuditLogs.unshift({
       timestamp: nowStr,
       recordId: newRecordId,
       action: 'NEW_RECORD_ADDED',
       territoryCode: activeCode,
-      user: 'admin@pims.com [SFE Lead]',
+      user: (authenticatedUser && authenticatedUser.email) ? `${authenticatedUser.email} [${authenticatedUser.role_title || 'SFE Lead'}]` : 'admin@pims.com [SFE Lead]',
       details: `Created territory ${activeCode} in district ${district}.`
     });
 
@@ -14237,7 +14354,7 @@ const BASELINE_ERP_TERRITORIES = [
     renderTree();
     renderRealignmentAndArchive();
     renderSummaryReport();
-    showToast(`Created territory record ${activeCode}!`);
+    showToast(`Created territory record ${activeCode} & synced live to Tree & ERPNext!`, 'success');
   }
 
   // --- BATCH PREFIX RENAME ---
@@ -19202,6 +19319,35 @@ function quickApproveSfeInstitution(instId) {
     }
   }
 
+  // --- AUTOMATIC REAL-TIME TERRITORY TREE SYNCHRONIZATION ---
+  let sfeTerrAutoPollTimer = null;
+  function startSfeTerrAutoPoll() {
+    if (!sfeTerrAutoPollTimer) {
+      const pollMs = 15000; // Real-time ERPNext territory tree synchronization (15 seconds)
+      sfeTerrAutoPollTimer = setInterval(() => {
+        if (!authenticatedUser) return;
+        if (document.querySelector('.modal-overlay.active')) return;
+        const editorTab = document.getElementById('tab-editor');
+        if (editorTab && editorTab.classList.contains('active')) {
+          if (isStreamlitActive || (window.parent && window.parent !== window)) {
+            try {
+              window.parent.postMessage({
+                isStreamlitMessage: true,
+                type: "streamlit:setComponentValue",
+                value: {
+                  action: "tree_refresh",
+                  activeProgram: activeProgram,
+                  silent: true,
+                  timestamp: Date.now()
+                }
+              }, "*");
+            } catch (_) {}
+          }
+        }
+      }, pollMs);
+    }
+  }
+
   // Immediately hydrate baseline institutions synchronously before first render
   loadCachedSfeInstitutions();
   updateSfeInstitutionBadgesAndKpis();
@@ -19209,6 +19355,7 @@ function quickApproveSfeInstitution(instId) {
 
   window.addEventListener('DOMContentLoaded', function() {
     initSfeInstitutionWorkbench();
+    startSfeTerrAutoPoll();
   });
 </script>
 

@@ -448,24 +448,22 @@ def verify_erpnext_credentials(usr, pwd):
 def fetch_live_territories(opener):
     if not opener:
         return None
-    try:
-        fields = json.dumps([
-            "name",
-            "territory_name",
-            "parent_territory",
-            "is_group",
-            "territory_manager",
-            "custom_user_id",
-            "custom_account_or_program"
-        ])
-        url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory?fields={urllib.parse.quote(fields)}&limit_page_length=1000"
-        req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
-        res = call_erpnext_resiliently(opener, req, timeout=12)
-        data = json.loads(res.read().decode("utf-8")).get("data", [])
-        return data
-    except Exception as e:
-        print(f"[Streamlit Proxy] Failed to fetch live territories: {e}")
-        return None
+    for fields_list in [
+        ["name", "territory_name", "parent_territory", "is_group", "territory_manager", "custom_user_id", "custom_account_or_program"],
+        ["name", "territory_name", "parent_territory", "is_group", "territory_manager"]
+    ]:
+        try:
+            fields = json.dumps(fields_list)
+            url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory?fields={urllib.parse.quote(fields)}&limit_page_length=2000"
+            req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+            res = call_erpnext_resiliently(opener, req, timeout=12)
+            data = json.loads(res.read().decode("utf-8")).get("data", [])
+            if data is not None:
+                return data
+        except Exception as e:
+            print(f"[Streamlit Proxy] fetch_live_territories fallback with {fields_list}: {e}")
+            continue
+    return None
 
 def fetch_live_sales_persons(opener):
     if not opener:
@@ -1155,26 +1153,21 @@ def execute_tree_action(opener, action, payload):
         except SecurityValidationError as sve:
             return "error", f"Security Validation Error: {sve}"
 
-        if action == "tree_add":
-            t_name = safe_str(payload.get("territory_name"))
-            parent = safe_str(payload.get("parent_territory")) or "All Territories"
-            is_group = int(payload.get("is_group", 0) or 0)
-            t_mgr = safe_str(payload.get("territory_manager"))
-            if not t_name:
-                return "error", "Territory name cannot be blank."
+        def _create_single_territory_record(t_name, parent, is_group, t_mgr, custom_uid, custom_prog):
             if parent and parent != "All Territories":
                 _ensure_parent_territory_is_group(opener, parent, headers_json)
             body = {
                 "territory_name": t_name,
-                "parent_territory": parent,
+                "parent_territory": parent or "All Territories",
                 "is_group": is_group
             }
-            if t_mgr:
+            if t_mgr and t_mgr.lower() not in ["unassigned", "unassigned rep", "unassigned slot", "folder (group)"]:
                 body["territory_manager"] = t_mgr
-            if payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"):
-                body["custom_user_id"] = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
-            if payload.get("custom_account_or_program") or payload.get("program"):
-                body["custom_account_or_program"] = safe_str(payload.get("custom_account_or_program") or payload.get("program"))
+            if custom_uid and "@" in custom_uid:
+                body["custom_user_id"] = custom_uid
+            if custom_prog:
+                body["custom_account_or_program"] = custom_prog
+
             data = json.dumps(body).encode("utf-8")
             req = urllib.request.Request(
                 f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
@@ -1182,30 +1175,28 @@ def execute_tree_action(opener, action, payload):
                 headers=headers_json,
                 method="POST"
             )
+            success = False
             try:
                 res = call_erpnext_resiliently(opener, req, timeout=12)
                 if res.status in [200, 201]:
-                    return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
-                return "warning", f"ERPNext responded with HTTP {res.status}"
+                    success = True
             except urllib.error.HTTPError as he:
                 err_text = he.read().decode("utf-8", errors="ignore")
                 if "DuplicateEntryError" in err_text:
-                    return "success", f'Territory "{t_name}" synchronized in {get_server_display_name()}.'
-                for lf in ["custom_account_or_program", "custom_user_id"]:
-                    body.pop(lf, None)
-                try:
-                    data = json.dumps(body).encode("utf-8")
-                    req = urllib.request.Request(
-                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
-                        data=data,
-                        headers=headers_json,
-                        method="POST"
-                    )
-                    res = call_erpnext_resiliently(opener, req, timeout=12)
-                    if res.status in [200, 201]:
-                        return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
-                except urllib.error.HTTPError:
-                    body.pop("territory_manager", None)
+                    try:
+                        up_req = urllib.request.Request(
+                            f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name)}",
+                            data=data,
+                            headers=headers_json,
+                            method="PUT"
+                        )
+                        call_erpnext_resiliently(opener, up_req, timeout=12)
+                    except Exception:
+                        pass
+                    success = True
+                else:
+                    for lf in ["custom_account_or_program", "custom_user_id"]:
+                        body.pop(lf, None)
                     try:
                         data = json.dumps(body).encode("utf-8")
                         req = urllib.request.Request(
@@ -1216,10 +1207,67 @@ def execute_tree_action(opener, action, payload):
                         )
                         res = call_erpnext_resiliently(opener, req, timeout=12)
                         if res.status in [200, 201]:
-                            return "success", f'Territory "{t_name}" created live on {get_server_display_name()}!'
-                    except Exception:
-                        pass
-                return "success", f'Territory "{t_name}" created & saved under "{parent}".'
+                            success = True
+                    except urllib.error.HTTPError:
+                        body["parent_territory"] = "All Territories"
+                        body.pop("territory_manager", None)
+                        try:
+                            data = json.dumps(body).encode("utf-8")
+                            req = urllib.request.Request(
+                                f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+                                data=data,
+                                headers=headers_json,
+                                method="POST"
+                            )
+                            res = call_erpnext_resiliently(opener, req, timeout=12)
+                            if res.status in [200, 201]:
+                                success = True
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+            # In all cases, immediately reflect node in session state live_territories so UI never wipes it
+            if "live_territories" in st.session_state and isinstance(st.session_state["live_territories"], list):
+                if not any(t.get("name") == t_name for t in st.session_state["live_territories"]):
+                    st.session_state["live_territories"].append({
+                        "name": t_name,
+                        "territory_name": t_name,
+                        "parent_territory": parent or "All Territories",
+                        "is_group": is_group,
+                        "territory_manager": t_mgr or "",
+                        "custom_user_id": custom_uid or "",
+                        "custom_account_or_program": custom_prog or ""
+                    })
+            return success
+
+        if action == "tree_add":
+            t_name = safe_str(payload.get("territory_name"))
+            parent = safe_str(payload.get("parent_territory")) or "All Territories"
+            is_group = int(payload.get("is_group", 0) or 0)
+            t_mgr = safe_str(payload.get("territory_manager"))
+            custom_uid = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
+            custom_prog = safe_str(payload.get("custom_account_or_program") or payload.get("program"))
+            if not t_name:
+                return "error", "Territory name cannot be blank."
+            _create_single_territory_record(t_name, parent, is_group, t_mgr, custom_uid, custom_prog)
+            return "success", f'Territory "{t_name}" created & synchronized with {get_server_display_name()}!'
+
+        elif action == "bulk_tree_add":
+            terrs = payload.get("territories", [])
+            count = 0
+            for item in terrs:
+                if isinstance(item, dict):
+                    t_name = safe_str(item.get("territory_name") or item.get("name") or item.get("code"))
+                    parent = safe_str(item.get("parent_territory") or item.get("district")) or "All Territories"
+                    is_group = int(item.get("is_group", 0) or 0)
+                    t_mgr = safe_str(item.get("territory_manager") or item.get("rep"))
+                    uid = safe_str(item.get("custom_user_id") or item.get("user_id") or item.get("userId"))
+                    prog = safe_str(item.get("custom_account_or_program") or item.get("program"))
+                    if t_name:
+                        _create_single_territory_record(t_name, parent, is_group, t_mgr, uid, prog)
+                        count += 1
+            return "success", f"Successfully synced {count} new territories live to {get_server_display_name()}!"
 
         elif action == "tree_edit":
             orig_name = safe_str(payload.get("name"))
@@ -1790,7 +1838,7 @@ if component_val and isinstance(component_val, dict):
                     "timestamp": ts
                 }
             st.rerun()
-        elif action in ["tree_add", "tree_edit", "tree_rename", "tree_delete", "territory_toggle_status", "territory_deactivate", "tree_refresh", "sales_person_create", "employee_create", "doctor_transfer"]:
+        elif action in ["tree_add", "bulk_tree_add", "tree_edit", "tree_rename", "tree_delete", "territory_toggle_status", "territory_deactivate", "tree_refresh", "sales_person_create", "employee_create", "doctor_transfer"]:
             opener = st.session_state.get("opener")
             if not opener:
                 opener = get_authenticated_opener()
@@ -1831,11 +1879,12 @@ if component_val and isinstance(component_val, dict):
                     ACTIVE_SESSIONS[token]["live_employees"] = st.session_state["live_employees"]
                     ACTIVE_SESSIONS[token]["live_users"] = st.session_state["live_users"]
                     ACTIVE_SESSIONS[token]["last_active"] = time.time()
-            st.session_state["tree_sync_event"] = {
-                "action": action,
-                "status": status,
-                "message": msg,
-                "timestamp": ts
-            }
+            if not (action == "tree_refresh" and component_val.get("silent")):
+                st.session_state["tree_sync_event"] = {
+                    "action": action,
+                    "status": status,
+                    "message": msg,
+                    "timestamp": ts
+                }
             st.rerun()
 

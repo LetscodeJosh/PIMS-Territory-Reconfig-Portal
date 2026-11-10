@@ -222,6 +222,7 @@ class TerritoryActionSchema:
         raw_action = sanitize_string(data.get("action", ""), max_len=30, allow_spaces=False)
         allowed_actions = {
             "tree_add", "tree_edit", "tree_rename", "tree_delete", "tree_refresh",
+            "bulk_tree_add",
             "territory_toggle_status", "territory_deactivate",
             "sales_person_create", "employee_create", "doctor_transfer", "resignation_handover",
             "bulk_decommission", "bulk_archive",
@@ -231,7 +232,7 @@ class TerritoryActionSchema:
             raise SecurityValidationError(f"Disallowed action: '{raw_action}'")
 
         t_name = sanitize_string(data.get("territory_name") or data.get("name") or data.get("territory") or data.get("code") or "", max_len=140)
-        no_tname_actions = {"tree_refresh", "inst_refresh", "doctor_transfer", "resignation_handover", "bulk_decommission", "bulk_archive", "inst_create", "inst_propose"}
+        no_tname_actions = {"tree_refresh", "inst_refresh", "doctor_transfer", "resignation_handover", "bulk_decommission", "bulk_archive", "inst_create", "inst_propose", "bulk_tree_add"}
         if not t_name and raw_action not in no_tname_actions:
             raise SecurityValidationError("territory_name is required")
 
