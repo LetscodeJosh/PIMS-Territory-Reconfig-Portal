@@ -14,4 +14,5 @@ enableCORS = false
 enableXsrfProtection = false
 enableStaticServing = false
 enableWebsocketCompression = false
-
+maxUploadSize = 50
+runOnSave = false

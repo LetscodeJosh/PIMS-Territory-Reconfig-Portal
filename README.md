@@ -1,62 +1,87 @@
-# PIMS Territory Reconfiguration Portal (v.0.1.1) • Production Guide
+# PIMS Territory Reconfiguration Portal (v.0.1.1) • Cloud Deployment Guide
 
-See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for the complete `v.0.1.1` release notes, UAT fixes (Items #4 and #7), and active feature matrix.
+See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for the active `v.0.1.1` release notes, UAT fixes, and operational feature matrix.  
+See [`GCP_DEPLOYMENT_GUIDE.md`](./GCP_DEPLOYMENT_GUIDE.md) for the complete, step-by-step **Google Cloud Platform (GCP)** deployment manual.
 
-
-This folder contains the complete, deployment-ready files to host the **Territory Reconfiguration Web App** on **Streamlit Community Cloud (100% Free)**.
+This repository is fully configured and containerized for deployment on:
+1. **Google Cloud Platform (GCP)** — via **Google Cloud Run**, **Cloud Build**, or **Google App Engine** (Enterprise Containerized Standard).
+2. **Streamlit Community Cloud** — 1-click free hosting.
 
 ---
 
-## 📁 Package Contents
+## 📁 Repository Structure
 
 ```
-Streamlit_Deployment/
+├── Dockerfile                              # Production container for Google Cloud Run
+├── .dockerignore                           # Build context exclusions
+├── cloudbuild.yaml                         # Google Cloud Build CI/CD deployment pipeline
+├── app.yaml                                # Google App Engine runtime configuration
 ├── app.py                                  # Streamlit cloud runner (full-screen responsive)
-├── requirements.txt                        # Cloud container requirements (streamlit>=1.35.0)
+├── secure_frappe_gateway.py                # Server-side Frappe validation & session gateway
+├── requirements.txt                        # Cloud container requirements
 ├── territory_reconfiguration_portal.html   # Complete interactive web app (1:1 ERPNext Tree, CRUD, Login)
+├── index.html                              # High-speed static web asset
+├── GCP_DEPLOYMENT_GUIDE.md                 # Detailed GCP Cloud Run & App Engine guide
+├── RELEASE_NOTES.md                        # Active release notes & bug fix tracking
 ├── .streamlit/
 │   └── config.toml                         # Enterprise theme & performance configuration
-└── README.md                               # Deployment guide
+└── README.md                               # This deployment guide
 ```
 
 ---
 
-## 🚀 How to Deploy to Streamlit Cloud in 3 Minutes (Free)
+## ☁️ Deploying to Google Cloud Platform (GCP)
 
-### Step 1: Create a GitHub Repository
-1. Go to [github.com/new](https://github.com/new).
-2. Name your repository (e.g. `pims-territory-portal`).
-3. Set it to **Public** (required for free Streamlit Community Cloud hosting).
-4. Upload all files from this folder (`app.py`, `requirements.txt`, `territory_reconfiguration_portal.html`, `.streamlit/config.toml`) into your new GitHub repository.
+### Method A: Google Cloud Run via Cloud Console (1-Click UI / Zero CLI)
+1. Go to [console.cloud.google.com/run](https://console.cloud.google.com/run).
+2. Click **Create Service** $\rightarrow$ **Continuously deploy from a repository**.
+3. Connect your repository: `LetscodeJosh/PIMS-Territory-Reconfig-Portal` (`main` branch).
+4. Select **Dockerfile** as the build type.
+5. Select region `asia-southeast1 (Singapore)`.
+6. Set port to `8080`, memory `1 GiB`, CPU `1`.
+7. Select **Allow unauthenticated invocations** and click **Create**!
 
-### Step 2: Sign In to Streamlit Community Cloud
-1. Go to **[share.streamlit.io](https://share.streamlit.io/)**.
-2. Click **"Continue with GitHub"** and authorize Streamlit.
+### Method B: Google Cloud Shell / `gcloud` CLI
+Run directly in Google Cloud Shell:
+```bash
+gcloud run deploy pims-territory-portal \
+  --source . \
+  --region asia-southeast1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --port 8080 \
+  --memory 1Gi \
+  --cpu 1 \
+  --min-instances 0 \
+  --max-instances 10 \
+  --set-env-vars ERPNEXT_URL=https://staging.pmii-marketing.com
+```
 
-### Step 3: Deploy Your App
-1. Click the **"Create app"** button.
-2. Select:
-   - **Repository:** `your-username/pims-territory-portal`
-   - **Branch:** `main`
-   - **Main file path:** `app.py`
-   - **App URL:** (Optional: customize your subdomain, e.g. `pims-territory.streamlit.app`)
-3. Click **"Deploy!"**
+### Method C: Automated CI/CD with Cloud Build
+Trigger automated deployment on git push using `cloudbuild.yaml`:
+```bash
+gcloud builds submit --config cloudbuild.yaml
+```
 
-### Step 4: Configure Secure Secrets
-In Streamlit Cloud:
-1. Go to your App Settings $\rightarrow$ **Secrets**.
-2. Add your ERPNext endpoint securely:
-   ```toml
-   ERPNEXT_URL = "https://your-frappe-server.com"
-   SESSION_SECRET = "your-random-64-character-hex-secret"
-   ```
-3. Save secrets. The portal will automatically connect to your instance securely without exposing endpoints in source code.
+*For complete GCP custom domain mapping, SSL certificate setup, and cost optimization, refer to [`GCP_DEPLOYMENT_GUIDE.md`](./GCP_DEPLOYMENT_GUIDE.md).*
 
 ---
 
-## 📱 How Users Access & Install Across Devices
+## 🚀 Deploying to Streamlit Community Cloud (Free)
 
-Once deployed, send the live link (`https://<your-app>.streamlit.app`) to your team:
-- **PC & Mac Desktop App (1-Click PWA)**: Open in Chrome/Edge $\rightarrow$ click the **Install App** icon in the address bar to create a standalone Desktop icon.
-- **iPhone / iPad App**: Open in Safari $\rightarrow$ tap Share $\rightarrow$ **"Add to Home Screen"**.
-- **Android App**: Open in Chrome $\rightarrow$ tap `⋮` $\rightarrow$ **"Install app"** / **"Add to Home screen"**.
+1. Go to **[share.streamlit.io](https://share.streamlit.io/)**.
+2. Click **Create app** $\rightarrow$ select `LetscodeJosh/PIMS-Territory-Reconfig-Portal` $\rightarrow$ branch `main` $\rightarrow$ file `app.py`.
+3. In App Settings $\rightarrow$ **Secrets**, configure:
+   ```toml
+   ERPNEXT_URL = "https://staging.pmii-marketing.com"
+   ```
+4. Click **Deploy!**
+
+---
+
+## 📱 Cross-Device Installation (PWA)
+
+Once deployed to GCP or Streamlit:
+- **PC & Mac Desktop App**: Open in Chrome/Edge $\rightarrow$ click the **Install App** icon in the address bar.
+- **iPhone / iPad**: Open in Safari $\rightarrow$ tap Share $\rightarrow$ **"Add to Home Screen"**.
+- **Android**: Open in Chrome $\rightarrow$ tap `⋮` $\rightarrow$ **"Install app"** / **"Add to Home screen"**.
