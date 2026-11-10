@@ -18677,7 +18677,7 @@ const BASELINE_ERP_TERRITORIES = [
     showToast(`Facility proposal "${name}" submitted and queued in MedRep Submission!`, 'success', 4000);
   }
 
-function quickApproveSfeInstitution(instId) {
+  async function quickApproveSfeInstitution(instId) {
     const inst = sfeInstitutionsMasterlist.find(x => x.name === instId);
     if (!inst) return;
 
