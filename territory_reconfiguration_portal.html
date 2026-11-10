@@ -95,43 +95,30 @@
   }
 
   // =========================================================================
-  // THEME ENGINE (LIGHT / DARK MODE OPTIMIZATION FOR DROPDOWNS & POPOVERS)
+  // THEME ENGINE: PERMANENT CRISP ENTERPRISE LIGHT MODE (DARK MODE REMOVED)
   // =========================================================================
   function getPortalTheme() {
-    try {
-      return localStorage.getItem('pims_portal_theme') || 'light';
-    } catch (_) {
-      return 'light';
-    }
+    return 'light';
   }
 
   function applyPortalTheme(theme) {
-    const normalized = (theme === 'dark') ? 'dark' : 'light';
     if (document.body) {
-      document.body.setAttribute('data-theme', normalized);
+      document.body.removeAttribute('data-theme');
     }
     const btn = document.getElementById('btnThemeToggle');
-    if (btn) {
-      btn.innerHTML = normalized === 'dark' ? '🌙 Dark Mode' : '☀️ Light Mode';
-      btn.title = normalized === 'dark'
-        ? 'Currently in Dark Mode — Click to switch to Light Mode'
-        : 'Currently in Light Mode — Click to switch to Dark Mode';
-    }
+    if (btn) btn.style.display = 'none';
     try {
-      localStorage.setItem('pims_portal_theme', normalized);
+      localStorage.removeItem('pims_portal_theme');
     } catch (_) {}
   }
 
   function togglePortalTheme() {
-    const next = getPortalTheme() === 'dark' ? 'light' : 'dark';
-    applyPortalTheme(next);
-    if (typeof showToast === 'function') {
-      showToast(`Theme switched to ${next === 'dark' ? 'Dark' : 'Light'} Mode — Dropdowns & menus optimized.`, 'info', 2500);
-    }
+    // Light Mode permanently enforced across all screens per SFE specification
+    applyPortalTheme('light');
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    applyPortalTheme(getPortalTheme());
+    applyPortalTheme('light');
   });
 
   // =========================================================================
@@ -1739,10 +1726,17 @@
     font-weight: 700;
   }
 
-  /* Fixed Table Column & Sticky Positioning: Checkbox and Actions stay firmly in place */
+  /* Fixed Table Column & Robust Laptop Layout Alignment */
   #editorTable {
     table-layout: fixed;
     width: 100%;
+    min-width: 1100px;
+    border-collapse: collapse;
+  }
+
+  #editorTable th, #editorTable td {
+    box-sizing: border-box;
+    vertical-align: middle;
   }
 
   #editorTable th.col-cb, #editorTable td.col-cb {
@@ -1754,10 +1748,64 @@
     padding-right: 4px;
   }
 
-  #editorTable th.col-actions, #editorTable td.col-actions {
+  #editorTable th.col-prev, #editorTable td.col-prev {
+    width: 180px !important;
+    min-width: 180px !important;
+    text-align: left !important;
+    padding-left: 14px;
+    padding-right: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #editorTable th.col-active, #editorTable td.col-active {
+    width: 150px !important;
+    min-width: 150px !important;
+    text-align: left !important;
+    padding-left: 14px;
+    padding-right: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #editorTable th.col-area, #editorTable td.col-area {
+    width: 165px !important;
+    min-width: 165px !important;
+    text-align: left !important;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  #editorTable th.col-rep, #editorTable td.col-rep {
+    width: 250px !important;
+    min-width: 250px !important;
+    text-align: left !important;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  #editorTable th.col-docs, #editorTable td.col-docs {
     width: 110px !important;
     min-width: 110px !important;
-    max-width: 110px !important;
+    text-align: center !important;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  #editorTable th.col-status, #editorTable td.col-status {
+    width: 100px !important;
+    min-width: 100px !important;
+    text-align: center !important;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  #editorTable th.col-actions, #editorTable td.col-actions {
+    width: 115px !important;
+    min-width: 115px !important;
+    max-width: 115px !important;
     text-align: center !important;
     padding-left: 6px;
     padding-right: 6px;
@@ -2810,11 +2858,8 @@
       </select>
     </div>
 
-    <button type="button" id="btnThemeToggle" onclick="togglePortalTheme()" style="background:rgba(255,255,255,0.1); border:1px solid rgba(148,163,184,0.35); color:#F8FAFC; font-size:11px; font-weight:700; padding:5px 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap !important; flex-shrink:0 !important; min-width:110px !important;" title="Toggle Light / Dark Mode">
-      ☀️ Light Mode
-    </button>
-
-<!-- Refresh Live Sync removed per SFE live reconfig standard -->
+    <!-- Theme permanently locked to Enterprise Light Mode per SFE standard -->
+    <!-- Refresh Live Sync removed per SFE live reconfig standard -->
 
 
 
@@ -3199,14 +3244,14 @@
             <table id="editorTable">
               <thead>
                 <tr>
-                  <th class="col-cb" style="width:44px; min-width:44px; max-width:44px; text-align:center;"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="Select all on this page" style="cursor:pointer; width:16px; height:16px; accent-color:#0066FF;"></th>
-                  <th class="col-prev" style="width:14%;">Latest Previous Code</th>
-                  <th class="col-active" style="width:14%;">Active Code</th>
-                  <th class="col-area" style="width:14%;">Area / District</th>
-                  <th class="col-rep" style="width:24%;">Assigned MedRep</th>
-                  <th class="col-docs" style="width:11%; text-align:center;">Doctor Count</th>
-                  <th class="col-status" style="width:11%; text-align:center;">Status</th>
-                  <th class="col-actions" style="width:110px; min-width:110px; max-width:110px; text-align:center;">Actions</th>
+                  <th class="col-cb"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="Select all on this page" style="cursor:pointer; width:16px; height:16px; accent-color:#0066FF;"></th>
+                  <th class="col-prev">Latest Previous Code</th>
+                  <th class="col-active">Active Code</th>
+                  <th class="col-area">Area / District</th>
+                  <th class="col-rep">Assigned MedRep</th>
+                  <th class="col-docs">Doctor Count</th>
+                  <th class="col-status">Status</th>
+                  <th class="col-actions">Actions</th>
                 </tr>
               </thead>
               <tbody id="editorTableBody">
@@ -4290,7 +4335,7 @@
         Rename
       </button>
       <button type="button" class="bulk-tab-btn" id="btnBulkTab_decommission" onclick="switchBulkTab('decommission')">
-        Decommission
+        Archive
       </button>
       <button type="button" class="bulk-tab-btn" id="btnBulkTab_add" onclick="switchBulkTab('add')">
         Bulk Add
@@ -4447,11 +4492,11 @@
       </div>
     </div>
 
-    <!-- TAB 3: DECOMMISSION PANE (Strict Zero-Deletion Architecture - Permanent Delete Removed) -->
+    <!-- TAB 3: ARCHIVE PANE (Strict Zero-Deletion Architecture - Move to Archive Vault) -->
     <div id="bulkPane_decommission" class="bulk-tab-pane">
       <div style="background:#FFFBEB; border:1.5px solid #FCD34D; border-radius:8px; padding:12px 14px; margin-bottom:14px;">
         <div style="display:flex; align-items:center; gap:8px; color:#92400E; font-weight:800; font-size:13px; margin-bottom:4px;">
-          <span>Decommission &amp; Archive Policy (Zero Data Loss Guarantee)</span>
+          <span>Archive Policy (Zero Data Loss Guarantee)</span>
         </div>
         <div style="font-size:12px; color:#78350F; line-height:1.4;">
           You have selected <strong id="deleteTerritoryCount" style="color:#B45309;">0</strong> territory records.
@@ -4463,26 +4508,26 @@
         <div style="background:#F8FAFC; border:1.5px solid #CBD5E1; padding:10px 12px; border-radius:6px;">
           <strong style="color:#0F172A; font-size:12px;">Tag as Inactive &amp; Move to Archive Vault</strong>
           <div style="font-size:11px; color:#64748B; margin-top:3px; line-height:1.4;">
-            Safely preserves all territory records, past MedRep affiliations, and doctor assignments in the <strong>Archive Vault (Tab 2)</strong>. Decommissioned territories are marked as <strong>Inactive</strong> and excluded from active reconfiguration dropdowns. Permanent deletion is prohibited.
+            Safely preserves all territory records, past MedRep affiliations, and doctor assignments in the <strong>Archive Vault (Tab 2)</strong>. Archived territories are marked as <strong>Inactive</strong> and excluded from active reconfiguration dropdowns. Permanent deletion is prohibited.
           </div>
         </div>
       </div>
 
       <div class="form-group">
-        <label>Decommission Reason (Required):</label>
-        <input type="text" id="bulkDeleteReason" class="form-control" value="Decommissioned during SFE cycle realignment">
+        <label>Archive Reason (Required):</label>
+        <input type="text" id="bulkDeleteReason" class="form-control" value="Archived during SFE cycle realignment">
       </div>
 
       <div class="form-group" style="margin-bottom:14px; background:#F8FAFC; border:1.5px solid #CBD5E1; padding:8px 10px; border-radius:6px;">
         <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:#334155; cursor:pointer; margin:0; user-select:none;">
           <input type="checkbox" id="bulkDeleteConfirmCheckbox" onchange="onBulkDeleteConfirmChange()" style="cursor:pointer; width:16px; height:16px; accent-color:#0066FF;">
-          I confirm decommissioning of these selected territories (tag Inactive and move to Archive).
+          I confirm archiving of these selected territories (tag Inactive and move to Archive).
         </label>
       </div>
 
       <div style="display:flex; justify-content:flex-end; gap:8px; border-top:1px solid var(--border); padding-top:14px;">
         <button class="btn btn-outline" onclick="closeBulkEditModal()">Cancel</button>
-        <button class="btn btn-primary" id="btnExecuteBulkDelete" onclick="applyBulkDelete()" disabled style="background:#D97706; border-color:#D97706; color:#FFF; font-weight:700; opacity:0.5; cursor:not-allowed;">Confirm &amp; Decommission to Archive</button>
+        <button class="btn btn-primary" id="btnExecuteBulkDelete" onclick="applyBulkDelete()" disabled style="background:#D97706; border-color:#D97706; color:#FFF; font-weight:700; opacity:0.5; cursor:not-allowed;">Confirm &amp; Move to Archive</button>
       </div>
     </div>
 
@@ -5808,6 +5853,12 @@ const BASELINE_ERP_TERRITORIES = [
         const code = row.activeCode || row.histCode || row.newCode || row.latestPrevCode;
         if (!allowed.has(code)) return; // Exclude cross-program territories
 
+        // If live ERPNext tree is loaded, exclude territories deleted directly in ERPNext
+        if (territoryTreeData && territoryTreeData.length > 0) {
+          const inTree = territoryTreeData.some(t => t.name === code || t.territory_name === code);
+          if (!inTree) return; // Deleted directly in ERPNext masterlist!
+        }
+
         const base = baseMap.get(code);
         // Exclude container folders that are not part of baseline medrep territories
         if (row.isGroup && !base) return;
@@ -5836,10 +5887,14 @@ const BASELINE_ERP_TERRITORIES = [
         sanitized.push(row);
       });
 
-      // Ensure all baseline territories from progData.territories exist in programTerritories
+      // Ensure all baseline territories from progData.territories exist in programTerritories (if not deleted in ERPNext)
       const existingCodes = new Set(sanitized.map(r => r.activeCode || r.histCode));
       if (Array.isArray(progData.territories)) {
         progData.territories.forEach(b => {
+          if (territoryTreeData && territoryTreeData.length > 0) {
+            const inTree = territoryTreeData.some(t => t.name === b.histCode || t.name === b.activeCode);
+            if (!inTree) return; // Deleted directly in ERPNext masterlist!
+          }
           if (!existingCodes.has(b.histCode) && !existingCodes.has(b.activeCode)) {
             sanitized.push(JSON.parse(JSON.stringify(b)));
           }
@@ -8177,11 +8232,11 @@ const BASELINE_ERP_TERRITORIES = [
   function applyBulkDelete() {
     const confirmCb = document.getElementById('bulkDeleteConfirmCheckbox');
     if (!confirmCb || !confirmCb.checked) {
-      showToast('Please confirm the decommission checkbox before proceeding.', 'error');
+      showToast('Please confirm the archive checkbox before proceeding.', 'error');
       return;
     }
 
-    const reason = (document.getElementById('bulkDeleteReason')?.value || '').trim() || 'Bulk decommissioned by SFE Lead';
+    const reason = (document.getElementById('bulkDeleteReason')?.value || '').trim() || 'Bulk archived by SFE Lead';
     const count = selectedRowIndices.size;
     if (count === 0) return;
 
@@ -8225,7 +8280,7 @@ const BASELINE_ERP_TERRITORIES = [
         action: 'BULK_DECOMMISSION',
         territoryCode: terrCode,
         user: loggedUser,
-        details: `Decommissioned to Archive Vault. Tagged as Inactive. Covered doctors preserved: ${row.docs}. (Reason: ${reason})`
+        details: `Archived to Archive Vault. Tagged as Inactive. Covered doctors preserved: ${row.docs}. (Reason: ${reason})`
       });
     });
 
@@ -8244,7 +8299,7 @@ const BASELINE_ERP_TERRITORIES = [
     renderRealignmentAndArchive();
     renderSummaryReport();
 
-    showToast(`Successfully decommissioned ${count} territories to Archive Vault (Tagged as Inactive). Doctor data preserved.`, 'success');
+    showToast(`Successfully archived ${count} territories to Archive Vault (Tagged as Inactive). Doctor data preserved.`, 'success');
   }
 
   // --- TAB 4: BULK ADD HANDLERS ---
@@ -11023,12 +11078,16 @@ const BASELINE_ERP_TERRITORIES = [
       });
     }
 
-    // Exclude foreign territories and container folders (branches)
+    // Exclude foreign territories, container folders (branches), AND territories directly deleted in ERPNext
     programTerritories = programTerritories.filter(pt => {
       const code = pt.activeCode || pt.histCode || pt.newCode || pt.latestPrevCode;
       if (!allowedTerrNames.has(code)) return false;
       const node = territoryTreeData.find(t => t.name === code || t.territory_name === code);
-      if (node && node.is_group && !baseMap.has(code)) return false;
+      if (!node) {
+        // Direct deletion on ERPNext backend: territory no longer exists in ERPNext masterlist
+        return false;
+      }
+      if (node.is_group && !baseMap.has(code)) return false;
       if (code === 'Abbott DC Territories' || code === 'All Territories' || code === progData.territoryBranch) return false;
       if (code === 'AD1 - GMA/NORTH LUZON/CENTRAL LUZON' || code === 'AD2 - GMA/SOUTH LUZON') return false;
       return true;

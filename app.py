@@ -1339,7 +1339,7 @@ def execute_tree_action(opener, action, payload):
             return "warning", f"ERPNext responded with HTTP {res.status}"
 
         elif action in ["territory_toggle_status", "territory_deactivate"]:
-            t_name = safe_str(payload.get("territory") or payload.get("name"))
+            t_name = safe_str(payload.get("territory") or payload.get("territory_name") or payload.get("name") or payload.get("code"))
             new_mgr = safe_str(payload.get("territory_manager"))
             new_status = safe_str(payload.get("status") or payload.get("operational_status") or ("Active" if new_mgr and "INACTIVE" not in new_mgr.upper() and "UNASSIGNED" not in new_mgr.upper() else "Inactive"))
             if not t_name:
@@ -1790,7 +1790,7 @@ if component_val and isinstance(component_val, dict):
                     "timestamp": ts
                 }
             st.rerun()
-        elif action in ["tree_add", "tree_edit", "tree_rename", "tree_delete", "territory_toggle_status", "territory_deactivate", "tree_refresh", "sales_person_create", "employee_create"]:
+        elif action in ["tree_add", "tree_edit", "tree_rename", "tree_delete", "territory_toggle_status", "territory_deactivate", "tree_refresh", "sales_person_create", "employee_create", "doctor_transfer"]:
             opener = st.session_state.get("opener")
             if not opener:
                 opener = get_authenticated_opener()

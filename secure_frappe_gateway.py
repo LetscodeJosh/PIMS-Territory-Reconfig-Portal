@@ -220,12 +220,19 @@ class TerritoryActionSchema:
             raise SecurityValidationError("Payload must be a JSON object")
 
         raw_action = sanitize_string(data.get("action", ""), max_len=30, allow_spaces=False)
-        allowed_actions = {"tree_add", "tree_edit", "tree_rename", "tree_delete", "tree_refresh", "territory_deactivate", "sales_person_create", "employee_create", "inst_approve", "inst_normalize", "inst_reject", "inst_remap", "inst_refresh"}
+        allowed_actions = {
+            "tree_add", "tree_edit", "tree_rename", "tree_delete", "tree_refresh",
+            "territory_toggle_status", "territory_deactivate",
+            "sales_person_create", "employee_create", "doctor_transfer", "resignation_handover",
+            "bulk_decommission", "bulk_archive",
+            "inst_approve", "inst_normalize", "inst_reject", "inst_remap", "inst_create", "inst_propose", "inst_refresh"
+        }
         if raw_action not in allowed_actions:
             raise SecurityValidationError(f"Disallowed action: '{raw_action}'")
 
-        t_name = sanitize_string(data.get("territory_name") or data.get("name") or "", max_len=140)
-        if not t_name and raw_action != "tree_refresh":
+        t_name = sanitize_string(data.get("territory_name") or data.get("name") or data.get("territory") or data.get("code") or "", max_len=140)
+        no_tname_actions = {"tree_refresh", "inst_refresh", "doctor_transfer", "resignation_handover", "bulk_decommission", "bulk_archive", "inst_create", "inst_propose"}
+        if not t_name and raw_action not in no_tname_actions:
             raise SecurityValidationError("territory_name is required")
 
         parent_t = sanitize_string(data.get("parent_territory") or data.get("parent") or "", max_len=140)
@@ -239,7 +246,10 @@ class TerritoryActionSchema:
         if raw_uid:
             clean_uid = sanitize_string(raw_uid, max_len=120, allow_spaces=False).lower()
             if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', clean_uid):
-                raise SecurityValidationError(f"Invalid email format for custom_user_id: '{raw_uid}'")
+                if clean_uid in ('unassigned', 'none', '', 'null'):
+                    clean_uid = None
+                else:
+                    raise SecurityValidationError(f"Invalid email format for custom_user_id: '{raw_uid}'")
 
         prog = sanitize_string(data.get("custom_account_or_program") or data.get("program"), max_len=100) if (data.get("custom_account_or_program") or data.get("program")) else None
 
