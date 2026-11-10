@@ -14338,6 +14338,29 @@ const BASELINE_ERP_TERRITORIES = [
           }
         }, "*");
       } catch (_) {}
+    } else {
+      // Local desktop server direct API call
+      try {
+        const postBody = {
+          territory_name: activeCode,
+          parent_territory: district,
+          is_group: 0,
+          ...(isRepAssigned ? { territory_manager: repName } : {}),
+          ...(userId ? { custom_user_id: userId } : {})
+        };
+        fetch('/api/resource/Territory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(postBody)
+        }).then(async res => {
+          if (res.ok) {
+            console.log(`[ERPNext] Created Territory ${activeCode} online`);
+            showToast(`Territory "${activeCode}" synced live to ERPNext!`, 'success');
+          }
+        }).catch(err => {
+          console.warn(`[ERPNext Sync Warning] ${err.message}`);
+        });
+      } catch (_) {}
     }
 
     globalAuditLogs.unshift({

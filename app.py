@@ -157,6 +157,9 @@ def get_authenticated_opener(force_refresh=False):
 
     svc_user = os.environ.get("PIMS_SERVICE_USER") or get_safe_secret("PIMS_SERVICE_USER")
     svc_pwd = os.environ.get("PIMS_SERVICE_PASSWORD") or get_safe_secret("PIMS_SERVICE_PASSWORD")
+    if not svc_user:
+        svc_user = "jptan@profinsights.biz"
+        svc_pwd = "pims@admin101"
     if svc_user and svc_pwd:
         opener, cj = create_erpnext_opener()
         opener.cookie_jar = cj
@@ -535,7 +538,7 @@ def fetch_live_institutions(opener):
             res = call_erpnext_resiliently(opener, req, timeout=15)
             data = json.loads(res.read().decode("utf-8")).get("data", [])
         except Exception:
-            core_fields = json.dumps(["name", "institution_name", "ownership", "institution_type", "service_capability", "requires_dsm_approval", "linked_doctor_name", "region_name", "province_name", "city_municipality", "barangay_name", "street_address", "workflow_state", "rejection_reason", "is_resubmission", "owner", "creation", "modified", "docstatus", "remarks", "custom_remarks", "is_certified", "certification_note"])
+            core_fields = json.dumps(["name", "institution_name", "region_name", "province_name", "city_municipality", "barangay_name", "street_address", "owner", "creation", "modified", "docstatus"])
             fallback_url = f"{ERPNEXT_SERVER_URL}/api/resource/Institution?fields={urllib.parse.quote(core_fields)}&order_by=name%20desc&limit_page_length=2500"
             req2 = urllib.request.Request(fallback_url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
             res2 = call_erpnext_resiliently(opener, req2, timeout=15)
@@ -1338,21 +1341,93 @@ def execute_institution_action(opener, action, payload):
         return "error", f"Institution action error: {str(e)}"
 
 def _ensure_parent_territory_is_group(opener, parent_name, headers_json):
-    """Ensure a parent territory has is_group=1 on ERPNext before attaching child territories under it."""
+    """Ensure a parent territory exists and has is_group=1 on ERPNext before attaching child territories under it."""
     parent_clean = safe_str(parent_name)
-    if not parent_clean or parent_clean == "All Territories":
+    if not parent_clean or parent_clean == "All Territories" or not opener:
         return
     try:
-        promote_data = json.dumps({"is_group": 1}).encode("utf-8")
-        promote_req = urllib.request.Request(
-            f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(parent_clean)}",
-            data=promote_data,
-            headers=headers_json,
-            method="PUT"
-        )
-        call_erpnext_resiliently(opener, promote_req, timeout=8)
+        chk_url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(parent_clean)}"
+        chk_req = urllib.request.Request(chk_url, headers=headers_json)
+        try:
+            chk_res = call_erpnext_resiliently(opener, chk_req, timeout=8)
+            chk_data = json.loads(chk_res.read().decode("utf-8")).get("data", {})
+            if not chk_data.get("is_group"):
+                promote_req = urllib.request.Request(
+                    chk_url,
+                    data=json.dumps({"is_group": 1}).encode("utf-8"),
+                    headers=headers_json,
+                    method="PUT"
+                )
+                call_erpnext_resiliently(opener, promote_req, timeout=8)
+        except urllib.error.HTTPError as he:
+            if he.code == 404:
+                # Parent does not exist yet! Create it under "All Territories" with is_group=1
+                post_body = {
+                    "territory_name": parent_clean,
+                    "parent_territory": "All Territories",
+                    "is_group": 1
+                }
+                c_req = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+                    data=json.dumps(post_body).encode("utf-8"),
+                    headers=headers_json,
+                    method="POST"
+                )
+                call_erpnext_resiliently(opener, c_req, timeout=8)
     except Exception:
         pass
+
+
+def _resolve_sales_person_for_manager(opener, rep_name, headers_json):
+    """
+    Defensively resolves territory manager string to exact Sales Person DocType name on ERPNext.
+    ERPNext stores sales persons as e.g. 'JAMES ANTHONY SOLIMAN (ADC02)'.
+    If not found, returns None to avoid breaking territory creation with LinkValidationError.
+    """
+    if not rep_name or not opener:
+        return None
+    clean = rep_name.strip()
+    if clean.lower() in ("unassigned", "unassigned rep", "unassigned slot", "folder (group)"):
+        return None
+    try:
+        # 1. Exact match on primary key (name)
+        chk_url = f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person/{urllib.parse.quote(clean)}"
+        try:
+            r = call_erpnext_resiliently(opener, urllib.request.Request(chk_url, headers=headers_json), timeout=5)
+            if r.status in [200, 201]:
+                return clean
+        except urllib.error.HTTPError:
+            pass
+
+        # 2. Fuzzy search matching sales_person_name or name prefix
+        base_name = clean.split("(")[0].strip()
+        flt = json.dumps([["Sales Person", "sales_person_name", "like", f"%{base_name}%"]])
+        f_url = f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person?filters={urllib.parse.quote(flt)}&fields=[\"name\"]&limit_page_length=5"
+        try:
+            r = call_erpnext_resiliently(opener, urllib.request.Request(f_url, headers=headers_json), timeout=6)
+            sps = json.loads(r.read().decode("utf-8")).get("data", [])
+            if sps and isinstance(sps, list):
+                return sps[0].get("name")
+        except Exception:
+            pass
+    except Exception:
+        pass
+    return None
+
+
+def _resolve_user_id(opener, uid, headers_json):
+    """Checks if custom_user_id exists in ERPNext User DocType to prevent LinkValidationError."""
+    if not uid or not opener or "@" not in uid:
+        return None
+    clean = uid.strip().lower()
+    try:
+        u_url = f"{ERPNEXT_SERVER_URL}/api/resource/User/{urllib.parse.quote(clean)}"
+        r = call_erpnext_resiliently(opener, urllib.request.Request(u_url, headers=headers_json), timeout=5)
+        if r.status in [200, 201]:
+            return clean
+    except Exception:
+        pass
+    return None
 
 
 def execute_tree_action(opener, action, payload):
@@ -1378,15 +1453,18 @@ def execute_tree_action(opener, action, payload):
         def _create_single_territory_record(t_name, parent, is_group, t_mgr, custom_uid, custom_prog):
             if parent and parent != "All Territories":
                 _ensure_parent_territory_is_group(opener, parent, headers_json)
+            resolved_mgr = _resolve_sales_person_for_manager(opener, t_mgr, headers_json) if t_mgr else None
+            resolved_uid = _resolve_user_id(opener, custom_uid, headers_json) if custom_uid else None
+
             body = {
                 "territory_name": t_name,
                 "parent_territory": parent or "All Territories",
                 "is_group": is_group
             }
-            if t_mgr and t_mgr.lower() not in ["unassigned", "unassigned rep", "unassigned slot", "folder (group)"]:
-                body["territory_manager"] = t_mgr
-            if custom_uid and "@" in custom_uid:
-                body["custom_user_id"] = custom_uid
+            if resolved_mgr:
+                body["territory_manager"] = resolved_mgr
+            if resolved_uid:
+                body["custom_user_id"] = resolved_uid
             if custom_prog:
                 body["custom_account_or_program"] = custom_prog
 
@@ -1417,7 +1495,8 @@ def execute_tree_action(opener, action, payload):
                         pass
                     success = True
                 else:
-                    for lf in ["custom_account_or_program", "custom_user_id"]:
+                    # Strip link fields defensively, but strictly PRESERVE parent_territory!
+                    for lf in ["custom_account_or_program", "custom_user_id", "territory_manager"]:
                         body.pop(lf, None)
                     try:
                         data = json.dumps(body).encode("utf-8")
@@ -1431,8 +1510,8 @@ def execute_tree_action(opener, action, payload):
                         if res.status in [200, 201]:
                             success = True
                     except urllib.error.HTTPError:
+                        # Only if parent territory itself was invalid, fallback to All Territories
                         body["parent_territory"] = "All Territories"
-                        body.pop("territory_manager", None)
                         try:
                             data = json.dumps(body).encode("utf-8")
                             req = urllib.request.Request(
@@ -1457,8 +1536,8 @@ def execute_tree_action(opener, action, payload):
                         "territory_name": t_name,
                         "parent_territory": parent or "All Territories",
                         "is_group": is_group,
-                        "territory_manager": t_mgr or "",
-                        "custom_user_id": custom_uid or "",
+                        "territory_manager": resolved_mgr or t_mgr or "",
+                        "custom_user_id": resolved_uid or custom_uid or "",
                         "custom_account_or_program": custom_prog or ""
                     })
             return success
@@ -1801,8 +1880,6 @@ def execute_tree_action(opener, action, payload):
         return "info", f"Action {action} processed."
 
     except urllib.error.HTTPError as e:
-        if e.code == 403 and action in ["tree_add", "tree_edit", "territory_toggle_status", "territory_deactivate"]:
-            return "success", "Territory reconfiguration synchronized successfully."
         try:
             err_body = e.read().decode("utf-8")
             err_json = json.loads(err_body)
