@@ -17497,62 +17497,224 @@ const BASELINE_ERP_TERRITORIES = [
 <!-- 1. NORMALIZE & STANDARDIZE INSTITUTION MODAL -->
 <!-- PROPOSE NEW INSTITUTION MODAL (Queued directly into MedRep Submission) -->
 <div id="sfeInstProposeModalOverlay" class="sfe-inst-modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.65); z-index:10000; align-items:center; justify-content:center; padding:16px;">
-  <div class="sfe-inst-modal-box" style="background:#FFFFFF; border-radius:12px; max-width:540px; width:100%; padding:22px 24px; box-shadow:0 20px 45px rgba(0,0,0,0.25);">
-    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:12px; margin-bottom:16px;">
-      <h3 style="font-size:15px; font-weight:800; color:#0F172A; margin:0;">+ Propose New Facility (MedRep Submission)</h3>
-      <button type="button" onclick="closeSfeProposeInstitutionModal()" style="border:none; background:transparent; font-size:18px; color:#64748B; cursor:pointer;">&times;</button>
+  <div class="sfe-inst-modal-box" style="background:#FFFFFF; border-radius:14px; max-width:620px; width:100%; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35); border:1px solid #E2E8F0; overflow:hidden;">
+    
+    <!-- Modal Header -->
+    <div style="background:#0B192C; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #1E293B;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:rgba(0,102,255,0.2); color:#60A5FA;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="12" y1="8" x2="12" y2="16"></line>
+            <line x1="8" y1="12" x2="16" y2="12"></line>
+          </svg>
+        </span>
+        <div>
+          <h3 style="font-size:15px; font-weight:800; color:#FFFFFF; margin:0;">+ Propose New Facility (MedRep Submission)</h3>
+          <div style="font-size:11px; color:#94A3B8; margin-top:2px;">Step 1: Classification &bull; Step 2: Facility Name &bull; Step 3: Location</div>
+        </div>
+      </div>
+      <button type="button" onclick="closeSfeProposeInstitutionModal()" style="border:none; background:rgba(255,255,255,0.1); color:#94A3B8; width:28px; height:28px; border-radius:6px; cursor:pointer; font-size:16px; font-weight:bold; display:flex; align-items:center; justify-content:center;">&times;</button>
     </div>
 
-    <div style="display:grid; grid-template-columns:1fr; gap:12px;">
-      <div>
-        <label style="display:block; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px;">Official Facility Name <span style="color:#DC2626;">*</span></label>
-        <input type="text" id="sfePropNameInput" placeholder="e.g. City Health Clinic / Metro Care Center" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:13px; color:#0F172A;">
-      </div>
-
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div>
-          <label style="display:block; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px;">Ownership</label>
-          <select id="sfePropOwnershipSelect" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12.5px;">
-            <option value="Private" selected>Private</option>
-            <option value="Government">Government</option>
-          </select>
-        </div>
-        <div>
-          <label style="display:block; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px;">Facility Type</label>
-          <select id="sfePropTypeSelect" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12.5px;">
-            <option value="Hospital">Hospital</option>
-            <option value="Clinic" selected>Clinic</option>
-            <option value="Diagnostic Center">Diagnostic Center</option>
-          </select>
+    <!-- Modal Scrollable Content -->
+    <div style="padding:16px 20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px;">
+      
+      <!-- Info Note Banner -->
+      <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:10px 12px; display:flex; gap:10px; align-items:flex-start;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:1px;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <div style="font-size:11.5px; color:#1E40AF; line-height:1.4;">
+          All submitted institutions are reviewed by the SFE Specialist. You can propose and queue facilities directly into <strong>MedRep Submission</strong> for verification and ERPNext synchronization.
         </div>
       </div>
 
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <!-- Validation Error Box (hidden by default) -->
+      <div id="sfePropValidationErr" style="display:none; background:#FEF2F2; border:1px solid #FCA5A5; border-radius:8px; padding:10px 12px; font-size:11.5px; color:#DC2626; font-weight:600; line-height:1.4;"></div>
+
+      <!-- STEP 1: CLASSIFICATION (Ownership, Type, Capability) -->
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px 14px;">
+        <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#0F172A; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:10px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0066FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+          Step 1: Classification (Ownership &amp; Type) <span style="color:#DC2626;">*</span>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">Ownership *</label>
+            <select id="sfePropOwnershipSelect" onchange="onSfePropClassificationChange()" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12px; background:#FFFFFF; color:#0F172A; font-weight:600;">
+              <option value="Private" selected>Private</option>
+              <option value="Government">Government</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">Institution Type *</label>
+            <select id="sfePropTypeSelect" onchange="onSfePropClassificationChange()" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12px; background:#FFFFFF; color:#0F172A; font-weight:600;">
+              <option value="Hospital" selected>Hospital</option>
+              <option value="Clinic">Clinic</option>
+            </select>
+          </div>
+        </div>
+
         <div>
-          <label style="display:block; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px;">Service Capability</label>
-          <select id="sfePropCapabilitySelect" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12.5px;">
+          <label id="sfePropCapabilityLabel" style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">Service Capability (Hospital - 3 Levels) *</label>
+          <select id="sfePropCapabilitySelect" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12px; background:#FFFFFF; color:#0F172A; font-weight:600;">
             <option value="Primary" selected>Primary</option>
             <option value="Secondary">Secondary</option>
             <option value="Tertiary">Tertiary</option>
-            <option value="General Clinic">General Clinic</option>
           </select>
         </div>
-        <div>
-          <label style="display:block; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px;">City / Municipality</label>
-          <input type="text" id="sfePropCityInput" placeholder="e.g. Quezon City / Cebu City" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12.5px;">
+
+        <!-- Government Facility DSM Alert -->
+        <div id="sfePropGovAlert" style="display:none; margin-top:8px; background:#FFFBEB; border:1px solid #FDE68A; border-radius:6px; padding:7px 10px; font-size:11px; color:#B45309; line-height:1.35;">
+          <strong>Government Facility:</strong> Requires District Sales Manager (DSM) endorsement and SFE validation upon doctor profile submission.
         </div>
       </div>
 
+      <!-- STEP 2: WORKPLACE / INSTITUTION NAME -->
       <div>
-        <label style="display:block; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px;">Street Address</label>
-        <input type="text" id="sfePropAddressInput" placeholder="e.g. 123 Health Ave., Brgy. Central" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12.5px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+          <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#0F172A; text-transform:uppercase; letter-spacing:0.3px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0066FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            Step 2: Workplace / Institution Name <span style="color:#DC2626;">*</span>
+          </div>
+          <button type="button" onclick="applyProperCaseToPropName()" style="border:none; background:transparent; font-size:11px; font-weight:700; color:#0066FF; cursor:pointer; text-decoration:underline;">Format Proper Case</button>
+        </div>
+
+        <div style="position:relative;">
+          <input type="text" id="sfePropNameInput" placeholder="e.g. St. Luke's Medical Center - BGC" oninput="onSfePropNameChange(this.value)" style="width:100%; box-sizing:border-box; padding:9px 12px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:13px; color:#0F172A; font-weight:600;">
+          <span id="sfePropNameSpinner" style="display:none; position:absolute; right:12px; top:10px; font-size:11px; color:#0066FF; font-weight:600;">Searching...</span>
+        </div>
+
+        <!-- DUPLICATE & SIMILARITY SUGGESTIONS CONTAINER -->
+        <div id="sfePropSuggestionsBox" style="display:none; margin-top:8px; border:1px solid #93C5FD; border-radius:8px; background:#FFFFFF; box-shadow:0 4px 12px rgba(0,0,0,0.08); overflow:hidden;">
+          <div style="background:#EFF6FF; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #BFDBFE;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              </svg>
+              <span id="sfePropSuggestionsTitle" style="font-size:11px; font-weight:800; color:#166534;">Smart Detector: Found Matching Facilities in Directory</span>
+            </div>
+            <span style="font-size:10.5px; color:#1E40AF; font-weight:600;">Tap to select &bull; Submissions restricted while suggestions exist</span>
+          </div>
+          <div id="sfePropSuggestionsList" style="max-height:160px; overflow-y:auto; padding:4px 0;"></div>
+        </div>
+
+        <!-- SELECTED EXISTING FACILITY BANNER -->
+        <div id="sfePropSelectedFacilityBanner" style="display:none; margin-top:8px; background:#EFF6FF; border:1.5px solid #60A5FA; border-radius:8px; padding:10px 12px;">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+            <div style="display:flex; gap:8px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <div>
+                <div id="sfePropSelectedFacilityName" style="font-size:12px; font-weight:800; color:#1E40AF;">Facility Selected</div>
+                <div id="sfePropSelectedFacilityDetail" style="font-size:11px; color:#2563EB; margin-top:2px;">Status: Approved &bull; Location: Metro Manila</div>
+                <div style="font-size:10.5px; color:#64748B; font-style:italic; margin-top:4px;">This facility is already registered in the masterlist. Tap "Use Selected Institution" to link without duplicating.</div>
+              </div>
+            </div>
+            <button type="button" onclick="clearSfePropSelectedFacility()" style="background:#DBEAFE; border:none; color:#1E40AF; font-size:10.5px; font-weight:700; padding:4px 8px; border-radius:4px; cursor:pointer;">Change</button>
+          </div>
+        </div>
+
+        <!-- UNIQUE VERIFICATION BANNER -->
+        <div id="sfePropUniqueBanner" style="display:none; margin-top:8px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:6px; padding:8px 10px; display:flex; align-items:center; gap:8px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span style="font-size:11px; font-weight:700; color:#166534;">&check; Unique Facility Name Verified. No matching duplicates or similarities found in masterlist directory.</span>
+        </div>
+
+        <!-- MANDATORY CERTIFICATION CHECKBOX CONTAINER -->
+        <div id="sfePropCertifyContainer" style="display:none; margin-top:8px; background:#F8FAFC; border:1.5px solid #CBD5E1; border-radius:8px; padding:10px 12px; transition:all 0.2s ease;">
+          <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
+            <input type="checkbox" id="sfePropCertifyCheck" onchange="onSfePropCertifyChange(this.checked)" style="margin-top:2px; width:16px; height:16px; accent-color:#16A34A; cursor:pointer;">
+            <div>
+              <div style="font-size:12px; font-weight:800; color:#0F172A;">Certify Encoded Institution Accuracy <span style="color:#DC2626;">*</span></div>
+              <div style="font-size:11px; color:#475569; margin-top:2px; line-height:1.35;">This certifies that this institution which is not in the directory is accurate and active for coverage.</div>
+              <div id="sfePropCertifyStatusText" style="font-size:10.5px; color:#64748B; margin-top:4px;">Mandatory: Check this box to certify accuracy and unlock Step 3: Region, Province, and City.</div>
+            </div>
+          </label>
+        </div>
       </div>
+
+      <!-- STEP 3: OFFICIAL PSGC LOCATION DETAILS -->
+      <div id="sfePropLocationSection" style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px 14px; opacity:0.6; pointer-events:none; transition:all 0.2s ease;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#0F172A; text-transform:uppercase; letter-spacing:0.3px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0066FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+            Step 3: Official PSGC Location Details <span style="color:#DC2626;">*</span>
+          </div>
+          <span id="sfePropLocationLockBadge" style="font-size:10.5px; color:#94A3B8; font-weight:600;">Locked until certified unique</span>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">Official Region *</label>
+            <select id="sfePropRegionSelect" onchange="onSfePropRegionChange()" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12px; background:#FFFFFF; color:#0F172A;">
+              <option value="">-- Select Official Region --</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">Province *</label>
+            <select id="sfePropProvinceSelect" onchange="onSfePropProvinceChange()" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12px; background:#FFFFFF; color:#0F172A;">
+              <option value="">-- Select Province --</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">City / Municipality *</label>
+            <select id="sfePropCitySelect" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12px; background:#FFFFFF; color:#0F172A;">
+              <option value="">-- Select City / Municipality --</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">Barangay (Optional)</label>
+            <input type="text" id="sfePropBarangayInput" placeholder="e.g. Brgy. San Antonio" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12px; background:#FFFFFF; color:#0F172A;">
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">Street Address / Building (Optional)</label>
+          <input type="text" id="sfePropAddressInput" placeholder="e.g. Unit 302 Medical Arts Bldg., 32nd St." style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12px; background:#FFFFFF; color:#0F172A;">
+        </div>
+      </div>
+
+      <!-- OPTIONAL METADATA (Linked Doctor & Certification Note) -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div>
+          <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">Linked Doctor Name (Optional)</label>
+          <input type="text" id="sfePropDoctorInput" placeholder="e.g. Dr. Maria Santos" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12px; background:#FFFFFF; color:#0F172A;">
+        </div>
+        <div>
+          <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">Proposal Remarks / Note</label>
+          <input type="text" id="sfePropRemarksInput" placeholder="e.g. Certified by MedRep: Active for coverage" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1.5px solid #CBD5E1; border-radius:6px; font-size:12px; background:#FFFFFF; color:#0F172A;">
+        </div>
+      </div>
+
     </div>
 
-    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px; border-top:1px solid #E2E8F0; padding-top:14px;">
-      <button type="button" onclick="closeSfeProposeInstitutionModal()" style="background:#F1F5F9; border:1px solid #CBD5E1; color:#475569; font-weight:700; font-size:12px; padding:7px 14px; border-radius:6px; cursor:pointer;">Cancel</button>
-      <button type="button" onclick="submitSfeProposeInstitution()" style="background:#0066FF; border:none; color:#FFFFFF; font-weight:700; font-size:12px; padding:7px 16px; border-radius:6px; cursor:pointer;">Submit Proposal</button>
+    <!-- Modal Footer Actions -->
+    <div style="padding:12px 20px; background:#F8FAFC; border-top:1px solid #E2E8F0; display:flex; align-items:center; justify-content:flex-end; gap:10px;">
+      <button type="button" onclick="closeSfeProposeInstitutionModal()" style="background:#F1F5F9; border:1px solid #CBD5E1; color:#475569; font-weight:700; font-size:12px; padding:8px 16px; border-radius:6px; cursor:pointer;">Cancel</button>
+      <button type="button" id="sfePropSubmitBtn" onclick="submitSfeProposeInstitution()" style="background:#0066FF; border:none; color:#FFFFFF; font-weight:700; font-size:12px; padding:8px 20px; border-radius:6px; cursor:pointer; box-shadow:0 2px 4px rgba(0,102,255,0.25);">Submit Proposal</button>
     </div>
+
   </div>
 </div>
 
@@ -17895,11 +18057,20 @@ const BASELINE_ERP_TERRITORIES = [
     let rawWf = String(r.workflow_state || r.status || r.approval_status || '').trim();
     let wf = 'Draft';
     const lowWf = rawWf.toLowerCase();
+    const ownerStr = String(r.owner || r.submitted_by || '').toLowerCase();
+    const remStr = (String(r.remarks || '') + ' ' + String(r.custom_remarks || '') + ' ' + String(r.certification_note || '')).toLowerCase();
     const isProposal = Boolean(
       r.is_proposal === 1 || r.is_proposal === true ||
       r.is_medrep_submission === 1 || r.is_medrep_submission === true ||
       lowWf === 'pending approval' || lowWf === 'pending review' || lowWf === 'proposal' ||
-      name.startsWith('INST-PROP-')
+      name.startsWith('INST-PROP-') ||
+      isCertified ||
+      (r.certification_note && String(r.certification_note).trim().length > 0) ||
+      (r.linked_doctor_name && String(r.linked_doctor_name).trim().length > 0) ||
+      remStr.includes('proposed') ||
+      remStr.includes('certified by medrep') ||
+      (ownerStr && !ownerStr.includes('profinsights.biz') && !ownerStr.includes('administrator') && !ownerStr.includes('guest')) ||
+      (name.startsWith('INST-') && name > 'INST-09341' && lowWf !== 'approved' && lowWf !== 'rejected' && lowWf !== 'pending dsm approval')
     );
 
     if (lowWf === 'rejected' || lowWf === 'remapped' || docstatus === 2) {
@@ -18596,53 +18767,578 @@ const BASELINE_ERP_TERRITORIES = [
     }
   }
 
-  // --- QUICK APPROVE / ROUTE TO DSM ---
-  async   function openSfeProposeInstitutionModal() {
+  // --- PROPOSE NEW FACILITY (MEDREP SUBMISSION) CONTROLLER ---
+  let sfePropSelectedExistingInst = null;
+  let sfePropSearchDebounceTimer = null;
+
+  function populateSfePropCapabilityOptions(typeVal, selectedCap) {
+    const capSelect = document.getElementById('sfePropCapabilitySelect');
+    const capLabel = document.getElementById('sfePropCapabilityLabel');
+    if (!capSelect) return;
+    const isClinic = String(typeVal).toLowerCase() === 'clinic';
+    const list = isClinic ? SFE_CLINIC_CAPABILITIES : SFE_HOSPITAL_CAPABILITIES;
+    if (capLabel) {
+      capLabel.textContent = isClinic
+        ? 'Service Capability (Clinic - 5 Types) *'
+        : 'Service Capability (Hospital - 3 Levels) *';
+    }
+    capSelect.innerHTML = list.map(c => `<option value="${escapeSfeHtml(c)}">${escapeSfeHtml(c)}</option>`).join('');
+    if (selectedCap && list.includes(selectedCap)) {
+      capSelect.value = selectedCap;
+    } else {
+      capSelect.value = list[0];
+    }
+  }
+
+  function onSfePropClassificationChange() {
+    const ownVal = (document.getElementById('sfePropOwnershipSelect') || {}).value || 'Private';
+    const typeVal = (document.getElementById('sfePropTypeSelect') || {}).value || 'Hospital';
+    const currentCap = (document.getElementById('sfePropCapabilitySelect') || {}).value || '';
+    populateSfePropCapabilityOptions(typeVal, currentCap);
+
+    const govAlert = document.getElementById('sfePropGovAlert');
+    if (govAlert) {
+      govAlert.style.display = (ownVal.toLowerCase() === 'government') ? 'block' : 'none';
+    }
+  }
+
+  function populateSfePropRegionSelect(selectedRegCode) {
+    const regSel = document.getElementById('sfePropRegionSelect');
+    if (!regSel) return;
+    regSel.innerHTML = `<option value="">-- Select Official Region --</option>` +
+      PSGC_REGIONS.map(r => `<option value="${r.code}">${escapeSfeHtml(r.label)} (${r.code})</option>`).join('');
+    if (selectedRegCode && PSGC_BY_CODE.has(selectedRegCode)) {
+      regSel.value = selectedRegCode;
+    } else if (selectedRegCode) {
+      const match = PSGC_REGIONS.find(r => r.label.toLowerCase() === String(selectedRegCode).toLowerCase());
+      if (match) regSel.value = match.code;
+    }
+  }
+
+  function onSfePropRegionChange(preselectProvCode, preselectCityCode) {
+    const regCode = (document.getElementById('sfePropRegionSelect') || {}).value || '';
+    const provSel = document.getElementById('sfePropProvinceSelect');
+    if (!provSel) return;
+    const provs = PSGC_PROVINCES_BY_REGION.get(regCode) || [];
+    if (provs.length === 0 && regCode) {
+      provSel.innerHTML = `<option value="${regCode}">Metro Manila / Direct Regional District (${regCode})</option>`;
+      provSel.value = regCode;
+    } else {
+      provSel.innerHTML = `<option value="">-- Select Province --</option>` +
+        provs.map(p => `<option value="${p.code}">${escapeSfeHtml(p.label)} (${p.code})</option>`).join('');
+      if (preselectProvCode) {
+        if (PSGC_BY_CODE.has(preselectProvCode)) {
+          provSel.value = preselectProvCode;
+        } else {
+          const m = provs.find(p => p.label.toLowerCase() === String(preselectProvCode).toLowerCase());
+          if (m) provSel.value = m.code;
+        }
+      }
+    }
+    onSfePropProvinceChange(preselectCityCode);
+  }
+
+  function onSfePropProvinceChange(preselectCityCode) {
+    const regCode = (document.getElementById('sfePropRegionSelect') || {}).value || '';
+    const provCode = (document.getElementById('sfePropProvinceSelect') || {}).value || '';
+    const citySel = document.getElementById('sfePropCitySelect');
+    if (!citySel) return;
+
+    let cities = PSGC_CITIES_BY_PARENT.get(provCode) || [];
+    if (cities.length === 0 && regCode) {
+      cities = PSGC_CITIES_BY_PARENT.get(regCode) || [];
+    }
+    citySel.innerHTML = `<option value="">-- Select City / Municipality --</option>` +
+      cities.map(c => `<option value="${c.code}">${escapeSfeHtml(c.label)} (${c.code})</option>`).join('');
+
+    if (preselectCityCode) {
+      if (PSGC_BY_CODE.has(preselectCityCode)) {
+        citySel.value = preselectCityCode;
+      } else {
+        const m = cities.find(c => c.label.toLowerCase() === String(preselectCityCode).toLowerCase());
+        if (m) citySel.value = m.code;
+      }
+    }
+  }
+
+  function applyProperCaseToPropName() {
+    const inp = document.getElementById('sfePropNameInput');
+    if (!inp) return;
+    const minorWords = new Set(['of', 'the', 'and', 'in', 'for', 'at', 'by', 'to']);
+    const upperAcronyms = new Set(['MMG', 'DOH', 'LGU', 'RHU', 'BHC', 'MHC', 'ENT', 'OB', 'GYN', 'PH', 'ST.', 'DR.', 'INC.', 'BGC', 'UST', 'PGH']);
+    const words = String(inp.value || '').trim().replace(/\s+/g, ' ').split(' ');
+    inp.value = words.map((w, idx) => {
+      const up = w.toUpperCase();
+      if (upperAcronyms.has(up)) return up;
+      const low = w.toLowerCase();
+      if (idx > 0 && minorWords.has(low)) return low;
+      return low.charAt(0).toUpperCase() + low.slice(1);
+    }).join(' ');
+    onSfePropNameChange(inp.value);
+  }
+
+  function openSfeProposeInstitutionModal(prefilledDoctorName) {
+    sfePropSelectedExistingInst = null;
+    if (sfePropSearchDebounceTimer) {
+      clearTimeout(sfePropSearchDebounceTimer);
+      sfePropSearchDebounceTimer = null;
+    }
+
+    const nameInp = document.getElementById('sfePropNameInput');
+    if (nameInp) nameInp.value = '';
+
+    const ownSel = document.getElementById('sfePropOwnershipSelect');
+    if (ownSel) ownSel.value = 'Private';
+
+    const typeSel = document.getElementById('sfePropTypeSelect');
+    if (typeSel) typeSel.value = 'Hospital';
+
+    populateSfePropCapabilityOptions('Hospital', 'Primary');
+    onSfePropClassificationChange();
+
+    populateSfePropRegionSelect();
+    onSfePropRegionChange();
+
+    const brgyInp = document.getElementById('sfePropBarangayInput');
+    if (brgyInp) brgyInp.value = '';
+
+    const addrInp = document.getElementById('sfePropAddressInput');
+    if (addrInp) addrInp.value = '';
+
+    const docInp = document.getElementById('sfePropDoctorInput');
+    if (docInp) docInp.value = prefilledDoctorName || '';
+
+    const remInp = document.getElementById('sfePropRemarksInput');
+    if (remInp) remInp.value = 'Certified by MedRep: Institution is accurate and active for coverage';
+
+    // Reset banners, suggestions, certification, and location section
+    const errBox = document.getElementById('sfePropValidationErr');
+    if (errBox) { errBox.textContent = ''; errBox.style.display = 'none'; }
+
+    const suggBox = document.getElementById('sfePropSuggestionsBox');
+    if (suggBox) suggBox.style.display = 'none';
+
+    const selBanner = document.getElementById('sfePropSelectedFacilityBanner');
+    if (selBanner) selBanner.style.display = 'none';
+
+    const uniqBanner = document.getElementById('sfePropUniqueBanner');
+    if (uniqBanner) uniqBanner.style.display = 'none';
+
+    const certBox = document.getElementById('sfePropCertifyContainer');
+    if (certBox) {
+      certBox.style.display = 'none';
+      certBox.style.borderColor = '#CBD5E1';
+      certBox.style.background = '#F8FAFC';
+    }
+
+    const certCheck = document.getElementById('sfePropCertifyCheck');
+    if (certCheck) certCheck.checked = false;
+
+    const certText = document.getElementById('sfePropCertifyStatusText');
+    if (certText) {
+      certText.textContent = 'Mandatory: Check this box to certify accuracy and unlock Step 3: Region, Province, and City.';
+      certText.style.color = '#64748B';
+      certText.style.fontWeight = 'normal';
+    }
+
+    // Lock Step 3 Location
+    const locSec = document.getElementById('sfePropLocationSection');
+    if (locSec) {
+      locSec.style.opacity = '0.6';
+      locSec.style.pointerEvents = 'none';
+    }
+    const locBadge = document.getElementById('sfePropLocationLockBadge');
+    if (locBadge) locBadge.style.display = 'inline';
+
+    const subBtn = document.getElementById('sfePropSubmitBtn');
+    if (subBtn) {
+      subBtn.textContent = 'Submit Proposal';
+      subBtn.disabled = false;
+      subBtn.style.background = '#0066FF';
+    }
+
     const overlay = document.getElementById('sfeInstProposeModalOverlay');
     if (overlay) overlay.style.display = 'flex';
-    const nameInp = document.getElementById('sfePropNameInput');
-    if (nameInp) {
-      nameInp.value = '';
-      nameInp.focus();
-    }
+    if (nameInp) nameInp.focus();
   }
 
   function closeSfeProposeInstitutionModal() {
     const overlay = document.getElementById('sfeInstProposeModalOverlay');
     if (overlay) overlay.style.display = 'none';
+    if (sfePropSearchDebounceTimer) {
+      clearTimeout(sfePropSearchDebounceTimer);
+      sfePropSearchDebounceTimer = null;
+    }
+  }
+
+  function onSfePropNameChange(rawVal) {
+    if (sfePropSearchDebounceTimer) {
+      clearTimeout(sfePropSearchDebounceTimer);
+      sfePropSearchDebounceTimer = null;
+    }
+
+    // If a facility was selected from suggestions, editing name clears selection
+    if (sfePropSelectedExistingInst) {
+      sfePropSelectedExistingInst = null;
+      const selBanner = document.getElementById('sfePropSelectedFacilityBanner');
+      if (selBanner) selBanner.style.display = 'none';
+    }
+
+    const val = String(rawVal || '').trim();
+    const spinner = document.getElementById('sfePropNameSpinner');
+    const suggBox = document.getElementById('sfePropSuggestionsBox');
+    const uniqBanner = document.getElementById('sfePropUniqueBanner');
+    const certBox = document.getElementById('sfePropCertifyContainer');
+    const certCheck = document.getElementById('sfePropCertifyCheck');
+    const locSec = document.getElementById('sfePropLocationSection');
+    const locBadge = document.getElementById('sfePropLocationLockBadge');
+    const subBtn = document.getElementById('sfePropSubmitBtn');
+
+    if (val.length < 3) {
+      if (spinner) spinner.style.display = 'none';
+      if (suggBox) suggBox.style.display = 'none';
+      if (uniqBanner) uniqBanner.style.display = 'none';
+      if (certBox) certBox.style.display = 'none';
+      if (certCheck) certCheck.checked = false;
+      if (locSec) {
+        locSec.style.opacity = '0.6';
+        locSec.style.pointerEvents = 'none';
+      }
+      if (locBadge) {
+        locBadge.style.display = 'inline';
+        locBadge.textContent = 'Locked until certified unique';
+      }
+      if (subBtn) {
+        subBtn.textContent = 'Submit Proposal';
+        subBtn.disabled = false;
+        subBtn.style.background = '#0066FF';
+      }
+      return;
+    }
+
+    if (spinner) spinner.style.display = 'inline';
+
+    sfePropSearchDebounceTimer = setTimeout(() => {
+      if (spinner) spinner.style.display = 'none';
+      const q = val.toLowerCase();
+      const terms = q.split(/\s+/).filter(t => t.length > 2);
+
+      // Search across cached institutions and masterlist
+      const matches = (sfeInstitutionsMasterlist || []).filter(inst => {
+        const nm = String(inst.institution_name || inst.name || '').toLowerCase();
+        if (nm === q || nm.includes(q)) return true;
+        return terms.length > 1 && terms.every(t => nm.includes(t));
+      }).slice(0, 20);
+
+      if (matches.length > 0) {
+        // Suggestions found! Restrict submission and prompt selection
+        if (suggBox) {
+          suggBox.style.display = 'block';
+          const titleEl = document.getElementById('sfePropSuggestionsTitle');
+          if (titleEl) {
+            titleEl.textContent = `Smart Detector: Found ${matches.length} Matching Facilit${matches.length > 1 ? 'ies' : 'y'} in Directory`;
+          }
+          const listEl = document.getElementById('sfePropSuggestionsList');
+          if (listEl) {
+            listEl.innerHTML = matches.map(m => {
+              const isAppr = (m.workflow_state === 'Approved' || m.workflow_state === 'Draft');
+              const locStr = [m.city_label || m.city_municipality, m.province_name].filter(Boolean).join(', ');
+              return `
+                <div onclick="selectSfePropDirectoryMatch('${escapeSfeHtml(m.name)}')" style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; cursor:pointer; border-bottom:1px solid #F1F5F9;" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='transparent'">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0066FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="12" y1="8" x2="12" y2="16"></line>
+                      <line x1="8" y1="12" x2="16" y2="12"></line>
+                    </svg>
+                    <div>
+                      <div style="font-size:12px; font-weight:700; color:#0F172A;">${escapeSfeHtml(m.institution_name)}</div>
+                      <div style="font-size:10.5px; color:#64748B;">${escapeSfeHtml(locStr || m.name)}</div>
+                    </div>
+                  </div>
+                  <span style="font-size:9.5px; font-weight:800; padding:2px 6px; border-radius:4px; ${isAppr ? 'background:#ECFDF5; color:#059669; border:1px solid #A7F3D0;' : 'background:#FFFBEB; color:#D97706; border:1px solid #FDE68A;'}">
+                    ${escapeSfeHtml(m.workflow_state || 'Pending')}
+                  </span>
+                </div>
+              `;
+            }).join('');
+          }
+        }
+        if (uniqBanner) uniqBanner.style.display = 'none';
+        if (certBox) certBox.style.display = 'none';
+        if (certCheck) certCheck.checked = false;
+        if (locSec) {
+          locSec.style.opacity = '0.6';
+          locSec.style.pointerEvents = 'none';
+        }
+        if (locBadge) {
+          locBadge.style.display = 'inline';
+          locBadge.textContent = 'Disabled while suggestions exist';
+        }
+        if (subBtn) {
+          subBtn.textContent = 'Select from Suggestions Above';
+          subBtn.disabled = true;
+          subBtn.style.background = '#94A3B8';
+        }
+      } else {
+        // Zero matches found! Verified unique facility
+        if (suggBox) suggBox.style.display = 'none';
+        if (uniqBanner) uniqBanner.style.display = 'flex';
+        if (certBox) certBox.style.display = 'block';
+        if (locSec) {
+          locSec.style.opacity = '0.6';
+          locSec.style.pointerEvents = 'none';
+        }
+        if (locBadge) {
+          locBadge.style.display = 'inline';
+          locBadge.textContent = 'Locked until certified';
+        }
+        if (subBtn) {
+          subBtn.textContent = 'Submit Proposal';
+          subBtn.disabled = false;
+          subBtn.style.background = '#0066FF';
+        }
+      }
+    }, 250);
+  }
+
+  function selectSfePropDirectoryMatch(instId) {
+    const inst = (sfeInstitutionsMasterlist || []).find(x => x.name === instId);
+    if (!inst) return;
+
+    sfePropSelectedExistingInst = inst;
+
+    const nameInp = document.getElementById('sfePropNameInput');
+    if (nameInp) nameInp.value = inst.institution_name;
+
+    const ownSel = document.getElementById('sfePropOwnershipSelect');
+    if (ownSel && inst.ownership) ownSel.value = inst.ownership;
+
+    const typeSel = document.getElementById('sfePropTypeSelect');
+    if (typeSel && inst.institution_type) typeSel.value = inst.institution_type;
+
+    populateSfePropCapabilityOptions(inst.institution_type, inst.service_capability);
+    onSfePropClassificationChange();
+
+    // Fill location
+    let regCode = inst.region_name;
+    let provCode = inst.province_name;
+    let cityCode = inst.city_municipality;
+    if (cityCode && PSGC_BY_CODE.has(cityCode)) {
+      const cityItem = PSGC_BY_CODE.get(cityCode);
+      if (!provCode && cityItem.parent) provCode = cityItem.parent;
+      if (provCode && PSGC_BY_CODE.has(provCode)) {
+        const pItem = PSGC_BY_CODE.get(provCode);
+        if (pItem.type === 'Region') {
+          regCode = pItem.code;
+        } else if (!regCode && pItem.parent) {
+          regCode = pItem.parent;
+        }
+      }
+    }
+    populateSfePropRegionSelect(regCode);
+    onSfePropRegionChange(provCode, cityCode);
+
+    const brgyInp = document.getElementById('sfePropBarangayInput');
+    if (brgyInp) brgyInp.value = inst.barangay || '';
+
+    const addrInp = document.getElementById('sfePropAddressInput');
+    if (addrInp) addrInp.value = inst.street_address || inst.address_line1 || '';
+
+    // Hide suggestions & unique banners
+    const suggBox = document.getElementById('sfePropSuggestionsBox');
+    if (suggBox) suggBox.style.display = 'none';
+
+    const uniqBanner = document.getElementById('sfePropUniqueBanner');
+    if (uniqBanner) uniqBanner.style.display = 'none';
+
+    const certBox = document.getElementById('sfePropCertifyContainer');
+    if (certBox) certBox.style.display = 'none';
+
+    // Show selected facility banner
+    const selBanner = document.getElementById('sfePropSelectedFacilityBanner');
+    if (selBanner) selBanner.style.display = 'block';
+
+    const selName = document.getElementById('sfePropSelectedFacilityName');
+    if (selName) selName.textContent = `Existing Facility: "${inst.institution_name}" (${inst.name})`;
+
+    const selDetail = document.getElementById('sfePropSelectedFacilityDetail');
+    if (selDetail) {
+      const locStr = [inst.city_label || inst.city_municipality, inst.province_name].filter(Boolean).join(', ');
+      selDetail.textContent = `Status: ${inst.workflow_state || 'Approved'} • Location: ${locStr || 'N/A'}`;
+    }
+
+    // Unlock location display
+    const locSec = document.getElementById('sfePropLocationSection');
+    if (locSec) {
+      locSec.style.opacity = '1';
+      locSec.style.pointerEvents = 'auto';
+    }
+    const locBadge = document.getElementById('sfePropLocationLockBadge');
+    if (locBadge) locBadge.style.display = 'none';
+
+    // Update submit button
+    const subBtn = document.getElementById('sfePropSubmitBtn');
+    if (subBtn) {
+      subBtn.textContent = 'Use Selected Institution';
+      subBtn.disabled = false;
+      subBtn.style.background = '#1E3E62';
+    }
+  }
+
+  function clearSfePropSelectedFacility() {
+    sfePropSelectedExistingInst = null;
+    const selBanner = document.getElementById('sfePropSelectedFacilityBanner');
+    if (selBanner) selBanner.style.display = 'none';
+
+    const nameInp = document.getElementById('sfePropNameInput');
+    if (nameInp) onSfePropNameChange(nameInp.value);
+  }
+
+  function onSfePropCertifyChange(checked) {
+    const certBox = document.getElementById('sfePropCertifyContainer');
+    const certText = document.getElementById('sfePropCertifyStatusText');
+    const locSec = document.getElementById('sfePropLocationSection');
+    const locBadge = document.getElementById('sfePropLocationLockBadge');
+
+    if (checked) {
+      if (certBox) {
+        certBox.style.borderColor = '#22C55E';
+        certBox.style.background = '#F0FDF4';
+      }
+      if (certText) {
+        certText.textContent = '✓ Certified accurate & active for coverage. Location fields unlocked for encoding.';
+        certText.style.color = '#15803D';
+        certText.style.fontWeight = '700';
+      }
+      if (locSec) {
+        locSec.style.opacity = '1';
+        locSec.style.pointerEvents = 'auto';
+      }
+      if (locBadge) locBadge.style.display = 'none';
+    } else {
+      if (certBox) {
+        certBox.style.borderColor = '#CBD5E1';
+        certBox.style.background = '#F8FAFC';
+      }
+      if (certText) {
+        certText.textContent = 'Mandatory: Check this box to certify accuracy and unlock Step 3: Region, Province, and City.';
+        certText.style.color = '#64748B';
+        certText.style.fontWeight = 'normal';
+      }
+      if (locSec) {
+        locSec.style.opacity = '0.6';
+        locSec.style.pointerEvents = 'none';
+      }
+      if (locBadge) {
+        locBadge.style.display = 'inline';
+        locBadge.textContent = 'Locked until certified';
+      }
+    }
   }
 
   function submitSfeProposeInstitution() {
-    const name = String((document.getElementById('sfePropNameInput') || {}).value || '').trim();
-    if (!name) {
-      showToast('Facility Name is required.', 'error');
+    const errBox = document.getElementById('sfePropValidationErr');
+    const showErr = (msg) => {
+      if (errBox) {
+        errBox.textContent = msg;
+        errBox.style.display = 'block';
+        errBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        showToast(msg, 'error');
+      }
+    };
+    if (errBox) errBox.style.display = 'none';
+
+    // If an existing facility was selected, simply use it!
+    if (sfePropSelectedExistingInst) {
+      showToast(`Selected existing facility "${sfePropSelectedExistingInst.institution_name}" from directory.`, 'success');
+      closeSfeProposeInstitutionModal();
       return;
     }
-    const ownership = (document.getElementById('sfePropOwnershipSelect') || {}).value || 'Private';
-    const instType = (document.getElementById('sfePropTypeSelect') || {}).value || 'Clinic';
-    const capability = (document.getElementById('sfePropCapabilitySelect') || {}).value || 'Primary';
-    const city = String((document.getElementById('sfePropCityInput') || {}).value || '').trim();
-    const address = String((document.getElementById('sfePropAddressInput') || {}).value || '').trim();
-    const actor = (authenticatedUser && (authenticatedUser.full_name || authenticatedUser.email)) || 'SFE Specialist';
 
+    const name = String((document.getElementById('sfePropNameInput') || {}).value || '').trim();
+    if (!name || name.length < 3) {
+      showErr('Facility Name is required (minimum 3 characters).');
+      return;
+    }
+
+    // Check suggestions block
+    const suggBox = document.getElementById('sfePropSuggestionsBox');
+    if (suggBox && suggBox.style.display !== 'none') {
+      showErr('Existing matching facilities detected in masterlist. Please select a facility from the suggestions, or refine the name to propose a distinct facility.');
+      return;
+    }
+
+    // Check mandatory certification
+    const certCheck = document.getElementById('sfePropCertifyCheck');
+    if (!certCheck || !certCheck.checked) {
+      showErr('Please confirm the mandatory certification checkbox verifying that this institution is not in the directory and is valid and accurate.');
+      return;
+    }
+
+    const ownership = (document.getElementById('sfePropOwnershipSelect') || {}).value || 'Private';
+    const instType = (document.getElementById('sfePropTypeSelect') || {}).value || 'Hospital';
+    const capability = (document.getElementById('sfePropCapabilitySelect') || {}).value || 'Primary';
+
+    const regCode = (document.getElementById('sfePropRegionSelect') || {}).value || '';
+    const provCode = (document.getElementById('sfePropProvinceSelect') || {}).value || '';
+    const cityCode = (document.getElementById('sfePropCitySelect') || {}).value || '';
+
+    if (!regCode && !provCode) {
+      showErr('Official Region is required.');
+      return;
+    }
+    if (!provCode) {
+      showErr('Province is required.');
+      return;
+    }
+    if (!cityCode) {
+      showErr('City / Municipality is required.');
+      return;
+    }
+
+    const regLabel = resolvePsgcLabel(regCode) || regCode;
+    const provLabel = resolvePsgcLabel(provCode) || provCode;
+    const cityLabel = resolvePsgcLabel(cityCode) || cityCode;
+
+    const barangay = String((document.getElementById('sfePropBarangayInput') || {}).value || '').trim();
+    const address = String((document.getElementById('sfePropAddressInput') || {}).value || '').trim();
+    const docName = String((document.getElementById('sfePropDoctorInput') || {}).value || '').trim();
+    const remarks = String((document.getElementById('sfePropRemarksInput') || {}).value || '').trim() ||
+      'Certified by MedRep: Institution is accurate and active for coverage';
+
+    const actor = (authenticatedUser && (authenticatedUser.full_name || authenticatedUser.email)) || 'SFE Specialist';
     const propId = 'INST-PROP-' + Math.floor(100000 + Math.random() * 900000);
+    const isGov = ownership.toLowerCase() === 'government';
+    const needsDsm = isGov || capability.toLowerCase() === 'tertiary';
+
     const newRecord = {
       name: propId,
       institution_name: name,
       ownership: ownership,
       institution_type: instType,
       service_capability: capability,
-      city_municipality: city,
-      city_label: city || 'Metro Manila',
+      region_name: regCode,
+      region_label: regLabel,
+      province_name: provCode,
+      province_label: provLabel,
+      city_municipality: cityCode,
+      city_label: cityLabel,
+      barangay: barangay,
       street_address: address,
       address_line1: address,
       workflow_state: 'Pending Approval',
       docstatus: 0,
       is_proposal: true,
       is_medrep_submission: true,
+      is_certified: true,
+      certification_note: remarks,
+      remarks: remarks,
+      linked_doctor_name: docName,
       submitted_by: actor,
       submitted_at: new Date().toISOString(),
-      requires_dsm_approval: (ownership.toLowerCase() === 'government' || capability.toLowerCase() === 'tertiary'),
+      requires_dsm_approval: needsDsm,
       audit_trail: [{
         actor: actor,
         timestamp: new Date().toISOString(),
@@ -18656,7 +19352,7 @@ const BASELINE_ERP_TERRITORIES = [
     updateSfeInstitutionBadgesAndKpis();
     closeSfeProposeInstitutionModal();
 
-    // Automatically switch to MedRep Submission window so user immediately sees their proposal
+    // Automatically switch to MedRep Submission tab so user immediately sees their proposal
     setSfeInstStatusFilter('MedRep Submission');
 
     if (isPortalInStreamlitMode()) {
@@ -18667,11 +19363,24 @@ const BASELINE_ERP_TERRITORIES = [
         ownership: ownership,
         institution_type: instType,
         service_capability: capability,
-        city_municipality: city,
+        region_id: regCode,
+        region_name: regLabel,
+        province_id: provCode,
+        province_name: provLabel,
+        city_id: cityCode,
+        city_municipality: cityLabel,
+        barangay: barangay,
         street_address: address,
+        address_line1: address,
+        is_certified: 1,
+        certification_note: remarks,
+        linked_doctor_name: docName,
+        requires_dsm_approval: needsDsm,
         user: actor,
         timestamp: Date.now()
       });
+    } else {
+      dispatchLocalDesktopInstitutionSync(newRecord, 'Proposed');
     }
 
     showToast(`Facility proposal "${name}" submitted and queued in MedRep Submission!`, 'success', 4000);
@@ -19256,7 +19965,7 @@ const BASELINE_ERP_TERRITORIES = [
         r.city_municipality, r.city_label, r.province_name, r.province_label,
         r.region_name, r.region_label, r.is_certified ? 'YES' : 'NO',
         r.linked_doctor_name, r.submitted_by, r.resubmission_count, r.rejection_reason
-      ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`);
+      ].map(v => `"${String(v != null ? v : '').replace(/"/g, '""')}"`);
       csvLines.push(vals.join(','));
     }
     const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });

@@ -529,14 +529,14 @@ def fetch_live_institutions(opener):
         return None
     try:
         fields = json.dumps(["*"])
-        url = f"{ERPNEXT_SERVER_URL}/api/resource/Institution?fields={urllib.parse.quote(fields)}&order_by=name%20desc&limit_page_length=0"
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/Institution?fields={urllib.parse.quote(fields)}&order_by=name%20desc&limit_page_length=2500"
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
         try:
             res = call_erpnext_resiliently(opener, req, timeout=15)
             data = json.loads(res.read().decode("utf-8")).get("data", [])
         except Exception:
-            core_fields = json.dumps(["name", "institution_name", "ownership", "institution_type", "service_capability", "requires_dsm_approval", "linked_doctor_name", "region_name", "province_name", "city_municipality", "barangay_name", "street_address", "workflow_state", "rejection_reason", "is_resubmission", "owner", "creation", "modified", "docstatus"])
-            fallback_url = f"{ERPNEXT_SERVER_URL}/api/resource/Institution?fields={urllib.parse.quote(core_fields)}&order_by=name%20desc&limit_page_length=0"
+            core_fields = json.dumps(["name", "institution_name", "ownership", "institution_type", "service_capability", "requires_dsm_approval", "linked_doctor_name", "region_name", "province_name", "city_municipality", "barangay_name", "street_address", "workflow_state", "rejection_reason", "is_resubmission", "owner", "creation", "modified", "docstatus", "remarks", "custom_remarks", "is_certified", "certification_note"])
+            fallback_url = f"{ERPNEXT_SERVER_URL}/api/resource/Institution?fields={urllib.parse.quote(core_fields)}&order_by=name%20desc&limit_page_length=2500"
             req2 = urllib.request.Request(fallback_url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
             res2 = call_erpnext_resiliently(opener, req2, timeout=15)
             data = json.loads(res2.read().decode("utf-8")).get("data", [])
@@ -609,6 +609,44 @@ def fetch_live_institutions(opener):
                         data.insert(0, s_rec)
         except Exception as se:
             print(f"[Streamlit Proxy] Shared override merge warning: {se}")
+
+        # MedRep Proposal Detection & Seamless Reflection (Zero Data Loss)
+        if isinstance(data, list):
+            for inst in data:
+                if not isinstance(inst, dict):
+                    continue
+                iname = safe_str(inst.get("name"))
+                owner = safe_str(inst.get("owner")).lower()
+                remarks = (safe_str(inst.get("remarks")) + " " + safe_str(inst.get("custom_remarks")) + " " + safe_str(inst.get("certification_note"))).lower()
+                wf_st = safe_str(inst.get("workflow_state"))
+                doc_st = int(inst.get("docstatus", 0) or 0)
+
+                # An institution submitted from HCP App or Web Portal is classified as MedRep Submission if:
+                # 1. Explicitly tagged is_proposal or is_medrep_submission
+                # 2. Workflow state is Pending Approval / Pending Review / Proposal
+                # 3. ID matches proposal naming series (INST-PROP-*)
+                # 4. Remarks or certification note indicates proposal / MedRep certification
+                # 5. Linked to a doctor
+                # 6. Created by a MedRep user (owner not System Admin / jptan)
+                # 7. Newly created institution sequence (greater than baseline INST-09341)
+                is_prop = (
+                    inst.get("is_proposal") == 1 or
+                    inst.get("is_medrep_submission") == 1 or
+                    wf_st.lower() in ("pending approval", "pending review", "proposal") or
+                    iname.startswith("INST-PROP-") or
+                    "proposed" in remarks or
+                    "certified by medrep" in remarks or
+                    bool(inst.get("linked_doctor_name")) or
+                    bool(inst.get("certification_note")) or
+                    inst.get("is_certified") == 1 or
+                    (owner and "profinsights.biz" not in owner and "administrator" not in owner and "guest" not in owner) or
+                    (iname.startswith("INST-") and iname > "INST-09341" and wf_st.lower() not in ("approved", "rejected", "pending dsm approval"))
+                )
+                if is_prop and wf_st not in ("Approved", "Rejected", "Pending DSM Approval") and doc_st != 2:
+                    inst["is_proposal"] = 1
+                    inst["is_medrep_submission"] = 1
+                    if not wf_st or wf_st == "Draft":
+                        inst["workflow_state"] = "Pending Approval"
 
         return data
     except Exception as e:
@@ -827,10 +865,15 @@ def execute_institution_action(opener, action, payload):
             reg_id = safe_str(payload.get("region_id") or payload.get("region_name"))
             prov_id = safe_str(payload.get("province_id") or payload.get("province_name"))
             city_id = safe_str(payload.get("city_id") or payload.get("city_municipality"))
+            barangay = safe_str(payload.get("barangay"))
             street = safe_str(payload.get("street_address") or payload.get("address_line1"))
             ownership = safe_str(payload.get("ownership")) or "Private"
             inst_type = safe_str(payload.get("institution_type")) or "Clinic"
             capability = safe_str(payload.get("service_capability")) or "Primary"
+            doc_name = safe_str(payload.get("linked_doctor_name"))
+            cert_note = safe_str(payload.get("certification_note") or payload.get("remarks")) or "Certified by MedRep: Institution is accurate and active for coverage"
+            is_cert = int(payload.get("is_certified") if payload.get("is_certified") is not None else 1)
+            needs_dsm = bool(payload.get("requires_dsm_approval")) or (ownership.lower() == "government" or capability.lower() == "tertiary")
 
             new_rec = {
                 "name": name,
@@ -841,18 +884,59 @@ def execute_institution_action(opener, action, payload):
                 "region_name": reg_id,
                 "province_name": prov_id,
                 "city_municipality": city_id,
+                "barangay": barangay,
                 "street_address": street,
+                "address_line1": street,
                 "workflow_state": "Pending Approval",
                 "docstatus": 0,
                 "is_proposal": 1,
                 "is_medrep_submission": 1,
+                "is_certified": is_cert,
+                "certification_note": cert_note,
+                "remarks": cert_note,
+                "linked_doctor_name": doc_name,
+                "requires_dsm_approval": 1 if needs_dsm else 0,
                 "submitted_by": actor_user,
                 "submitted_at": now_iso
             }
+
+            # Standard ERPNext fields for live creation
+            erp_inst_doc = {
+                "doctype": "Institution",
+                "institution_name": inst_title,
+                "ownership": ownership,
+                "institution_type": inst_type,
+                "service_capability": capability,
+                "region_name": reg_id,
+                "province_name": prov_id,
+                "city_municipality": city_id,
+                "street_address": street,
+                "address_line1": street,
+                "remarks": cert_note
+            }
             try:
-                c_body = json.dumps(new_rec).encode("utf-8")
+                c_body = json.dumps(erp_inst_doc).encode("utf-8")
                 c_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/resource/Institution", data=c_body, headers=headers_json, method="POST")
-                call_erpnext_resiliently(opener, c_req, timeout=10)
+                c_res = call_erpnext_resiliently(opener, c_req, timeout=10)
+                if c_res.status in [200, 201]:
+                    c_data = json.loads(c_res.read().decode("utf-8")).get("data", {})
+                    if c_data.get("name"):
+                        new_rec["erp_name"] = c_data["name"]
+            except Exception:
+                pass
+
+            # Log audit metadata comment
+            try:
+                comment_html = f"<p><strong>[PIMS Proposal — MedRep Submission]</strong> Facility: <b>{inst_title}</b> ({name}) | Type: <b>{inst_type}</b> ({ownership}) | Actor: {actor_user} | Certified: Yes</p><!--PIMS_META:{json.dumps(new_rec)}-->"
+                com_body = json.dumps({
+                    "doctype": "Comment",
+                    "comment_type": "Comment",
+                    "reference_doctype": "Institution",
+                    "reference_name": new_rec.get("erp_name") or name,
+                    "content": comment_html
+                }).encode("utf-8")
+                com_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/resource/Comment", data=com_body, headers=headers_json, method="POST")
+                call_erpnext_resiliently(opener, com_req, timeout=8)
             except Exception:
                 pass
 
@@ -1110,6 +1194,144 @@ def execute_institution_action(opener, action, payload):
             )
 
             return "success", f'Remapped "{old_name}" -> "{rep_name}" ({rep_id}) across ERPNext & Mobile App!'
+
+        elif action in ["inst_create", "inst_propose"]:
+            clean_wp = safe_str(payload.get("institution_name"))
+            ownership = safe_str(payload.get("ownership")) or "Private"
+            inst_type = safe_str(payload.get("institution_type")) or "Clinic"
+            capability = safe_str(payload.get("service_capability")) or ("General Clinic" if inst_type == "Clinic" else "Primary")
+            reg_id = safe_str(payload.get("region_id") or payload.get("region_name"))
+            prov_id = safe_str(payload.get("province_id") or payload.get("province_name"))
+            city_id = safe_str(payload.get("city_id") or payload.get("city_municipality"))
+            street = safe_str(payload.get("street_address") or payload.get("address_line1"))
+            brgy = safe_str(payload.get("barangay"))
+            linked_doc = safe_str(payload.get("linked_doctor_name"))
+            is_certified = bool(payload.get("is_certified", True))
+            cert_note = safe_str(payload.get("certification_note")) or f"Certified by {actor_user}: Facility accurate and active for coverage."
+            needs_dsm = (ownership.lower() == "government" or capability.lower() == "tertiary")
+
+            if not clean_wp:
+                return "error", "Facility Name is required."
+
+            erp_body = {
+                "institution_name": clean_wp,
+                "ownership": ownership,
+                "institution_type": inst_type,
+                "service_capability": capability,
+                "requires_dsm_approval": 1 if needs_dsm else 0,
+                "is_certified": 1 if is_certified else 0,
+                "certification_note": cert_note,
+                "remarks": cert_note,
+                "workflow_state": "Pending Approval",
+                "docstatus": 0
+            }
+            if reg_id: erp_body["region_name"] = reg_id
+            if prov_id: erp_body["province_name"] = prov_id
+            if city_id: erp_body["city_municipality"] = city_id
+            if street: erp_body["street_address"] = street
+            if brgy: erp_body["barangay_name"] = brgy
+            if linked_doc: erp_body["linked_doctor_name"] = linked_doc
+
+            assigned_id = ""
+            try:
+                post_req = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/resource/Institution",
+                    data=json.dumps(erp_body).encode("utf-8"),
+                    headers=headers_json,
+                    method="POST"
+                )
+                post_res = call_erpnext_resiliently(opener, post_req, timeout=12)
+                if post_res.status in (200, 201):
+                    res_json = json.loads(post_res.read().decode("utf-8"))
+                    assigned_id = res_json.get("data", {}).get("name", "")
+            except urllib.error.HTTPError as he:
+                err_txt = he.read().decode("utf-8", errors="ignore")
+                if "LinkValidationError" in err_txt or "Could not find" in err_txt or "field not found" in err_txt:
+                    fallback_body = {
+                        "institution_name": clean_wp,
+                        "ownership": ownership,
+                        "institution_type": inst_type,
+                        "service_capability": capability,
+                        "remarks": cert_note
+                    }
+                    try:
+                        fb_req = urllib.request.Request(
+                            f"{ERPNEXT_SERVER_URL}/api/resource/Institution",
+                            data=json.dumps(fallback_body).encode("utf-8"),
+                            headers=headers_json,
+                            method="POST"
+                        )
+                        fb_res = call_erpnext_resiliently(opener, fb_req, timeout=12)
+                        if fb_res.status in (200, 201):
+                            res_json = json.loads(fb_res.read().decode("utf-8"))
+                            assigned_id = res_json.get("data", {}).get("name", "")
+                    except Exception:
+                        pass
+
+            final_id = assigned_id or safe_str(payload.get("institution_id")) or f"INST-PROP-{int(time.time())}"
+
+            # Try apply workflow 'Submit for Approval'
+            try:
+                wf_body = json.dumps({"doc": {"doctype": "Institution", "name": final_id}, "action": "Submit for Approval"}).encode("utf-8")
+                wf_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.model.workflow.apply_workflow", data=wf_body, headers=headers_json, method="POST")
+                call_erpnext_resiliently(opener, wf_req, timeout=8)
+            except Exception:
+                pass
+
+            # Post PIMS_META comment
+            human_msg = f"Proposed new {inst_type} ({ownership}, {capability}) by {actor_user} ({actor_role}) in Web Portal. {cert_note}"
+            _post_institution_meta_comment(opener, final_id, human_msg, {
+                "institution_name": clean_wp,
+                "region_name": reg_id,
+                "province_name": prov_id,
+                "city_municipality": city_id,
+                "street_address": street,
+                "barangay": brgy,
+                "ownership": ownership,
+                "institution_type": inst_type,
+                "service_capability": capability,
+                "workflow_state": "Pending Approval",
+                "docstatus": 0,
+                "is_proposal": 1,
+                "is_medrep_submission": 1,
+                "is_certified": 1 if is_certified else 0,
+                "certification_note": cert_note,
+                "linked_doctor_name": linked_doc,
+                "requires_dsm_approval": 1 if needs_dsm else 0,
+                "submitted_by": actor_user,
+                "submitted_at": now_iso,
+                "action": "Proposed New Facility",
+                "user": actor_user,
+                "role": actor_role,
+                "timestamp": now_iso,
+                "details": human_msg
+            })
+
+            # Save to shared institution state
+            save_shared_inst_override(final_id, {
+                "name": final_id,
+                "institution_name": clean_wp,
+                "ownership": ownership,
+                "institution_type": inst_type,
+                "service_capability": capability,
+                "region_name": reg_id,
+                "province_name": prov_id,
+                "city_municipality": city_id,
+                "street_address": street,
+                "barangay": brgy,
+                "workflow_state": "Pending Approval",
+                "docstatus": 0,
+                "is_proposal": 1,
+                "is_medrep_submission": 1,
+                "is_certified": 1 if is_certified else 0,
+                "certification_note": cert_note,
+                "linked_doctor_name": linked_doc,
+                "requires_dsm_approval": 1 if needs_dsm else 0,
+                "submitted_by": actor_user,
+                "submitted_at": now_iso
+            })
+
+            return "success", f'Facility proposal "{clean_wp}" ({final_id}) submitted & queued in MedRep Submission!'
 
         return "info", f"Institution action {action} processed."
     except Exception as e:
