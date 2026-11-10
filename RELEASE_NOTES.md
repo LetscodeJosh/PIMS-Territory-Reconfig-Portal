@@ -1,3 +1,28 @@
+## [v.0.1.1 - Hotfix Enhancement: Institution Approvals Multi-User Sync & UI Theme Engine] - 2026-11-10
+
+### 🎯 Key Enhancements & Problem Resolutions
+
+#### 1. Header Display & Theme Engine Optimization (Image 1 Resolution)
+- **Header Version Badge Removed**: Removed `#portalVersionBadge` (`v.0.1.1`) from the header display per user request.
+- **Theme Toggle Truncation Eliminated**: Styled `#btnThemeToggle` with `white-space: nowrap !important; flex-shrink: 0 !important; min-width: 110px !important;` and `.header-controls` with `flex-wrap: nowrap !important;`, preventing `☀️ Light Mode` and `🌙 Dark Mode` text clipping (`Light Mod`).
+- **Comprehensive Dark Mode Theming**: Applied full dark theme coverage for `#loginView`, `#loginForm` inputs, labels, `.sfe-inst-nav-card` statuses, table headers, table cells, and popovers, eliminating unreadable text or dark-on-dark contrast bugs.
+
+#### 2. Multi-User Real-Time Sync & Live Counts Without Page Refresh (Image 2 Resolution)
+- **Shared Server-Side Store (`shared_institution_state.json`)**: SFE approvals, rejections, and proposals persist across all concurrent user sessions.
+- **Multi-User Live Count Alignment**: Auto-sync background polling runs every 8 seconds, ensuring User B sees User A's approvals and submissions in real time without refreshing the browser.
+- **Refresh Data Retention**: Page reloads (F5) reload merged server states; inputs and approved facilities are never wiped or lost.
+
+#### 3. Institution Approvals Window Re-Architecture
+- **Window 1: MedRep Submission (`kpiInstMedRepSubmission`)**: Placed before `Institution Directory`; displays all incoming facility proposals from MedRep mobile app (HCP App) and SFE awaiting review.
+- **Window 2: Institution Directory (`kpiInstPendingSfe`)**: Masterlist of active/approved facilities in ERPNext with status **`Draft`** (`docstatus: 0`).
+- **Window 3: Pending DSM Approval (`kpiInstPendingDsm`)**: High-impact and government facilities routed for regional sign-off.
+- **Window 4: Rejected Proposals (`kpiInstRejected`)**: Rejected proposals with mandatory reasons.
+- **Window 5: MedRep Certified (`kpiInstCertified`)**: Field verified facilities.
+- **Removed "Approved Masterlist" Window**: Approved and remapped institutions move directly into `Institution Directory` with status `Draft`, strictly conforming to the ERPNext `Institution` DocType schema where all masterlist records are Draft.
+- **+ Propose Facility**: Interactive modal allowing SFEs to submit new facility proposals directly into the `MedRep Submission` queue.
+
+---
+
 # PIMS Territory Reconfiguration Web App — Release Notes (`v.0.1.1`)
 
 **Release Version**: `v.0.1.1` (Repository Suite `v.0.8.0` / Build `0.8.0+51`)  

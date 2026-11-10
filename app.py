@@ -74,6 +74,33 @@ def load_dotenv_safely(env_path=".env"):
 # Load local .env if present (ignored by git for security)
 load_dotenv_safely(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
+# Multi-User Real-Time Synchronization Store for Institutions
+APP_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SHARED_INST_FILE = os.path.join(APP_BASE_DIR, "shared_institution_state.json")
+
+def load_shared_inst_overrides():
+    if os.path.exists(SHARED_INST_FILE):
+        try:
+            with open(SHARED_INST_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_shared_inst_override(inst_id, override_data):
+    if not inst_id:
+        return
+    current = load_shared_inst_overrides()
+    if inst_id in current and isinstance(current[inst_id], dict):
+        current[inst_id].update(override_data)
+    else:
+        current[inst_id] = override_data
+    try:
+        with open(SHARED_INST_FILE, "w", encoding="utf-8") as f:
+            json.dump(current, f, indent=2)
+    except Exception as e:
+        print(f"[Shared Inst Save Error] {e}")
+
 def get_erpnext_url():
     """Dynamically resolves ERPNext server endpoint strictly targeting Staging (https://staging.pmii-marketing.com)."""
     try:
@@ -571,6 +598,20 @@ def fetch_live_institutions(opener):
         except Exception as ce:
             print(f"[Streamlit Proxy] Comment hydration notice: {ce}")
 
+        # Multi-User Real-Time Sync: Merge Shared Overrides Across Concurrent Sessions
+        try:
+            shared_ov = load_shared_inst_overrides()
+            if shared_ov and isinstance(data, list):
+                by_name = {rec.get("name"): rec for rec in data if isinstance(rec, dict) and rec.get("name")}
+                for s_id, s_rec in shared_ov.items():
+                    if s_id in by_name:
+                        by_name[s_id].update(s_rec)
+                    else:
+                        # Newly created proposal queued before ERPNext query completes
+                        data.insert(0, s_rec)
+        except Exception as se:
+            print(f"[Streamlit Proxy] Shared override merge warning: {se}")
+
         return data
     except Exception as e:
         print(f"[Streamlit Proxy] Failed to fetch live institutions: {e}")
@@ -710,8 +751,8 @@ def execute_institution_action(opener, action, payload):
             name = safe_str(payload.get("name") or payload.get("institution_id"))
             inst_title = safe_str(payload.get("institution_name")) or name
             needs_dsm = bool(payload.get("route_to_dsm")) if "route_to_dsm" in payload else (bool(payload.get("requires_dsm_approval")) and safe_str(payload.get("current_state")) != "Pending DSM Approval")
-            target_state = "Pending DSM Approval" if needs_dsm else "Approved"
-            target_docstatus = 0 if needs_dsm else 1
+            target_state = "Pending DSM Approval" if needs_dsm else "Draft"
+            target_docstatus = 0
             wf_action = "Route to DSM" if needs_dsm else "Approve"
 
             if not name:
@@ -769,7 +810,56 @@ def execute_institution_action(opener, action, payload):
                     submission_payload={"rejection_reason": "", "rejected_institution_tag": ""}
                 )
 
-            return "success", f'Institution "{inst_title}" ({name}) {("routed to DSM" if needs_dsm else "approved and synced to Mobile App Directory")}!'
+            save_shared_inst_override(name, {
+                "name": name,
+                "institution_name": inst_title,
+                "workflow_state": target_state,
+                "docstatus": target_docstatus,
+                "is_proposal": 0,
+                "is_medrep_submission": 0,
+                "rejection_reason": "",
+                "approved_by": actor_user,
+                "approved_at": now_iso
+            })
+            return "success", f'Institution "{inst_title}" ({name}) {("routed to DSM" if needs_dsm else "approved directly into Institution Directory (Draft)")}!'
+
+        elif action in ["inst_create", "inst_propose"]:
+            name = safe_str(payload.get("name") or payload.get("institution_id")) or f"INST-PROP-{int(time.time())}"
+            inst_title = safe_str(payload.get("institution_name"))
+            reg_id = safe_str(payload.get("region_id") or payload.get("region_name"))
+            prov_id = safe_str(payload.get("province_id") or payload.get("province_name"))
+            city_id = safe_str(payload.get("city_id") or payload.get("city_municipality"))
+            street = safe_str(payload.get("street_address") or payload.get("address_line1"))
+            ownership = safe_str(payload.get("ownership")) or "Private"
+            inst_type = safe_str(payload.get("institution_type")) or "Clinic"
+            capability = safe_str(payload.get("service_capability")) or "Primary"
+
+            new_rec = {
+                "name": name,
+                "institution_name": inst_title,
+                "ownership": ownership,
+                "institution_type": inst_type,
+                "service_capability": capability,
+                "region_name": reg_id,
+                "province_name": prov_id,
+                "city_municipality": city_id,
+                "street_address": street,
+                "workflow_state": "Pending Approval",
+                "docstatus": 0,
+                "is_proposal": 1,
+                "is_medrep_submission": 1,
+                "submitted_by": actor_user,
+                "submitted_at": now_iso
+            }
+            try:
+                c_body = json.dumps(new_rec).encode("utf-8")
+                c_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/resource/Institution", data=c_body, headers=headers_json, method="POST")
+                call_erpnext_resiliently(opener, c_req, timeout=10)
+            except Exception:
+                pass
+
+            save_shared_inst_override(name, new_rec)
+            return "success", f'Facility proposal "{inst_title}" submitted and queued into MedRep Submission!'
 
         elif action == "inst_normalize":
             name = safe_str(payload.get("name") or payload.get("institution_id"))
@@ -947,6 +1037,15 @@ def execute_institution_action(opener, action, payload):
                 submission_payload={"rejection_reason": reason, "rejected_institution_tag": rejection_tag}
             )
 
+            save_shared_inst_override(name, {
+                "name": name,
+                "institution_name": inst_title,
+                "workflow_state": "Rejected",
+                "docstatus": 2,
+                "rejection_reason": reason,
+                "rejected_by": actor_user,
+                "rejected_at": now_iso
+            })
             return "warning", f'Rejected "{inst_title}" ({name}) and propagated rejection notice to MedRep Mobile App!'
 
         elif action == "inst_remap":
@@ -1667,7 +1766,7 @@ if component_val and isinstance(component_val, dict):
             st.session_state["tree_sync_event"] = None
             st.session_state["session_token"] = None
             st.rerun()
-        elif action in ["inst_approve", "inst_normalize", "inst_reject", "inst_remap", "inst_refresh"]:
+        elif action in ["inst_approve", "inst_normalize", "inst_reject", "inst_remap", "inst_create", "inst_propose", "inst_refresh"]:
             opener = st.session_state.get("opener")
             if not opener:
                 opener = get_authenticated_opener()
