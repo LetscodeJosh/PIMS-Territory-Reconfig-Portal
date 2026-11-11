@@ -6,7 +6,7 @@ See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for the complete `v.0.1.1` release 
 
 ---
 
-## 🚀 Deployment Options
+## Deployment Options
 
 This repository supports two production deployment models:
 
@@ -15,7 +15,7 @@ Deploy directly onto a **Google Cloud Platform (GCP) Compute Engine VM** using s
 * **Zero Docker, Zero Container Extensions**.
 * Runs 24/7 as an autonomous background service (`pims-portal.service`).
 * Includes Nginx reverse proxy with WebSocket support and optional free Let's Encrypt SSL.
-* 👉 **Follow the complete step-by-step runbook in [`GCP_DEPLOYMENT_GUIDE.md`](./GCP_DEPLOYMENT_GUIDE.md)**.
+* Follow the complete step-by-step runbook in [`GCP_DEPLOYMENT_GUIDE.md`](./GCP_DEPLOYMENT_GUIDE.md)**.
 
 **Quick 1-Command Installation via PuTTY:**
 ```bash
@@ -39,7 +39,7 @@ Deploy in 3 minutes via Streamlit's hosted cloud service:
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 PIMS-Territory-Reconfig-Portal/
@@ -64,7 +64,7 @@ PIMS-Territory-Reconfig-Portal/
 
 ---
 
-## 🔒 Security & ERPNext Integration Standard
+## Security & ERPNext Integration Standard
 
 * **Zero Hardcoded Secrets**: All endpoints and service account credentials can be configured via environment variables (`.env`) or Streamlit secrets.
 * **Masterlist Protection**: Permanent deletion is disabled in the web portal. Unused territories are safely archived to the Archive Vault.
