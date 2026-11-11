@@ -94,6 +94,10 @@ sudo systemctl daemon-reload
 sudo systemctl enable pims-portal.service
 sudo systemctl restart pims-portal.service
 
+# Configure passwordless systemctl permissions for automated GitHub Actions CI/CD
+echo "${CURRENT_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart pims-portal.service, /bin/systemctl reload pims-portal.service, /bin/systemctl status pims-portal.service" | sudo tee /etc/sudoers.d/pims-portal-cicd > /dev/null
+sudo chmod 0440 /etc/sudoers.d/pims-portal-cicd
+
 # 6. Configure Nginx Reverse Proxy
 echo -e "\n${GREEN}[5/7] Configuring Nginx reverse proxy on Port 80...${NC}"
 NGINX_CONF="/etc/nginx/sites-available/pims-portal"

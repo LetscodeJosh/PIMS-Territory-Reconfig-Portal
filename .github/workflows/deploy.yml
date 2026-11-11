@@ -1,0 +1,81 @@
+name: Deploy PIMS Portal to GCP Compute Engine
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to GCP VM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to GCP via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.GCP_SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -e
+            echo "=========================================================="
+            echo "🚀 Starting Automated Deployment to GCP VM..."
+            echo "=========================================================="
+
+            APP_DIR="$HOME/pims-portal"
+            if [ ! -d "$APP_DIR" ]; then
+              echo "❌ Error: Directory $APP_DIR not found. Please ensure repo is cloned to ~/pims-portal."
+              exit 1
+            fi
+
+            cd "$APP_DIR"
+
+            echo "📦 Fetching latest changes from origin/main..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "🐍 Checking and updating Python virtual environment dependencies..."
+            if [ -d "$APP_DIR/venv" ]; then
+              source "$APP_DIR/venv/bin/activate"
+              pip install --upgrade pip setuptools wheel
+              pip install -r "$APP_DIR/requirements.txt"
+            else
+              echo "⚠️ Virtualenv not found at $APP_DIR/venv. Creating..."
+              python3 -m venv "$APP_DIR/venv"
+              source "$APP_DIR/venv/bin/activate"
+              pip install --upgrade pip setuptools wheel
+              pip install -r "$APP_DIR/requirements.txt"
+            fi
+
+            echo "🔄 Restarting systemd background service (pims-portal.service)..."
+            sudo systemctl restart pims-portal.service
+
+            echo "🩺 Verifying application health endpoint..."
+            sleep 3
+            HEALTHY=false
+            for i in $(seq 1 10); do
+              if curl -s http://127.0.0.1:8501/_stcore/health | grep -q "ok"; then
+                HEALTHY=true
+                echo "✅ Streamlit core is healthy and responding!"
+                break
+              fi
+              echo "Waiting for service to become ready ($i/10)..."
+              sleep 2
+            done
+
+            if [ "$HEALTHY" != "true" ]; then
+              echo "❌ Health check failed after 20 seconds. Inspecting logs:"
+              sudo journalctl -u pims-portal.service -n 30 --no-pager
+              exit 1
+            fi
+
+            echo "=========================================================="
+            echo "🎉 DEPLOYMENT SUCCESSFUL! Live on GCP."
+            echo "=========================================================="
