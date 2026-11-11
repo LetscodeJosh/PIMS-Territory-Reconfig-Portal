@@ -44,7 +44,7 @@ import urllib.request
 # =============================================================================
 
 # Environment-driven configuration isolated strictly from version control
-ERPNEXT_SERVER_URL = os.environ.get("ERPNEXT_URL", "https://dev.pmii-marketing.com").rstrip("/")
+ERPNEXT_SERVER_URL = os.environ.get("ERPNEXT_URL", "https://staging.pmii-marketing.com").rstrip("/")
 
 # Frappe Token / Secret credentials isolated from OS environment
 FRAPPE_API_KEY = os.environ.get("FRAPPE_API_KEY", "")
