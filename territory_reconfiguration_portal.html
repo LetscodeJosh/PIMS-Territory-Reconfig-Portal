@@ -1607,11 +1607,13 @@
     font-weight: 600;
   }
 
-  /* Toast Notification */
+  /* Toast Notification - Firmly Anchored to Bottom-Right Corner */
   #toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    left: auto !important;
+    max-width: 480px;
     background: #0B192C;
     border: 1.5px solid #0066FF;
     color: #FFFFFF;
@@ -1624,14 +1626,15 @@
     align-items: center;
     gap: 8px;
     z-index: 99999;
-    transition: opacity 0.25s ease, transform 0.25s ease, bottom 0.25s ease;
+    transition: opacity 0.25s ease, transform 0.25s ease;
   }
 
   /* Logged-In User Bottom-Right Notification Card */
   #activeUserSessionToast {
     position: fixed;
-    bottom: 24px;
+    bottom: 84px;
     right: 24px;
+    left: auto;
     z-index: 9999;
     background: #0B192C;
     border: 1.5px solid #10B981;
@@ -3756,7 +3759,7 @@
 <div id="toast">Notification message</div>
 
 <!-- Logged-In User Bottom-Right Notification Card -->
-<div id="activeUserSessionToast">
+<div id="activeUserSessionToast" style="display:none;">
   <div id="sessionToastFullContent">
     <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px;">
       <div style="display:flex; align-items:center; gap:8px;">
@@ -6324,13 +6327,11 @@ const BASELINE_ERP_TERRITORIES = [
     toastEl.style.borderColor = borderColor;
     toastEl.style.boxShadow = `0 6px 20px rgba(0,0,0,0.4), 0 0 12px ${shadowColor}`;
     
-    // Position cleanly above session toast if visible
-    const sessionCard = document.getElementById('activeUserSessionToast');
-    if (sessionCard && sessionCard.style.display !== 'none' && !sessionCard.classList.contains('compact')) {
-      toastEl.style.bottom = '150px';
-    } else {
-      toastEl.style.bottom = '24px';
-    }
+    // Position strictly in the bottom-right corner
+    toastEl.style.position = 'fixed';
+    toastEl.style.bottom = '24px';
+    toastEl.style.right = '24px';
+    toastEl.style.left = 'auto';
 
     toastEl.style.display = 'flex';
     toastEl.style.opacity = '1';

@@ -15,11 +15,22 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Verify GCP Deployment Secrets
+        id: check_secrets
+        run: |
+          if [ -z "${{ secrets.GCP_VM_HOST }}" ] || [ -z "${{ secrets.GCP_SSH_PRIVATE_KEY }}" ]; then
+            echo "::notice title=GCP CI/CD Secrets Setup::Automated deployment skipped: GitHub Secrets 'GCP_VM_HOST' and 'GCP_SSH_PRIVATE_KEY' are not yet configured in GitHub Repo Settings -> Secrets and variables -> Actions."
+            echo "has_secrets=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_secrets=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Deploy to GCP via SSH
+        if: steps.check_secrets.outputs.has_secrets == 'true'
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.GCP_VM_HOST }}
-          username: ${{ secrets.GCP_VM_USER }}
+          username: ${{ secrets.GCP_VM_USER || 'rsa-key-20250422' }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           port: ${{ secrets.GCP_SSH_PORT || 22 }}
           script_stop: true
