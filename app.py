@@ -1525,8 +1525,8 @@ def _resolve_sales_person_for_manager(opener, rep_name, headers_json):
     """
     if not rep_name or not opener:
         return None
-    clean = rep_name.strip()
-    if clean.lower() in ("unassigned", "unassigned rep", "unassigned slot", "folder (group)"):
+    clean = safe_str(rep_name)
+    if not clean or clean.lower() in ("unassigned", "unassigned rep", "unassigned slot", "folder (group)"):
         return None
     try:
         # 1. Exact match on primary key (name)
@@ -1556,9 +1556,9 @@ def _resolve_sales_person_for_manager(opener, rep_name, headers_json):
 
 def _resolve_user_id(opener, uid, headers_json):
     """Checks if custom_user_id exists in ERPNext User DocType to prevent LinkValidationError."""
-    if not uid or not opener or "@" not in uid:
+    clean = safe_str(uid).lower()
+    if not clean or not opener or "@" not in clean:
         return None
-    clean = uid.strip().lower()
     try:
         u_url = f"{ERPNEXT_SERVER_URL}/api/resource/User/{urllib.parse.quote(clean)}"
         r = call_erpnext_resiliently(opener, urllib.request.Request(u_url, headers=headers_json), timeout=5)
@@ -1908,11 +1908,11 @@ def execute_tree_action(opener, action, payload):
                 return "success", f'Territory "{t_name}" status updated to {new_status}.'
 
         elif action == "sales_person_create":
-            sp_name = payload.get("sales_person_name", "").strip()
-            parent_sp = payload.get("parent_sales_person", "").strip() or "Sales Team"
-            is_group = int(payload.get("is_group", 0))
-            enabled = int(payload.get("enabled", 1))
-            emp = payload.get("employee", "").strip()
+            sp_name = safe_str(payload.get("sales_person_name") or payload.get("name"))
+            parent_sp = safe_str(payload.get("parent_sales_person")) or "Sales Team"
+            is_group = int(payload.get("is_group", 0) or 0)
+            enabled = int(payload.get("enabled", 1) if payload.get("enabled") is not None else 1)
+            emp = safe_str(payload.get("employee"))
             body = {
                 "sales_person_name": sp_name,
                 "parent_sales_person": parent_sp,
@@ -1921,11 +1921,11 @@ def execute_tree_action(opener, action, payload):
             }
             if emp:
                 body["employee"] = emp
-            dept = payload.get("department", "").strip()
+            dept = safe_str(payload.get("department"))
             if dept:
                 body["department"] = dept
             comm = payload.get("commission_rate")
-            if comm:
+            if comm is not None and comm != "":
                 try:
                     body["commission_rate"] = float(comm)
                 except Exception:
@@ -1935,14 +1935,20 @@ def execute_tree_action(opener, action, payload):
                 cleaned_targets = []
                 for t in targets:
                     if isinstance(t, dict):
-                        item_grp = (t.get("item_group") or "").strip() or "All Item Groups"
-                        dist_id = (t.get("distribution_id") or "").strip() or "Evenly Distributed"
-                        qty = float(t.get("target_qty") or 0)
-                        amt = float(t.get("target_amount") or 0)
+                        item_grp = safe_str(t.get("item_group")) or "All Item Groups"
+                        dist_id = safe_str(t.get("distribution_id")) or "Evenly Distributed"
+                        try:
+                            qty = float(t.get("target_qty") or 0)
+                        except Exception:
+                            qty = 0.0
+                        try:
+                            amt = float(t.get("target_amount") or 0)
+                        except Exception:
+                            amt = 0.0
                         if item_grp or qty > 0 or amt > 0:
                             cleaned_targets.append({
                                 "item_group": item_grp,
-                                "fiscal_year": (t.get("fiscal_year") or "2026").strip(),
+                                "fiscal_year": safe_str(t.get("fiscal_year")) or "2026",
                                 "target_qty": qty,
                                 "target_amount": amt,
                                 "distribution_id": dist_id
@@ -2011,13 +2017,13 @@ def execute_tree_action(opener, action, payload):
             return "success", f'Sales Person "{sp_name}" saved successfully.'
 
         elif action == "employee_create":
-            first_name = payload.get("first_name", "").strip()
-            last_name = payload.get("last_name", "").strip()
-            gender = payload.get("gender", "Male").strip()
-            dob = payload.get("date_of_birth", "1995-01-01").strip()
-            doj = payload.get("date_of_joining", "2024-01-01").strip()
-            company = payload.get("company", "Professional Insights Marketing Services").strip()
-            status = payload.get("status", "Active").strip()
+            first_name = safe_str(payload.get("first_name"))
+            last_name = safe_str(payload.get("last_name"))
+            gender = safe_str(payload.get("gender")) or "Male"
+            dob = safe_str(payload.get("date_of_birth")) or "1995-01-01"
+            doj = safe_str(payload.get("date_of_joining")) or "2024-01-01"
+            company = safe_str(payload.get("company")) or "Professional Insights Marketing Services"
+            status = safe_str(payload.get("status")) or "Active"
             body = {
                 "first_name": first_name,
                 "gender": gender,
@@ -2029,17 +2035,17 @@ def execute_tree_action(opener, action, payload):
             if last_name:
                 body["last_name"] = last_name
             if payload.get("middle_name"):
-                body["middle_name"] = payload.get("middle_name").strip()
+                body["middle_name"] = safe_str(payload.get("middle_name"))
             if payload.get("designation"):
-                body["designation"] = payload.get("designation").strip()
+                body["designation"] = safe_str(payload.get("designation"))
             if payload.get("department"):
-                body["department"] = payload.get("department").strip()
+                body["department"] = safe_str(payload.get("department"))
             if payload.get("reports_to"):
-                body["reports_to"] = payload.get("reports_to").strip()
+                body["reports_to"] = safe_str(payload.get("reports_to"))
             if payload.get("cell_number"):
-                body["cell_number"] = payload.get("cell_number").strip()
+                body["cell_number"] = safe_str(payload.get("cell_number"))
             if payload.get("company_email"):
-                body["company_email"] = payload.get("company_email").strip()
+                body["company_email"] = safe_str(payload.get("company_email"))
 
             data = json.dumps(body).encode("utf-8")
             req = urllib.request.Request(
