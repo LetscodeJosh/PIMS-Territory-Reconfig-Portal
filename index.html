@@ -132,35 +132,49 @@
       .replace(/\[Inactive\s*\/\s*Resigned\]/gi, '')
       .replace(/\s*(\[|\()(RESIGNED|INACTIVE|VACANT)[^)\]]*(\]|\))/gi, '')
       .replace(/^Assigned\s*\((.+)\)$/i, '$1')
+      .replace(/\s*\([A-Z0-9\-_/]+\)/gi, '')
       .replace(/\s*\([^)]*\)/g, '')
       .trim();
   }
 
   function getTerritoryOperationalStatus(pt, treeNode) {
-    if (pt && (pt.operationalStatus === 'Active' || pt.operationalStatus === 'Vacant' || pt.operationalStatus === 'Inactive')) {
-      return pt.operationalStatus;
+    // 1. Structural folders / branches in tree are Active containers
+    if (treeNode && treeNode.is_group) return 'Active';
+    if (pt && pt.isGroup) return 'Active';
+
+    // 2. Explicit Inactive checks
+    if (pt && (pt.operationalStatus === 'Inactive' || pt.isActive === false || pt.isResigned === true)) {
+      return 'Inactive';
     }
-    if (treeNode) {
-      const tStat = treeNode.operational_status || treeNode.status;
-      if (tStat === 'Active' || tStat === 'Vacant' || tStat === 'Inactive') {
-        return tStat;
-      }
+    if (treeNode && (treeNode.operational_status === 'Inactive' || treeNode.status === 'Inactive')) {
+      return 'Inactive';
     }
-    if (pt) {
-      if (pt.isActive === false || pt.isResigned === true || (pt.rep && /resigned|inactive/i.test(pt.rep))) {
-        return 'Inactive';
-      }
-      const cleaned = cleanRepDisplayName(pt.rep);
-      if (!cleaned || /^unassigned/i.test(cleaned) || /^vacant/i.test(cleaned)) {
-        return 'Vacant';
-      }
-      return 'Active';
+    if (pt && pt.rep && /resigned|inactive/i.test(pt.rep)) {
+      return 'Inactive';
     }
-    if (treeNode) {
-      if (treeNode.is_group) return 'Active';
-      const cleanedMgr = cleanRepDisplayName(treeNode.territory_manager);
-      if (!cleanedMgr || /^unassigned/i.test(cleanedMgr)) return 'Vacant';
+
+    // 3. Representative Assignment Invariant: If unassigned or vacant, territory is strictly VACANT
+    const rawRep = (pt && pt.rep) || (treeNode && treeNode.territory_manager) || '';
+    const cleanRep = cleanRepDisplayName(rawRep);
+    const isUnassigned = !cleanRep || 
+                         /^unassigned/i.test(cleanRep) || 
+                         /^vacant/i.test(cleanRep) || 
+                         cleanRep === 'Unassigned Slot' || 
+                         cleanRep === 'Vacant Slot' ||
+                         cleanRep === 'Unassigned Rep';
+
+    if (isUnassigned) {
+      return 'Vacant';
     }
+
+    // 4. Explicit Vacant tag
+    if (pt && pt.operationalStatus === 'Vacant') {
+      return 'Vacant';
+    }
+    if (treeNode && (treeNode.operational_status === 'Vacant' || treeNode.status === 'Vacant')) {
+      return 'Vacant';
+    }
+
     return 'Active';
   }
 
@@ -4613,7 +4627,7 @@
         "spec": "Pathology",
         "hospital": "Manila Doctors Hospital",
         "liveTerritory": "AD0106",
-        "rep": "JONEL APSAY (AD0106)",
+        "rep": "JONEL APSAY",
         "program": "Abbott Diabetes Care"
       },
       {
@@ -4623,7 +4637,7 @@
         "spec": "Internal Medicine",
         "hospital": "Our Lady of Lourdes Hospital",
         "liveTerritory": "AD0104",
-        "rep": "VINA TAMAYO (AD0104)",
+        "rep": "VINA TAMAYO",
         "program": "Abbott Diabetes Care"
       },
       {
@@ -4633,7 +4647,7 @@
         "spec": "Pathology",
         "hospital": "Chinese General Hospital & Medical Center",
         "liveTerritory": "AD0103",
-        "rep": "GRETHA CARLOS (AD0103)",
+        "rep": "GRETHA CARLOS",
         "program": "Abbott Diabetes Care"
       },
       {
@@ -4643,7 +4657,7 @@
         "spec": "Anesthesiology",
         "hospital": "University of Santo Tomas Hospital",
         "liveTerritory": "AD0102",
-        "rep": "LIZA ROXAS (AD0102)",
+        "rep": "LIZA ROXAS",
         "program": "Abbott Diabetes Care"
       },
       {
@@ -4663,7 +4677,7 @@
         "spec": "Pathology",
         "hospital": "University of Santo Tomas Hospital",
         "liveTerritory": "AD0102",
-        "rep": "LIZA ROXAS (AD0102)",
+        "rep": "LIZA ROXAS",
         "program": "Abbott Diabetes Care"
       },
       {
@@ -4673,7 +4687,7 @@
         "spec": "Palliative Medicine",
         "hospital": "Manila Doctors Hospital",
         "liveTerritory": "AD0102",
-        "rep": "LIZA ROXAS (AD0102)",
+        "rep": "LIZA ROXAS",
         "program": "Abbott Diabetes Care"
       },
       {
@@ -4683,7 +4697,7 @@
         "spec": "Pathology",
         "hospital": "Manila Doctors Hospital",
         "liveTerritory": "AD0104",
-        "rep": "VINA TAMAYO (AD0104)",
+        "rep": "VINA TAMAYO",
         "program": "Abbott Diabetes Care"
       },
       {
@@ -4693,7 +4707,7 @@
         "spec": "Family Medicine",
         "hospital": "Manila Doctors Hospital",
         "liveTerritory": "AD0106",
-        "rep": "JONEL APSAY (AD0106)",
+        "rep": "JONEL APSAY",
         "program": "Abbott Diabetes Care"
       },
       {
@@ -4710,7 +4724,7 @@
     "clusters": [
       {
         "name": "AD1 - GMA/NORTH LUZON/CENTRAL LUZON",
-        "rep": "Regalado Banasihan (AD1)",
+        "rep": "Regalado Banasihan",
         "codes": [
           "AD0101",
           "AD0102",
@@ -4722,7 +4736,7 @@
       },
       {
         "name": "AD2 - GMA/SOUTH LUZON",
-        "rep": "Adrian Mendoza (AD2)",
+        "rep": "Adrian Mendoza",
         "codes": [
           "AD0104",
           "AD0108",
@@ -4794,7 +4808,7 @@
         "spec": "Family Medicine",
         "hospital": "Chinese Gen Hospital (Annex)",
         "liveTerritory": "BA4-08",
-        "rep": "Jericho Mercado Agapito (BA4-08)",
+        "rep": "Jericho Mercado Agapito",
         "program": "Bayer Consumer Health - Team 1"
       },
       {
@@ -4804,7 +4818,7 @@
         "spec": "Internal Medicine",
         "hospital": "Manila Doctors Hospital",
         "liveTerritory": "BA2-02",
-        "rep": "Charisse Capulong (BA2-02)",
+        "rep": "Charisse Capulong",
         "program": "Bayer Consumer Health - Team 1"
       },
       {
@@ -4814,7 +4828,7 @@
         "spec": "Internal Medicine",
         "hospital": "UP-Philippine General Hospital",
         "liveTerritory": "BA1-02",
-        "rep": "Dimple Mozo (BA1-02)",
+        "rep": "Dimple Mozo",
         "program": "Bayer Consumer Health - Team 1"
       },
       {
@@ -4824,7 +4838,7 @@
         "spec": "Internal Medicine",
         "hospital": "Chinese General Hospital & Medical Center",
         "liveTerritory": "BA1-05",
-        "rep": "Arlane Ferraren (BA1-05)",
+        "rep": "Arlane Ferraren",
         "program": "Bayer Consumer Health - Team 1"
       },
       {
@@ -4834,7 +4848,7 @@
         "spec": "Internal Medicine",
         "hospital": "Manila Doctors Hospital",
         "liveTerritory": "BA1-04",
-        "rep": "Jamil Villanueva (BA1-04)",
+        "rep": "Jamil Villanueva",
         "program": "Bayer Consumer Health - Team 1"
       },
       {
@@ -4844,7 +4858,7 @@
         "spec": "Pathology",
         "hospital": "Manila Doctors Hospital",
         "liveTerritory": "BA1-03",
-        "rep": "Emerine Plandez (BA1-03)",
+        "rep": "Emerine Plandez",
         "program": "Bayer Consumer Health - Team 1"
       },
       {
@@ -4854,7 +4868,7 @@
         "spec": "Internal Medicine",
         "hospital": "Manila Doctors Hospital",
         "liveTerritory": "BA1-05",
-        "rep": "Arlane Ferraren (BA1-05)",
+        "rep": "Arlane Ferraren",
         "program": "Bayer Consumer Health - Team 1"
       },
       {
@@ -4864,7 +4878,7 @@
         "spec": "Pathology",
         "hospital": "Manila Doctors Hospital",
         "liveTerritory": "BA1-05",
-        "rep": "Arlane Ferraren (BA1-05)",
+        "rep": "Arlane Ferraren",
         "program": "Bayer Consumer Health - Team 1"
       },
       {
@@ -4874,7 +4888,7 @@
         "spec": "Pathology",
         "hospital": "Manila Doctors Hospital",
         "liveTerritory": "BA1-05",
-        "rep": "Arlane Ferraren (BA1-05)",
+        "rep": "Arlane Ferraren",
         "program": "Bayer Consumer Health - Team 1"
       },
       {
@@ -4884,7 +4898,7 @@
         "spec": "Internal Medicine",
         "hospital": "Manila Doctors Hospital",
         "liveTerritory": "BA2-02",
-        "rep": "Charisse Capulong (BA2-02)",
+        "rep": "Charisse Capulong",
         "program": "Bayer Consumer Health - Team 1"
       },
       {
@@ -4894,14 +4908,14 @@
         "spec": "Internal Medicine",
         "hospital": "Chinese General Hospital & Medical Center",
         "liveTerritory": "BA4-08",
-        "rep": "Jericho Mercado Agapito (BA4-08)",
+        "rep": "Jericho Mercado Agapito",
         "program": "Bayer Consumer Health - Team 1"
       }
     ],
     "clusters": [
       {
         "name": "BA1 - SOUTH GMA/BACOLOD/ILOILO",
-        "rep": "Raymond Viray (BA1)",
+        "rep": "Raymond Viray",
         "codes": [
           "BA1-01",
           "BA1-02",
@@ -4913,7 +4927,7 @@
       },
       {
         "name": "BA2 - WEST GMA",
-        "rep": "Gin Orcullo (BA2)",
+        "rep": "Gin Orcullo",
         "codes": [
           "BA2-01",
           "BA2-02",
@@ -4927,7 +4941,7 @@
       },
       {
         "name": "BA4 - SOUTH LUZON",
-        "rep": "Christopher Rinon (BA4)",
+        "rep": "Christopher Rinon",
         "codes": [
           "BA4-01",
           "BA4-02",
@@ -4984,7 +4998,7 @@
         "spec": "Pathology",
         "hospital": "UP-Philippine General Hospital",
         "liveTerritory": "RM101",
-        "rep": "Riegel Gajo (RM101)",
+        "rep": "Riegel Gajo",
         "program": "RTMD"
       },
       {
@@ -4994,7 +5008,7 @@
         "spec": "Family Medicine",
         "hospital": "UP-Philippine General Hospital",
         "liveTerritory": "RM101",
-        "rep": "Riegel Gajo (RM101)",
+        "rep": "Riegel Gajo",
         "program": "RTMD"
       },
       {
@@ -5004,7 +5018,7 @@
         "spec": "Palliative Medicine",
         "hospital": "Chinese General Hospital & Medical Center",
         "liveTerritory": "RM105",
-        "rep": "Cathlyn Rosell Ariola (RM105)",
+        "rep": "Cathlyn Rosell Ariola",
         "program": "RTMD"
       },
       {
@@ -5014,7 +5028,7 @@
         "spec": "Internal Medicine",
         "hospital": "Manila Doctors Hospital",
         "liveTerritory": "RM104",
-        "rep": "Jasmin Maliwat (RM104)",
+        "rep": "Jasmin Maliwat",
         "program": "RTMD"
       },
       {
@@ -5024,7 +5038,7 @@
         "spec": "Internal Medicine",
         "hospital": "Our Lady of Lourdes Hospital",
         "liveTerritory": "RM204",
-        "rep": "Ferdinand Litang (RM204) (RESIGNED)",
+        "rep": "Ferdinand Litang [RESIGNED]",
         "program": "RTMD"
       },
       {
@@ -5034,7 +5048,7 @@
         "spec": "Internal Medicine",
         "hospital": "Medical Center Manila",
         "liveTerritory": "RM106",
-        "rep": "Argie Ian Lerit (RM106)",
+        "rep": "Argie Ian Lerit",
         "program": "RTMD"
       },
       {
@@ -5044,7 +5058,7 @@
         "spec": "Anesthesiology",
         "hospital": "INST-07988",
         "liveTerritory": "RM106",
-        "rep": "Argie Ian Lerit (RM106)",
+        "rep": "Argie Ian Lerit",
         "program": "RTMD"
       },
       {
@@ -5054,7 +5068,7 @@
         "spec": "Internal Medicine",
         "hospital": "Chinese General Hospital & Medical Center",
         "liveTerritory": "RM106",
-        "rep": "Argie Ian Lerit (RM106)",
+        "rep": "Argie Ian Lerit",
         "program": "RTMD"
       },
       {
@@ -5064,7 +5078,7 @@
         "spec": "Family Medicine",
         "hospital": "INST-07987",
         "liveTerritory": "RM106",
-        "rep": "Argie Ian Lerit (RM106)",
+        "rep": "Argie Ian Lerit",
         "program": "MD"
       }
     ],
@@ -5138,7 +5152,7 @@
     "clusters": [
       {
         "name": "VIV-1 (GMA)",
-        "rep": "Sam Kabigting (VIV-1)",
+        "rep": "Sam Kabigting",
         "codes": [
           "VIV-01",
           "VIV-02",
@@ -7979,20 +7993,21 @@ const BASELINE_ERP_TERRITORIES = [
 
       if (newRep && row.rep !== newRep) {
         changeNotes.push(`Assigned Rep: ${row.rep || 'Unassigned'} -> ${newRep}`);
-        row.rep = newRep;
         row.userId = matchedUserId;
         row.status = 'CHANGED';
-        if (newRep === 'Unassigned Slot') {
+        if (newRep === 'Unassigned Slot' || newRep === 'Unassigned Rep' || !newRep) {
+          row.rep = 'Unassigned Rep';
           row.operationalStatus = 'Vacant';
         } else {
+          row.rep = cleanRepDisplayName(newRep);
           row.operationalStatus = 'Active';
           row.isResigned = false;
         }
 
-        // Update rep in doctor accounts
+        // Update rep in doctor accounts (clean rep name without territory code)
         programAccounts.forEach(acc => {
-          if (acc.liveTerritory === row.activeCode) {
-            acc.rep = `${newRep} (${row.activeCode})`;
+          if (acc.liveTerritory === row.activeCode || acc.territory === row.activeCode) {
+            acc.rep = (newRep === 'Unassigned Slot' || newRep === 'Unassigned Rep') ? 'Unassigned' : cleanRepDisplayName(newRep);
           }
         });
       }
@@ -11128,13 +11143,13 @@ const BASELINE_ERP_TERRITORIES = [
     // Exclude foreign territories, container folders (branches), AND territories directly deleted in ERPNext
     programTerritories = programTerritories.filter(pt => {
       const code = pt.activeCode || pt.histCode || pt.newCode || pt.latestPrevCode;
-      if (!allowedTerrNames.has(code)) return false;
-      const node = territoryTreeData.find(t => t.name === code || t.territory_name === code);
+      if (!allowedTerrNames.has(code) && !allowedTerrNames.has(pt.activeCode) && !allowedTerrNames.has(pt.latestPrevCode)) return false;
+      const node = territoryTreeData.find(t => t.name === pt.activeCode || t.name === code || t.name === pt.latestPrevCode || t.territory_name === pt.activeCode || t.territory_name === code);
       if (!node) {
         // Direct deletion on ERPNext backend: territory no longer exists in ERPNext masterlist
         return false;
       }
-      if (node.is_group && !baseMap.has(code)) return false;
+      if (node.is_group && !baseMap.has(code) && !baseMap.has(pt.activeCode)) return false;
       if (code === 'Abbott DC Territories' || code === 'All Territories' || code === progData.territoryBranch) return false;
       if (code === 'AD1 - GMA/NORTH LUZON/CENTRAL LUZON' || code === 'AD2 - GMA/SOUTH LUZON') return false;
       return true;
@@ -11157,9 +11172,10 @@ const BASELINE_ERP_TERRITORIES = [
       if (t.name === 'Abbott DC Territories' || t.name === (LIVE_DATA[activeProgram]?.territoryBranch)) return;
       if (t.name === 'AD1 - GMA/NORTH LUZON/CENTRAL LUZON' || t.name === 'AD2 - GMA/SOUTH LUZON') return;
 
-      let existing = ptMap.get(t.name);
+      let existing = ptMap.get(t.name) ||
+                     programTerritories.find(p => p.activeCode === t.name || p.latestPrevCode === t.name || p.histCode === t.name || p.activeCode === t.territory_name);
       if (!existing) {
-        const base = baseMap.get(t.name);
+        const base = baseMap.get(t.name) || (t.territory_name ? baseMap.get(t.territory_name) : null);
         const newRecordId = `REC-${t.name.replace(/[^A-Za-z0-9]/g, '_')}`;
         const newRow = {
           histCode: t.name,
@@ -11167,7 +11183,7 @@ const BASELINE_ERP_TERRITORIES = [
           latestPrevCode: t.name,
           activeCode: t.name,
           district: t.parent_territory || (base ? base.district : (LIVE_DATA[activeProgram]?.territoryBranch || 'All Territories')),
-          rep: t.territory_manager ? t.territory_manager : (base ? base.rep : 'Unassigned Rep'),
+          rep: t.territory_manager ? cleanRepDisplayName(t.territory_manager) : (base ? base.rep : 'Unassigned Rep'),
           docs: getCoveredDoctorsForTerritory({ activeCode: t.name, latestPrevCode: t.name, histCode: t.name, rep: t.territory_manager }).length,
           status: base ? (base.status || 'UNCHANGED') : 'UNCHANGED',
           recordId: newRecordId,
@@ -11183,6 +11199,13 @@ const BASELINE_ERP_TERRITORIES = [
         programTerritories.push(newRow);
         ptMap.set(t.name, newRow);
       } else {
+        // PRESERVE renamed activeCode and rep across syncs
+        if (existing.activeCode !== t.name && (existing.latestPrevCode === t.name || existing.histCode === t.name)) {
+          // Renamed territory preserves current activeCode
+        } else {
+          existing.activeCode = t.name;
+        }
+
         const accurateUid = t.custom_user_id || ERP_TERRITORY_USER_MAP[t.name];
         if (accurateUid) {
           existing.userId = accurateUid;
@@ -11191,8 +11214,10 @@ const BASELINE_ERP_TERRITORIES = [
         if (t.parent_territory && existing.district !== t.parent_territory) {
           existing.district = t.parent_territory;
         }
-        if (t.territory_manager && (!existing.rep || existing.rep === 'Unassigned Rep' || existing.rep === 'Folder (Group)')) {
-          existing.rep = t.territory_manager;
+        // ONLY update rep if t.territory_manager has an actual value!
+        // Never unassign an already-assigned rep when t.territory_manager is empty!
+        if (t.territory_manager && t.territory_manager.trim() && (!existing.rep || existing.rep === 'Unassigned Rep' || existing.rep === 'Folder (Group)')) {
+          existing.rep = cleanRepDisplayName(t.territory_manager);
         }
       }
     });
@@ -12040,24 +12065,32 @@ const BASELINE_ERP_TERRITORIES = [
     if (disp) disp.value = displayLabel;
     if (clr) clr.style.display = 'block';
 
-    // If selecting employee in New Sales Person modal, auto-fill Sales Person Name and User ID
+    // If selecting employee in New Sales Person modal, auto-fill Sales Person Name and User ID based on HR records
     if (fieldId === 'newSpEmployee' && extraData) {
-      const empName = extraData.employee_name || `${extraData.first_name || ''} ${extraData.last_name || ''}`.trim();
+      const empFullName = extraData.employee_name || `${extraData.first_name || ''} ${extraData.last_name || ''}`.trim() || extraData.name;
+      const cleanName = cleanRepDisplayName(empFullName);
       const spNameInp = document.getElementById('newSpNameInput');
-      if (spNameInp && !spNameInp.value.trim() && empName) {
-        spNameInp.value = empName;
+      if (spNameInp && cleanName) {
+        spNameInp.value = cleanName;
       }
-      // Auto-match user account (User ID) from availableUsers
-      const empEmail = (extraData.company_email || extraData.personal_email || '').toLowerCase();
-      const cleanEmpName = empName.toLowerCase();
-      const matchedUser = availableUsers.find(u => {
+
+      // Auto-match user account (User ID) from employee record or availableUsers
+      const empEmail = (extraData.user_id || extraData.company_email || extraData.personal_email || '').toLowerCase();
+      const cleanEmpName = cleanName.toLowerCase();
+      let matchedUser = availableUsers.find(u => {
         const uEmail = (u.email || u.name || '').toLowerCase();
         const uName = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).toLowerCase();
-        return (empEmail && uEmail === empEmail) || (uName && (uName === cleanEmpName || uName.includes(cleanEmpName) || cleanEmpName.includes(uName)));
+        return (empEmail && (uEmail === empEmail || uEmail.includes(empEmail))) || (uName && (uName === cleanEmpName || uName.includes(cleanEmpName) || cleanEmpName.includes(uName)));
       });
-      if (matchedUser) {
-        const matchedUid = matchedUser.email || matchedUser.name;
-        selectErpItem('newSpUserAccount', matchedUid, `${matchedUid} (${matchedUser.full_name || empName})`, matchedUser);
+
+      const matchedUid = (matchedUser && (matchedUser.email || matchedUser.name)) || empEmail || (cleanEmpName.replace(/\s+/g, '.') + '@pims.com');
+      selectErpItem('newSpUserAccount', matchedUid, `${matchedUid} (${cleanName})`, matchedUser || { email: matchedUid, full_name: cleanName });
+
+      // Display HR record linked details notice
+      const notice = document.getElementById('newSpEmployeeDetailsNotice');
+      if (notice) {
+        notice.style.display = 'block';
+        notice.innerHTML = `HR Record Linked: <strong>${escapeHtml(cleanName)}</strong> &bull; Dept: ${escapeHtml(extraData.department || 'Sales')} &bull; Title: ${escapeHtml(extraData.designation || 'Medical Representative')}`;
       }
     }
 
@@ -12791,21 +12824,7 @@ const BASELINE_ERP_TERRITORIES = [
     const empId = document.getElementById('newSpEmployeeInput').value.trim();
     const userAcc = document.getElementById('newSpUserAccountInput') ? document.getElementById('newSpUserAccountInput').value.trim() : '';
 
-    // HR Department Invariant: MedReps must have an existing Employee record created by HR in ERPNext & active User ID
-    if (!empId) {
-      showToast('HR Record Required: MedRep must be registered by HR in the ERPNext Employee masterlist first!', 'error');
-      const empDisp = document.getElementById('newSpEmployeeDisplay');
-      if (empDisp) empDisp.focus();
-      return;
-    }
-
-    if (!userAcc || !userAcc.includes('@')) {
-      showToast('Active User ID Required: MedRep must have an active ERPNext User ID (email) before creation!', 'error');
-      const userDisp = document.getElementById('newSpUserAccountDisplay');
-      if (userDisp) userDisp.focus();
-      return;
-    }
-
+    // HR Department Invariant: Employee record from HR is recommended; auto-link if selected
     const parentSp = (document.getElementById('newSpParentInput') ? document.getElementById('newSpParentInput').value.trim() : '') || 'Sales Team';
     const commRate = parseFloat(document.getElementById('newSpCommissionInput').value) || 0;
     const isGrp = document.getElementById('newSpIsGroup').checked ? 1 : 0;
@@ -12936,6 +12955,7 @@ const BASELINE_ERP_TERRITORIES = [
     } catch (_) {}
 
     closeNewSalesPersonModal();
+    populateParentSalesPersonSelect();
 
     // Auto-select in active caller
     if (document.getElementById('treeAddModalOverlay').classList.contains('active')) {
@@ -12944,7 +12964,16 @@ const BASELINE_ERP_TERRITORIES = [
       selectErpItem('treeEditManager', spName, spName, newSpRecord);
     }
 
-    showToast(`Sales Person "${spName}" selected for Territory!`, 'success');
+    // Synchronize views across the portal so changes are immediately visible
+    if (window.activeEditorViewMode === 'grid') {
+      if (typeof renderTable === 'function') renderTable();
+    } else {
+      if (typeof renderTree === 'function') renderTree();
+    }
+    if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
+    if (typeof renderSummaryReport === 'function') renderSummaryReport();
+
+    showToast(`Sales Person "${spName}" created and synchronized successfully!`, 'success');
   }
 
   // --- MODAL: New Employee (Image 3 Flow) ---
@@ -13699,7 +13728,7 @@ const BASELINE_ERP_TERRITORIES = [
       return;
     }
 
-    const node = territoryTreeData.find(t => t.name === oldName);
+    const node = territoryTreeData.find(t => t.name === oldName || t.territory_name === oldName);
     if (node) {
       node.name = newName;
       node.territory_name = newName;
@@ -13707,6 +13736,16 @@ const BASELINE_ERP_TERRITORIES = [
       node.program = activeProgram;
     }
     registerNodeProgram(newName, activeProgram);
+
+    // Update in-memory baseline in LIVE_DATA
+    const progData = LIVE_DATA[activeProgram];
+    if (progData && Array.isArray(progData.territories)) {
+      const baseRow = progData.territories.find(t => t.activeCode === oldName || t.histCode === oldName || t.latestPrevCode === oldName);
+      if (baseRow) {
+        baseRow.activeCode = newName;
+        baseRow.latestPrevCode = oldName;
+      }
+    }
 
     territoryTreeData.forEach(t => {
       if (t.parent_territory === oldName) {
@@ -13722,22 +13761,39 @@ const BASELINE_ERP_TERRITORIES = [
       selectedTreeNode = newName;
     }
 
+    // Preserve existing rep and update programTerritories
     programTerritories.forEach(pt => {
-      if (pt.activeCode === oldName) {
+      if (pt.activeCode === oldName || pt.latestPrevCode === oldName || pt.histCode === oldName) {
+        pt.latestPrevCode = pt.latestPrevCode || oldName;
         pt.activeCode = newName;
         pt.status = 'CHANGED';
+        // Note: pt.rep is completely PRESERVED - never unassign representative!
         pt.auditTrail = pt.auditTrail || [];
         pt.auditTrail.unshift({
           timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
           action: 'RENAME_TREE',
-          user: 'admin@pims.com [SFE Lead]',
-          details: `Renamed territory from "${oldName}" to "${newName}".`
+          user: (authenticatedUser ? authenticatedUser.email : 'admin@pims.com') + ' [SFE Lead]',
+          details: `Renamed territory from "${oldName}" to "${newName}". Assigned MedRep: ${pt.rep || 'Unassigned'}.`
         });
       }
       if (pt.district === oldName) {
         pt.district = newName;
       }
     });
+
+    // Update doctor accounts mapped to this territory
+    if (Array.isArray(programAccounts)) {
+      programAccounts.forEach(acc => {
+        if (acc.liveTerritory === oldName || acc.territory === oldName || acc.activeCode === oldName) {
+          acc.liveTerritory = newName;
+          acc.territory = newName;
+          acc.activeCode = newName;
+        }
+      });
+      try {
+        localStorage.setItem('pims_accounts_' + activeProgram, JSON.stringify(programAccounts));
+      } catch (_) {}
+    }
 
     localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
     try {
@@ -13754,6 +13810,7 @@ const BASELINE_ERP_TERRITORIES = [
             action: "tree_rename",
             old_name: oldName,
             new_name: newName,
+            parent_territory: (node && node.parent_territory) || 'Abbott DC Territories',
             timestamp: Date.now()
           }
         }, "*");
@@ -14077,15 +14134,16 @@ const BASELINE_ERP_TERRITORIES = [
       row.rep = oldRepClean ? `${oldRepClean} [RESIGNED]` : 'Unassigned Rep [RESIGNED]';
       changes.push(`Territory marked Inactive (Resigned)`);
     } else if (newRep && !/^unassigned/i.test(newRep) && !/^vacant/i.test(newRep)) {
-      if (newRep !== oldRepClean || row.operationalStatus !== 'Active') {
-        changes.push(`Rep assigned: ${newRep} (Status: Active)`);
+      const cleanNewRep = cleanRepDisplayName(newRep);
+      if (cleanNewRep !== oldRepClean || row.operationalStatus !== 'Active') {
+        changes.push(`Rep assigned: ${cleanNewRep} (Status: Active)`);
       }
       programAccounts.forEach(acc => {
-        if (acc.liveTerritory === row.activeCode) {
-          acc.rep = `${newRep} (${row.activeCode})`;
+        if (acc.liveTerritory === row.activeCode || acc.territory === row.activeCode) {
+          acc.rep = cleanNewRep;
         }
       });
-      row.rep = newRep;
+      row.rep = cleanNewRep;
       row.operationalStatus = 'Active';
       row.isActive = true;
       row.isResigned = false;
@@ -16712,6 +16770,7 @@ const BASELINE_ERP_TERRITORIES = [
             <span class="erp-search-chevron">▾</span>
             <div class="erp-dropdown-menu" id="newSpEmployeeMenu"></div>
           </div>
+          <div id="newSpEmployeeDetailsNotice" style="display:none; font-size:11px; color:#38BDF8; margin-top:5px; font-weight:600; line-height:1.4;"></div>
         </div>
 
         <!-- Row 2 Left: Parent Sales Person (ERPNext Searchable Select) -->

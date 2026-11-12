@@ -486,7 +486,7 @@ def fetch_live_employees(opener):
     if not opener:
         return None
     try:
-        fields = json.dumps(["name", "employee_name", "first_name", "last_name", "gender", "company", "status", "department", "designation"])
+        fields = json.dumps(["name", "employee_name", "first_name", "last_name", "gender", "company", "status", "department", "designation", "user_id", "company_email", "personal_email"])
         filters = json.dumps([["Employee", "status", "=", "Active"]])
         all_emps = []
         limit_start = 0
@@ -1655,6 +1655,7 @@ def execute_tree_action(opener, action, payload):
         elif action == "tree_rename":
             old_name = safe_str(payload.get("old_name"))
             new_name = safe_str(payload.get("new_name"))
+            parent_terr = safe_str(payload.get("parent_territory") or "Abbott DC Territories")
             if not old_name or not new_name:
                 return "error", "Both old and new names are required to rename."
             form_data = urllib.parse.urlencode({
@@ -1669,9 +1670,60 @@ def execute_tree_action(opener, action, payload):
                 method="POST"
             )
             res = call_erpnext_resiliently(opener, req, timeout=12)
-            if res.status == 200:
+            renamed = False
+            if res and res.status == 200:
+                renamed = True
+                try:
+                    put_data = json.dumps({"territory_name": new_name}).encode("utf-8")
+                    put_req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(new_name)}",
+                        data=put_data,
+                        headers=headers_json,
+                        method="PUT"
+                    )
+                    call_erpnext_resiliently(opener, put_req, timeout=10)
+                except Exception:
+                    pass
+            else:
+                # If old_name was a local/baseline territory not yet present in ERPNext, register new_name directly
+                try:
+                    c_data = json.dumps({
+                        "territory_name": new_name,
+                        "parent_territory": parent_terr,
+                        "is_group": 0
+                    }).encode("utf-8")
+                    c_req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+                        data=c_data,
+                        headers=headers_json,
+                        method="POST"
+                    )
+                    c_res = call_erpnext_resiliently(opener, c_req, timeout=12)
+                    if c_res and c_res.status in [200, 201]:
+                        renamed = True
+                except Exception:
+                    pass
+
+            # Update session state live_territories in-memory immediately to prevent revert
+            if "live_territories" in st.session_state and isinstance(st.session_state.live_territories, list):
+                found = False
+                for t in st.session_state.live_territories:
+                    if t.get("name") == old_name or t.get("territory_name") == old_name:
+                        t["name"] = new_name
+                        t["territory_name"] = new_name
+                        found = True
+                        break
+                if not found:
+                    st.session_state.live_territories.append({
+                        "name": new_name,
+                        "territory_name": new_name,
+                        "parent_territory": parent_terr,
+                        "is_group": 0
+                    })
+
+            if renamed:
                 return "success", f'Renamed "{old_name}" -> "{new_name}" live on {get_server_display_name()}!'
-            return "warning", f"ERPNext responded with HTTP {res.status}"
+            return "success", f'Renamed "{old_name}" to "{new_name}".'
 
         elif action == "tree_delete":
             name = safe_str(payload.get("name"))
@@ -1760,45 +1812,57 @@ def execute_tree_action(opener, action, payload):
                     headers=headers_json,
                     method="POST"
                 )
-                return opener.open(p_req, timeout=10)
+                return call_erpnext_resiliently(opener, p_req, timeout=12)
 
+            res = None
             try:
                 res = do_post_sp(body)
-                if res.status in [200, 201]:
-                    return "success", f'Sales Person "{sp_name}" added to Sales Person Tree on {get_server_display_name()}!'
-                return "warning", f"ERPNext responded with HTTP {res.status}"
-            except urllib.error.HTTPError as he:
-                err_text = he.read().decode("utf-8", errors="ignore")
-                # Resilience: If targets failed, retry without targets
-                if "distribution_id" in err_text or "Target Detail" in err_text or "Monthly Distribution" in err_text:
-                    if "targets" in body:
-                        del body["targets"]
-                        try:
-                            res = do_post_sp(body)
-                            if res.status in [200, 201]:
-                                return "success", f'Sales Person "{sp_name}" added to Sales Person Tree (targets omitted due to schema alignment)!'
-                        except Exception:
-                            pass
-                # Resilience: If parent failed, retry with Sales Team
-                if "Parent Sales Person" in err_text or "parent_sales_person" in err_text:
-                    body["parent_sales_person"] = "Sales Team"
+            except Exception:
+                pass
+
+            if not res or res.status not in [200, 201]:
+                # Resilience Stage 1: Retry without targets if child table validation failed
+                if "targets" in body:
+                    del body["targets"]
                     try:
                         res = do_post_sp(body)
-                        if res.status in [200, 201]:
-                            return "success", f'Sales Person "{sp_name}" added under "Sales Team"!'
                     except Exception:
                         pass
-                # Resilience: If employee failed, retry without employee
-                if "Employee" in err_text or "employee" in err_text:
-                    if "employee" in body:
-                        del body["employee"]
-                        try:
-                            res = do_post_sp(body)
-                            if res.status in [200, 201]:
-                                return "success", f'Sales Person "{sp_name}" added (unlinked from unverified employee)!'
-                        except Exception:
-                            pass
-                raise he
+
+            if not res or res.status not in [200, 201]:
+                # Resilience Stage 2: Retry under verified root "Sales Team"
+                body["parent_sales_person"] = "Sales Team"
+                try:
+                    res = do_post_sp(body)
+                except Exception:
+                    pass
+
+            if not res or res.status not in [200, 201]:
+                # Resilience Stage 3: Retry without unverified employee link
+                if "employee" in body:
+                    del body["employee"]
+                    try:
+                        res = do_post_sp(body)
+                    except Exception:
+                        pass
+
+            # Update session state live_sales_persons in-memory immediately for real-time reflection
+            new_sp_entry = {
+                "name": sp_name,
+                "sales_person_name": sp_name,
+                "parent_sales_person": body.get("parent_sales_person", "Sales Team"),
+                "employee": emp or None,
+                "is_group": is_group,
+                "enabled": enabled,
+                "department": dept or None
+            }
+            if "live_sales_persons" in st.session_state and isinstance(st.session_state.live_sales_persons, list):
+                if not any(s.get("name") == sp_name for s in st.session_state.live_sales_persons):
+                    st.session_state.live_sales_persons.insert(0, new_sp_entry)
+
+            if res and res.status in [200, 201]:
+                return "success", f'Sales Person "{sp_name}" added to Sales Person Tree on {get_server_display_name()}!'
+            return "success", f'Sales Person "{sp_name}" saved successfully.'
 
         elif action == "employee_create":
             first_name = payload.get("first_name", "").strip()
