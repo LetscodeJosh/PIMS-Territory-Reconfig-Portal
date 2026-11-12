@@ -687,7 +687,7 @@ def fetch_live_institutions(opener):
         try:
             c_fields = json.dumps(["name", "reference_name", "content", "comment_by", "owner", "creation"])
             c_filters = json.dumps([["reference_doctype", "=", "Institution"]])
-            c_url = f"{ERPNEXT_SERVER_URL}/api/resource/Comment?fields={urllib.parse.quote(c_fields)}&filters={urllib.parse.quote(c_filters)}&order_by=creation%20asc&limit_page_length=1000"
+            c_url = f"{ERPNEXT_SERVER_URL}/api/resource/Comment?fields={urllib.parse.quote(c_fields)}&filters={urllib.parse.quote(c_filters)}&order_by=creation%20desc&limit_page_length=2500"
             c_req = urllib.request.Request(c_url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
             c_res = call_erpnext_resiliently(opener, c_req, timeout=12)
             comments = json.loads(c_res.read().decode("utf-8")).get("data", [])
