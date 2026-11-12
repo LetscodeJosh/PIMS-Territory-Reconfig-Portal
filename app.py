@@ -102,7 +102,7 @@ def save_shared_inst_override(inst_id, override_data):
         print(f"[Shared Inst Save Error] {e}")
 
 def get_erpnext_url():
-    """Dynamically resolves ERPNext server endpoint strictly targeting Staging (https://staging.pmii-marketing.com)."""
+    """Dynamically resolves ERPNext server endpoint strictly targeting Development (https://dev.pmii-marketing.com)."""
     try:
         if hasattr(st, "secrets") and "ERPNEXT_URL" in st.secrets:
             val = str(st.secrets["ERPNEXT_URL"]).strip().rstrip("/")
@@ -113,7 +113,7 @@ def get_erpnext_url():
     env_url = os.environ.get("ERPNEXT_URL") or os.environ.get("ERPNEXT_SERVER_URL")
     if env_url:
         return env_url.strip().rstrip("/")
-    return "https://staging.pmii-marketing.com"
+    return "https://dev.pmii-marketing.com"
 
 ERPNEXT_SERVER_URL = get_erpnext_url()
 
