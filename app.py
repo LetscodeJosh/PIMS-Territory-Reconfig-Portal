@@ -101,6 +101,145 @@ def save_shared_inst_override(inst_id, override_data):
     except Exception as e:
         print(f"[Shared Inst Save Error] {e}")
 
+# Multi-User Real-Time Territory Mirroring & State Persistence Store
+SHARED_TERRITORY_FILE = os.path.join(APP_BASE_DIR, "shared_territory_state.json")
+
+def load_shared_territory_state():
+    if os.path.exists(SHARED_TERRITORY_FILE):
+        try:
+            with open(SHARED_TERRITORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {"territories": {}, "renames": {}, "deleted": [], "overrides": {}}
+    return {"territories": {}, "renames": {}, "deleted": [], "overrides": {}}
+
+def save_shared_territory_state(state):
+    try:
+        with open(SHARED_TERRITORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        print(f"[Shared Territory Save Error] {e}")
+
+def record_shared_territory_add(name, parent, is_group, manager="", user_id="", program=""):
+    if not name:
+        return
+    st_data = load_shared_territory_state()
+    terrs = st_data.setdefault("territories", {})
+    del_list = st_data.setdefault("deleted", [])
+    if name in del_list:
+        del_list.remove(name)
+    terrs[name] = {
+        "name": name,
+        "territory_name": name,
+        "parent_territory": parent or "All Territories",
+        "is_group": int(is_group or 0),
+        "territory_manager": manager or "",
+        "custom_user_id": user_id or "",
+        "custom_account_or_program": program or "Abbott Diabetes Care",
+        "operational_status": "Active" if manager or is_group else "Vacant",
+        "status": "Active" if manager or is_group else "Vacant"
+    }
+    save_shared_territory_state(st_data)
+
+def record_shared_territory_edit(orig_name, parent=None, is_group=None, manager=None, user_id=None, program=None, status=None):
+    if not orig_name:
+        return
+    st_data = load_shared_territory_state()
+    terrs = st_data.setdefault("territories", {})
+    entry = terrs.get(orig_name, {
+        "name": orig_name,
+        "territory_name": orig_name,
+        "parent_territory": "All Territories",
+        "is_group": 0,
+        "territory_manager": ""
+    })
+    if parent is not None:
+        entry["parent_territory"] = parent
+    if is_group is not None:
+        entry["is_group"] = int(is_group or 0)
+    if manager is not None:
+        entry["territory_manager"] = manager
+    if user_id is not None:
+        entry["custom_user_id"] = user_id
+    if program is not None:
+        entry["custom_account_or_program"] = program
+    if status is not None:
+        entry["status"] = status
+        entry["operational_status"] = status
+    elif manager:
+        entry["status"] = "Active"
+        entry["operational_status"] = "Active"
+    terrs[orig_name] = entry
+    save_shared_territory_state(st_data)
+
+def record_shared_territory_rename(old_name, new_name):
+    if not old_name or not new_name:
+        return
+    st_data = load_shared_territory_state()
+    renames = st_data.setdefault("renames", {})
+    renames[old_name] = new_name
+    terrs = st_data.setdefault("territories", {})
+    if old_name in terrs:
+        entry = terrs.pop(old_name)
+        entry["name"] = new_name
+        entry["territory_name"] = new_name
+        terrs[new_name] = entry
+    save_shared_territory_state(st_data)
+
+def record_shared_territory_deletion(name):
+    if not name:
+        return
+    st_data = load_shared_territory_state()
+    del_list = st_data.setdefault("deleted", [])
+    if name not in del_list:
+        del_list.append(name)
+    terrs = st_data.setdefault("territories", {})
+    terrs.pop(name, None)
+    save_shared_territory_state(st_data)
+
+def merge_shared_territories_into_list(terrs_list):
+    st_data = load_shared_territory_state()
+    del_set = set(st_data.get("deleted", []))
+    renames = st_data.get("renames", {})
+    custom_terrs = st_data.get("territories", {})
+
+    merged = []
+    seen = set()
+
+    if isinstance(terrs_list, list):
+        for t in terrs_list:
+            if not isinstance(t, dict):
+                continue
+            name = t.get("name") or t.get("territory_name")
+            if not name or name in del_set:
+                continue
+            # Apply rename if present
+            if name in renames:
+                name = renames[name]
+                t["name"] = name
+                t["territory_name"] = name
+            # Apply shared territory overrides if present
+            if name in custom_terrs:
+                c = custom_terrs[name]
+                t["parent_territory"] = c.get("parent_territory", t.get("parent_territory"))
+                t["is_group"] = c.get("is_group", t.get("is_group"))
+                t["territory_manager"] = c.get("territory_manager", t.get("territory_manager"))
+                t["custom_user_id"] = c.get("custom_user_id", t.get("custom_user_id"))
+                t["custom_account_or_program"] = c.get("custom_account_or_program", t.get("custom_account_or_program"))
+                if "status" in c:
+                    t["status"] = c["status"]
+                    t["operational_status"] = c["status"]
+            seen.add(name)
+            merged.append(t)
+
+    # Append any custom territories created by any SFE that aren't yet in upstream ERPNext list
+    for c_name, c_node in custom_terrs.items():
+        if c_name not in seen and c_name not in del_set:
+            seen.add(c_name)
+            merged.append(dict(c_node))
+
+    return merged
+
 def get_erpnext_url():
     """Dynamically resolves ERPNext server endpoint strictly targeting Staging (https://staging.pmii-marketing.com)."""
     try:
@@ -450,7 +589,7 @@ def verify_erpnext_credentials(usr, pwd):
 
 def fetch_live_territories(opener):
     if not opener:
-        return None
+        return merge_shared_territories_into_list([])
     for fields_list in [
         ["name", "territory_name", "parent_territory", "is_group", "territory_manager", "custom_user_id", "custom_account_or_program"],
         ["name", "territory_name", "parent_territory", "is_group", "territory_manager"]
@@ -462,11 +601,11 @@ def fetch_live_territories(opener):
             res = call_erpnext_resiliently(opener, req, timeout=12)
             data = json.loads(res.read().decode("utf-8")).get("data", [])
             if data is not None:
-                return data
+                return merge_shared_territories_into_list(data)
         except Exception as e:
             print(f"[Streamlit Proxy] fetch_live_territories fallback with {fields_list}: {e}")
             continue
-    return None
+    return merge_shared_territories_into_list([])
 
 def fetch_live_sales_persons(opener):
     if not opener:
@@ -1448,13 +1587,16 @@ def execute_tree_action(opener, action, payload):
         except ImportError:
             pass
         except SecurityValidationError as sve:
-            return "error", f"Security Validation Error: {sve}"
+            return "error", str(sve)
 
         def _create_single_territory_record(t_name, parent, is_group, t_mgr, custom_uid, custom_prog):
             if parent and parent != "All Territories":
                 _ensure_parent_territory_is_group(opener, parent, headers_json)
             resolved_mgr = _resolve_sales_person_for_manager(opener, t_mgr, headers_json) if t_mgr else None
             resolved_uid = _resolve_user_id(opener, custom_uid, headers_json) if custom_uid else None
+
+            # Multi-User Real-time Mirroring: Immediately persist to shared territory state
+            record_shared_territory_add(t_name, parent, is_group, manager=resolved_mgr or t_mgr, user_id=resolved_uid or custom_uid, program=custom_prog)
 
             body = {
                 "territory_name": t_name,
@@ -1571,12 +1713,13 @@ def execute_tree_action(opener, action, payload):
             return "success", f"Successfully synced {count} new territories live to {get_server_display_name()}!"
 
         elif action == "tree_edit":
-            orig_name = safe_str(payload.get("name"))
-            new_parent = safe_str(payload.get("parent_territory")) or "All Territories"
+            orig_name = safe_str(payload.get("name") or payload.get("territory_name") or payload.get("activeCode") or payload.get("code"))
+            new_parent = safe_str(payload.get("parent_territory") or payload.get("district")) or "All Territories"
             new_is_group = int(payload.get("is_group", 0) or 0)
-            new_mgr = safe_str(payload.get("territory_manager"))
+            new_mgr = safe_str(payload.get("territory_manager") or payload.get("rep"))
             if not orig_name:
                 return "error", "Territory original name is missing."
+            record_shared_territory_edit(orig_name, parent=new_parent, is_group=new_is_group, manager=new_mgr)
             if new_parent and new_parent != "All Territories":
                 _ensure_parent_territory_is_group(opener, new_parent, headers_json)
             body = {
@@ -1653,11 +1796,12 @@ def execute_tree_action(opener, action, payload):
                 return "success", f'Territory "{orig_name}" transferred & saved under "{new_parent}".'
 
         elif action == "tree_rename":
-            old_name = safe_str(payload.get("old_name"))
+            old_name = safe_str(payload.get("old_name") or payload.get("territory_name") or payload.get("name"))
             new_name = safe_str(payload.get("new_name"))
             parent_terr = safe_str(payload.get("parent_territory") or "Abbott DC Territories")
             if not old_name or not new_name:
                 return "error", "Both old and new names are required to rename."
+            record_shared_territory_rename(old_name, new_name)
             form_data = urllib.parse.urlencode({
                 "doctype": "Territory",
                 "old_name": old_name,
@@ -1726,9 +1870,10 @@ def execute_tree_action(opener, action, payload):
             return "success", f'Renamed "{old_name}" to "{new_name}".'
 
         elif action == "tree_delete":
-            name = safe_str(payload.get("name"))
+            name = safe_str(payload.get("name") or payload.get("territory_name") or payload.get("territory"))
             if not name:
                 return "error", "Territory name is required to delete."
+            record_shared_territory_deletion(name)
             req = urllib.request.Request(
                 f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(name)}",
                 headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"},
@@ -1740,11 +1885,12 @@ def execute_tree_action(opener, action, payload):
             return "warning", f"ERPNext responded with HTTP {res.status}"
 
         elif action in ["territory_toggle_status", "territory_deactivate"]:
-            t_name = safe_str(payload.get("territory") or payload.get("territory_name") or payload.get("name") or payload.get("code"))
-            new_mgr = safe_str(payload.get("territory_manager"))
+            t_name = safe_str(payload.get("territory") or payload.get("territory_name") or payload.get("name") or payload.get("code") or payload.get("activeCode"))
+            new_mgr = safe_str(payload.get("territory_manager") or payload.get("rep"))
             new_status = safe_str(payload.get("status") or payload.get("operational_status") or ("Active" if new_mgr and "INACTIVE" not in new_mgr.upper() and "UNASSIGNED" not in new_mgr.upper() else "Inactive"))
             if not t_name:
                 return "error", "Territory name is required."
+            record_shared_territory_edit(t_name, manager=new_mgr, status=new_status)
             body = {"territory_manager": new_mgr}
             data = json.dumps(body).encode("utf-8")
             req = urllib.request.Request(
