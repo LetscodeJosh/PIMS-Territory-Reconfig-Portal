@@ -13727,6 +13727,21 @@ const BASELINE_ERP_TERRITORIES = [
     showToast(`Territory "${origName}" updated (${updatedStatus})!`);
   }
 
+  function showDuplicateTerritoryMessage(dupName) {
+    const modal = document.getElementById('erpnextDuplicateMessageModalOverlay');
+    const content = document.getElementById('erpnextDuplicateMessageContent');
+    if (modal && content) {
+      content.innerText = `Another Territory with name ${dupName} exists, select another name`;
+      modal.classList.add('active');
+    }
+    showToast(`${dupName} is already exists`, 'error', 4500);
+  }
+
+  function closeErpnextDuplicateModal() {
+    const modal = document.getElementById('erpnextDuplicateMessageModalOverlay');
+    if (modal) modal.classList.remove('active');
+  }
+
   // 3. RENAME
   function openTreeRenameModal(name, event) {
     if (event) event.stopPropagation();
@@ -13734,6 +13749,11 @@ const BASELINE_ERP_TERRITORIES = [
     document.getElementById('treeRenameOldLabel').innerText = name;
     const inp = document.getElementById('treeRenameNewNameInput');
     inp.value = name;
+    const submitBtn = document.getElementById('treeRenameSubmitBtn');
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Rename';
+    }
     document.getElementById('treeRenameModalOverlay').classList.add('active');
     setTimeout(() => {
       inp.focus();
@@ -13746,8 +13766,9 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   async function submitTreeRename() {
-    const oldName = document.getElementById('treeRenameOldName').value;
+    const oldName = document.getElementById('treeRenameOldName').value.trim();
     const newName = document.getElementById('treeRenameNewNameInput').value.trim();
+    const submitBtn = document.getElementById('treeRenameSubmitBtn');
 
     if (!newName) {
       showToast('Please enter a new territory name!', 'error');
@@ -13759,10 +13780,20 @@ const BASELINE_ERP_TERRITORIES = [
       return;
     }
 
-    if (territoryTreeData.some(t => t.name.toLowerCase() === newName.toLowerCase())) {
-      showToast(`Territory "${newName}" already exists!`, 'error');
+    // Duplicate detection matching ERPNext behavior (Image 2)
+    const isDuplicate = territoryTreeData.some(t => t.name.toLowerCase() === newName.toLowerCase() && t.name.toLowerCase() !== oldName.toLowerCase()) ||
+                        programTerritories.some(p => p.activeCode && p.activeCode.toLowerCase() === newName.toLowerCase() && p.activeCode.toLowerCase() !== oldName.toLowerCase());
+    if (isDuplicate) {
+      showDuplicateTerritoryMessage(newName);
       return;
     }
+
+    // Updating notice (ERPNext Updating indicator)
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Updating...';
+    }
+    showToast(`Updating field... Renaming territory "${oldName}" &rarr; "${newName}"`, 'info', 2000);
 
     const node = territoryTreeData.find(t => t.name === oldName || t.territory_name === oldName);
     if (node) {
@@ -13773,13 +13804,14 @@ const BASELINE_ERP_TERRITORIES = [
     }
     registerNodeProgram(newName, activeProgram);
 
-    // Update in-memory baseline in LIVE_DATA
+    // Update in-memory baseline in LIVE_DATA to prevent reload reversal
     const progData = LIVE_DATA[activeProgram];
     if (progData && Array.isArray(progData.territories)) {
       const baseRow = progData.territories.find(t => t.activeCode === oldName || t.histCode === oldName || t.latestPrevCode === oldName);
       if (baseRow) {
         baseRow.activeCode = newName;
         baseRow.latestPrevCode = oldName;
+        baseRow.status = 'CHANGED';
       }
     }
 
@@ -13797,13 +13829,12 @@ const BASELINE_ERP_TERRITORIES = [
       selectedTreeNode = newName;
     }
 
-    // Preserve existing rep and update programTerritories
+    // Semi-permanent MedRep binding: pt.rep is completely PRESERVED and bound to newName
     programTerritories.forEach(pt => {
       if (pt.activeCode === oldName || pt.latestPrevCode === oldName || pt.histCode === oldName) {
         pt.latestPrevCode = pt.latestPrevCode || oldName;
         pt.activeCode = newName;
         pt.status = 'CHANGED';
-        // Note: pt.rep is completely PRESERVED - never unassign representative!
         pt.auditTrail = pt.auditTrail || [];
         pt.auditTrail.unshift({
           timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
@@ -13836,7 +13867,7 @@ const BASELINE_ERP_TERRITORIES = [
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
     } catch (_) {}
 
-    // Streamlit bidirectional dispatch
+    // Streamlit bidirectional dispatch (with territory_name, name, old_name, new_name)
     if (isStreamlitActive || (window.parent && window.parent !== window)) {
       try {
         window.parent.postMessage({
@@ -13844,6 +13875,8 @@ const BASELINE_ERP_TERRITORIES = [
           type: "streamlit:setComponentValue",
           value: {
             action: "tree_rename",
+            territory_name: oldName,
+            name: oldName,
             old_name: oldName,
             new_name: newName,
             parent_territory: (node && node.parent_territory) || 'Abbott DC Territories',
@@ -13864,7 +13897,12 @@ const BASELINE_ERP_TERRITORIES = [
         }).then(async res => {
           if (res.ok) {
             console.log(`[ERPNext] Renamed Territory "${oldName}" -> "${newName}" online`);
-            showToast(`Renamed "${oldName}" &rarr; "${newName}" live on ERPNext!`, 'success');
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            const errMsg = errData.exception || errData._server_messages || '';
+            if (errMsg.toLowerCase().includes('exists') || errMsg.toLowerCase().includes('duplicate')) {
+              showDuplicateTerritoryMessage(newName);
+            }
           }
         }).catch(err => {
           console.warn(`[ERPNext Sync Warning] ${err.message}`);
@@ -13872,12 +13910,21 @@ const BASELINE_ERP_TERRITORIES = [
       } catch (_) {}
     }
 
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Rename';
+    }
     closeTreeRenameModal();
-    renderTree();
-    renderTable();
-    renderRealignmentAndArchive();
-    renderSummaryReport();
-    showToast(`Renamed "${oldName}" to "${newName}"!`);
+
+    if (window.activeEditorViewMode === 'grid') {
+      if (typeof renderTable === 'function') renderTable();
+    } else {
+      if (typeof renderTree === 'function') renderTree();
+    }
+    if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
+    if (typeof renderSummaryReport === 'function') renderSummaryReport();
+
+    showToast(`Territory renamed successfully from "${oldName}" to "${newName}"!`, 'success');
   }
 
   // 4. STATUS TOGGLE & DELETE
@@ -17134,8 +17181,29 @@ const BASELINE_ERP_TERRITORIES = [
       <button type="button" onclick="closeTreeRenameModal()" style="background:#27272A; border:1px solid #3F3F46; color:#E4E4E7; font-size:12px; font-weight:600; padding:7px 16px; border-radius:6px; cursor:pointer;">
         Cancel
       </button>
-      <button type="button" onclick="submitTreeRename()" style="background:#0066FF; border:none; color:#FFFFFF; font-size:12.5px; font-weight:700; padding:7px 18px; border-radius:6px; cursor:pointer;">
+      <button type="button" id="treeRenameSubmitBtn" onclick="submitTreeRename()" style="background:#0066FF; border:none; color:#FFFFFF; font-size:12.5px; font-weight:700; padding:7px 18px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
         Rename
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ERPNext Message Dialog Popup (Matching Image 2) -->
+<div class="modal-overlay" id="erpnextDuplicateMessageModalOverlay" style="z-index: 10020;">
+  <div class="modal-card" style="background:#18181B; border:1px solid #333741; color:#FFFFFF; max-width:440px; border-radius:10px; padding:20px; box-shadow:0 24px 64px rgba(0,0,0,0.85);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #27272A; padding-bottom:10px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="color:#EF4444; font-size:14px; line-height:1;">●</span>
+        <h4 style="font-size:14px; font-weight:700; color:#FFFFFF; margin:0;">Message</h4>
+      </div>
+      <button type="button" onclick="closeErpnextDuplicateModal()" style="background:none; border:none; color:#A1A1AA; font-size:18px; cursor:pointer; line-height:1;">✕</button>
+    </div>
+    <div style="font-size:13px; color:#E4E4E7; margin-bottom:20px; line-height:1.5;" id="erpnextDuplicateMessageContent">
+      Another Territory with name exists, select another name
+    </div>
+    <div style="display:flex; justify-content:flex-end;">
+      <button type="button" onclick="closeErpnextDuplicateModal()" style="background:#27272A; border:1px solid #3F3F46; color:#FFFFFF; font-size:12px; font-weight:600; padding:6px 16px; border-radius:6px; cursor:pointer;">
+        Close
       </button>
     </div>
   </div>
