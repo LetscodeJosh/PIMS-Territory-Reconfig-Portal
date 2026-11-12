@@ -236,33 +236,36 @@ class TerritoryActionSchema:
             data.get("name") or 
             data.get("territory") or 
             data.get("code") or 
+            data.get("activeCode") or 
+            data.get("active_code") or 
             data.get("old_name") or 
             data.get("new_name") or "", 
             max_len=140
         )
         no_tname_actions = {
             "tree_refresh", "inst_refresh", "doctor_transfer", "resignation_handover",
-            "bulk_decommission", "bulk_archive", "inst_create", "inst_propose", "bulk_tree_add",
-            "sales_person_create", "employee_create", "tree_rename"
+            "bulk_decommission", "bulk_archive", "inst_create", "inst_propose",
+            "inst_approve", "inst_normalize", "inst_reject", "inst_remap",
+            "bulk_tree_add", "sales_person_create", "employee_create", "tree_rename"
         }
         if raw_action == "sales_person_create":
             sp_name = sanitize_string(data.get("sales_person_name") or data.get("name") or "", max_len=140)
             if not sp_name:
-                raise SecurityValidationError("sales_person_name is required")
+                raise SecurityValidationError("Sales Person Name is required.")
             t_name = t_name or sp_name
         elif raw_action == "employee_create":
             emp_name = sanitize_string(data.get("employee_name") or data.get("first_name") or data.get("name") or "", max_len=140)
             if not emp_name:
-                raise SecurityValidationError("employee_name is required")
+                raise SecurityValidationError("Employee Name is required.")
             t_name = t_name or emp_name
         elif raw_action == "tree_rename":
             old_n = sanitize_string(data.get("old_name") or data.get("territory_name") or data.get("name") or "", max_len=140)
             new_n = sanitize_string(data.get("new_name") or "", max_len=140)
             if not old_n or not new_n:
-                raise SecurityValidationError("Both old_name and new_name are required for tree_rename")
+                raise SecurityValidationError("Both old and new territory names are required for rename.")
             t_name = t_name or old_n
         elif not t_name and raw_action not in no_tname_actions:
-            raise SecurityValidationError("territory_name is required")
+            raise SecurityValidationError("Territory Name is required.")
 
         parent_t = sanitize_string(data.get("parent_territory") or data.get("parent") or "", max_len=140)
         is_group_val = 1 if bool(data.get("is_group")) else 0
