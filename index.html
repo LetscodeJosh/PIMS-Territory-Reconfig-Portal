@@ -16792,8 +16792,9 @@ const BASELINE_ERP_TERRITORIES = [
         <span>Covered Doctor Masterlist Links: </span>
         <span style="font-weight:700; color:#38BDF8;" id="treeEditDocCount">0 Doctors Assigned</span>
       </div>
-      <button type="button" id="btnTreeTagResigned" style="background:#EF4444; color:#FFFFFF; border:none; border-radius:6px; padding:6px 12px; font-size:11.5px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(239,68,68,0.4);" onclick="tagCurrentRepAsResignedFromTree()" title="Tag representative as resigned and open doctor handover workbench">
-        <span>🔴 Tag Resigned &amp; Handover</span>
+      <button type="button" id="btnTreeTagResigned" style="background:rgba(239,68,68,0.06); color:#F87171; border:1px solid rgba(239,68,68,0.3); border-radius:5px; padding:4px 9px; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:all 0.15s ease;" onmouseenter="this.style.background='rgba(239,68,68,0.16)'; this.style.borderColor='rgba(239,68,68,0.6)';" onmouseleave="this.style.background='rgba(239,68,68,0.06)'; this.style.borderColor='rgba(239,68,68,0.3)';" onclick="tagCurrentRepAsResignedFromTree()" title="Tag representative as resigned and open doctor handover workbench">
+        <span style="width:6px; height:6px; border-radius:50%; background:#EF4444; display:inline-block;"></span>
+        <span>Tag Resigned &amp; Handover</span>
       </button>
     </div>
   </div>
