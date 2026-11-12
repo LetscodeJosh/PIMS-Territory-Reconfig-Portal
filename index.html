@@ -479,7 +479,7 @@
     display: none !important;
   }
   body[data-editor-view="grid"] #tablePaginationWrapper {
-    display: flex !important;
+    display: flex;
   }
 
   body[data-editor-view="tree"] #gridTableView {
@@ -3279,8 +3279,8 @@
             </div>
             <!-- Range Info & Page Size Switcher (10, 20, 30, 40, All) -->
             <div class="pagination-meta-row">
-              <div>
-                Showing <strong style="color:#0F172A;" id="pageRangeStart">1</strong>–<strong style="color:#0F172A;" id="pageRangeEnd">10</strong> of <strong style="color:#0066FF;" id="pageRangeTotal">42</strong> territories
+              <div id="tablePageRangeInfo">
+                Showing <strong style="color:#0066FF;" id="pageRangeStart">0</strong> of <strong style="color:#0F172A;" id="pageRangeTotal">0</strong> territories
               </div>
               <div style="width:1px; height:14px; background:#CBD5E1;"></div>
               <div style="display:flex; align-items:center; gap:6px;">
@@ -7147,60 +7147,75 @@ const BASELINE_ERP_TERRITORIES = [
     const wrapper = document.getElementById('tablePaginationWrapper');
     if (!wrapper) return;
 
-    if (totalMatching === 0 || window.activeEditorViewMode === 'tree') {
+    if (window.activeEditorViewMode === 'tree') {
       wrapper.style.display = 'none';
       return;
     }
     wrapper.style.display = 'flex';
 
-    // Range display
-    const rangeStartEl = document.getElementById('pageRangeStart');
-    const rangeEndEl = document.getElementById('pageRangeEnd');
-    const rangeTotalEl = document.getElementById('pageRangeTotal');
-    if (rangeStartEl) rangeStartEl.innerText = totalMatching === 0 ? '0' : (startIdx + 1);
-    if (rangeEndEl) rangeEndEl.innerText = endIdx;
-    if (rangeTotalEl) rangeTotalEl.innerText = totalMatching;
+    // Range display - accurately reflects 0 when no matching records are present
+    const rangeInfoEl = document.getElementById('tablePageRangeInfo');
+    if (totalMatching === 0) {
+      if (rangeInfoEl) {
+        rangeInfoEl.innerHTML = `Showing <strong style="color:#0066FF;" id="pageRangeStart">0</strong> of <strong style="color:#0F172A;" id="pageRangeTotal">0</strong> territories`;
+      }
+    } else {
+      if (rangeInfoEl) {
+        rangeInfoEl.innerHTML = `Showing <strong style="color:#0F172A;" id="pageRangeStart">${startIdx + 1}</strong>–<strong style="color:#0F172A;" id="pageRangeEnd">${endIdx}</strong> of <strong style="color:#0066FF;" id="pageRangeTotal">${totalMatching}</strong> territories`;
+      }
+    }
 
     // Prev / Next state
     const prevBtn = document.getElementById('pageBtn_prev');
     const nextBtn = document.getElementById('pageBtn_next');
-    if (prevBtn) prevBtn.disabled = (tableCurrentPage <= 1);
-    if (nextBtn) nextBtn.disabled = (tableCurrentPage >= totalPages);
+    if (prevBtn) prevBtn.disabled = (totalMatching === 0 || tableCurrentPage <= 1);
+    if (nextBtn) nextBtn.disabled = (totalMatching === 0 || tableCurrentPage >= totalPages);
 
     // Page Numbers
     const pageNumbersContainer = document.getElementById('tablePageNumbers');
     if (pageNumbersContainer) {
       pageNumbersContainer.innerHTML = '';
-      let pages = [];
-      if (totalPages <= 7) {
-        for (let i = 1; i <= totalPages; i++) pages.push(i);
+      if (totalMatching === 0) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'page-btn active';
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.style.cursor = 'default';
+        btn.innerText = '1';
+        pageNumbersContainer.appendChild(btn);
       } else {
-        if (tableCurrentPage <= 4) {
-          pages = [1, 2, 3, 4, 5, '...', totalPages];
-        } else if (tableCurrentPage >= totalPages - 3) {
-          pages = [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+        let pages = [];
+        if (totalPages <= 7) {
+          for (let i = 1; i <= totalPages; i++) pages.push(i);
         } else {
-          pages = [1, '...', tableCurrentPage - 1, tableCurrentPage, tableCurrentPage + 1, '...', totalPages];
+          if (tableCurrentPage <= 4) {
+            pages = [1, 2, 3, 4, 5, '...', totalPages];
+          } else if (tableCurrentPage >= totalPages - 3) {
+            pages = [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+          } else {
+            pages = [1, '...', tableCurrentPage - 1, tableCurrentPage, tableCurrentPage + 1, '...', totalPages];
+          }
         }
-      }
 
-      pages.forEach(p => {
-        if (p === '...') {
-          const span = document.createElement('span');
-          span.style.padding = '0 4px';
-          span.style.color = '#94A3B8';
-          span.style.fontWeight = 'bold';
-          span.innerText = '…';
-          pageNumbersContainer.appendChild(span);
-        } else {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'page-btn' + (p === tableCurrentPage ? ' active' : '');
-          btn.innerText = p;
-          btn.onclick = () => goToTablePage(p);
-          pageNumbersContainer.appendChild(btn);
-        }
-      });
+        pages.forEach(p => {
+          if (p === '...') {
+            const span = document.createElement('span');
+            span.style.padding = '0 4px';
+            span.style.color = '#94A3B8';
+            span.style.fontWeight = 'bold';
+            span.innerText = '…';
+            pageNumbersContainer.appendChild(span);
+          } else {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'page-btn' + (p === tableCurrentPage ? ' active' : '');
+            btn.innerText = p;
+            btn.onclick = () => goToTablePage(p);
+            pageNumbersContainer.appendChild(btn);
+          }
+        });
+      }
     }
 
     // Active size pill
