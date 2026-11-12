@@ -612,7 +612,7 @@ def fetch_live_sales_persons(opener):
         return None
     try:
         fields = json.dumps(["name", "sales_person_name", "parent_sales_person", "employee", "is_group", "enabled", "department"])
-        url = f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person?fields={urllib.parse.quote(fields)}&limit_page_length=2000"
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person?fields={urllib.parse.quote(fields)}&order_by=is_group%20desc,name%20asc&limit_page_length=2000"
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
         res = call_erpnext_resiliently(opener, req, timeout=12)
         data = json.loads(res.read().decode("utf-8")).get("data", [])
@@ -1517,6 +1517,48 @@ def _ensure_parent_territory_is_group(opener, parent_name, headers_json):
         pass
 
 
+def _ensure_parent_sales_person_is_group(opener, parent_name, headers_json):
+    """Ensure a parent sales person exists and has is_group=1 on ERPNext before attaching child sales persons under it."""
+    parent_clean = safe_str(parent_name)
+    if not parent_clean or not opener:
+        return
+    # Default root is 'Sales Team'
+    if parent_clean.lower() == "sales team":
+        return
+    try:
+        chk_url = f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person/{urllib.parse.quote(parent_clean)}"
+        chk_req = urllib.request.Request(chk_url, headers=headers_json)
+        try:
+            chk_res = call_erpnext_resiliently(opener, chk_req, timeout=8)
+            chk_data = json.loads(chk_res.read().decode("utf-8")).get("data", {})
+            if not chk_data.get("is_group"):
+                promote_req = urllib.request.Request(
+                    chk_url,
+                    data=json.dumps({"is_group": 1}).encode("utf-8"),
+                    headers=headers_json,
+                    method="PUT"
+                )
+                call_erpnext_resiliently(opener, promote_req, timeout=8)
+        except urllib.error.HTTPError as he:
+            if he.code == 404:
+                # Parent branch does not exist yet! Create it under "Sales Team" with is_group=1
+                post_body = {
+                    "sales_person_name": parent_clean,
+                    "parent_sales_person": "Sales Team",
+                    "is_group": 1,
+                    "enabled": 1
+                }
+                c_req = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person",
+                    data=json.dumps(post_body).encode("utf-8"),
+                    headers=headers_json,
+                    method="POST"
+                )
+                call_erpnext_resiliently(opener, c_req, timeout=8)
+    except Exception:
+        pass
+
+
 def _resolve_sales_person_for_manager(opener, rep_name, headers_json):
     """
     Defensively resolves territory manager string to exact Sales Person DocType name on ERPNext.
@@ -1717,21 +1759,35 @@ def execute_tree_action(opener, action, payload):
             new_parent = safe_str(payload.get("parent_territory") or payload.get("district")) or "All Territories"
             new_is_group = int(payload.get("is_group", 0) or 0)
             new_mgr = safe_str(payload.get("territory_manager") or payload.get("rep"))
+            custom_uid = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
+            custom_prog = safe_str(payload.get("custom_account_or_program") or payload.get("program"))
+
             if not orig_name:
                 return "error", "Territory original name is missing."
             record_shared_territory_edit(orig_name, parent=new_parent, is_group=new_is_group, manager=new_mgr)
             if new_parent and new_parent != "All Territories":
                 _ensure_parent_territory_is_group(opener, new_parent, headers_json)
+
+            resolved_mgr = _resolve_sales_person_for_manager(opener, new_mgr, headers_json) if new_mgr else None
+            resolved_uid = _resolve_user_id(opener, custom_uid, headers_json) if custom_uid else None
+
             body = {
                 "parent_territory": new_parent,
                 "is_group": new_is_group
             }
-            if new_mgr is not None:
+            if resolved_mgr:
+                body["territory_manager"] = resolved_mgr
+            elif not new_mgr or new_mgr.lower() in ("unassigned", "unassigned rep", "vacant", "folder (group)"):
+                body["territory_manager"] = ""
+            elif new_mgr:
                 body["territory_manager"] = new_mgr
-            if payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"):
-                body["custom_user_id"] = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
-            if payload.get("custom_account_or_program") or payload.get("program"):
-                body["custom_account_or_program"] = safe_str(payload.get("custom_account_or_program") or payload.get("program"))
+
+            if resolved_uid:
+                body["custom_user_id"] = resolved_uid
+            elif custom_uid and "@" in custom_uid:
+                body["custom_user_id"] = custom_uid
+            if custom_prog:
+                body["custom_account_or_program"] = custom_prog
             data = json.dumps(body).encode("utf-8")
             req = urllib.request.Request(
                 f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name)}",
@@ -1913,6 +1969,13 @@ def execute_tree_action(opener, action, payload):
             is_group = int(payload.get("is_group", 0) or 0)
             enabled = int(payload.get("enabled", 1) if payload.get("enabled") is not None else 1)
             emp = safe_str(payload.get("employee"))
+
+            if not sp_name:
+                return "error", "Sales Person Name cannot be blank."
+
+            if parent_sp and parent_sp != "Sales Team":
+                _ensure_parent_sales_person_is_group(opener, parent_sp, headers_json)
+
             body = {
                 "sales_person_name": sp_name,
                 "parent_sales_person": parent_sp,
@@ -1964,7 +2027,19 @@ def execute_tree_action(opener, action, payload):
                     headers=headers_json,
                     method="POST"
                 )
-                return call_erpnext_resiliently(opener, p_req, timeout=12)
+                try:
+                    return call_erpnext_resiliently(opener, p_req, timeout=12)
+                except urllib.error.HTTPError as he:
+                    err_text = he.read().decode("utf-8", errors="ignore")
+                    if "DuplicateEntryError" in err_text:
+                        up_req = urllib.request.Request(
+                            f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person/{urllib.parse.quote(sp_name)}",
+                            data=data,
+                            headers=headers_json,
+                            method="PUT"
+                        )
+                        return call_erpnext_resiliently(opener, up_req, timeout=12)
+                    raise
 
             res = None
             try:
@@ -2009,8 +2084,13 @@ def execute_tree_action(opener, action, payload):
                 "department": dept or None
             }
             if "live_sales_persons" in st.session_state and isinstance(st.session_state.live_sales_persons, list):
-                if not any(s.get("name") == sp_name for s in st.session_state.live_sales_persons):
+                idx = next((i for i, s in enumerate(st.session_state.live_sales_persons) if s.get("name") == sp_name), -1)
+                if idx >= 0:
+                    st.session_state.live_sales_persons[idx] = new_sp_entry
+                else:
                     st.session_state.live_sales_persons.insert(0, new_sp_entry)
+            else:
+                st.session_state["live_sales_persons"] = [new_sp_entry]
 
             if res and res.status in [200, 201]:
                 return "success", f'Sales Person "{sp_name}" added to Sales Person Tree on {get_server_display_name()}!'

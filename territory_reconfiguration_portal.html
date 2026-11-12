@@ -5734,7 +5734,7 @@ const BASELINE_ERP_TERRITORIES = [
     if (detected) {
       return detected === targetProg;
     }
-    return false;
+    return true;
   }
 
   function isEmployeeInProgram(emp, programName) {
@@ -12197,10 +12197,10 @@ const BASELINE_ERP_TERRITORIES = [
 
     } else if (fieldId === 'newSpParent') {
       // Parent Sales Person: Dynamically connects 1:1 to live Sales Person Tree DocType
-      // In main - staging: connected live to staging.pmii-marketing.com Sales Person tree.
-      // In sub_2 - dev: connected live to dev.pmii-marketing.com Sales Person tree.
+      // In main - staging: connected live to https://staging.pmii-marketing.com/app/sales-person/view/tree
+      // In sub_2 - dev: connected live to https://dev.pmii-marketing.com/app/sales-person/view/tree
       // When tree is blank / fresh start (only Sales Team exists), ONLY Sales Team appears.
-      // Strictly excludes static rosters (PROGRAM_SALES_PERSON_ROSTER) and territory rep dummy records.
+      // SFE selects where the parent sales person branch it belongs in the tree.
       const spPool = [];
       const seenNames = new Set();
 
@@ -12244,19 +12244,37 @@ const BASELINE_ERP_TERRITORIES = [
           ? `No Sales Person in tree matching "${query}"`
           : 'No Sales Persons found in tree';
         menu.appendChild(emptyDiv);
+
+        if (rawQ) {
+          const customItem = document.createElement('div');
+          customItem.className = 'erp-dropdown-item';
+          customItem.style.borderTop = '1px solid rgba(148, 163, 184, 0.2)';
+          customItem.innerHTML = `
+            <div class="erp-dropdown-item-title" style="color:#38BDF8; font-weight:700;">📁 Set as new team branch: "${escapeHtml(rawQ)}"</div>
+            <div class="erp-dropdown-item-sub">Create and link under Sales Team</div>
+          `;
+          customItem.onclick = () => {
+            selectErpItem('newSpParent', rawQ, rawQ, { name: rawQ, sales_person_name: rawQ, is_group: 1, parent_sales_person: 'Sales Team' });
+            closeAllErpDropdowns();
+          };
+          menu.appendChild(customItem);
+        }
       } else {
         matches.slice(0, 50).forEach(s => {
           const item = document.createElement('div');
           item.className = 'erp-dropdown-item';
           const name = s.sales_person_name || s.name;
           const isRoot = name.toLowerCase() === 'sales team';
-          const parent = s.parent_sales_person
-            ? `Parent: ${s.parent_sales_person}`
-            : (isRoot ? 'Root Sales Team (Top-level)' : (s.employee ? `Employee: ${s.employee}` : 'Sales Person Tree Node'));
+          const isGroup = s.is_group === 1 || s.is_group === '1' || isRoot;
+          const parentDesc = s.parent_sales_person
+            ? `📁 Tree Branch (Parent: ${s.parent_sales_person})`
+            : (isRoot ? '📁 Root Sales Team (Top-level Tree Root)' : (s.employee ? `👤 MedRep • Employee: ${s.employee}` : '📁 Tree Branch'));
 
           item.innerHTML = `
-            <div class="erp-dropdown-item-title" style="${isRoot ? 'color:#38BDF8; font-weight:700;' : ''}">${escapeHtml(name)}</div>
-            <div class="erp-dropdown-item-sub">${escapeHtml(parent)}</div>
+            <div class="erp-dropdown-item-title" style="${isRoot ? 'color:#38BDF8; font-weight:700;' : (isGroup ? 'color:#FBBF24; font-weight:700;' : '')}">
+              ${isGroup ? '📁 ' : '👤 '}${escapeHtml(name)}
+            </div>
+            <div class="erp-dropdown-item-sub">${escapeHtml(parentDesc)}</div>
           `;
           item.onclick = () => {
             selectErpItem('newSpParent', s.name || name, name, s);
@@ -12264,6 +12282,21 @@ const BASELINE_ERP_TERRITORIES = [
           };
           menu.appendChild(item);
         });
+
+        if (rawQ && !matches.some(m => (m.sales_person_name || m.name || '').toLowerCase() === rawQ.toLowerCase())) {
+          const customItem = document.createElement('div');
+          customItem.className = 'erp-dropdown-item';
+          customItem.style.borderTop = '1px solid rgba(148, 163, 184, 0.2)';
+          customItem.innerHTML = `
+            <div class="erp-dropdown-item-title" style="color:#38BDF8; font-weight:700;">📁 Set as new team branch: "${escapeHtml(rawQ)}"</div>
+            <div class="erp-dropdown-item-sub">Create and link under Sales Team</div>
+          `;
+          customItem.onclick = () => {
+            selectErpItem('newSpParent', rawQ, rawQ, { name: rawQ, sales_person_name: rawQ, is_group: 1, parent_sales_person: 'Sales Team' });
+            closeAllErpDropdowns();
+          };
+          menu.appendChild(customItem);
+        }
       }
 
     } else if (fieldId === 'treeAddManager' || fieldId === 'treeEditManager' || fieldId === 'editManager' || fieldId === 'addManager') {
@@ -13748,9 +13781,14 @@ const BASELINE_ERP_TERRITORIES = [
           value: {
             action: "tree_edit",
             name: origName,
+            territory_name: origName,
             parent_territory: newParent,
             is_group: newIsGroup,
             territory_manager: newMgr,
+            custom_user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
+            user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
+            custom_account_or_program: activeProgram,
+            program: activeProgram,
             timestamp: Date.now()
           }
         }, "*");
