@@ -5887,22 +5887,21 @@ const BASELINE_ERP_TERRITORIES = [
         if (code === 'AD1 - GMA/NORTH LUZON/CENTRAL LUZON' || code === 'AD2 - GMA/SOUTH LUZON') return;
 
         if (base) {
-          // Check if user genuinely modified this territory
+          // Check if user genuinely modified this territory (cross-exchange, rename, reassignment)
           const hasUserAction = Array.isArray(row.auditTrail) && row.auditTrail.some(log => userActions.has(log.action));
           const isCodeChanged = (row.activeCode && row.activeCode !== base.histCode) || (row.newCode && row.newCode !== base.histCode);
-          const isRepChanged = row.rep && row.rep !== base.rep && !row.rep.includes('Unassigned') && !row.rep.includes('Folder');
+          const isRepChanged = row.rep && row.rep !== base.rep;
           const isDistrictChanged = row.district && row.district !== base.district;
 
-          if (!hasUserAction && !isCodeChanged && !isRepChanged && !isDistrictChanged) {
+          if (row.status === 'CHANGED' || hasUserAction || isCodeChanged || isRepChanged || isDistrictChanged) {
+            // Strictly preserve user modifications across page reload and refresh
+            row.status = 'CHANGED';
+          } else {
             // Unchanged territory: restore accurate baseline status and doctor counts
             row.status = 'UNCHANGED';
             row.docs = base.docs || 0;
             row.rep = base.rep;
             row.district = base.district;
-          } else if (!hasUserAction && !isCodeChanged) {
-            // Keep unchanged if not explicitly reconfigured
-            row.status = 'UNCHANGED';
-            row.docs = base.docs || 0;
           }
         }
         sanitized.push(row);
@@ -6731,17 +6730,21 @@ const BASELINE_ERP_TERRITORIES = [
           console.warn('[Streamlit Live Sales Persons Warning]', spErr);
         }
 
-        // 4. Process Live Active Employees
+        // 4. Process Live Active Employees directly from dev.pmii-marketing.com / ERPNext
         try {
           if (liveEmployees && Array.isArray(liveEmployees) && liveEmployees.length > 0) {
             const empMap = new Map();
-            BASELINE_EMPLOYEES.forEach(e => empMap.set(e.name, e));
             liveEmployees.forEach(e => {
-              if (!e.status || e.status === 'Active') {
-                empMap.set(e.name, Object.assign({}, empMap.get(e.name) || {}, e));
+              if (e && e.name && (!e.status || e.status === 'Active')) {
+                empMap.set(e.name, e);
               }
             });
-            availableEmployees = Array.from(empMap.values());
+            if (empMap.size > 0) {
+              availableEmployees = Array.from(empMap.values());
+            } else {
+              BASELINE_EMPLOYEES.forEach(e => empMap.set(e.name, e));
+              availableEmployees = Array.from(empMap.values());
+            }
             try {
               localStorage.setItem('pims_active_employees_v2', JSON.stringify(availableEmployees));
               localStorage.setItem('pims_active_employees_v1', JSON.stringify(availableEmployees));
@@ -11214,10 +11217,12 @@ const BASELINE_ERP_TERRITORIES = [
         if (t.parent_territory && existing.district !== t.parent_territory) {
           existing.district = t.parent_territory;
         }
-        // ONLY update rep if t.territory_manager has an actual value!
-        // Never unassign an already-assigned rep when t.territory_manager is empty!
-        if (t.territory_manager && t.territory_manager.trim() && (!existing.rep || existing.rep === 'Unassigned Rep' || existing.rep === 'Folder (Group)')) {
-          existing.rep = cleanRepDisplayName(t.territory_manager);
+        // Update rep when tree node has an explicit territory_manager assigned
+        if (t.territory_manager && t.territory_manager.trim()) {
+          const cleanMgr = cleanRepDisplayName(t.territory_manager);
+          if (cleanMgr && cleanMgr !== 'Folder (Group)') {
+            existing.rep = cleanMgr;
+          }
         }
       }
     });
@@ -11824,7 +11829,7 @@ const BASELINE_ERP_TERRITORIES = [
       const savedEmps = localStorage.getItem('pims_active_employees_v2');
       if (savedEmps) {
         const parsed = JSON.parse(savedEmps);
-        if (Array.isArray(parsed) && parsed.length >= BASELINE_EMPLOYEES.length) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           availableEmployees = parsed;
         } else {
           availableEmployees = JSON.parse(JSON.stringify(BASELINE_EMPLOYEES));
@@ -12065,6 +12070,24 @@ const BASELINE_ERP_TERRITORIES = [
     if (disp) disp.value = displayLabel;
     if (clr) clr.style.display = 'block';
 
+    // Auto-populate User ID when selecting Territory Manager in New Territory modal
+    if (fieldId === 'treeAddManager' && extraData) {
+      const uid = extraData.user_id || extraData.company_email || extraData.personal_email || extraData.email;
+      if (uid) {
+        selectErpItem('treeAddUserAccount', uid, uid, { email: uid });
+      } else {
+        const mgrClean = cleanRepDisplayName(displayLabel || value);
+        const uMatch = availableUsers.find(u => {
+          const uName = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
+          return uName && (uName === mgrClean.toLowerCase() || uName.includes(mgrClean.toLowerCase()) || mgrClean.toLowerCase().includes(uName));
+        });
+        if (uMatch) {
+          const uEmail = uMatch.email || uMatch.name;
+          selectErpItem('treeAddUserAccount', uEmail, uEmail, uMatch);
+        }
+      }
+    }
+
     // If selecting employee in New Sales Person modal, auto-fill Sales Person Name and User ID based on HR records
     if (fieldId === 'newSpEmployee' && extraData) {
       const empFullName = extraData.employee_name || `${extraData.first_name || ''} ${extraData.last_name || ''}`.trim() || extraData.name;
@@ -12173,6 +12196,22 @@ const BASELINE_ERP_TERRITORIES = [
       menu.appendChild(advRow);
 
     } else if (fieldId === 'treeAddManager' || fieldId === 'treeEditManager' || fieldId === 'editManager' || fieldId === 'addManager' || fieldId === 'newSpParent') {
+      // Top Option for newSpParent: Sales Team (Root Master Team)
+      if (fieldId === 'newSpParent' && !rawQ) {
+        const rootItem = document.createElement('div');
+        rootItem.className = 'erp-dropdown-item';
+        rootItem.style.borderBottom = '1px solid rgba(148, 163, 184, 0.25)';
+        rootItem.innerHTML = `
+          <div class="erp-dropdown-item-title" style="color:#38BDF8; font-weight:700;">Sales Team</div>
+          <div class="erp-dropdown-item-sub">Root Sales Team (Top-level)</div>
+        `;
+        rootItem.onclick = () => {
+          selectErpItem('newSpParent', 'Sales Team', 'Sales Team', { name: 'Sales Team', sales_person_name: 'Sales Team' });
+          closeAllErpDropdowns();
+        };
+        menu.appendChild(rootItem);
+      }
+
       // Top Option: Unassigned option for tree manager selection
       if ((fieldId === 'treeAddManager' || fieldId === 'treeEditManager' || fieldId === 'editManager') && !rawQ) {
         const unassignedItem = document.createElement('div');
@@ -12190,7 +12229,7 @@ const BASELINE_ERP_TERRITORIES = [
       }
 
       // Filter Sales Persons across fields (name, sales_person_name, parent_sales_person, employee)
-      const allowRootSp = (fieldId === 'newSpParent');
+      // Strictly scope both Territory Manager and Parent Sales Person to activeProgram managers/reps
       const seenSpNames = new Set();
       const programScopedPool = [];
 
@@ -12198,7 +12237,7 @@ const BASELINE_ERP_TERRITORIES = [
         availableSalesPersons.forEach(s => {
           const spName = (s && (s.sales_person_name || s.name)) ? String(s.sales_person_name || s.name).trim() : '';
           if (!spName || seenSpNames.has(spName.toLowerCase())) return;
-          if (isSalesPersonInProgram(s, activeProgram, allowRootSp)) {
+          if (isSalesPersonInProgram(s, activeProgram, false)) {
             seenSpNames.add(spName.toLowerCase());
             programScopedPool.push(s);
           }
@@ -12251,7 +12290,7 @@ const BASELINE_ERP_TERRITORIES = [
       });
 
       if (matches.length === 0) {
-        if (rawQ || (fieldId !== 'treeAddManager' && fieldId !== 'treeEditManager')) {
+        if (rawQ || (fieldId !== 'treeAddManager' && fieldId !== 'treeEditManager' && fieldId !== 'newSpParent')) {
           const emptyDiv = document.createElement('div');
           emptyDiv.style.cssText = 'padding: 10px 14px; color: #64748B; font-size: 11.5px;';
           emptyDiv.innerText = rawQ
@@ -12263,7 +12302,7 @@ const BASELINE_ERP_TERRITORIES = [
         matches.slice(0, 50).forEach(s => {
           const item = document.createElement('div');
           const name = s.sales_person_name || s.name;
-          const parent = s.parent_sales_person ? `${s.parent_sales_person} • ${activeProgram}` : (s.employee ? `Employee: ${s.employee} • ${activeProgram}` : activeProgram);
+          const parent = s.parent_sales_person ? s.parent_sales_person : (s.employee ? `Employee: ${s.employee}` : activeProgram);
           
           // Check if this sales person has an Active territory vs only an Inactive territory
           const cleanSp = cleanRepDisplayName(name).toLowerCase();
@@ -12291,7 +12330,7 @@ const BASELINE_ERP_TERRITORIES = [
               ${parent ? `<div class="erp-dropdown-item-sub">${escapeHtml(parent)}</div>` : ''}
             `;
           }
-          item.onclick = () => selectErpItem(fieldId, s.name, name, s);
+          item.onclick = () => selectErpItem(fieldId, s.name || name, name, s);
           menu.appendChild(item);
         });
       }
@@ -12309,16 +12348,13 @@ const BASELINE_ERP_TERRITORIES = [
         menu.appendChild(createRow);
       }
 
-      const advRow = document.createElement('div');
-      advRow.className = 'erp-dropdown-adv-search';
-      advRow.innerHTML = `<span>🔍</span> <span>${escapeHtml(activeProgram)} (${matches.length} Sales Persons found)</span>`;
-      menu.appendChild(advRow);
-
     } else if (fieldId === 'newSpEmployee' || fieldId === 'newEmpReportsTo') {
-      // Filter Employees locked to activeProgram across all fields
+      // Filter Employees from dev.pmii-marketing.com across all fields
       let matches = availableEmployees.filter(e => {
-        if (!isEmployeeInProgram(e, activeProgram)) return false;
-        if (!tokens.length) return true;
+        if (!e) return false;
+        if (!tokens.length) {
+          return (!e.status || e.status === 'Active');
+        }
         const searchable = [
           e.name || '',
           e.employee_name || '',
@@ -12326,7 +12362,8 @@ const BASELINE_ERP_TERRITORIES = [
           e.last_name || '',
           e.gender || '',
           e.department || '',
-          e.designation || ''
+          e.designation || '',
+          e.company || ''
         ].join(' ').toLowerCase();
 
         return tokens.every(tok => searchable.includes(tok));
@@ -12343,7 +12380,7 @@ const BASELINE_ERP_TERRITORIES = [
           item.className = 'erp-dropdown-item';
           const empId = e.name;
           const fullName = e.employee_name || `${e.first_name || ''} ${e.last_name || ''}`.trim() || empId;
-          const subText = e.designation ? `${fullName} &bull; ${e.designation}` : fullName;
+          const subText = e.designation ? `${fullName} • ${e.designation}` : fullName;
           
           item.innerHTML = `
             <div class="erp-dropdown-item-title">${escapeHtml(empId)}</div>
@@ -12353,19 +12390,7 @@ const BASELINE_ERP_TERRITORIES = [
           menu.appendChild(item);
         });
       }
-
-      // SFE Restriction: Adding employee is restricted to HR / System Manager
-      if (fieldId === 'newSpEmployee') {
-        const infoRow = document.createElement('div');
-        infoRow.style.cssText = 'padding: 8px 12px; font-size: 11px; color: #A1A1AA; border-top: 1px solid #27272A; display: flex; align-items: center; gap: 6px;';
-        infoRow.innerHTML = `<span>🔒</span> <span>Adding new Employees is restricted to HR / System Manager</span>`;
-        menu.appendChild(infoRow);
-      }
-
-      const advRow = document.createElement('div');
-      advRow.className = 'erp-dropdown-adv-search';
-      advRow.innerHTML = `<span>🔍</span> <span>Advanced Search (${matches.length} Active Employees found)</span>`;
-      menu.appendChild(advRow);
+      // Note: "Adding new Employees is restricted to HR / System Manager" and "Advanced Search" rows removed per user specification
     }
   }
 
@@ -13643,6 +13668,17 @@ const BASELINE_ERP_TERRITORIES = [
       const archIdx = archivedRecords.findIndex(a => a.code === origName);
       if (archIdx !== -1) archivedRecords.splice(archIdx, 1);
     }
+    // Update in-memory baseline in LIVE_DATA to prevent reload reversal
+    const progData = LIVE_DATA[activeProgram];
+    if (progData && Array.isArray(progData.territories)) {
+      const baseRow = progData.territories.find(t => t.activeCode === origName || t.histCode === origName || t.latestPrevCode === origName);
+      if (baseRow) {
+        baseRow.rep = pt ? pt.rep : (newMgr || 'Unassigned Rep');
+        baseRow.district = newParent;
+        baseRow.status = 'CHANGED';
+      }
+    }
+
     try {
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
       localStorage.setItem('pims_stg_archived_territories_' + activeProgram, JSON.stringify(archivedRecords));
@@ -16610,22 +16646,19 @@ const BASELINE_ERP_TERRITORIES = [
       </div>
     </div>
 
-    <!-- Account / Program & User ID Dropdown (Hidden per SFE UAT specification) -->
-    <div style="display:none; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
-      <div>
-        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Account / Program</label>
-        <input type="text" id="treeAddProgramInput" placeholder="e.g. Abbott Diabetes Care" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px;">
+    <!-- User ID Dropdown (Restored per SFE specification) -->
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px; font-weight:700; color:#FFFFFF; display:block; margin-bottom:6px;">
+        User ID <span style="color:#EF4444;">*</span>
+      </label>
+      <div class="erp-search-container" id="treeAddUserAccountContainer">
+        <input type="hidden" id="treeAddUserAccountInput" value="">
+        <input type="text" id="treeAddUserAccountDisplay" class="erp-search-input-box" placeholder="Select User ID / Email..." autocomplete="off" onfocus="openErpDropdown('treeAddUserAccount', true)" onclick="toggleErpDropdown('treeAddUserAccount', event)" oninput="onErpSearchInput('treeAddUserAccount')">
+        <button type="button" class="erp-clear-btn" id="treeAddUserAccountClear" onclick="clearErpSelection('treeAddUserAccount')">✕</button>
+        <span class="erp-search-chevron" onclick="toggleErpDropdown('treeAddUserAccount', event)">▼</span>
+        <div class="erp-dropdown-menu" id="treeAddUserAccountMenu"></div>
       </div>
-      <div>
-        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">User ID</label>
-        <div class="erp-search-container" id="treeAddUserAccountContainer">
-          <input type="hidden" id="treeAddUserAccountInput" value="">
-          <input type="text" id="treeAddUserAccountDisplay" class="erp-search-input-box" placeholder="Unassigned" autocomplete="off" onfocus="openErpDropdown('treeAddUserAccount', true)" onclick="toggleErpDropdown('treeAddUserAccount', event)" oninput="onErpSearchInput('treeAddUserAccount')">
-          <button type="button" class="erp-clear-btn" id="treeAddUserAccountClear" onclick="clearErpSelection('treeAddUserAccount')">✕</button>
-          <span class="erp-search-chevron" onclick="toggleErpDropdown('treeAddUserAccount', event)">▼</span>
-          <div class="erp-dropdown-menu" id="treeAddUserAccountMenu"></div>
-        </div>
-      </div>
+      <input type="hidden" id="treeAddProgramInput" value="">
     </div>
 
     <div style="background:#27272A; border-radius:8px; padding:12px 16px; font-size:12px; color:#D4D4D8; display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
@@ -16692,21 +16725,19 @@ const BASELINE_ERP_TERRITORIES = [
       </label>
     </div>
 
-    <div style="display:none; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
-      <div>
-        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Account / Program</label>
-        <input type="text" id="treeEditProgramInput" placeholder="e.g. Abbott Diabetes Care" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px;">
+    <!-- User ID Dropdown -->
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px; font-weight:700; color:#FFFFFF; display:block; margin-bottom:6px;">
+        User ID
+      </label>
+      <div class="erp-search-container" id="treeEditUserAccountContainer">
+        <input type="hidden" id="treeEditUserAccountInput" value="">
+        <input type="text" id="treeEditUserAccountDisplay" class="erp-search-input-box" placeholder="Select User ID / Email..." autocomplete="off" onfocus="openErpDropdown('treeEditUserAccount', true)" onclick="toggleErpDropdown('treeEditUserAccount', event)" oninput="onErpSearchInput('treeEditUserAccount')">
+        <button type="button" class="erp-clear-btn" id="treeEditUserAccountClear" onclick="clearErpSelection('treeEditUserAccount')">✕</button>
+        <span class="erp-search-chevron" onclick="toggleErpDropdown('treeEditUserAccount', event)">▼</span>
+        <div class="erp-dropdown-menu" id="treeEditUserAccountMenu"></div>
       </div>
-      <div>
-        <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">User ID</label>
-        <div class="erp-search-container" id="treeEditUserAccountContainer">
-          <input type="hidden" id="treeEditUserAccountInput" value="">
-          <input type="text" id="treeEditUserAccountDisplay" class="erp-search-input-box" placeholder="Unassigned" autocomplete="off" onfocus="openErpDropdown('treeEditUserAccount', true)" onclick="toggleErpDropdown('treeEditUserAccount', event)" oninput="onErpSearchInput('treeEditUserAccount')">
-          <button type="button" class="erp-clear-btn" id="treeEditUserAccountClear" onclick="clearErpSelection('treeEditUserAccount')">✕</button>
-          <span class="erp-search-chevron" onclick="toggleErpDropdown('treeEditUserAccount', event)">▼</span>
-          <div class="erp-dropdown-menu" id="treeEditUserAccountMenu"></div>
-        </div>
-      </div>
+      <input type="hidden" id="treeEditProgramInput" value="">
     </div>
 
     <div style="background:#27272A; border-radius:8px; padding:12px 16px; font-size:12px; color:#D4D4D8; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -16736,9 +16767,6 @@ const BASELINE_ERP_TERRITORIES = [
         <span class="erp-badge-not-saved">Not Saved</span>
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
-        <button type="button" onclick="submitNewSalesPerson()" style="background:#FFFFFF; border:none; color:#0F172A; font-size:12.5px; font-weight:700; padding:6px 18px; border-radius:6px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
-          Save
-        </button>
         <button type="button" onclick="closeNewSalesPersonModal()" style="background:none; border:none; color:#A1A1AA; font-size:18px; cursor:pointer; line-height:1;">✕</button>
       </div>
     </div>
@@ -16856,7 +16884,7 @@ const BASELINE_ERP_TERRITORIES = [
         Cancel
       </button>
       <button type="button" onclick="submitNewSalesPerson()" style="background:#FFFFFF; border:none; color:#0F172A; font-size:12.5px; font-weight:700; padding:7px 20px; border-radius:6px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
-        Save Sales Person
+        Save
       </button>
     </div>
 
