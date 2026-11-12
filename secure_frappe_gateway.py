@@ -231,11 +231,19 @@ class TerritoryActionSchema:
         if raw_action not in allowed_actions:
             raise SecurityValidationError(f"Disallowed action: '{raw_action}'")
 
-        t_name = sanitize_string(data.get("territory_name") or data.get("name") or data.get("territory") or data.get("code") or "", max_len=140)
+        t_name = sanitize_string(
+            data.get("territory_name") or 
+            data.get("name") or 
+            data.get("territory") or 
+            data.get("code") or 
+            data.get("old_name") or 
+            data.get("new_name") or "", 
+            max_len=140
+        )
         no_tname_actions = {
             "tree_refresh", "inst_refresh", "doctor_transfer", "resignation_handover",
             "bulk_decommission", "bulk_archive", "inst_create", "inst_propose", "bulk_tree_add",
-            "sales_person_create", "employee_create"
+            "sales_person_create", "employee_create", "tree_rename"
         }
         if raw_action == "sales_person_create":
             sp_name = sanitize_string(data.get("sales_person_name") or data.get("name") or "", max_len=140)
@@ -247,6 +255,12 @@ class TerritoryActionSchema:
             if not emp_name:
                 raise SecurityValidationError("employee_name is required")
             t_name = t_name or emp_name
+        elif raw_action == "tree_rename":
+            old_n = sanitize_string(data.get("old_name") or data.get("territory_name") or data.get("name") or "", max_len=140)
+            new_n = sanitize_string(data.get("new_name") or "", max_len=140)
+            if not old_n or not new_n:
+                raise SecurityValidationError("Both old_name and new_name are required for tree_rename")
+            t_name = t_name or old_n
         elif not t_name and raw_action not in no_tname_actions:
             raise SecurityValidationError("territory_name is required")
 
