@@ -6601,13 +6601,9 @@ const BASELINE_ERP_TERRITORIES = [
     const select = document.getElementById('newSpParentSelect');
     if (select && Array.isArray(availableSalesPersons)) {
       select.innerHTML = '';
-      const defOpt = document.createElement('option');
-      defOpt.value = 'Sales Team';
-      defOpt.textContent = 'Sales Team';
-      select.appendChild(defOpt);
       availableSalesPersons.forEach(sp => {
         const name = typeof sp === 'string' ? sp : (sp.sales_person_name || sp.name);
-        if (name && name !== 'Sales Team' && isSalesPersonInProgram(sp, activeProgram, false)) {
+        if (name && name.toLowerCase() !== 'sales team' && isSalesPersonInProgram(sp, activeProgram, false)) {
           const opt = document.createElement('option');
           opt.value = name;
           opt.textContent = name;
@@ -11972,6 +11968,13 @@ const BASELINE_ERP_TERRITORIES = [
     const clr = document.getElementById(fieldId + 'Clear');
     if (clr) clr.style.display = q ? 'block' : 'none';
     if (q.toLowerCase() === 'unassigned') q = '';
+    if (!q) {
+      const inp = document.getElementById(fieldId + 'Input');
+      if (inp) {
+        inp.value = '';
+        delete inp.dataset.userManuallySelected;
+      }
+    }
     
     renderErpDropdownMenu(fieldId, q);
     const menu = document.getElementById(fieldId + 'Menu');
@@ -12052,7 +12055,7 @@ const BASELINE_ERP_TERRITORIES = [
     }
     if (disp) {
       disp.value = '';
-      disp.placeholder = fieldId === 'newSpParent' ? 'Search parent sales person (default: Sales Team)...' : 'Unassigned';
+      disp.placeholder = fieldId === 'newSpParent' ? 'Search parent sales person...' : 'Unassigned';
       disp.focus();
     }
     if (clr) clr.style.display = 'none';
@@ -12196,25 +12199,11 @@ const BASELINE_ERP_TERRITORIES = [
       menu.appendChild(advRow);
 
     } else if (fieldId === 'newSpParent') {
-      // Parent Sales Person: Dynamically connects 1:1 to live Sales Person Tree DocType
-      // In main - staging: connected live to https://staging.pmii-marketing.com/app/sales-person/view/tree
-      // In sub_2 - dev: connected live to https://dev.pmii-marketing.com/app/sales-person/view/tree
-      // When tree is blank / fresh start (only Sales Team exists), ONLY Sales Team appears.
-      // SFE selects where the parent sales person branch it belongs in the tree.
+      // Parent Sales Person: Dynamically connects 1:1 to live Sales Person Tree DocType,
+      // excluding the top-level "Sales Team" container so only actual parent branches appear.
       const spPool = [];
-      const seenNames = new Set();
+      const seenNames = new Set(['sales team']);
 
-      // Top Root Node: Sales Team (Root Master Team)
-      spPool.push({
-        name: 'Sales Team',
-        sales_person_name: 'Sales Team',
-        is_group: 1,
-        enabled: 1,
-        parent_sales_person: ''
-      });
-      seenNames.add('sales team');
-
-      // Add all live Sales Person tree nodes from ERPNext (availableSalesPersons)
       if (Array.isArray(availableSalesPersons)) {
         availableSalesPersons.forEach(s => {
           const sName = (s && (s.sales_person_name || s.name)) ? String(s.sales_person_name || s.name).trim() : '';
@@ -12237,44 +12226,43 @@ const BASELINE_ERP_TERRITORIES = [
         return tokens.every(tok => searchable.includes(tok));
       });
 
+      const appendCustomParentOption = () => {
+        if (!rawQ || rawQ.toLowerCase() === 'sales team') return;
+        const customItem = document.createElement('div');
+        customItem.className = 'erp-dropdown-item';
+        customItem.style.borderTop = '1px solid rgba(148, 163, 184, 0.2)';
+        customItem.innerHTML = `
+          <div class="erp-dropdown-item-title" style="color:#0284C7; font-weight:700;">+ Add "${escapeHtml(rawQ)}"</div>
+          <div class="erp-dropdown-item-sub">New parent branch</div>
+        `;
+        customItem.onclick = () => {
+          selectErpItem('newSpParent', rawQ, rawQ, { name: rawQ, sales_person_name: rawQ, is_group: 1, parent_sales_person: 'Sales Team' });
+          closeAllErpDropdowns();
+        };
+        menu.appendChild(customItem);
+      };
+
       if (matches.length === 0) {
         const emptyDiv = document.createElement('div');
         emptyDiv.style.cssText = 'padding: 10px 14px; color: #64748B; font-size: 11.5px;';
         emptyDiv.innerText = rawQ
-          ? `No Sales Person in tree matching "${query}"`
-          : 'No Sales Persons found in tree';
+          ? `No parent matching "${query}"`
+          : 'No parent sales persons found';
         menu.appendChild(emptyDiv);
-
-        if (rawQ) {
-          const customItem = document.createElement('div');
-          customItem.className = 'erp-dropdown-item';
-          customItem.style.borderTop = '1px solid rgba(148, 163, 184, 0.2)';
-          customItem.innerHTML = `
-            <div class="erp-dropdown-item-title" style="color:#38BDF8; font-weight:700;">📁 Set as new team branch: "${escapeHtml(rawQ)}"</div>
-            <div class="erp-dropdown-item-sub">Create and link under Sales Team</div>
-          `;
-          customItem.onclick = () => {
-            selectErpItem('newSpParent', rawQ, rawQ, { name: rawQ, sales_person_name: rawQ, is_group: 1, parent_sales_person: 'Sales Team' });
-            closeAllErpDropdowns();
-          };
-          menu.appendChild(customItem);
-        }
+        appendCustomParentOption();
       } else {
-        matches.slice(0, 50).forEach(s => {
+        matches.slice(0, 100).forEach(s => {
           const item = document.createElement('div');
           item.className = 'erp-dropdown-item';
           const name = s.sales_person_name || s.name;
-          const isRoot = name.toLowerCase() === 'sales team';
-          const isGroup = s.is_group === 1 || s.is_group === '1' || isRoot;
-          const parentDesc = s.parent_sales_person
-            ? `📁 Tree Branch (Parent: ${s.parent_sales_person})`
-            : (isRoot ? '📁 Root Sales Team (Top-level Tree Root)' : (s.employee ? `👤 MedRep • Employee: ${s.employee}` : '📁 Tree Branch'));
+          const rawParent = (s.parent_sales_person || '').trim();
+          const subLabel = (rawParent && rawParent.toLowerCase() !== 'sales team')
+            ? `Parent: ${rawParent}`
+            : (s.employee ? `Employee: ${s.employee}` : '');
 
           item.innerHTML = `
-            <div class="erp-dropdown-item-title" style="${isRoot ? 'color:#38BDF8; font-weight:700;' : (isGroup ? 'color:#FBBF24; font-weight:700;' : '')}">
-              ${isGroup ? '📁 ' : '👤 '}${escapeHtml(name)}
-            </div>
-            <div class="erp-dropdown-item-sub">${escapeHtml(parentDesc)}</div>
+            <div class="erp-dropdown-item-title">${escapeHtml(name)}</div>
+            ${subLabel ? `<div class="erp-dropdown-item-sub">${escapeHtml(subLabel)}</div>` : ''}
           `;
           item.onclick = () => {
             selectErpItem('newSpParent', s.name || name, name, s);
@@ -12284,18 +12272,7 @@ const BASELINE_ERP_TERRITORIES = [
         });
 
         if (rawQ && !matches.some(m => (m.sales_person_name || m.name || '').toLowerCase() === rawQ.toLowerCase())) {
-          const customItem = document.createElement('div');
-          customItem.className = 'erp-dropdown-item';
-          customItem.style.borderTop = '1px solid rgba(148, 163, 184, 0.2)';
-          customItem.innerHTML = `
-            <div class="erp-dropdown-item-title" style="color:#38BDF8; font-weight:700;">📁 Set as new team branch: "${escapeHtml(rawQ)}"</div>
-            <div class="erp-dropdown-item-sub">Create and link under Sales Team</div>
-          `;
-          customItem.onclick = () => {
-            selectErpItem('newSpParent', rawQ, rawQ, { name: rawQ, sales_person_name: rawQ, is_group: 1, parent_sales_person: 'Sales Team' });
-            closeAllErpDropdowns();
-          };
-          menu.appendChild(customItem);
+          appendCustomParentOption();
         }
       }
 
@@ -12898,13 +12875,19 @@ const BASELINE_ERP_TERRITORIES = [
     clearErpSelection('newSpEmployee');
     clearErpSelection('newSpUserAccount');
     
-    // Set parent sales person to Sales Team default
+    // Reset parent sales person selection (blank UI; falls back to Sales Team on save if unset)
     const parentInp = document.getElementById('newSpParentInput');
     const parentDisp = document.getElementById('newSpParentDisplay');
     const parentClr = document.getElementById('newSpParentClear');
-    if (parentInp) parentInp.value = 'Sales Team';
-    if (parentDisp) parentDisp.value = 'Sales Team';
-    if (parentClr) parentClr.style.display = 'block';
+    if (parentInp) {
+      parentInp.value = '';
+      delete parentInp.dataset.userManuallySelected;
+    }
+    if (parentDisp) {
+      parentDisp.value = '';
+      parentDisp.placeholder = 'Search parent sales person...';
+    }
+    if (parentClr) parentClr.style.display = 'none';
 
     const commInp = document.getElementById('newSpCommissionInput');
     if (commInp) commInp.value = '';
@@ -16948,9 +16931,9 @@ const BASELINE_ERP_TERRITORIES = [
             Parent Sales Person
           </label>
           <div class="erp-search-container" id="newSpParentContainer">
-            <input type="hidden" id="newSpParentInput" value="Sales Team">
-            <input type="text" id="newSpParentDisplay" value="Sales Team" class="erp-search-input-box" placeholder="Search parent sales person..." autocomplete="off" onfocus="openErpDropdown('newSpParent', true)" onclick="toggleErpDropdown('newSpParent', event)" oninput="onErpSearchInput('newSpParent')">
-            <button type="button" class="erp-clear-btn" id="newSpParentClear" style="display:block;" onclick="clearErpSelection('newSpParent')">✕</button>
+            <input type="hidden" id="newSpParentInput" value="">
+            <input type="text" id="newSpParentDisplay" value="" class="erp-search-input-box" placeholder="Search parent sales person..." autocomplete="off" onfocus="openErpDropdown('newSpParent', true)" onclick="toggleErpDropdown('newSpParent', event)" oninput="onErpSearchInput('newSpParent')">
+            <button type="button" class="erp-clear-btn" id="newSpParentClear" style="display:none;" onclick="clearErpSelection('newSpParent')">✕</button>
             <span class="erp-search-chevron" onclick="toggleErpDropdown('newSpParent', event)">▾</span>
             <div class="erp-dropdown-menu" id="newSpParentMenu"></div>
           </div>
