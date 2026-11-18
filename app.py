@@ -372,8 +372,16 @@ INJECTION_PATTERN = re.compile(
     re.IGNORECASE
 )
 
-STREAMLIT_RESET_REQUESTS = {}
-STREAMLIT_LOGIN_ATTEMPTS = {}
+@st.cache_resource
+def _get_security_rate_limit_store():
+    return {
+        "reset_requests": {},
+        "login_attempts": {}
+    }
+
+_SECURITY_STORE = _get_security_rate_limit_store()
+STREAMLIT_RESET_REQUESTS = _SECURITY_STORE["reset_requests"]
+STREAMLIT_LOGIN_ATTEMPTS = _SECURITY_STORE["login_attempts"]
 
 def _extract_frappe_error_message(raw_body, fallback_msg):
     """Extract a human-readable error message from a Frappe JSON/HTTP error response."""
@@ -490,6 +498,15 @@ def request_erpnext_password_reset(user_email):
                         "success": False,
                         "message": f"Account '{clean_user}' is disabled in ERPNext. Please contact your System Administrator."
                     }
+                STREAMLIT_LOGIN_ATTEMPTS.pop(ident, None)
+                STREAMLIT_LOGIN_ATTEMPTS.pop(target_email.lower(), None)
+                try:
+                    sess_attempts = st.session_state.get("sfe_failed_login_attempts")
+                    if isinstance(sess_attempts, dict):
+                        sess_attempts.pop(ident, None)
+                        sess_attempts.pop(target_email.lower(), None)
+                except Exception:
+                    pass
                 print(f"[SECURITY AUDIT] ERPNext password reset link dispatched for user: '{target_email}'.")
                 return {
                     "success": True,
@@ -525,7 +542,60 @@ def request_erpnext_password_reset(user_email):
     }
 
 
-def verify_erpnext_credentials(usr, pwd):
+def _get_session_failed_attempts(ident):
+    """Retrieve failed attempt count for ident stored in st.session_state."""
+    try:
+        store = st.session_state.get("sfe_failed_login_attempts")
+        if isinstance(store, dict):
+            return int(store.get(ident, 0) or 0)
+        if isinstance(store, (int, float)):
+            return int(store)
+    except Exception:
+        pass
+    return 0
+
+
+def _set_session_failed_attempts(ident, count):
+    """Persist failed attempt count for ident in st.session_state."""
+    try:
+        store = st.session_state.get("sfe_failed_login_attempts")
+        if not isinstance(store, dict):
+            store = {}
+            st.session_state["sfe_failed_login_attempts"] = store
+        if count <= 0:
+            store.pop(ident, None)
+        else:
+            store[ident] = int(count)
+    except Exception:
+        pass
+
+
+def _record_failed_login_attempt(ident, base_count, now, failure_prefix):
+    """Increment login attempt counter consistently and return auth error payload."""
+    new_count = min(5, max(0, int(base_count)) + 1)
+    remaining = max(0, 5 - new_count)
+    if new_count >= 5:
+        STREAMLIT_LOGIN_ATTEMPTS[ident] = (new_count, now + 15 * 60)
+        _set_session_failed_attempts(ident, 0)
+        return {
+            "success": False,
+            "authorized": False,
+            "failed_attempts": new_count,
+            "remaining_attempts": 0,
+            "message": "Maximum 5 login attempts reached. Access locked for 15 minutes."
+        }
+    STREAMLIT_LOGIN_ATTEMPTS[ident] = (new_count, 0)
+    _set_session_failed_attempts(ident, new_count)
+    return {
+        "success": False,
+        "authorized": False,
+        "failed_attempts": new_count,
+        "remaining_attempts": remaining,
+        "message": f"{failure_prefix} Remaining Attempt: {remaining}"
+    }
+
+
+def verify_erpnext_credentials(usr, pwd, client_failed_attempts=0):
     if not usr or not pwd:
         return {
             "success": False,
@@ -536,28 +606,43 @@ def verify_erpnext_credentials(usr, pwd):
     usr = usr.strip()
     ident = usr.lower()
 
-    # Check brute-force lockout
+    # Check brute-force lockout across persistent cache store and session state
     now = time.time()
     record = STREAMLIT_LOGIN_ATTEMPTS.get(ident, (0, 0))
-    count, lockout_until = record
+    record_count, lockout_until = record
+    sess_count = _get_session_failed_attempts(ident)
     if lockout_until > now:
         mins = int((lockout_until - now) // 60) + 1
         return {
             "success": False,
             "authorized": False,
+            "failed_attempts": 5,
             "remaining_attempts": 0,
             "message": f"Maximum 5 login attempts reached. Access locked for {mins} minute(s)."
         }, None
     elif lockout_until > 0 and lockout_until <= now:
         STREAMLIT_LOGIN_ATTEMPTS.pop(ident, None)
-        count = 0
+        _set_session_failed_attempts(ident, 0)
+        record_count = 0
+        sess_count = 0
+    elif record_count >= 5:
+        STREAMLIT_LOGIN_ATTEMPTS.pop(ident, None)
+        record_count = 0
+
+    try:
+        client_count = max(0, min(4, int(client_failed_attempts or 0)))
+    except (ValueError, TypeError):
+        client_count = 0
+    base_count = min(4, max(int(record_count or 0), int(sess_count or 0), client_count))
 
     # Security Intrusion Mitigation: Block SQL / Command / Script Injection Attacks on username
     if INJECTION_PATTERN.search(usr):
-        STREAMLIT_LOGIN_ATTEMPTS[ident] = (count + 1, now + 15 * 60)
+        STREAMLIT_LOGIN_ATTEMPTS[ident] = (base_count + 1, now + 15 * 60)
+        _set_session_failed_attempts(ident, 0)
         return {
             "success": False,
             "authorized": False,
+            "failed_attempts": 5,
             "remaining_attempts": 0,
             "message": "SECURITY VIOLATION: Malicious injection attempt detected in username. Request blocked and access restricted."
         }, None
@@ -585,33 +670,19 @@ def verify_erpnext_credentials(usr, pwd):
             break
         except urllib.error.HTTPError as e:
             if e.code == 401:
-                new_count = count + 1
-                remaining = max(0, 5 - new_count)
-                if new_count >= 5:
-                    STREAMLIT_LOGIN_ATTEMPTS[ident] = (new_count, now + 15 * 60)
-                    return {
-                        "success": False,
-                        "authorized": False,
-                        "remaining_attempts": 0,
-                        "message": "Maximum 5 login attempts reached. Access locked for 15 minutes."
-                    }, None
-                STREAMLIT_LOGIN_ATTEMPTS[ident] = (new_count, 0)
-                return {
-                    "success": False,
-                    "authorized": False,
-                    "remaining_attempts": remaining,
-                    "message": f"Invalid username or password. Please verify your ERPNext credentials. Remaining Attempt: {remaining}"
-                }, None
+                return _record_failed_login_attempt(
+                    ident,
+                    base_count,
+                    now,
+                    "Invalid username or password. Please verify your ERPNext credentials."
+                ), None
             if attempt == max_retries - 1:
-                new_count = count + 1
-                remaining = max(0, 5 - new_count)
-                STREAMLIT_LOGIN_ATTEMPTS[ident] = (new_count, 0)
-                return {
-                    "success": False,
-                    "authorized": False,
-                    "remaining_attempts": remaining,
-                    "message": f"ERPNext authentication error (HTTP {e.code}). Please try again. Remaining Attempt: {remaining}"
-                }, None
+                return _record_failed_login_attempt(
+                    ident,
+                    base_count,
+                    now,
+                    f"ERPNext authentication error (HTTP {e.code}). Please try again."
+                ), None
         except Exception as e:
             if attempt == max_retries - 1:
                 server_host = get_server_display_name()
@@ -623,15 +694,12 @@ def verify_erpnext_credentials(usr, pwd):
             time.sleep(0.5)
 
     if login_data.get("message") != "Logged In":
-        new_count = count + 1
-        remaining = max(0, 5 - new_count)
-        STREAMLIT_LOGIN_ATTEMPTS[ident] = (new_count, 0)
-        return {
-            "success": False,
-            "authorized": False,
-            "remaining_attempts": remaining,
-            "message": f"Authentication failed on ERPNext. Remaining Attempt: {remaining}"
-        }, None
+        return _record_failed_login_attempt(
+            ident,
+            base_count,
+            now,
+            "Authentication failed on ERPNext."
+        ), None
 
     # Verify that a new valid sid cookie was genuinely issued into the isolated jar
     has_sid = any(c.name == 'sid' and c.value and c.value != 'Guest' for c in isolated_jar)
@@ -644,6 +712,7 @@ def verify_erpnext_credentials(usr, pwd):
 
     # Success! Reset failed attempts for this user
     STREAMLIT_LOGIN_ATTEMPTS.pop(ident, None)
+    _set_session_failed_attempts(ident, 0)
 
     full_name = login_data.get("full_name") or usr
 
@@ -2466,7 +2535,11 @@ if component_val and isinstance(component_val, dict):
         if action == "login":
             usr = component_val.get("usr")
             pwd = component_val.get("pwd")
-            res, opener = verify_erpnext_credentials(usr, pwd)
+            res, opener = verify_erpnext_credentials(
+                usr,
+                pwd,
+                client_failed_attempts=component_val.get("failed_attempts", 0)
+            )
             st.session_state["auth_response"] = res
             st.session_state["pending_auth_delivery"] = True
             if res.get("authorized") and opener:
