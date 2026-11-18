@@ -6156,6 +6156,8 @@ const BASELINE_ERP_TERRITORIES = [
         } else {
           localStorage.removeItem('sfe_security_lockout');
           this.lockoutUntil = 0;
+          this.failedAttempts = 0;
+          try { sessionStorage.removeItem('sfe_failed_attempts'); } catch (_) {}
         }
       }
       if (this.lockoutUntil > Date.now()) {
@@ -6187,9 +6189,11 @@ const BASELINE_ERP_TERRITORIES = [
     },
 
     recordFailedAttempt(isViolation = false, explicitCount = null) {
-      let current = (typeof explicitCount === 'number' && !isNaN(explicitCount))
-        ? Math.max(0, explicitCount)
-        : (this.getFailedAttempts() + 1);
+      const prev = this.getFailedAttempts();
+      const nextLocal = (prev >= this.MAX_ATTEMPTS ? 0 : prev) + 1;
+      const current = (typeof explicitCount === 'number' && !isNaN(explicitCount) && explicitCount > 0)
+        ? Math.max(nextLocal, explicitCount)
+        : nextLocal;
       this.failedAttempts = current;
       try { sessionStorage.setItem('sfe_failed_attempts', String(current)); } catch (_) {}
 
@@ -6807,9 +6811,11 @@ const BASELINE_ERP_TERRITORIES = [
             if (pwdInput) pwdInput.value = '';
             authenticatedUser = null;
             sessionStorage.removeItem('sfe_portal_user');
-            const explicitCount = (typeof auth.remaining_attempts === 'number')
-              ? Math.max(0, SecurityIntrusionGuard.MAX_ATTEMPTS - auth.remaining_attempts)
-              : null;
+            const explicitCount = (typeof auth.failed_attempts === 'number')
+              ? auth.failed_attempts
+              : (typeof auth.remaining_attempts === 'number'
+                ? Math.max(0, SecurityIntrusionGuard.MAX_ATTEMPTS - auth.remaining_attempts)
+                : null);
             const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, explicitCount);
             showLoginView();
             if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
@@ -7026,6 +7032,7 @@ const BASELINE_ERP_TERRITORIES = [
             action: "login",
             usr: usr,
             pwd: pwd,
+            failed_attempts: SecurityIntrusionGuard.getFailedAttempts(),
             timestamp: Date.now()
           }
         }, "*");
@@ -7094,9 +7101,11 @@ const BASELINE_ERP_TERRITORIES = [
       sessionStorage.removeItem('sfe_portal_user');
       isActivelyLoggingIn = false;
 
-      const explicitCount = (data && typeof data.remaining_attempts === 'number')
-        ? Math.max(0, SecurityIntrusionGuard.MAX_ATTEMPTS - data.remaining_attempts)
-        : null;
+      const explicitCount = (data && typeof data.failed_attempts === 'number')
+        ? data.failed_attempts
+        : ((data && typeof data.remaining_attempts === 'number')
+          ? Math.max(0, SecurityIntrusionGuard.MAX_ATTEMPTS - data.remaining_attempts)
+          : null);
       const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, explicitCount);
       const errMsg = (data && data.message)
         ? data.message
