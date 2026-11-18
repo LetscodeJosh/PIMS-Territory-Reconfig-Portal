@@ -87,9 +87,9 @@
         desc: 'Use Actions to Add Territories, Batch Rename Codes, Transfer Doctors, Switch Tree/Grid View, or Export CSV.'
       },
       {
-        selector: '#territoryTreeView, #gridTableView',
-        title: 'Interactive Territory Workspace',
-        desc: 'Expand hierarchy branches, filter territory codes, or update assigned MedReps directly in this workspace.'
+        selector: '#territoryTreeToolbar, #erpGridFilterToolbar',
+        title: 'Territory Tree & Filter Bar',
+        desc: 'Filter territories, expand or collapse branches, add new nodes, or switch views directly from this workspace.'
       },
       {
         selector: '#btn-tab-realignment',
@@ -178,8 +178,8 @@
     const arrow = document.getElementById('interactiveTourArrow');
     if (!card || !spotlight) return;
 
-    const vw = (typeof window !== 'undefined' && window.innerWidth) ? window.innerWidth : 1280;
-    const vh = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : 720;
+    const vw = Math.min((typeof window !== 'undefined' && window.innerWidth) ? window.innerWidth : 1280, (typeof document !== 'undefined' && document.documentElement && document.documentElement.clientWidth) ? document.documentElement.clientWidth : 1280);
+    const vh = Math.min((typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : 720, (typeof document !== 'undefined' && document.documentElement && document.documentElement.clientHeight) ? document.documentElement.clientHeight : 720);
 
     let rect = null;
     if (targetEl && typeof targetEl.getBoundingClientRect === 'function') {
@@ -200,8 +200,8 @@
     const pad = 6;
     const spotLeft = Math.max(4, Math.round(rect.left - pad));
     const spotTop = Math.max(4, Math.round(rect.top - pad));
-    const spotWidth = Math.min(vw - 8, Math.round(rect.width + pad * 2));
-    const spotHeight = Math.min(vh - 8, Math.round(rect.height + pad * 2));
+    const spotWidth = Math.min(vw - spotLeft - 4, Math.round(rect.width + pad * 2));
+    const spotHeight = Math.min(vh - spotTop - 12, Math.round(rect.height + pad * 2));
 
     spotlight.style.display = 'block';
     spotlight.style.left = `${spotLeft}px`;
@@ -210,17 +210,17 @@
     spotlight.style.height = `${spotHeight}px`;
 
     const cardWidth = Math.min(340, vw - 32);
-    const cardHeight = (card.offsetHeight && card.offsetHeight > 60) ? card.offsetHeight : 210;
+    const cardHeight = Math.max(card.offsetHeight || 0, 215);
     const gap = 14;
 
-    let placement = 'bottom';
-    if (spotTop + spotHeight + gap + cardHeight <= vh - 12) {
+    let placement = 'inside-top';
+    if (spotTop + spotHeight + gap + cardHeight <= vh - 20) {
       placement = 'bottom';
-    } else if (spotTop - gap - cardHeight >= 12) {
+    } else if (spotTop - gap - cardHeight >= 16) {
       placement = 'top';
-    } else if (spotLeft + spotWidth + gap + cardWidth <= vw - 12) {
+    } else if (spotLeft + spotWidth + gap + cardWidth <= vw - 16) {
       placement = 'right';
-    } else if (spotLeft - gap - cardWidth >= 12) {
+    } else if (spotLeft - gap - cardWidth >= 16) {
       placement = 'left';
     }
 
@@ -229,34 +229,48 @@
 
     if (placement === 'bottom') {
       cardTop = spotTop + spotHeight + gap;
-      cardLeft = Math.max(16, Math.min(vw - cardWidth - 16, Math.round(spotLeft + spotWidth / 2 - cardWidth / 2)));
+      cardLeft = Math.round(spotLeft + spotWidth / 2 - cardWidth / 2);
     } else if (placement === 'top') {
-      cardTop = Math.max(16, spotTop - gap - cardHeight);
-      cardLeft = Math.max(16, Math.min(vw - cardWidth - 16, Math.round(spotLeft + spotWidth / 2 - cardWidth / 2)));
+      cardTop = spotTop - gap - cardHeight;
+      cardLeft = Math.round(spotLeft + spotWidth / 2 - cardWidth / 2);
     } else if (placement === 'right') {
       cardLeft = spotLeft + spotWidth + gap;
-      cardTop = Math.max(16, Math.min(vh - cardHeight - 16, Math.round(spotTop + spotHeight / 2 - cardHeight / 2)));
+      cardTop = Math.round(spotTop + spotHeight / 2 - cardHeight / 2);
+    } else if (placement === 'left') {
+      cardLeft = spotLeft - gap - cardWidth;
+      cardTop = Math.round(spotTop + spotHeight / 2 - cardHeight / 2);
     } else {
-      cardLeft = Math.max(16, spotLeft - gap - cardWidth);
-      cardTop = Math.max(16, Math.min(vh - cardHeight - 16, Math.round(spotTop + spotHeight / 2 - cardHeight / 2)));
+      cardTop = Math.max(20, spotTop + 16);
+      cardLeft = Math.round(spotLeft + spotWidth / 2 - cardWidth / 2);
     }
+
+    cardLeft = Math.max(16, Math.min(vw - cardWidth - 16, cardLeft));
+    cardTop = Math.max(16, Math.min(vh - cardHeight - 24, cardTop));
 
     card.style.left = `${cardLeft}px`;
     card.style.top = `${cardTop}px`;
 
     if (arrow) {
-      arrow.style.display = 'block';
-      arrow.className = `interactive-tour-arrow arrow-${placement}`;
-      if (placement === 'bottom' || placement === 'top') {
-        const arrowX = Math.max(18, Math.min(cardWidth - 28, Math.round(spotLeft + spotWidth / 2 - cardLeft - 7)));
-        arrow.style.left = `${arrowX}px`;
-        arrow.style.top = placement === 'bottom' ? '-7px' : '';
-        arrow.style.bottom = placement === 'top' ? '-7px' : '';
+      if (placement === 'inside-top') {
+        arrow.style.display = 'none';
       } else {
-        const arrowY = Math.max(18, Math.min(cardHeight - 28, Math.round(spotTop + spotHeight / 2 - cardTop - 7)));
-        arrow.style.top = `${arrowY}px`;
-        arrow.style.left = placement === 'right' ? '-7px' : '';
-        arrow.style.right = placement === 'left' ? '-7px' : '';
+        arrow.style.display = 'block';
+        arrow.className = `interactive-tour-arrow arrow-${placement}`;
+        arrow.style.top = '';
+        arrow.style.bottom = '';
+        arrow.style.left = '';
+        arrow.style.right = '';
+        if (placement === 'bottom' || placement === 'top') {
+          const arrowX = Math.max(18, Math.min(cardWidth - 28, Math.round(spotLeft + spotWidth / 2 - cardLeft - 7)));
+          arrow.style.left = `${arrowX}px`;
+          if (placement === 'bottom') arrow.style.top = '-7px';
+          if (placement === 'top') arrow.style.bottom = '-7px';
+        } else {
+          const arrowY = Math.max(18, Math.min(cardHeight - 28, Math.round(spotTop + spotHeight / 2 - cardTop - 7)));
+          arrow.style.top = `${arrowY}px`;
+          if (placement === 'right') arrow.style.left = '-7px';
+          if (placement === 'left') arrow.style.right = '-7px';
+        }
       }
     }
   }
@@ -3617,7 +3631,7 @@
 
         <!-- VIEW B: Territory Tree Format (Default View matching ERPNext, Zero Pagination Overlap) -->
         <div id="territoryTreeView" style="display:block;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+          <div id="territoryTreeToolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
             <div style="display:flex; align-items:center; gap:10px;">
               <h2 style="font-size:16px; font-weight:800; color:#0F172A; margin:0; display:flex; align-items:center; gap:8px;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0066FF" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
