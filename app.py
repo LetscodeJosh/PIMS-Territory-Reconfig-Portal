@@ -455,8 +455,24 @@ def request_erpnext_password_reset(user_email):
             "message": "SECURITY VIOLATION: Malicious command injection or forbidden characters detected in reset request."
         }
 
-    # Rate limiting: max 3 requests per 15 minutes
     ident = clean_user.lower()
+    target_email = _resolve_reset_user_email(clean_user)
+    target_ident = target_email.lower()
+    rec_ident = STREAMLIT_LOGIN_ATTEMPTS.get(ident, (0, 0))
+    rec_target = STREAMLIT_LOGIN_ATTEMPTS.get(target_ident, (0, 0))
+    max_failed = max(
+        int(rec_ident[0] or 0),
+        int(rec_target[0] or 0),
+        _get_session_failed_attempts(ident),
+        _get_session_failed_attempts(target_ident),
+    )
+    if max_failed < 5:
+        return {
+            "success": False,
+            "message": f"Password reset is only permitted after 5 failed login attempts for '{clean_user}'."
+        }
+
+    # Rate limiting: max 3 requests per 15 minutes
     now = time.time()
     req_record = STREAMLIT_RESET_REQUESTS.get(ident, (0, 0))
     count, reset_window = req_record
@@ -470,7 +486,6 @@ def request_erpnext_password_reset(user_email):
     else:
         STREAMLIT_RESET_REQUESTS[ident] = (1, now + 15 * 60)
 
-    target_email = _resolve_reset_user_email(clean_user)
     reset_url = f"{ERPNEXT_SERVER_URL}/api/method/frappe.core.doctype.user.user.reset_password"
     payload = urllib.parse.urlencode({"user": target_email}).encode("utf-8")
     headers = {
@@ -575,14 +590,17 @@ def _record_failed_login_attempt(ident, base_count, now, failure_prefix):
     new_count = min(5, max(0, int(base_count)) + 1)
     remaining = max(0, 5 - new_count)
     if new_count >= 5:
-        STREAMLIT_LOGIN_ATTEMPTS[ident] = (new_count, now + 15 * 60)
-        _set_session_failed_attempts(ident, 0)
+        lockout_seconds = 15 * 60
+        STREAMLIT_LOGIN_ATTEMPTS[ident] = (new_count, now + lockout_seconds)
+        _set_session_failed_attempts(ident, new_count)
         return {
             "success": False,
             "authorized": False,
+            "locked_user": ident,
             "failed_attempts": new_count,
             "remaining_attempts": 0,
-            "message": "Maximum 5 login attempts reached. Access locked for 15 minutes."
+            "lockout_remaining_seconds": lockout_seconds,
+            "message": "Maximum 5 login attempts reached. Cooldown remaining: 15:00 before you can enter your credentials again."
         }
     STREAMLIT_LOGIN_ATTEMPTS[ident] = (new_count, 0)
     _set_session_failed_attempts(ident, new_count)
@@ -612,13 +630,16 @@ def verify_erpnext_credentials(usr, pwd, client_failed_attempts=0):
     record_count, lockout_until = record
     sess_count = _get_session_failed_attempts(ident)
     if lockout_until > now:
-        mins = int((lockout_until - now) // 60) + 1
+        rem_seconds = max(1, int(round(lockout_until - now)))
+        mm, ss = divmod(rem_seconds, 60)
         return {
             "success": False,
             "authorized": False,
+            "locked_user": usr,
             "failed_attempts": 5,
             "remaining_attempts": 0,
-            "message": f"Maximum 5 login attempts reached. Access locked for {mins} minute(s)."
+            "lockout_remaining_seconds": rem_seconds,
+            "message": f"Maximum 5 login attempts reached. Cooldown remaining: {mm:02d}:{ss:02d} before you can enter your credentials again."
         }, None
     elif lockout_until > 0 and lockout_until <= now:
         STREAMLIT_LOGIN_ATTEMPTS.pop(ident, None)
@@ -627,7 +648,9 @@ def verify_erpnext_credentials(usr, pwd, client_failed_attempts=0):
         sess_count = 0
     elif record_count >= 5:
         STREAMLIT_LOGIN_ATTEMPTS.pop(ident, None)
+        _set_session_failed_attempts(ident, 0)
         record_count = 0
+        sess_count = 0
 
     try:
         client_count = max(0, min(4, int(client_failed_attempts or 0)))

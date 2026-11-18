@@ -2987,7 +2987,7 @@
             <label style="display:block; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:6px;">
               Email Address / Username
             </label>
-            <input type="text" id="resetUserEmail" class="form-control" placeholder="Enter the email used to log in" required style="background:#F8FAFC; border:1.5px solid #CBD5E1; color:#0F172A; font-size:13px; font-weight:600; padding:10px 12px; border-radius:6px; width:100%;">
+            <input type="text" id="resetUserEmail" class="form-control" placeholder="Locked to the account with 5 failed attempts" readonly required style="background:#F1F5F9; border:1.5px solid #CBD5E1; color:#475569; font-size:13px; font-weight:600; padding:10px 12px; border-radius:6px; width:100%; cursor:not-allowed;">
           </div>
 
           <div id="resetPasswordFeedback" style="display:none; padding:10px 12px; border-radius:6px; font-size:12px; margin-bottom:16px; font-weight:600; line-height:1.4;"></div>
@@ -6132,11 +6132,20 @@ const BASELINE_ERP_TERRITORIES = [
   }
   window.updateResetPasswordButtonVisibility = updateResetPasswordButtonVisibility;
 
+  function formatCooldownMMSS(totalSeconds) {
+    const sec = Math.max(0, Math.ceil(Number(totalSeconds) || 0));
+    const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+    const ss = String(sec % 60).padStart(2, '0');
+    return `${mm}:${ss}`;
+  }
+
   // Security Intrusion Sentinel for Authentication Guarding (5 Attempts Max & Anti-Injection)
   const SecurityIntrusionGuard = {
     MAX_ATTEMPTS: 5,
     failedAttempts: 0,
     lockoutUntil: 0,
+    lockedUsername: '',
+    cooldownTimerId: null,
 
     getFailedAttempts() {
       try {
@@ -6147,24 +6156,106 @@ const BASELINE_ERP_TERRITORIES = [
       }
     },
 
-    isLockedOut() {
-      const savedLockout = localStorage.getItem('sfe_security_lockout');
-      if (savedLockout) {
-        const val = parseInt(savedLockout, 10);
-        if (!isNaN(val) && val > Date.now()) {
-          this.lockoutUntil = val;
-        } else {
-          localStorage.removeItem('sfe_security_lockout');
-          this.lockoutUntil = 0;
-          this.failedAttempts = 0;
-          try { sessionStorage.removeItem('sfe_failed_attempts'); } catch (_) {}
+    getLockedUsername() {
+      if (this.lockedUsername) return this.lockedUsername;
+      try {
+        return localStorage.getItem('sfe_locked_username') || '';
+      } catch (_) {
+        return '';
+      }
+    },
+
+    setLoginInputsLocked(locked) {
+      const isLocked = Boolean(locked);
+      const usrEl = document.getElementById('loginUsername');
+      const pwdEl = document.getElementById('loginPassword');
+      const btnEl = document.getElementById('loginSubmitBtn');
+      [usrEl, pwdEl, btnEl].forEach(el => {
+        if (!el) return;
+        el.disabled = isLocked;
+        if (el.style) {
+          el.style.opacity = isLocked ? '0.6' : '1';
+          el.style.cursor = isLocked ? 'not-allowed' : (el === btnEl ? 'pointer' : '');
         }
+      });
+    },
+
+    startCooldownCountdown(durationSeconds, username = '') {
+      if (this.cooldownTimerId) {
+        clearInterval(this.cooldownTimerId);
+        this.cooldownTimerId = null;
       }
+      const secTotal = Math.max(1, Math.ceil(Number(durationSeconds) || 15 * 60));
+      this.lockoutUntil = Date.now() + secTotal * 1000;
+      const targetUser = (username || this.getLockedUsername() || ((document.getElementById('loginUsername') || {}).value || '')).trim();
+      if (targetUser) {
+        this.lockedUsername = targetUser;
+        try { localStorage.setItem('sfe_locked_username', targetUser); } catch (_) {}
+      }
+      try { localStorage.setItem('sfe_security_lockout', String(this.lockoutUntil)); } catch (_) {}
+
+      this.setLoginInputsLocked(true);
+      updateResetPasswordButtonVisibility(true);
+
+      const renderTick = () => {
+        const remSec = Math.max(0, Math.ceil((this.lockoutUntil - Date.now()) / 1000));
+        if (remSec <= 0) {
+          if (this.cooldownTimerId) {
+            clearInterval(this.cooldownTimerId);
+            this.cooldownTimerId = null;
+          }
+          this.reset();
+          const errBox = document.getElementById('loginErrorBox');
+          if (errBox) {
+            errBox.style.display = 'none';
+            errBox.textContent = '';
+          }
+          return;
+        }
+        const msg = `Maximum 5 login attempts reached. Cooldown remaining: ${formatCooldownMMSS(remSec)} before you can enter your credentials again.`;
+        if (typeof showLoginError === 'function') {
+          showLoginError(msg);
+        } else {
+          const errBox = document.getElementById('loginErrorBox');
+          if (errBox) {
+            errBox.textContent = msg;
+            errBox.style.display = 'block';
+          }
+        }
+      };
+
+      renderTick();
+      this.cooldownTimerId = setInterval(renderTick, 1000);
+    },
+
+    isLockedOut() {
+      try {
+        const savedLockout = localStorage.getItem('sfe_security_lockout');
+        if (savedLockout) {
+          const val = parseInt(savedLockout, 10);
+          if (!isNaN(val) && val > Date.now()) {
+            this.lockoutUntil = val;
+          } else {
+            localStorage.removeItem('sfe_security_lockout');
+            localStorage.removeItem('sfe_locked_username');
+            this.lockoutUntil = 0;
+            this.lockedUsername = '';
+            this.failedAttempts = 0;
+            try { sessionStorage.removeItem('sfe_failed_attempts'); } catch (_) {}
+          }
+        }
+      } catch (_) {}
       if (this.lockoutUntil > Date.now()) {
-        updateResetPasswordButtonVisibility(true);
-        const remainingMinutes = Math.ceil((this.lockoutUntil - Date.now()) / 60000);
-        return `Security Access Frozen: Maximum login attempts exceeded. Access locked for ${remainingMinutes} minute(s). Please wait before trying again.`;
+        const remSec = Math.max(1, Math.ceil((this.lockoutUntil - Date.now()) / 1000));
+        if (!this.cooldownTimerId) {
+          this.startCooldownCountdown(remSec, this.getLockedUsername());
+        } else {
+          this.setLoginInputsLocked(true);
+          updateResetPasswordButtonVisibility(true);
+        }
+        return `Maximum 5 login attempts reached. Cooldown remaining: ${formatCooldownMMSS(remSec)} before you can enter your credentials again.`;
       }
+      this.setLoginInputsLocked(false);
       updateResetPasswordButtonVisibility(this.getFailedAttempts() >= this.MAX_ATTEMPTS);
       return false;
     },
@@ -6188,7 +6279,7 @@ const BASELINE_ERP_TERRITORIES = [
       return false;
     },
 
-    recordFailedAttempt(isViolation = false, explicitCount = null) {
+    recordFailedAttempt(isViolation = false, explicitCount = null, lockoutSeconds = null, username = '') {
       const prev = this.getFailedAttempts();
       const nextLocal = (prev >= this.MAX_ATTEMPTS ? 0 : prev) + 1;
       const current = (typeof explicitCount === 'number' && !isNaN(explicitCount) && explicitCount > 0)
@@ -6200,32 +6291,47 @@ const BASELINE_ERP_TERRITORIES = [
       const reachedMax = current >= this.MAX_ATTEMPTS;
       updateResetPasswordButtonVisibility(reachedMax);
       if (reachedMax) {
-        this.lockoutUntil = Date.now() + 15 * 60 * 1000; // 15 min lock
-        try { localStorage.setItem('sfe_security_lockout', String(this.lockoutUntil)); } catch (_) {}
-        setTimeout(() => openResetPasswordModal(), 200);
+        const secs = (typeof lockoutSeconds === 'number' && lockoutSeconds > 0) ? lockoutSeconds : 15 * 60;
+        const targetUser = (username || ((document.getElementById('loginUsername') || {}).value || '')).trim();
+        this.startCooldownCountdown(secs, targetUser);
+        setTimeout(() => openResetPasswordModal(targetUser), 200);
       }
       return current;
     },
 
     reset() {
+      if (this.cooldownTimerId) {
+        clearInterval(this.cooldownTimerId);
+        this.cooldownTimerId = null;
+      }
       this.failedAttempts = 0;
       this.lockoutUntil = 0;
+      this.lockedUsername = '';
+      this.setLoginInputsLocked(false);
       updateResetPasswordButtonVisibility(false);
       try {
         sessionStorage.removeItem('sfe_failed_attempts');
         localStorage.removeItem('sfe_security_lockout');
+        localStorage.removeItem('sfe_locked_username');
       } catch (_) {}
     }
   };
 
   // --- ERPNext PASSWORD RESET MODAL CONTROLLER ---
   function openResetPasswordModal(prefillEmail = '') {
+    const canReset = SecurityIntrusionGuard.getFailedAttempts() >= SecurityIntrusionGuard.MAX_ATTEMPTS ||
+      Boolean(SecurityIntrusionGuard.isLockedOut());
+    if (!canReset) {
+      updateResetPasswordButtonVisibility(false);
+      return;
+    }
     const modal = document.getElementById('resetPasswordModalOverlay');
     if (!modal) return;
     const emailInput = document.getElementById('resetUserEmail');
     const loginUserInput = document.getElementById('loginUsername');
     if (emailInput) {
-      emailInput.value = prefillEmail || (loginUserInput ? loginUserInput.value.trim() : '');
+      emailInput.value = SecurityIntrusionGuard.getLockedUsername() || prefillEmail || (loginUserInput ? loginUserInput.value.trim() : '');
+      emailInput.readOnly = true;
     }
     const feedback = document.getElementById('resetPasswordFeedback');
     if (feedback) feedback.style.display = 'none';
@@ -6332,6 +6438,12 @@ const BASELINE_ERP_TERRITORIES = [
       feedback.textContent = cleanMsg || 'Password reset link has been sent to your registered email inbox.';
       if (btn) btn.disabled = true;
       if (btnText) btnText.innerHTML = 'Reset Link Sent';
+      SecurityIntrusionGuard.reset();
+      const errBox = document.getElementById('loginErrorBox');
+      if (errBox) {
+        errBox.style.display = 'none';
+        errBox.textContent = '';
+      }
       showToast('Password reset link sent successfully.', 'success');
     } else {
       feedback.style.background = '#FEE2E2';
@@ -6576,9 +6688,13 @@ const BASELINE_ERP_TERRITORIES = [
     // Show login screen
     const loginView = document.getElementById('loginView');
     if (loginView) loginView.style.display = 'flex';
-    const shouldShowReset = Boolean(SecurityIntrusionGuard.isLockedOut()) ||
+    const lockMsg = SecurityIntrusionGuard.isLockedOut();
+    const shouldShowReset = Boolean(lockMsg) ||
       SecurityIntrusionGuard.getFailedAttempts() >= SecurityIntrusionGuard.MAX_ATTEMPTS;
     updateResetPasswordButtonVisibility(shouldShowReset);
+    if (lockMsg) {
+      showLoginError(lockMsg);
+    }
 
     // Hide entire authenticated portal layout
     const portalLayout = document.getElementById('portalAppLayout');
@@ -6816,14 +6932,19 @@ const BASELINE_ERP_TERRITORIES = [
               : (typeof auth.remaining_attempts === 'number'
                 ? Math.max(0, SecurityIntrusionGuard.MAX_ATTEMPTS - auth.remaining_attempts)
                 : null);
-            const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, explicitCount);
+            const targetUser = (auth.locked_user || ((document.getElementById('loginUsername') || {}).value || '')).trim();
+            const lockoutSecs = (typeof auth.lockout_remaining_seconds === 'number' && auth.lockout_remaining_seconds > 0)
+              ? auth.lockout_remaining_seconds
+              : null;
+            const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, explicitCount, lockoutSecs, targetUser);
             showLoginView();
             if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
               updateResetPasswordButtonVisibility(true);
-              const lockText = 'Maximum 5 login attempts reached. Login locked for security. Please reset your ERPNext password.';
+              const mmss = formatCooldownMMSS(lockoutSecs || 15 * 60);
+              const lockText = `Maximum 5 login attempts reached. Cooldown remaining: ${mmss} before you can enter your credentials again.`;
               showLoginError(lockText);
               showToast(lockText, 'error');
-              openResetPasswordModal();
+              openResetPasswordModal(targetUser);
             } else {
               const formattedMsg = formatLoginAttemptError(auth.message, attempts);
               showLoginError(formattedMsg);
@@ -7000,7 +7121,7 @@ const BASELINE_ERP_TERRITORIES = [
     }
 
     if (SecurityIntrusionGuard.detectInjection(usr)) {
-      const attempts = SecurityIntrusionGuard.recordFailedAttempt(true);
+      const attempts = SecurityIntrusionGuard.recordFailedAttempt(true, null, null, usr);
       if (usrInput) usrInput.value = '';
       if (pwdInput) pwdInput.value = '';
       showLoginError('SECURITY VIOLATION: Malicious injection pattern detected. Access blocked and session restricted to safeguard system integrity.');
@@ -7050,10 +7171,10 @@ const BASELINE_ERP_TERRITORIES = [
           authenticatedUser = null;
           sessionStorage.removeItem('sfe_portal_user');
           isActivelyLoggingIn = false;
-          const attempts = SecurityIntrusionGuard.recordFailedAttempt();
+          const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, null, null, usr);
           if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
             updateResetPasswordButtonVisibility(true);
-            showLoginError('Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
+            showLoginError('Maximum 5 login attempts reached. Cooldown remaining: 15:00 before you can enter your credentials again.');
             openResetPasswordModal(usr);
           } else {
             showLoginError(formatLoginAttemptError('Authentication response timed out (15s). Please verify your network connection and credentials.', attempts));
@@ -7106,14 +7227,18 @@ const BASELINE_ERP_TERRITORIES = [
         : ((data && typeof data.remaining_attempts === 'number')
           ? Math.max(0, SecurityIntrusionGuard.MAX_ATTEMPTS - data.remaining_attempts)
           : null);
-      const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, explicitCount);
+      const lockoutSecs = (data && typeof data.lockout_remaining_seconds === 'number' && data.lockout_remaining_seconds > 0)
+        ? data.lockout_remaining_seconds
+        : null;
+      const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, explicitCount, lockoutSecs, (data && data.locked_user) || usr);
       const errMsg = (data && data.message)
         ? data.message
         : 'Invalid username or password. Please verify your credentials in your ERPNext account.';
       if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
         updateResetPasswordButtonVisibility(true);
-        showLoginError('Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
-        openResetPasswordModal(usr);
+        const mmss = formatCooldownMMSS(lockoutSecs || 15 * 60);
+        showLoginError(`Maximum 5 login attempts reached. Cooldown remaining: ${mmss} before you can enter your credentials again.`);
+        openResetPasswordModal((data && data.locked_user) || usr);
       } else {
         showLoginError(formatLoginAttemptError(errMsg, attempts));
       }
@@ -7123,10 +7248,10 @@ const BASELINE_ERP_TERRITORIES = [
       sessionStorage.removeItem('sfe_portal_user');
       isActivelyLoggingIn = false;
 
-      const attempts = SecurityIntrusionGuard.recordFailedAttempt();
+      const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, null, null, usr);
       if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
         updateResetPasswordButtonVisibility(true);
-        showLoginError('Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
+        showLoginError('Maximum 5 login attempts reached. Cooldown remaining: 15:00 before you can enter your credentials again.');
         openResetPasswordModal(usr);
       } else if (err.name === 'AbortError') {
         showLoginError(formatLoginAttemptError('Authentication timed out (15s). Please check your server connectivity.', attempts));
@@ -7134,7 +7259,7 @@ const BASELINE_ERP_TERRITORIES = [
         showLoginError(formatLoginAttemptError('Authentication server error. Please verify your network connection.', attempts));
       }
     } finally {
-      if (btn) btn.disabled = false;
+      if (btn) btn.disabled = Boolean(SecurityIntrusionGuard.lockoutUntil > Date.now());
       if (btnText) btnText.innerHTML = 'Login to Reconfiguration Portal';
     }
 
