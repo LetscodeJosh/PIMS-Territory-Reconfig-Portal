@@ -2843,6 +2843,28 @@
     background: #64748B;
   }
 
+  .reset-pwd-hover-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 11px;
+    border-radius: 6px;
+    border: 1px solid #BFDBFE;
+    background: #EFF6FF;
+    color: #0066FF;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .reset-pwd-hover-btn:hover {
+    background: #0066FF;
+    border-color: #0066FF;
+    color: #FFFFFF;
+    box-shadow: 0 4px 10px rgba(0, 102, 255, 0.22);
+  }
+
 </style>
 </head>
 <body>
@@ -2933,7 +2955,7 @@
               <input type="checkbox" id="loginRememberMe">
               <span>Remember username</span>
             </label>
-            <a id="forgotPasswordLink" href="javascript:void(0)" onclick="openResetPasswordModal()" style="font-size:12px; color:#0066FF; font-weight:700; text-decoration:none;">
+            <a id="forgotPasswordLink" class="reset-pwd-hover-btn" href="javascript:void(0)" onclick="openResetPasswordModal()" style="display:none;">
               Reset Password
             </a>
           </div>
@@ -6102,6 +6124,14 @@ const BASELINE_ERP_TERRITORIES = [
   let isActivelyLoggingIn = false;
   let lastProcessedResetTs = 0;
 
+  function updateResetPasswordButtonVisibility(show) {
+    const resetBtn = document.getElementById('forgotPasswordLink');
+    if (resetBtn) {
+      resetBtn.style.display = show ? 'inline-flex' : 'none';
+    }
+  }
+  window.updateResetPasswordButtonVisibility = updateResetPasswordButtonVisibility;
+
   // Security Intrusion Sentinel for Authentication Guarding (5 Attempts Max & Anti-Injection)
   const SecurityIntrusionGuard = {
     MAX_ATTEMPTS: 5,
@@ -6111,7 +6141,7 @@ const BASELINE_ERP_TERRITORIES = [
     getFailedAttempts() {
       try {
         const val = parseInt(sessionStorage.getItem('sfe_failed_attempts'), 10);
-        return isNaN(val) ? 0 : val;
+        return isNaN(val) ? this.failedAttempts : val;
       } catch (_) {
         return this.failedAttempts;
       }
@@ -6129,9 +6159,11 @@ const BASELINE_ERP_TERRITORIES = [
         }
       }
       if (this.lockoutUntil > Date.now()) {
+        updateResetPasswordButtonVisibility(true);
         const remainingMinutes = Math.ceil((this.lockoutUntil - Date.now()) / 60000);
         return `Security Access Frozen: Maximum login attempts exceeded. Access locked for ${remainingMinutes} minute(s). Please wait before trying again.`;
       }
+      updateResetPasswordButtonVisibility(this.getFailedAttempts() >= this.MAX_ATTEMPTS);
       return false;
     },
 
@@ -6161,7 +6193,9 @@ const BASELINE_ERP_TERRITORIES = [
       this.failedAttempts = current;
       try { sessionStorage.setItem('sfe_failed_attempts', String(current)); } catch (_) {}
 
-      if (current >= this.MAX_ATTEMPTS) {
+      const reachedMax = current >= this.MAX_ATTEMPTS;
+      updateResetPasswordButtonVisibility(reachedMax);
+      if (reachedMax) {
         this.lockoutUntil = Date.now() + 15 * 60 * 1000; // 15 min lock
         try { localStorage.setItem('sfe_security_lockout', String(this.lockoutUntil)); } catch (_) {}
         setTimeout(() => openResetPasswordModal(), 200);
@@ -6172,6 +6206,7 @@ const BASELINE_ERP_TERRITORIES = [
     reset() {
       this.failedAttempts = 0;
       this.lockoutUntil = 0;
+      updateResetPasswordButtonVisibility(false);
       try {
         sessionStorage.removeItem('sfe_failed_attempts');
         localStorage.removeItem('sfe_security_lockout');
@@ -6537,6 +6572,9 @@ const BASELINE_ERP_TERRITORIES = [
     // Show login screen
     const loginView = document.getElementById('loginView');
     if (loginView) loginView.style.display = 'flex';
+    const shouldShowReset = Boolean(SecurityIntrusionGuard.isLockedOut()) ||
+      SecurityIntrusionGuard.getFailedAttempts() >= SecurityIntrusionGuard.MAX_ATTEMPTS;
+    updateResetPasswordButtonVisibility(shouldShowReset);
 
     // Hide entire authenticated portal layout
     const portalLayout = document.getElementById('portalAppLayout');
@@ -6775,6 +6813,7 @@ const BASELINE_ERP_TERRITORIES = [
             const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, explicitCount);
             showLoginView();
             if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
+              updateResetPasswordButtonVisibility(true);
               const lockText = 'Maximum 5 login attempts reached. Login locked for security. Please reset your ERPNext password.';
               showLoginError(lockText);
               showToast(lockText, 'error');
@@ -6960,6 +6999,7 @@ const BASELINE_ERP_TERRITORIES = [
       if (pwdInput) pwdInput.value = '';
       showLoginError('SECURITY VIOLATION: Malicious injection pattern detected. Access blocked and session restricted to safeguard system integrity.');
       if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
+        updateResetPasswordButtonVisibility(true);
         openResetPasswordModal(usr);
       }
       return;
@@ -7005,6 +7045,7 @@ const BASELINE_ERP_TERRITORIES = [
           isActivelyLoggingIn = false;
           const attempts = SecurityIntrusionGuard.recordFailedAttempt();
           if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
+            updateResetPasswordButtonVisibility(true);
             showLoginError('Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
             openResetPasswordModal(usr);
           } else {
@@ -7061,6 +7102,7 @@ const BASELINE_ERP_TERRITORIES = [
         ? data.message
         : 'Invalid username or password. Please verify your credentials in your ERPNext account.';
       if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
+        updateResetPasswordButtonVisibility(true);
         showLoginError('Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
         openResetPasswordModal(usr);
       } else {
@@ -7074,6 +7116,7 @@ const BASELINE_ERP_TERRITORIES = [
 
       const attempts = SecurityIntrusionGuard.recordFailedAttempt();
       if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
+        updateResetPasswordButtonVisibility(true);
         showLoginError('Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
         openResetPasswordModal(usr);
       } else if (err.name === 'AbortError') {
