@@ -2933,17 +2933,14 @@
               <input type="checkbox" id="loginRememberMe">
               <span>Remember username</span>
             </label>
+            <a id="forgotPasswordLink" href="javascript:void(0)" onclick="openResetPasswordModal()" style="font-size:12px; color:#0066FF; font-weight:700; text-decoration:none;">
+              Reset Password
+            </a>
           </div>
 
           <button type="submit" id="loginSubmitBtn" class="btn btn-primary" style="width:100%; padding:11px; font-size:13px; font-weight:700; border-radius:6px; display:flex; justify-content:center; align-items:center; gap:8px;">
             <span id="loginBtnText">Login to Reconfiguration Portal</span>
           </button>
-
-          <div style="text-align:center; margin-top:14px;">
-            <a href="javascript:void(0)" onclick="openResetPasswordModal()" style="font-size:11.5px; color:#0066FF; font-weight:700; text-decoration:none;">
-              Forgot Password?
-            </a>
-          </div>
         </form>
 
       </div>
@@ -2953,15 +2950,10 @@
   <!-- ERPNext Password Reset Modal Overlay (Auto-triggered upon 5 failed attempts or manual click) -->
   <div id="resetPasswordModalOverlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15, 23, 42, 0.78); backdrop-filter:blur(6px); z-index:999999; justify-content:center; align-items:center; padding:16px;">
     <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.35); width:100%; max-width:440px; overflow:hidden; animation:modalPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
-      <!-- Header with Cyber-Grade Security Shield -->
+      <!-- Header -->
       <div style="background:linear-gradient(135deg, #0F172A 0%, #1E293B 100%); padding:20px 24px; border-bottom:1px solid #334155; display:flex; align-items:center; justify-content:space-between;">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div style="width:36px; height:36px; border-radius:8px; background:rgba(239, 68, 68, 0.15); border:1px solid rgba(239, 68, 68, 0.3); display:flex; align-items:center; justify-content:center; color:#EF4444; font-size:18px;">
-            🔒
-          </div>
-          <div>
-            <h3 style="margin:0; font-size:15px; font-weight:700; color:#F8FAFC;">Forgot Password</h3>
-          </div>
+        <div>
+          <h3 style="margin:0; font-size:15px; font-weight:700; color:#F8FAFC;">Reset Password</h3>
         </div>
         <button type="button" onclick="closeResetPasswordModal()" style="background:transparent; border:none; color:#94A3B8; font-size:18px; cursor:pointer; padding:4px;">✕</button>
       </div>
@@ -2971,15 +2963,15 @@
         <form id="resetPasswordForm" onsubmit="handleResetPasswordSubmit(event); return false;">
           <div class="form-group" style="margin-bottom:16px;">
             <label style="display:block; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:6px;">
-              Username
+              Email Address / Username
             </label>
-            <input type="text" id="resetUserEmail" class="form-control" placeholder="Enter your username" required style="background:#F8FAFC; border:1.5px solid #CBD5E1; color:#0F172A; font-size:13px; font-weight:600; padding:10px 12px; border-radius:6px; width:100%;">
+            <input type="text" id="resetUserEmail" class="form-control" placeholder="Enter the email used to log in" required style="background:#F8FAFC; border:1.5px solid #CBD5E1; color:#0F172A; font-size:13px; font-weight:600; padding:10px 12px; border-radius:6px; width:100%;">
           </div>
 
           <div id="resetPasswordFeedback" style="display:none; padding:10px 12px; border-radius:6px; font-size:12px; margin-bottom:16px; font-weight:600; line-height:1.4;"></div>
 
           <button type="submit" id="btnSubmitResetPassword" class="btn btn-primary" style="width:100%; padding:11px; font-size:13px; font-weight:700; border-radius:6px; display:flex; justify-content:center; align-items:center; gap:8px;">
-            <span id="resetBtnText">Submit Password Reset Request</span>
+            <span id="resetBtnText">Send Password Reset Link</span>
           </button>
 
           <div style="text-align:center; margin-top:14px;">
@@ -5620,6 +5612,30 @@ const BASELINE_ERP_TERRITORIES = [
     return null;
   }
 
+  function getSelectedProgramName() {
+    const progSelect = (typeof document !== 'undefined') ? document.getElementById('programSelect') : null;
+    if (progSelect && progSelect.value) {
+      return progSelect.value;
+    }
+    return (typeof activeProgram !== 'undefined' && activeProgram) ? activeProgram : 'Abbott Diabetes Care';
+  }
+
+  function findRosterProgram(spName) {
+    if (!spName || typeof PROGRAM_SALES_PERSON_ROSTER !== 'object' || !PROGRAM_SALES_PERSON_ROSTER) return null;
+    const lowerName = spName.trim().toLowerCase();
+    const cleanLookupName = spName.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+    for (const [progKey, roster] of Object.entries(PROGRAM_SALES_PERSON_ROSTER)) {
+      for (const item of roster) {
+        const rawItemName = (item.sales_person_name || item.name || '').trim();
+        const itemClean = rawItemName.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+        if (rawItemName.toLowerCase() === lowerName || (cleanLookupName && itemClean === cleanLookupName)) {
+          return progKey;
+        }
+      }
+    }
+    return null;
+  }
+
   function detectSalesPersonProgram(spOrName) {
     if (!spOrName) return null;
     const spName = typeof spOrName === 'string'
@@ -5630,15 +5646,8 @@ const BASELINE_ERP_TERRITORIES = [
     const spMap = getSalesPersonProgramMap();
     if (spMap[spName]) return spMap[spName];
 
-    const cleanLookupName = spName.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
-    for (const [progKey, roster] of Object.entries(PROGRAM_SALES_PERSON_ROSTER || {})) {
-      for (const item of roster) {
-        const itemClean = (item.sales_person_name || item.name).replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
-        if (item.name.toLowerCase() === spName.toLowerCase() || itemClean === cleanLookupName) {
-          return progKey;
-        }
-      }
-    }
+    const rosterProg = findRosterProgram(spName);
+    if (rosterProg) return rosterProg;
 
     const spList = (typeof availableSalesPersons !== 'undefined' && Array.isArray(availableSalesPersons))
       ? availableSalesPersons
@@ -5661,7 +5670,9 @@ const BASELINE_ERP_TERRITORIES = [
     while (currName && currName !== 'Sales Team' && !visited.has(currName)) {
       visited.add(currName);
       if (spMap[currName]) return spMap[currName];
-      const node = lookup[currName];
+      const currRosterProg = findRosterProgram(currName);
+      if (currRosterProg) return currRosterProg;
+      const node = lookup[currName] || (currName === spName ? spObj : null);
       if (node) {
         const nodeExplicit = normalizeProgramName(node.program || node.custom_account_or_program || '');
         if (nodeExplicit) return nodeExplicit;
@@ -5721,7 +5732,7 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function isSalesPersonInProgram(spOrName, programName, allowRootSalesTeam = false) {
-    const targetProg = programName || activeProgram || 'Abbott Diabetes Care';
+    const targetProg = programName || getSelectedProgramName();
     const spName = typeof spOrName === 'string'
       ? spOrName.trim()
       : String((spOrName && (spOrName.sales_person_name || spOrName.name)) || '').trim();
@@ -5734,7 +5745,7 @@ const BASELINE_ERP_TERRITORIES = [
     if (detected) {
       return detected === targetProg;
     }
-    return true;
+    return false;
   }
 
   function isEmployeeInProgram(emp, programName) {
@@ -5845,6 +5856,12 @@ const BASELINE_ERP_TERRITORIES = [
     }
     const titleEl = document.getElementById('activeProgTitle');
     if (titleEl) titleEl.innerText = activeProgram;
+
+    const newSpParentVal = (document.getElementById('newSpParentInput') || {}).value;
+    if (newSpParentVal && !isSalesPersonInProgram(newSpParentVal, activeProgram, false) && typeof clearErpSelection === 'function') {
+      clearErpSelection('newSpParent');
+    }
+    populateParentSalesPersonSelect();
 
     const progData = LIVE_DATA[activeProgram] || { territories: [], accounts: [] };
     const baseMap = new Map();
@@ -6113,7 +6130,7 @@ const BASELINE_ERP_TERRITORIES = [
       }
       if (this.lockoutUntil > Date.now()) {
         const remainingMinutes = Math.ceil((this.lockoutUntil - Date.now()) / 60000);
-        return `🔒 Security Access Frozen: Maximum login attempts exceeded. Access locked for ${remainingMinutes} minute(s). Please wait before trying again.`;
+        return `Security Access Frozen: Maximum login attempts exceeded. Access locked for ${remainingMinutes} minute(s). Please wait before trying again.`;
       }
       return false;
     },
@@ -6137,8 +6154,10 @@ const BASELINE_ERP_TERRITORIES = [
       return false;
     },
 
-    recordFailedAttempt(isViolation = false) {
-      let current = this.getFailedAttempts() + 1;
+    recordFailedAttempt(isViolation = false, explicitCount = null) {
+      let current = (typeof explicitCount === 'number' && !isNaN(explicitCount))
+        ? Math.max(0, explicitCount)
+        : (this.getFailedAttempts() + 1);
       this.failedAttempts = current;
       try { sessionStorage.setItem('sfe_failed_attempts', String(current)); } catch (_) {}
 
@@ -6174,7 +6193,7 @@ const BASELINE_ERP_TERRITORIES = [
     const btn = document.getElementById('btnSubmitResetPassword');
     const btnText = document.getElementById('resetBtnText');
     if (btn) btn.disabled = false;
-    if (btnText) btnText.innerHTML = 'Submit Password Reset Request';
+    if (btnText) btnText.innerHTML = 'Send Password Reset Link';
     modal.style.display = 'flex';
   }
   window.openResetPasswordModal = openResetPasswordModal;
@@ -6199,7 +6218,7 @@ const BASELINE_ERP_TERRITORIES = [
         feedback.style.background = '#FEE2E2';
         feedback.style.border = '1px solid #FCA5A5';
         feedback.style.color = '#991B1B';
-        feedback.innerHTML = '⚠️ Please enter your username.';
+        feedback.textContent = 'Please enter your email address or username.';
       }
       return;
     }
@@ -6210,13 +6229,13 @@ const BASELINE_ERP_TERRITORIES = [
         feedback.style.background = '#FEE2E2';
         feedback.style.border = '1px solid #FCA5A5';
         feedback.style.color = '#991B1B';
-        feedback.innerHTML = '⚠️ SECURITY VIOLATION: Suspicious characters or command injection pattern detected. Request blocked.';
+        feedback.textContent = 'SECURITY VIOLATION: Suspicious characters or command injection pattern detected. Request blocked.';
       }
       return;
     }
 
     if (btn) btn.disabled = true;
-    if (btnText) btnText.innerHTML = 'Submitting Request...';
+    if (btnText) btnText.innerHTML = 'Sending Reset Link...';
     if (feedback) feedback.style.display = 'none';
 
     // 1. If running in Streamlit component iframe
@@ -6235,7 +6254,7 @@ const BASELINE_ERP_TERRITORIES = [
       setTimeout(() => {
         if (btn && btn.disabled) {
           btn.disabled = false;
-          if (btnText) btnText.innerHTML = 'Submit Password Reset Request';
+          if (btnText) btnText.innerHTML = 'Send Password Reset Link';
         }
       }, 15000);
       return;
@@ -6254,7 +6273,7 @@ const BASELINE_ERP_TERRITORIES = [
       handleResetPasswordResponse({ success: false, message: 'Could not communicate with authentication server. Please verify network connectivity.' });
     } finally {
       if (btn) btn.disabled = false;
-      if (btnText) btnText.innerHTML = 'Submit Password Reset Request';
+      if (btnText) btnText.innerHTML = 'Send Password Reset Link';
     }
   }
   window.handleResetPasswordSubmit = handleResetPasswordSubmit;
@@ -6266,19 +6285,20 @@ const BASELINE_ERP_TERRITORIES = [
     if (!feedback) return;
 
     feedback.style.display = 'block';
+    const cleanMsg = stripLoginAlertDecorations(resp && resp.message ? resp.message : '');
     if (resp && resp.success) {
       feedback.style.background = '#ECFDF5';
       feedback.style.border = '1px solid #6EE7B7';
       feedback.style.color = '#065F46';
-      feedback.innerHTML = `✅ ${escapeHtml(resp.message || 'Password reset request received. Please check your registered email or contact your ERPNext System Administrator.')}`;
+      feedback.textContent = cleanMsg || 'Password reset link has been sent to your registered email inbox.';
       if (btn) btn.disabled = true;
-      if (btnText) btnText.innerHTML = 'Request Submitted';
-      showToast('Password reset request submitted successfully.', 'success');
+      if (btnText) btnText.innerHTML = 'Reset Link Sent';
+      showToast('Password reset link sent successfully.', 'success');
     } else {
       feedback.style.background = '#FEE2E2';
       feedback.style.border = '1px solid #FCA5A5';
       feedback.style.color = '#991B1B';
-      feedback.innerHTML = `⚠️ ${escapeHtml(resp && resp.message ? resp.message : 'Failed to submit password reset request. Please verify username/email.')}`;
+      feedback.textContent = cleanMsg || 'Failed to send password reset link. Please verify your email address or username.';
       if (btn) btn.disabled = false;
       if (btnText) btnText.innerHTML = 'Retry Password Reset';
     }
@@ -6597,13 +6617,76 @@ const BASELINE_ERP_TERRITORIES = [
 
   let streamlitLoginWatchdog = null;
 
+  function getProgramScopedSalesPersonPool(programName) {
+    const targetProg = programName || getSelectedProgramName();
+    const spPool = [];
+    const seenNames = new Set(['sales team']);
+
+    if (typeof availableSalesPersons !== 'undefined' && Array.isArray(availableSalesPersons)) {
+      availableSalesPersons.forEach(s => {
+        const sName = (s && (s.sales_person_name || s.name)) ? String(s.sales_person_name || s.name).trim() : '';
+        if (!sName || seenNames.has(sName.toLowerCase())) return;
+        if (s.enabled === 0 || s.enabled === false) return;
+        if (!isSalesPersonInProgram(s, targetProg, false)) return;
+        seenNames.add(sName.toLowerCase());
+        spPool.push(s);
+      });
+    }
+
+    // Include baseline program roster entries not yet in availableSalesPersons
+    const progRoster = (typeof PROGRAM_SALES_PERSON_ROSTER === 'object' && PROGRAM_SALES_PERSON_ROSTER && PROGRAM_SALES_PERSON_ROSTER[targetProg]) || [];
+    progRoster.forEach(s => {
+      const sName = (s && (s.sales_person_name || s.name)) ? String(s.sales_person_name || s.name).trim() : '';
+      if (!sName || seenNames.has(sName.toLowerCase())) return;
+      if (s.enabled === 0 || s.enabled === false) return;
+      seenNames.add(sName.toLowerCase());
+      spPool.push(s);
+    });
+
+    // Include program-specific MedReps from active programTerritories or LIVE_DATA[targetProg]
+    const terrSources = [];
+    if (typeof programTerritories !== 'undefined' && Array.isArray(programTerritories) && targetProg === activeProgram) {
+      const allowedTerrs = getProgramTerritoryNames(targetProg);
+      programTerritories.forEach(pt => {
+        const code = pt && (pt.activeCode || pt.histCode || pt.latestPrevCode);
+        if (!code || allowedTerrs.has(code)) terrSources.push(pt);
+      });
+    }
+    const baseTerrs = (typeof LIVE_DATA === 'object' && LIVE_DATA && LIVE_DATA[targetProg] && Array.isArray(LIVE_DATA[targetProg].territories))
+      ? LIVE_DATA[targetProg].territories
+      : [];
+    baseTerrs.forEach(bt => terrSources.push(bt));
+
+    terrSources.forEach(pt => {
+      const rawRep = (typeof cleanRepDisplayName === 'function')
+        ? cleanRepDisplayName(pt && pt.rep)
+        : String((pt && pt.rep) || '').trim();
+      const lowerRep = rawRep.toLowerCase();
+      if (!rawRep || lowerRep.includes('unassigned') || lowerRep.includes('vacant') || lowerRep.includes('folder')) return;
+      if (seenNames.has(lowerRep)) return;
+      seenNames.add(lowerRep);
+      spPool.push({
+        name: rawRep,
+        sales_person_name: rawRep,
+        parent_sales_person: targetProg,
+        is_group: 0,
+        enabled: 1,
+        program: targetProg
+      });
+    });
+
+    return spPool;
+  }
+
   function populateParentSalesPersonSelect() {
     const select = document.getElementById('newSpParentSelect');
-    if (select && Array.isArray(availableSalesPersons)) {
+    if (select) {
+      const currentProg = getSelectedProgramName();
+      const pool = getProgramScopedSalesPersonPool(currentProg);
       select.innerHTML = '';
-      availableSalesPersons.forEach(sp => {
+      pool.forEach(sp => {
         const name = typeof sp === 'string' ? sp : (sp.sales_person_name || sp.name);
-        if (name && name.toLowerCase() !== 'sales team' && isSalesPersonInProgram(sp, activeProgram, false)) {
+        if (name && name.toLowerCase() !== 'sales team') {
           const opt = document.createElement('option');
           opt.value = name;
           opt.textContent = name;
@@ -6686,15 +6769,21 @@ const BASELINE_ERP_TERRITORIES = [
             if (pwdInput) pwdInput.value = '';
             authenticatedUser = null;
             sessionStorage.removeItem('sfe_portal_user');
-            const attempts = SecurityIntrusionGuard.recordFailedAttempt();
+            const explicitCount = (typeof auth.remaining_attempts === 'number')
+              ? Math.max(0, SecurityIntrusionGuard.MAX_ATTEMPTS - auth.remaining_attempts)
+              : null;
+            const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, explicitCount);
             showLoginView();
             if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
-              showLoginError('🔒 Maximum 5 login attempts reached. Login locked for security. Please reset your ERPNext password.');
+              const lockText = 'Maximum 5 login attempts reached. Login locked for security. Please reset your ERPNext password.';
+              showLoginError(lockText);
+              showToast(lockText, 'error');
               openResetPasswordModal();
             } else {
-              showLoginError(`⚠️ ${auth.message} (Attempt ${attempts} of 5)`);
+              const formattedMsg = formatLoginAttemptError(auth.message, attempts);
+              showLoginError(formattedMsg);
+              showToast(formattedMsg, 'error');
             }
-            showToast(auth.message, 'error');
           }
         }
 
@@ -6869,7 +6958,7 @@ const BASELINE_ERP_TERRITORIES = [
       const attempts = SecurityIntrusionGuard.recordFailedAttempt(true);
       if (usrInput) usrInput.value = '';
       if (pwdInput) pwdInput.value = '';
-      showLoginError('⚠️ SECURITY VIOLATION: Malicious injection pattern detected. Access blocked and session restricted to safeguard system integrity.');
+      showLoginError('SECURITY VIOLATION: Malicious injection pattern detected. Access blocked and session restricted to safeguard system integrity.');
       if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
         openResetPasswordModal(usr);
       }
@@ -6916,10 +7005,10 @@ const BASELINE_ERP_TERRITORIES = [
           isActivelyLoggingIn = false;
           const attempts = SecurityIntrusionGuard.recordFailedAttempt();
           if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
-            showLoginError('🔒 Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
+            showLoginError('Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
             openResetPasswordModal(usr);
           } else {
-            showLoginError(`Authentication response timed out (15s). Please verify your network connection and credentials. (Attempt ${attempts} of 5)`);
+            showLoginError(formatLoginAttemptError('Authentication response timed out (15s). Please verify your network connection and credentials.', attempts));
           }
         }
       }, 35000);
@@ -6964,15 +7053,18 @@ const BASELINE_ERP_TERRITORIES = [
       sessionStorage.removeItem('sfe_portal_user');
       isActivelyLoggingIn = false;
 
-      const attempts = SecurityIntrusionGuard.recordFailedAttempt();
+      const explicitCount = (data && typeof data.remaining_attempts === 'number')
+        ? Math.max(0, SecurityIntrusionGuard.MAX_ATTEMPTS - data.remaining_attempts)
+        : null;
+      const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, explicitCount);
       const errMsg = (data && data.message)
         ? data.message
         : 'Invalid username or password. Please verify your credentials in your ERPNext account.';
       if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
-        showLoginError('🔒 Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
+        showLoginError('Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
         openResetPasswordModal(usr);
       } else {
-        showLoginError(`⚠️ ${errMsg} (Attempt ${attempts} of 5)`);
+        showLoginError(formatLoginAttemptError(errMsg, attempts));
       }
     } catch (err) {
       if (pwdInput) pwdInput.value = '';
@@ -6982,12 +7074,12 @@ const BASELINE_ERP_TERRITORIES = [
 
       const attempts = SecurityIntrusionGuard.recordFailedAttempt();
       if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
-        showLoginError('🔒 Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
+        showLoginError('Maximum 5 login attempts reached. Access locked for security. Please reset your ERPNext password.');
         openResetPasswordModal(usr);
       } else if (err.name === 'AbortError') {
-        showLoginError(`Authentication timed out (15s). Please check your server connectivity. (Attempt ${attempts} of 5)`);
+        showLoginError(formatLoginAttemptError('Authentication timed out (15s). Please check your server connectivity.', attempts));
       } else {
-        showLoginError(`Authentication server error. Please verify your network connection. (Attempt ${attempts} of 5)`);
+        showLoginError(formatLoginAttemptError('Authentication server error. Please verify your network connection.', attempts));
       }
     } finally {
       if (btn) btn.disabled = false;
@@ -6997,10 +7089,24 @@ const BASELINE_ERP_TERRITORIES = [
   }
   window.handlePortalLogin = handlePortalLogin;
 
+  function stripLoginAlertDecorations(msg) {
+    return String(msg || '')
+      .replace(/^[\s\u26A0\uFE0F\uD83D\uDD12\u274C\u2705]+/u, '')
+      .replace(/\s*\(Attempt\s+\d+\s+of\s+\d+\)/gi, '')
+      .replace(/\s*\(?Remaining Attempts?:\s*\d+\)?/gi, '')
+      .trim();
+  }
+
+  function formatLoginAttemptError(rawMsg, attempts) {
+    const base = stripLoginAlertDecorations(rawMsg);
+    const remaining = Math.max(0, SecurityIntrusionGuard.MAX_ATTEMPTS - attempts);
+    return `${base} Remaining Attempt: ${remaining}`;
+  }
+
   function showLoginError(msg) {
     const errBox = document.getElementById('loginErrorBox');
     if (errBox) {
-      errBox.innerHTML = `⚠️ ${escapeHtml(msg)}`;
+      errBox.textContent = String(msg || '').replace(/^[\s\u26A0\uFE0F\uD83D\uDD12\u274C\u2705]+/u, '').trim();
       errBox.style.display = 'block';
     }
   }
@@ -12199,20 +12305,10 @@ const BASELINE_ERP_TERRITORIES = [
       menu.appendChild(advRow);
 
     } else if (fieldId === 'newSpParent') {
-      // Parent Sales Person: Dynamically connects 1:1 to live Sales Person Tree DocType,
-      // excluding the top-level "Sales Team" container so only actual parent branches appear.
-      const spPool = [];
-      const seenNames = new Set(['sales team']);
-
-      if (Array.isArray(availableSalesPersons)) {
-        availableSalesPersons.forEach(s => {
-          const sName = (s && (s.sales_person_name || s.name)) ? String(s.sales_person_name || s.name).trim() : '';
-          if (!sName || seenNames.has(sName.toLowerCase())) return;
-          if (s.enabled === 0 || s.enabled === false) return;
-          seenNames.add(sName.toLowerCase());
-          spPool.push(s);
-        });
-      }
+      // Parent Sales Person: Program-based pool tied to #programSelect,
+      // excluding the top-level "Sales Team" container and cross-program branches, without truncation.
+      const currentProg = getSelectedProgramName();
+      const spPool = getProgramScopedSalesPersonPool(currentProg);
 
       // Filter by query tokens
       let matches = spPool.filter(s => {
@@ -12236,7 +12332,10 @@ const BASELINE_ERP_TERRITORIES = [
           <div class="erp-dropdown-item-sub">New parent branch</div>
         `;
         customItem.onclick = () => {
-          selectErpItem('newSpParent', rawQ, rawQ, { name: rawQ, sales_person_name: rawQ, is_group: 1, parent_sales_person: 'Sales Team' });
+          if (typeof registerSalesPersonProgram === 'function') {
+            registerSalesPersonProgram(rawQ, currentProg);
+          }
+          selectErpItem('newSpParent', rawQ, rawQ, { name: rawQ, sales_person_name: rawQ, is_group: 1, parent_sales_person: 'Sales Team', program: currentProg });
           closeAllErpDropdowns();
         };
         menu.appendChild(customItem);
@@ -12246,17 +12345,17 @@ const BASELINE_ERP_TERRITORIES = [
         const emptyDiv = document.createElement('div');
         emptyDiv.style.cssText = 'padding: 10px 14px; color: #64748B; font-size: 11.5px;';
         emptyDiv.innerText = rawQ
-          ? `No parent matching "${query}"`
-          : 'No parent sales persons found';
+          ? `No ${currentProg} parent matching "${query}"`
+          : `No parent sales persons found for ${currentProg}`;
         menu.appendChild(emptyDiv);
         appendCustomParentOption();
       } else {
-        matches.slice(0, 100).forEach(s => {
+        matches.forEach(s => {
           const item = document.createElement('div');
           item.className = 'erp-dropdown-item';
           const name = s.sales_person_name || s.name;
           const rawParent = (s.parent_sales_person || '').trim();
-          const subLabel = (rawParent && rawParent.toLowerCase() !== 'sales team')
+          const subLabel = (rawParent && rawParent.toLowerCase() !== 'sales team' && rawParent.toLowerCase() !== currentProg.toLowerCase())
             ? `Parent: ${rawParent}`
             : (s.employee ? `Employee: ${s.employee}` : '');
 
@@ -12295,50 +12394,8 @@ const BASELINE_ERP_TERRITORIES = [
 
       // Filter Sales Persons across fields (name, sales_person_name, parent_sales_person, employee)
       // Strictly scope Territory Manager to activeProgram managers/reps
-      const seenSpNames = new Set();
-      const programScopedPool = [];
-
-      if (Array.isArray(availableSalesPersons)) {
-        availableSalesPersons.forEach(s => {
-          const spName = (s && (s.sales_person_name || s.name)) ? String(s.sales_person_name || s.name).trim() : '';
-          if (!spName || seenSpNames.has(spName.toLowerCase())) return;
-          if (isSalesPersonInProgram(s, activeProgram, false)) {
-            seenSpNames.add(spName.toLowerCase());
-            programScopedPool.push(s);
-          }
-        });
-      }
-
-      // Include the program-specific roster for activeProgram
-      const progRoster = (PROGRAM_SALES_PERSON_ROSTER && PROGRAM_SALES_PERSON_ROSTER[activeProgram]) || [];
-      progRoster.forEach(s => {
-        const spName = (s.sales_person_name || s.name || '').trim();
-        if (!spName || seenSpNames.has(spName.toLowerCase())) return;
-        seenSpNames.add(spName.toLowerCase());
-        programScopedPool.push(s);
-      });
-
-      // Also include any MedReps assigned to activeProgram territories if not yet in availableSalesPersons
-      if (typeof programTerritories !== 'undefined' && Array.isArray(programTerritories)) {
-        const allowedTerrs = getProgramTerritoryNames(activeProgram);
-        programTerritories.forEach(pt => {
-          const code = pt.activeCode || pt.histCode || pt.latestPrevCode;
-          if (code && !allowedTerrs.has(code)) return;
-          const rawRep = cleanRepDisplayName(pt.rep);
-          if (!rawRep || rawRep.toLowerCase().includes('unassigned') || rawRep.toLowerCase().includes('vacant') || rawRep.toLowerCase().includes('folder')) return;
-          if (!seenSpNames.has(rawRep.toLowerCase())) {
-            seenSpNames.add(rawRep.toLowerCase());
-            programScopedPool.push({
-              name: rawRep,
-              sales_person_name: rawRep,
-              parent_sales_person: activeProgram,
-              is_group: 0,
-              enabled: 1,
-              program: activeProgram
-            });
-          }
-        });
-      }
+      const currentProg = getSelectedProgramName();
+      const programScopedPool = getProgramScopedSalesPersonPool(currentProg);
 
       let matches = programScopedPool.filter(s => {
         if (s.enabled === 0 || s.enabled === false) return false;
