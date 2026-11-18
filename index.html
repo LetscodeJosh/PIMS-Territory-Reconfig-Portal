@@ -2969,7 +2969,7 @@
     </div>
   </div>
 
-  <!-- ERPNext Password Reset Modal Overlay (Auto-triggered upon 5 failed attempts or manual click) -->
+  <!-- ERPNext Password Reset Modal Overlay (Auto-triggered upon 6 failed attempts) -->
   <div id="resetPasswordModalOverlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15, 23, 42, 0.78); backdrop-filter:blur(6px); z-index:999999; justify-content:center; align-items:center; padding:16px;">
     <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; box-shadow:0 25px 50px -12px rgba(0, 0, 0, 0.35); width:100%; max-width:440px; overflow:hidden; animation:modalPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
       <!-- Header -->
@@ -2987,7 +2987,7 @@
             <label style="display:block; font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:6px;">
               Email Address / Username
             </label>
-            <input type="text" id="resetUserEmail" class="form-control" placeholder="Locked to the account with 5 failed attempts" readonly required style="background:#F1F5F9; border:1.5px solid #CBD5E1; color:#475569; font-size:13px; font-weight:600; padding:10px 12px; border-radius:6px; width:100%; cursor:not-allowed;">
+            <input type="text" id="resetUserEmail" class="form-control" placeholder="Locked to the account with 6 failed attempts" readonly required style="background:#F1F5F9; border:1.5px solid #CBD5E1; color:#475569; font-size:13px; font-weight:600; padding:10px 12px; border-radius:6px; width:100%; cursor:not-allowed;">
           </div>
 
           <div id="resetPasswordFeedback" style="display:none; padding:10px 12px; border-radius:6px; font-size:12px; margin-bottom:16px; font-weight:600; line-height:1.4;"></div>
@@ -6139,9 +6139,14 @@ const BASELINE_ERP_TERRITORIES = [
     return `${mm}:${ss}`;
   }
 
-  // Security Intrusion Sentinel for Authentication Guarding (5 Attempts Max & Anti-Injection)
+  function formatCooldownMessage(totalSeconds) {
+    return `Maximum ${SecurityIntrusionGuard.MAX_ATTEMPTS} login attempts reached. Cooldown remaining: ${formatCooldownMMSS(totalSeconds)} before you can enter your credentials again.`;
+  }
+
+  // Security Intrusion Sentinel for Authentication Guarding (6 Attempts Max & 5-Min Cooldown)
   const SecurityIntrusionGuard = {
-    MAX_ATTEMPTS: 5,
+    MAX_ATTEMPTS: 6,
+    COOLDOWN_SECONDS: 5 * 60,
     failedAttempts: 0,
     lockoutUntil: 0,
     lockedUsername: '',
@@ -6185,7 +6190,7 @@ const BASELINE_ERP_TERRITORIES = [
         clearInterval(this.cooldownTimerId);
         this.cooldownTimerId = null;
       }
-      const secTotal = Math.max(1, Math.ceil(Number(durationSeconds) || 15 * 60));
+      const secTotal = Math.max(1, Math.ceil(Number(durationSeconds) || this.COOLDOWN_SECONDS));
       this.lockoutUntil = Date.now() + secTotal * 1000;
       const targetUser = (username || this.getLockedUsername() || ((document.getElementById('loginUsername') || {}).value || '')).trim();
       if (targetUser) {
@@ -6212,7 +6217,7 @@ const BASELINE_ERP_TERRITORIES = [
           }
           return;
         }
-        const msg = `Maximum 5 login attempts reached. Cooldown remaining: ${formatCooldownMMSS(remSec)} before you can enter your credentials again.`;
+        const msg = formatCooldownMessage(remSec);
         if (typeof showLoginError === 'function') {
           showLoginError(msg);
         } else {
@@ -6253,7 +6258,7 @@ const BASELINE_ERP_TERRITORIES = [
           this.setLoginInputsLocked(true);
           updateResetPasswordButtonVisibility(true);
         }
-        return `Maximum 5 login attempts reached. Cooldown remaining: ${formatCooldownMMSS(remSec)} before you can enter your credentials again.`;
+        return formatCooldownMessage(remSec);
       }
       this.setLoginInputsLocked(false);
       updateResetPasswordButtonVisibility(this.getFailedAttempts() >= this.MAX_ATTEMPTS);
@@ -6291,7 +6296,7 @@ const BASELINE_ERP_TERRITORIES = [
       const reachedMax = current >= this.MAX_ATTEMPTS;
       updateResetPasswordButtonVisibility(reachedMax);
       if (reachedMax) {
-        const secs = (typeof lockoutSeconds === 'number' && lockoutSeconds > 0) ? lockoutSeconds : 15 * 60;
+        const secs = (typeof lockoutSeconds === 'number' && lockoutSeconds > 0) ? lockoutSeconds : this.COOLDOWN_SECONDS;
         const targetUser = (username || ((document.getElementById('loginUsername') || {}).value || '')).trim();
         this.startCooldownCountdown(secs, targetUser);
         setTimeout(() => openResetPasswordModal(targetUser), 200);
@@ -6940,8 +6945,7 @@ const BASELINE_ERP_TERRITORIES = [
             showLoginView();
             if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
               updateResetPasswordButtonVisibility(true);
-              const mmss = formatCooldownMMSS(lockoutSecs || 15 * 60);
-              const lockText = `Maximum 5 login attempts reached. Cooldown remaining: ${mmss} before you can enter your credentials again.`;
+              const lockText = formatCooldownMessage(lockoutSecs || SecurityIntrusionGuard.COOLDOWN_SECONDS);
               showLoginError(lockText);
               showToast(lockText, 'error');
               openResetPasswordModal(targetUser);
@@ -7174,7 +7178,7 @@ const BASELINE_ERP_TERRITORIES = [
           const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, null, null, usr);
           if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
             updateResetPasswordButtonVisibility(true);
-            showLoginError('Maximum 5 login attempts reached. Cooldown remaining: 15:00 before you can enter your credentials again.');
+            showLoginError(formatCooldownMessage(SecurityIntrusionGuard.COOLDOWN_SECONDS));
             openResetPasswordModal(usr);
           } else {
             showLoginError(formatLoginAttemptError('Authentication response timed out (15s). Please verify your network connection and credentials.', attempts));
@@ -7236,8 +7240,7 @@ const BASELINE_ERP_TERRITORIES = [
         : 'Invalid username or password. Please verify your credentials in your ERPNext account.';
       if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
         updateResetPasswordButtonVisibility(true);
-        const mmss = formatCooldownMMSS(lockoutSecs || 15 * 60);
-        showLoginError(`Maximum 5 login attempts reached. Cooldown remaining: ${mmss} before you can enter your credentials again.`);
+        showLoginError(formatCooldownMessage(lockoutSecs || SecurityIntrusionGuard.COOLDOWN_SECONDS));
         openResetPasswordModal((data && data.locked_user) || usr);
       } else {
         showLoginError(formatLoginAttemptError(errMsg, attempts));
@@ -7251,7 +7254,7 @@ const BASELINE_ERP_TERRITORIES = [
       const attempts = SecurityIntrusionGuard.recordFailedAttempt(false, null, null, usr);
       if (attempts >= SecurityIntrusionGuard.MAX_ATTEMPTS) {
         updateResetPasswordButtonVisibility(true);
-        showLoginError('Maximum 5 login attempts reached. Cooldown remaining: 15:00 before you can enter your credentials again.');
+        showLoginError(formatCooldownMessage(SecurityIntrusionGuard.COOLDOWN_SECONDS));
         openResetPasswordModal(usr);
       } else if (err.name === 'AbortError') {
         showLoginError(formatLoginAttemptError('Authentication timed out (15s). Please check your server connectivity.', attempts));

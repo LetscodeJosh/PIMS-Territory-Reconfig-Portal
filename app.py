@@ -372,6 +372,9 @@ INJECTION_PATTERN = re.compile(
     re.IGNORECASE
 )
 
+MAX_LOGIN_ATTEMPTS = 6
+LOGIN_COOLDOWN_SECONDS = 5 * 60
+
 @st.cache_resource
 def _get_security_rate_limit_store():
     return {
@@ -466,10 +469,10 @@ def request_erpnext_password_reset(user_email):
         _get_session_failed_attempts(ident),
         _get_session_failed_attempts(target_ident),
     )
-    if max_failed < 5:
+    if max_failed < MAX_LOGIN_ATTEMPTS:
         return {
             "success": False,
-            "message": f"Password reset is only permitted after 5 failed login attempts for '{clean_user}'."
+            "message": f"Password reset is only permitted after {MAX_LOGIN_ATTEMPTS} failed login attempts for '{clean_user}'."
         }
 
     # Rate limiting: max 3 requests per 15 minutes
@@ -587,10 +590,11 @@ def _set_session_failed_attempts(ident, count):
 
 def _record_failed_login_attempt(ident, base_count, now, failure_prefix):
     """Increment login attempt counter consistently and return auth error payload."""
-    new_count = min(5, max(0, int(base_count)) + 1)
-    remaining = max(0, 5 - new_count)
-    if new_count >= 5:
-        lockout_seconds = 15 * 60
+    new_count = min(MAX_LOGIN_ATTEMPTS, max(0, int(base_count)) + 1)
+    remaining = max(0, MAX_LOGIN_ATTEMPTS - new_count)
+    if new_count >= MAX_LOGIN_ATTEMPTS:
+        lockout_seconds = LOGIN_COOLDOWN_SECONDS
+        mm, ss = divmod(lockout_seconds, 60)
         STREAMLIT_LOGIN_ATTEMPTS[ident] = (new_count, now + lockout_seconds)
         _set_session_failed_attempts(ident, new_count)
         return {
@@ -600,7 +604,7 @@ def _record_failed_login_attempt(ident, base_count, now, failure_prefix):
             "failed_attempts": new_count,
             "remaining_attempts": 0,
             "lockout_remaining_seconds": lockout_seconds,
-            "message": "Maximum 5 login attempts reached. Cooldown remaining: 15:00 before you can enter your credentials again."
+            "message": f"Maximum {MAX_LOGIN_ATTEMPTS} login attempts reached. Cooldown remaining: {mm:02d}:{ss:02d} before you can enter your credentials again."
         }
     STREAMLIT_LOGIN_ATTEMPTS[ident] = (new_count, 0)
     _set_session_failed_attempts(ident, new_count)
@@ -636,37 +640,41 @@ def verify_erpnext_credentials(usr, pwd, client_failed_attempts=0):
             "success": False,
             "authorized": False,
             "locked_user": usr,
-            "failed_attempts": 5,
+            "failed_attempts": MAX_LOGIN_ATTEMPTS,
             "remaining_attempts": 0,
             "lockout_remaining_seconds": rem_seconds,
-            "message": f"Maximum 5 login attempts reached. Cooldown remaining: {mm:02d}:{ss:02d} before you can enter your credentials again."
+            "message": f"Maximum {MAX_LOGIN_ATTEMPTS} login attempts reached. Cooldown remaining: {mm:02d}:{ss:02d} before you can enter your credentials again."
         }, None
     elif lockout_until > 0 and lockout_until <= now:
         STREAMLIT_LOGIN_ATTEMPTS.pop(ident, None)
         _set_session_failed_attempts(ident, 0)
         record_count = 0
         sess_count = 0
-    elif record_count >= 5:
+    elif record_count >= MAX_LOGIN_ATTEMPTS:
         STREAMLIT_LOGIN_ATTEMPTS.pop(ident, None)
         _set_session_failed_attempts(ident, 0)
         record_count = 0
         sess_count = 0
 
+    max_prior = MAX_LOGIN_ATTEMPTS - 1
     try:
-        client_count = max(0, min(4, int(client_failed_attempts or 0)))
+        client_count = max(0, min(max_prior, int(client_failed_attempts or 0)))
     except (ValueError, TypeError):
         client_count = 0
-    base_count = min(4, max(int(record_count or 0), int(sess_count or 0), client_count))
+    base_count = min(max_prior, max(int(record_count or 0), int(sess_count or 0), client_count))
 
     # Security Intrusion Mitigation: Block SQL / Command / Script Injection Attacks on username
     if INJECTION_PATTERN.search(usr):
-        STREAMLIT_LOGIN_ATTEMPTS[ident] = (base_count + 1, now + 15 * 60)
-        _set_session_failed_attempts(ident, 0)
+        STREAMLIT_LOGIN_ATTEMPTS[ident] = (MAX_LOGIN_ATTEMPTS, now + LOGIN_COOLDOWN_SECONDS)
+        _set_session_failed_attempts(ident, MAX_LOGIN_ATTEMPTS)
+        mm, ss = divmod(LOGIN_COOLDOWN_SECONDS, 60)
         return {
             "success": False,
             "authorized": False,
-            "failed_attempts": 5,
+            "locked_user": usr,
+            "failed_attempts": MAX_LOGIN_ATTEMPTS,
             "remaining_attempts": 0,
+            "lockout_remaining_seconds": LOGIN_COOLDOWN_SECONDS,
             "message": "SECURITY VIOLATION: Malicious injection attempt detected in username. Request blocked and access restricted."
         }, None
 
