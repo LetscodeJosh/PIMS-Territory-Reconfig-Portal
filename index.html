@@ -63,31 +63,336 @@
   })();
 
   // =========================================================================
-  // SFE USER GUIDE & SUBTEXT GUIDANCE ENGINE (v.0.1.0)
+  // INTERACTIVE FEATURE SPOTLIGHT TOUR ENGINE (GCash-style First-Time Coach Marks)
   // =========================================================================
   let isGuideModeActive = false;
+  let activeTourKey = null;
+  let activeTourIndex = 0;
+
+  const INTERACTIVE_TOUR_FLOWS = {
+    onboarding: [
+      {
+        selector: '#headerProgramGroup',
+        title: 'Select Active Program',
+        desc: 'Switch between Abbott Diabetes Care, Bayer Consumer Health, RiteMed, and Vivaro here before editing.'
+      },
+      {
+        selector: '#btn-tab-editor',
+        title: 'Reconfiguration Editor',
+        desc: 'Open your main workspace to inspect and manage live ERPNext territories.'
+      },
+      {
+        selector: '#btnEditorActionsDropdown',
+        title: 'Workbench Actions',
+        desc: 'Use Actions to Add Territories, Batch Rename Codes, Transfer Doctors, Switch Tree/Grid View, or Export CSV.'
+      },
+      {
+        selector: '#territoryTreeView, #gridTableView',
+        title: 'Interactive Territory Workspace',
+        desc: 'Expand hierarchy branches, filter territory codes, or update assigned MedReps directly in this workspace.'
+      },
+      {
+        selector: '#btn-tab-realignment',
+        title: 'Realignment Overview & Archive',
+        desc: 'Review decommissioned or archived territory clusters here with zero doctor profiling loss.'
+      },
+      {
+        selector: '#btn-tab-summary',
+        title: 'Summary Report & Audit Trail',
+        desc: 'Check live KPIs and track every code change, rep transfer, and approval timestamp.'
+      },
+      {
+        selector: '#btn-tab-institutions',
+        title: 'Institution Approvals',
+        desc: 'Review, normalize, and approve facility proposals submitted from the HCP Mobile App.'
+      }
+    ],
+    'tab-realignment': [
+      {
+        selector: '#archiveFolderTrigger',
+        title: 'Archived Territories Folder',
+        desc: 'Click this header to expand archived territories and switch between Card View and Table Vault View.'
+      }
+    ],
+    'tab-summary': [
+      {
+        selector: '.kpi-grid',
+        title: 'Live Reconfiguration KPIs',
+        desc: 'Monitor total territories, renamed codes, rep transfers, and archived nodes at a glance.'
+      },
+      {
+        selector: '#auditFilterField',
+        title: 'Audit Log Filter & Export',
+        desc: 'Filter logs by Action Type, Territory Code, or User, or export the ledger as CSV.'
+      }
+    ],
+    'tab-institutions': [
+      {
+        selector: '#sfeInstNavCards',
+        title: 'Governance Queue Cards',
+        desc: 'Click any status card (MedRep Submission, Institution Directory, Pending DSM Approval, Rejected, Certified) to filter the list.'
+      },
+      {
+        selector: '#sfeInstSearchInput',
+        title: 'Search & Classification Filters',
+        desc: 'Search by INST ID, facility name, or PSGC location, and refine by Ownership or Facility Type.'
+      }
+    ],
+    'grid-view': [
+      {
+        selector: '#erpGridFilterToolbar',
+        title: 'Table Grid Search & Status Filters',
+        desc: 'Search across columns or toggle Active, Vacant, and Inactive territory status checkboxes.'
+      }
+    ]
+  };
+
+  function getTourStorageKey(flowKey) {
+    let userKey = 'default';
+    try {
+      const email = authenticatedUser && (authenticatedUser.email || authenticatedUser.full_name);
+      if (email) userKey = String(email).trim().toLowerCase().replace(/[^a-z0-9@._-]/g, '_');
+    } catch (_) {}
+    return `pims_sfe_tour_v2_${userKey}_${flowKey}`;
+  }
+
+  function resolveTourTargetElement(step) {
+    if (!step || !step.selector || typeof document === 'undefined') return null;
+    const selectors = String(step.selector).split(',').map(s => s.trim()).filter(Boolean);
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const rect = el.getBoundingClientRect ? el.getBoundingClientRect() : { width: 1, height: 1 };
+        const style = (typeof window !== 'undefined' && window.getComputedStyle) ? window.getComputedStyle(el) : null;
+        if ((!style || style.display !== 'none') && (rect.width > 0 || rect.height > 0)) {
+          return el;
+        }
+      }
+    }
+    return document.querySelector(selectors[0]) || null;
+  }
+
+  function positionInteractiveTourCard(targetEl) {
+    const spotlight = document.getElementById('interactiveTourSpotlight');
+    const card = document.getElementById('interactiveTourCard');
+    const arrow = document.getElementById('interactiveTourArrow');
+    if (!card || !spotlight) return;
+
+    const vw = (typeof window !== 'undefined' && window.innerWidth) ? window.innerWidth : 1280;
+    const vh = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : 720;
+
+    let rect = null;
+    if (targetEl && typeof targetEl.getBoundingClientRect === 'function') {
+      const r = targetEl.getBoundingClientRect();
+      if (r && (r.width > 0 || r.height > 0)) {
+        rect = r;
+      }
+    }
+
+    if (!rect) {
+      spotlight.style.display = 'none';
+      if (arrow) arrow.style.display = 'none';
+      card.style.left = `${Math.max(16, Math.round((vw - 340) / 2))}px`;
+      card.style.top = `${Math.max(16, Math.round((vh - 210) / 2))}px`;
+      return;
+    }
+
+    const pad = 6;
+    const spotLeft = Math.max(4, Math.round(rect.left - pad));
+    const spotTop = Math.max(4, Math.round(rect.top - pad));
+    const spotWidth = Math.min(vw - 8, Math.round(rect.width + pad * 2));
+    const spotHeight = Math.min(vh - 8, Math.round(rect.height + pad * 2));
+
+    spotlight.style.display = 'block';
+    spotlight.style.left = `${spotLeft}px`;
+    spotlight.style.top = `${spotTop}px`;
+    spotlight.style.width = `${spotWidth}px`;
+    spotlight.style.height = `${spotHeight}px`;
+
+    const cardWidth = Math.min(340, vw - 32);
+    const cardHeight = (card.offsetHeight && card.offsetHeight > 60) ? card.offsetHeight : 210;
+    const gap = 14;
+
+    let placement = 'bottom';
+    if (spotTop + spotHeight + gap + cardHeight <= vh - 12) {
+      placement = 'bottom';
+    } else if (spotTop - gap - cardHeight >= 12) {
+      placement = 'top';
+    } else if (spotLeft + spotWidth + gap + cardWidth <= vw - 12) {
+      placement = 'right';
+    } else if (spotLeft - gap - cardWidth >= 12) {
+      placement = 'left';
+    }
+
+    let cardLeft = 16;
+    let cardTop = 16;
+
+    if (placement === 'bottom') {
+      cardTop = spotTop + spotHeight + gap;
+      cardLeft = Math.max(16, Math.min(vw - cardWidth - 16, Math.round(spotLeft + spotWidth / 2 - cardWidth / 2)));
+    } else if (placement === 'top') {
+      cardTop = Math.max(16, spotTop - gap - cardHeight);
+      cardLeft = Math.max(16, Math.min(vw - cardWidth - 16, Math.round(spotLeft + spotWidth / 2 - cardWidth / 2)));
+    } else if (placement === 'right') {
+      cardLeft = spotLeft + spotWidth + gap;
+      cardTop = Math.max(16, Math.min(vh - cardHeight - 16, Math.round(spotTop + spotHeight / 2 - cardHeight / 2)));
+    } else {
+      cardLeft = Math.max(16, spotLeft - gap - cardWidth);
+      cardTop = Math.max(16, Math.min(vh - cardHeight - 16, Math.round(spotTop + spotHeight / 2 - cardHeight / 2)));
+    }
+
+    card.style.left = `${cardLeft}px`;
+    card.style.top = `${cardTop}px`;
+
+    if (arrow) {
+      arrow.style.display = 'block';
+      arrow.className = `interactive-tour-arrow arrow-${placement}`;
+      if (placement === 'bottom' || placement === 'top') {
+        const arrowX = Math.max(18, Math.min(cardWidth - 28, Math.round(spotLeft + spotWidth / 2 - cardLeft - 7)));
+        arrow.style.left = `${arrowX}px`;
+        arrow.style.top = placement === 'bottom' ? '-7px' : '';
+        arrow.style.bottom = placement === 'top' ? '-7px' : '';
+      } else {
+        const arrowY = Math.max(18, Math.min(cardHeight - 28, Math.round(spotTop + spotHeight / 2 - cardTop - 7)));
+        arrow.style.top = `${arrowY}px`;
+        arrow.style.left = placement === 'right' ? '-7px' : '';
+        arrow.style.right = placement === 'left' ? '-7px' : '';
+      }
+    }
+  }
+
+  function renderInteractiveTourStep() {
+    if (!activeTourKey) return;
+    const steps = INTERACTIVE_TOUR_FLOWS[activeTourKey] || [];
+    if (!steps.length || activeTourIndex < 0 || activeTourIndex >= steps.length) {
+      skipInteractiveTour();
+      return;
+    }
+
+    const overlay = document.getElementById('interactiveTourOverlay');
+    if (!overlay) return;
+    overlay.style.display = 'block';
+    isGuideModeActive = true;
+
+    const step = steps[activeTourIndex];
+    const targetEl = resolveTourTargetElement(step);
+    if (targetEl && typeof targetEl.scrollIntoView === 'function') {
+      try { targetEl.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' }); } catch (_) {}
+    }
+
+    const stepBadge = document.getElementById('interactiveTourStepBadge');
+    const titleEl = document.getElementById('interactiveTourTitle');
+    const descEl = document.getElementById('interactiveTourDesc');
+    const dotsEl = document.getElementById('interactiveTourDots');
+    const prevBtn = document.getElementById('interactiveTourPrevBtn');
+    const nextBtn = document.getElementById('interactiveTourNextBtn');
+
+    if (stepBadge) stepBadge.textContent = `Step ${activeTourIndex + 1} of ${steps.length}`;
+    if (titleEl) titleEl.textContent = step.title;
+    if (descEl) descEl.textContent = step.desc;
+
+    if (dotsEl) {
+      dotsEl.innerHTML = steps.map((_, idx) =>
+        `<span class="interactive-tour-dot${idx === activeTourIndex ? ' active' : ''}"></span>`
+      ).join('');
+    }
+    if (prevBtn) {
+      prevBtn.style.display = activeTourIndex > 0 ? 'inline-flex' : 'none';
+    }
+    if (nextBtn) {
+      nextBtn.textContent = (activeTourIndex === steps.length - 1) ? 'Got It!' : 'Next';
+    }
+
+    positionInteractiveTourCard(targetEl);
+  }
+
+  function repositionActiveTour() {
+    if (!activeTourKey) return;
+    const steps = INTERACTIVE_TOUR_FLOWS[activeTourKey] || [];
+    const step = steps[activeTourIndex];
+    if (!step) return;
+    positionInteractiveTourCard(resolveTourTargetElement(step));
+  }
+
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('resize', repositionActiveTour);
+    window.addEventListener('keydown', (e) => {
+      if (e && e.key === 'Escape' && activeTourKey) {
+        skipInteractiveTour();
+      }
+    });
+  }
+
+  function startInteractiveTour(flowKey = 'onboarding', force = false) {
+    const steps = INTERACTIVE_TOUR_FLOWS[flowKey];
+    if (!steps || !steps.length) return false;
+    const storageKey = getTourStorageKey(flowKey);
+    let alreadySeen = false;
+    try {
+      alreadySeen = Boolean(localStorage.getItem(storageKey));
+    } catch (_) {}
+    if (!force && (alreadySeen || activeTourKey)) {
+      return false;
+    }
+
+    activeTourKey = flowKey;
+    activeTourIndex = 0;
+    renderInteractiveTourStep();
+    return true;
+  }
+
+  function nextInteractiveTourStep() {
+    if (!activeTourKey) return;
+    const steps = INTERACTIVE_TOUR_FLOWS[activeTourKey] || [];
+    if (activeTourIndex < steps.length - 1) {
+      activeTourIndex += 1;
+      renderInteractiveTourStep();
+    } else {
+      closeInteractiveTour(true);
+    }
+  }
+
+  function prevInteractiveTourStep() {
+    if (!activeTourKey) return;
+    if (activeTourIndex > 0) {
+      activeTourIndex -= 1;
+      renderInteractiveTourStep();
+    }
+  }
+
+  function closeInteractiveTour(markSeen = true) {
+    const closingKey = activeTourKey;
+    activeTourKey = null;
+    activeTourIndex = 0;
+    isGuideModeActive = false;
+    const overlay = document.getElementById('interactiveTourOverlay');
+    if (overlay) overlay.style.display = 'none';
+    if (markSeen && closingKey) {
+      try {
+        localStorage.setItem(getTourStorageKey(closingKey), 'seen');
+        if (closingKey === 'onboarding') {
+          localStorage.setItem('pims_sfe_guide_seen', 'true');
+        }
+      } catch (_) {}
+    }
+  }
+
+  function skipInteractiveTour() {
+    closeInteractiveTour(true);
+  }
 
   function checkFirstTimeUserGuide() {
-    const hasSeenGuide = localStorage.getItem('pims_sfe_guide_seen');
-    if (!hasSeenGuide) {
-      setTimeout(() => {
-        openUserGuideModal(false);
-      }, 500);
-    }
-    const guideBtn = document.getElementById('btnHelpGuide');
-    if (guideBtn) guideBtn.style.display = 'inline-flex';
+    setTimeout(() => {
+      startInteractiveTour('onboarding', false);
+    }, 450);
   }
 
   function openUserGuideModal(isRecap) {
-    const modal = document.getElementById('userGuideModalOverlay');
-    if (!modal) return;
-    modal.classList.add('active');
+    startInteractiveTour('onboarding', Boolean(isRecap));
   }
 
   function closeUserGuideModal() {
-    const modal = document.getElementById('userGuideModalOverlay');
-    if (modal) modal.classList.remove('active');
-    localStorage.setItem('pims_sfe_guide_seen', 'true');
+    skipInteractiveTour();
   }
 
   function toggleGuideSubtextPref(enable) {
@@ -2899,12 +3204,6 @@
 
     <!-- Theme permanently locked to Enterprise Light Mode per SFE standard -->
     <!-- Refresh Live Sync removed per SFE live reconfig standard -->
-
-
-
-    <div id="headerAuthStatus" style="font-size:11.5px; color:#94A3B8; font-weight:700; display:flex; align-items:center; gap:6px;">
-      <span>🔒 Secure Login</span>
-    </div>
   </div>
 </header>
 
@@ -3020,19 +3319,15 @@
       <div class="sidebar-menu">
         <button class="sidebar-tab-btn active" id="btn-tab-editor" onclick="openTab('tab-editor')">
           <span>Reconfiguration Editor</span>
-          <span class="tab-badge" id="editorBadge">0 Territories</span>
         </button>
         <button class="sidebar-tab-btn" id="btn-tab-realignment" onclick="openTab('tab-realignment')">
           <span>Realignment Overview &amp; Archive Territory</span>
-          <span class="tab-badge" id="archiveBadge">Clusters</span>
         </button>
         <button class="sidebar-tab-btn" id="btn-tab-summary" onclick="openTab('tab-summary')">
           <span>Summary Report</span>
-          <span class="tab-badge" id="summaryBadge">Audit Trail</span>
         </button>
         <button class="sidebar-tab-btn" id="btn-tab-institutions" onclick="openTab('tab-institutions')">
           <span>Institution Approvals</span>
-          <span class="tab-badge" id="instApprovalBadge" style="background:rgba(245,158,11,0.2); color:#FCD34D; border:1px solid rgba(245,158,11,0.4);">0 Pending</span>
         </button>
       </div>
     </div>
@@ -3046,13 +3341,8 @@
         </div>
       </div>
 
-      <!-- Quick Actions: User Guide & Logout -->
+      <!-- Quick Action: Logout -->
       <div style="display:flex; gap:6px; align-items:center; width:100%; box-sizing:border-box;">
-        <button class="btn btn-sm btn-outline" id="btnHelpGuide" onclick="openUserGuideModal(true)" style="display:none; flex:1; align-items:center; justify-content:center; gap:6px; background:#0F172A; border:1px solid #334155; color:#38BDF8; font-weight:700; border-radius:6px; height:32px; padding:0 8px; cursor:pointer; font-size:11.5px;" title="User Guide & Navigation Hints (ℹ)">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-          <span>User Guide</span>
-        </button>
-
         <button class="btn btn-sm btn-logout" id="btnLogout" onclick="logoutPortal()" style="display:none; flex:1; align-items:center; justify-content:center; gap:6px; background:rgba(239, 68, 68, 0.15); border:1px solid rgba(239, 68, 68, 0.35); color:#FCA5A5; font-weight:700; border-radius:6px; height:32px; padding:0 8px; cursor:pointer; font-size:11.5px;" title="Sign out of Territory Portal">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
           <span>Logout</span>
@@ -6657,10 +6947,6 @@ const BASELINE_ERP_TERRITORIES = [
     if (userBadge) userBadge.style.display = 'flex';
     const logoutBtn = document.getElementById('btnLogout');
     if (logoutBtn) logoutBtn.style.display = 'inline-flex';
-    const helpBtn = document.getElementById('btnHelpGuide');
-    if (helpBtn) helpBtn.style.display = 'inline-flex';
-    const authStatus = document.getElementById('headerAuthStatus');
-    if (authStatus) authStatus.style.display = 'none';
 
     // Update user badge text
     const badgeTextEl = document.getElementById('userBadgeText');
@@ -6684,6 +6970,7 @@ const BASELINE_ERP_TERRITORIES = [
   function showLoginView() {
     loginNotificationShown = false;
     initialPortalLoaded = false;
+    if (typeof closeInteractiveTour === 'function') closeInteractiveTour(false);
     hideActiveUserSessionNotification();
     authenticatedUser = null;
     localStorage.removeItem('sfe_portal_user');
@@ -6716,16 +7003,12 @@ const BASELINE_ERP_TERRITORIES = [
     if (toggleBtn) toggleBtn.style.display = 'none';
     const progGroup = document.getElementById('headerProgramGroup');
     if (progGroup) progGroup.style.display = 'none';
-    const helpBtn = document.getElementById('btnHelpGuide');
-    if (helpBtn) helpBtn.style.display = 'none';
     const syncBtn = document.getElementById('headerSyncBtn');
     if (syncBtn) syncBtn.style.display = 'none';
     const userBadge = document.getElementById('userBadge');
     if (userBadge) userBadge.style.display = 'none';
     const logoutBtn = document.getElementById('btnLogout');
     if (logoutBtn) logoutBtn.style.display = 'none';
-    const authStatus = document.getElementById('headerAuthStatus');
-    if (authStatus) authStatus.style.display = 'flex';
 
     // Reset login form & clear password
     const pwdInput = document.getElementById('loginPassword');
@@ -7352,10 +7635,16 @@ const BASELINE_ERP_TERRITORIES = [
     if (tabId === 'tab-realignment') {
       document.getElementById('btn-tab-realignment').classList.add('active');
       renderRealignmentAndArchive();
+      if (!activeTourKey) {
+        setTimeout(() => startInteractiveTour('tab-realignment', false), 220);
+      }
     }
     if (tabId === 'tab-summary') {
       document.getElementById('btn-tab-summary').classList.add('active');
       renderSummaryReport();
+      if (!activeTourKey) {
+        setTimeout(() => startInteractiveTour('tab-summary', false), 220);
+      }
     }
     if (tabId === 'tab-institutions') {
       const btnInst = document.getElementById('btn-tab-institutions');
@@ -7365,6 +7654,9 @@ const BASELINE_ERP_TERRITORIES = [
       }
       if (typeof syncLiveInstitutionsFromErp === 'function') {
         syncLiveInstitutionsFromErp(false);
+      }
+      if (!activeTourKey) {
+        setTimeout(() => startInteractiveTour('tab-institutions', false), 220);
       }
     }
   }
@@ -11749,6 +12041,9 @@ const BASELINE_ERP_TERRITORIES = [
     const currentMode = window.activeEditorViewMode || 'tree';
     const targetMode = (currentMode === 'tree') ? 'grid' : 'tree';
     setEditorViewMode(targetMode);
+    if (targetMode === 'grid' && !activeTourKey) {
+      setTimeout(() => startInteractiveTour('grid-view', false), 220);
+    }
   }
 
   function onTreeFilterInput(val) {
@@ -17732,88 +18027,96 @@ const BASELINE_ERP_TERRITORIES = [
   </div>
 </div>
 
-<!-- MODAL: Interactive SFE User Guide & Navigation Walkthrough (v.0.1.1) -->
-<div class="modal-overlay" id="userGuideModalOverlay" style="z-index:9999;">
-  <div class="modal-card" style="max-width:640px; border-radius:12px; border:1px solid #CBD5E1; box-shadow:0 16px 40px rgba(15,23,42,0.18); max-height:88vh; overflow-y:auto; padding:24px;">
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; border-bottom:1px solid #E2E8F0; padding-bottom:14px;">
-      <div>
-        <h3 style="font-size:17px; font-weight:800; color:#0F172A; margin:0 0 4px 0;">Territory Reconfiguration User Guide</h3>
-        <p style="font-size:12px; color:#64748B; margin:0; font-weight:500;">Workflow navigation and territory administration manual</p>
-      </div>
-      <button type="button" onclick="closeUserGuideModal()" style="background:none; border:none; color:#94A3B8; font-size:22px; cursor:pointer; line-height:1; font-weight:bold; padding:0 4px;" title="Close">&times;</button>
+<!-- INTERACTIVE SPOTLIGHT COACH-MARK TOUR OVERLAY (GCash-style First-Time Feature Guide) -->
+<style>
+  #interactiveTourOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 99998;
+    pointer-events: auto;
+  }
+  #interactiveTourSpotlight {
+    display: none;
+    position: fixed;
+    border-radius: 10px;
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.72), 0 0 0 3px #0066FF, 0 0 24px rgba(0, 102, 255, 0.55);
+    pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 99999;
+  }
+  #interactiveTourCard {
+    position: fixed;
+    width: 340px;
+    max-width: calc(100vw - 32px);
+    background: #FFFFFF;
+    border: 1.5px solid #BFDBFE;
+    border-radius: 12px;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.28);
+    padding: 16px 18px;
+    z-index: 100000;
+    box-sizing: border-box;
+    animation: modalPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .interactive-tour-arrow {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #FFFFFF;
+    border: 1.5px solid #BFDBFE;
+    transform: rotate(45deg);
+    pointer-events: none;
+  }
+  .interactive-tour-arrow.arrow-bottom {
+    border-right: none;
+    border-bottom: none;
+  }
+  .interactive-tour-arrow.arrow-top {
+    border-left: none;
+    border-top: none;
+  }
+  .interactive-tour-arrow.arrow-right {
+    border-right: none;
+    border-top: none;
+  }
+  .interactive-tour-arrow.arrow-left {
+    border-left: none;
+    border-bottom: none;
+  }
+  .interactive-tour-dots {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .interactive-tour-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #CBD5E1;
+    transition: all 0.15s ease;
+  }
+  .interactive-tour-dot.active {
+    width: 16px;
+    background: #0066FF;
+  }
+</style>
+
+<div id="interactiveTourOverlay">
+  <div id="interactiveTourSpotlight"></div>
+  <div id="interactiveTourCard" role="dialog" aria-modal="true" aria-labelledby="interactiveTourTitle">
+    <div id="interactiveTourArrow" class="interactive-tour-arrow arrow-bottom"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <span id="interactiveTourStepBadge" style="display:inline-flex; align-items:center; padding:3px 9px; border-radius:999px; background:#EFF6FF; color:#0066FF; font-size:11px; font-weight:800; letter-spacing:0.3px;">Step 1 of 7</span>
+      <button type="button" id="interactiveTourSkipBtn" onclick="skipInteractiveTour()" style="background:transparent; border:none; color:#64748B; font-size:12px; font-weight:700; cursor:pointer; padding:2px 6px; border-radius:4px;">Skip</button>
     </div>
-
-    <!-- Guide Content: Minimalist, Professional & Cohesive Typography -->
-    <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:20px;">
-
-      <!-- Section 1: Navigation & Workspaces -->
-      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:14px 16px;">
-        <div style="font-weight:700; font-size:13px; color:#0F172A; margin-bottom:6px;">
-          1. Workspaces &amp; Navigation
-        </div>
-        <div style="font-size:12px; color:#475569; line-height:1.6;">
-          &bull; <strong>Reconfiguration Editor:</strong> Switch between <em>Table Grid</em> (fast spreadsheet entry, filtering, and bulk operations) and <em>Territory Tree</em> (interactive visual hierarchy).<br>
-          &bull; <strong>Archive Directory:</strong> Access archived territories and historical vacant codes with zero doctor data loss.<br>
-          &bull; <strong>Summary Report:</strong> Full audit ledger tracking every change, renaming diff, representative transfer, and timestamp.
-        </div>
+    <h4 id="interactiveTourTitle" style="margin:0 0 6px 0; font-size:15px; font-weight:800; color:#0F172A;">Select Active Program</h4>
+    <p id="interactiveTourDesc" style="margin:0 0 14px 0; font-size:12.5px; color:#475569; line-height:1.5;">Switch active program here.</p>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+      <div id="interactiveTourDots" class="interactive-tour-dots"></div>
+      <div style="display:inline-flex; align-items:center; gap:8px;">
+        <button type="button" id="interactiveTourPrevBtn" onclick="prevInteractiveTourStep()" style="display:none; align-items:center; justify-content:center; padding:7px 12px; border-radius:7px; border:1px solid #CBD5E1; background:#FFFFFF; color:#334155; font-size:12px; font-weight:700; cursor:pointer;">Back</button>
+        <button type="button" id="interactiveTourNextBtn" onclick="nextInteractiveTourStep()" style="display:inline-flex; align-items:center; justify-content:center; padding:7px 14px; border-radius:7px; border:none; background:#0066FF; color:#FFFFFF; font-size:12px; font-weight:700; cursor:pointer;">Next</button>
       </div>
-
-      <!-- Section 2: Action Button Guide -->
-      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:14px 16px;">
-        <div style="font-weight:700; font-size:13px; color:#0F172A; margin-bottom:6px;">
-          2. Territory Management Actions
-        </div>
-        <div style="font-size:12px; color:#475569; line-height:1.6;">
-          Use the <strong>Actions</strong> menu on any row or via the workbench header:<br>
-          &bull; <strong>Edit:</strong> Update territory properties, target quotas, and district managers.<br>
-          &bull; <strong>Add Child:</strong> Create child territories and sub-branches under any selected node.<br>
-          &bull; <strong>Rename:</strong> Batch rename territory codes with real-time diff previews.<br>
-          &bull; <strong>Audit Trail:</strong> Inspect the full change ledger and timestamp history for any territory.
-        </div>
-      </div>
-
-      <!-- Section 3: Doctor Transfer & Handover -->
-      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:14px 16px;">
-        <div style="font-weight:700; font-size:13px; color:#0F172A; margin-bottom:6px;">
-          3. Doctor Handover &amp; Transfer
-        </div>
-        <div style="font-size:12px; color:#475569; line-height:1.6;">
-          Launch <strong>Transfer / Merge Doctors</strong> from the workbench or row menu to reassign doctors between territories using the two-pane transfer tool with real-time doctor count recalculation.
-        </div>
-      </div>
-
-      <!-- Section 4: Strict No-Deletion Policy -->
-      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:14px 16px;">
-        <div style="font-weight:700; font-size:13px; color:#0F172A; margin-bottom:6px;">
-          4. Inactive &amp; Vacant Policy (No Deletion)
-        </div>
-        <div style="font-size:12px; color:#475569; line-height:1.6;">
-          When a Medical Representative departs, their territory is tagged as <strong>Inactive</strong>.
-          The code remains preserved as <strong>Vacant</strong> so that when a new representative is assigned, doctor profiling history is seamlessly retained without disruption.
-        </div>
-      </div>
-
-      <!-- Section 5: SFE Institution Approvals & Masterlist Sync -->
-      <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:14px 16px;">
-        <div style="font-weight:700; font-size:13px; color:#1E40AF; margin-bottom:6px;">
-          5. SFE Institution Approvals &amp; Real-Time Mobile App Sync
-        </div>
-        <div style="font-size:12px; color:#1E3A8A; line-height:1.6;">
-          Open <strong>Institution Approvals</strong> in the left sidebar to review new facilities discovered by MedReps on the HCP Profiling Mobile App:<br>
-          &bull; <strong>Normalize &amp; Approve:</strong> Standardize facility names (Proper Case), Ownership (Government/Private), Type (Hospital/Clinic), Service Capability, and official PSGC Region/Province/City codes before approving.<br>
-          &bull; <strong>Government Routing:</strong> Government facilities automatically route to <em>Pending DSM Approval</em> prior to final masterlist activation.<br>
-          &bull; <strong>Duplicate Remapping:</strong> Remap duplicate proposals to an existing canonical <code>INST-XXXXX</code> record and automatically update linked doctors.<br>
-          &bull; <strong>Direct Mobile Sync:</strong> Approved facilities immediately sync to the HCP Mobile App's <em>Institution Directory</em> and doctor workplace records.
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Modal Footer: Minimalist Clean Button -->
-    <div style="display:flex; justify-content:flex-end; align-items:center; border-top:1px solid #E2E8F0; padding-top:14px;">
-      <button type="button" class="btn btn-primary" onclick="closeUserGuideModal()" style="background:#0066FF; color:#FFFFFF; font-weight:700; font-size:12.5px; padding:8px 24px; border-radius:6px; cursor:pointer; border:none; transition:background 0.15s ease;">
-        Close Guide
-      </button>
     </div>
   </div>
 </div>
