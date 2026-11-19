@@ -1730,6 +1730,16 @@
     border-left: 3px solid #0066FF;
   }
 
+  .erp-tree-row.search-match {
+    background: #F0F9FF;
+    border-left: 3px solid #0284C7;
+  }
+
+  .erp-tree-row.search-match.selected {
+    background: #EFF6FF !important;
+    border-left: 3px solid #0066FF;
+  }
+
   .erp-tree-toggle {
     display: inline-flex;
     align-items: center;
@@ -2937,6 +2947,10 @@
   }
   body[data-theme="dark"] .erp-tree-row:hover {
     background: #1E293B !important;
+  }
+  body[data-theme="dark"] .erp-tree-row.search-match {
+    background: rgba(14, 165, 233, 0.16);
+    border-left: 3px solid #38BDF8;
   }
 
   .erp-child-grid-input {
@@ -9428,6 +9442,7 @@ const BASELINE_ERP_TERRITORIES = [
   ]);
   let selectedTreeNode = 'Abbott DC Territories';
   let treeFilterQuery = '';
+  let treeFilterCollapsedNodes = new Set();
 
   
   // Baseline masterlists for Sales Person Tree and Employee DocType (Dev & Offline Fallback)
@@ -12202,6 +12217,7 @@ const BASELINE_ERP_TERRITORIES = [
 
   function onTreeFilterInput(val) {
     treeFilterQuery = (val || '').trim().toLowerCase();
+    treeFilterCollapsedNodes.clear();
     const btnClear = document.getElementById('btnTreeFilterClear');
     if (btnClear) {
       btnClear.style.display = treeFilterQuery.length > 0 ? 'inline-flex' : 'none';
@@ -12215,6 +12231,7 @@ const BASELINE_ERP_TERRITORIES = [
       input.value = '';
     }
     treeFilterQuery = '';
+    treeFilterCollapsedNodes.clear();
     const btnClear = document.getElementById('btnTreeFilterClear');
     if (btnClear) {
       btnClear.style.display = 'none';
@@ -12224,6 +12241,7 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function expandAllTreeNodes() {
+    treeFilterCollapsedNodes.clear();
     territoryTreeData.forEach(t => {
       if (t.is_group) treeExpandedNodes.add(t.name);
     });
@@ -12233,6 +12251,14 @@ const BASELINE_ERP_TERRITORIES = [
   function collapseAllTreeNodes() {
     treeExpandedNodes.clear();
     treeExpandedNodes.add('All Territories');
+    treeFilterCollapsedNodes.clear();
+    if (treeFilterQuery) {
+      territoryTreeData.forEach(t => {
+        if (t && t.is_group && t.name !== 'All Territories') {
+          treeFilterCollapsedNodes.add(t.name);
+        }
+      });
+    }
     renderTree();
   }
 
@@ -12263,28 +12289,73 @@ const BASELINE_ERP_TERRITORIES = [
       });
     });
 
-    // Check filter query
+    // Check filter query:
+    // - Supports multi-token matching across code, manager, rep name, area, and status
+    // - Keeps ancestor path above every match AND full child/descendant subtree below every matched parent
     let matchingNames = null;
     let matchingAncestors = null;
+    let matchingDescendants = null;
     if (treeFilterQuery) {
       matchingNames = new Set();
       matchingAncestors = new Set();
+      matchingDescendants = new Set();
+      const queryTokens = treeFilterQuery.split(/\s+/).filter(Boolean);
       const parentLookup = {};
       territoryTreeData.forEach(t => {
+        if (!t || !t.name) return;
         parentLookup[t.name] = t.parent_territory;
-        if (t.name.toLowerCase().includes(treeFilterQuery) || (t.territory_manager && t.territory_manager.toLowerCase().includes(treeFilterQuery))) {
+        if (t.name === 'All Territories') return;
+
+        const ptMatch = typeof findProgramTerritoryByCode === 'function' ? findProgramTerritoryByCode(t.name) : null;
+        const areaText = !t.is_group && typeof resolveTerritoryArea === 'function'
+          ? resolveTerritoryArea(t.name, ptMatch ? ptMatch.district : (t.parent_territory || ''))
+          : '';
+        const statusText = !t.is_group && typeof getTerritoryOperationalStatus === 'function'
+          ? getTerritoryOperationalStatus(ptMatch, t)
+          : '';
+        const searchableText = [
+          t.name || '',
+          t.territory_name || '',
+          t.territory_manager || '',
+          ptMatch ? (ptMatch.rep || '') : '',
+          areaText || '',
+          statusText || ''
+        ].join(' ').toLowerCase();
+
+        if (queryTokens.length > 0 && queryTokens.every(tok => searchableText.includes(tok))) {
           matchingNames.add(t.name);
         }
       });
 
+      // Keep full ancestor chain up to root for hierarchy context
       matchingNames.forEach(name => {
+        const visitedUp = new Set([name]);
         let curr = parentLookup[name];
-        while (curr) {
+        while (curr && !visitedUp.has(curr)) {
+          visitedUp.add(curr);
           matchingAncestors.add(curr);
           curr = parentLookup[curr];
         }
       });
+
+      // Keep full child/descendant subtree beneath every matched parent territory
+      matchingNames.forEach(name => {
+        const queue = [...(childrenMap[name] || [])];
+        const visitedDown = new Set([name]);
+        while (queue.length > 0) {
+          const child = queue.shift();
+          if (!child || !child.name || visitedDown.has(child.name)) continue;
+          visitedDown.add(child.name);
+          matchingDescendants.add(child.name);
+          const grandChildren = childrenMap[child.name];
+          if (grandChildren && grandChildren.length > 0) {
+            grandChildren.forEach(gc => queue.push(gc));
+          }
+        }
+      });
     }
+
+    let visibleMatchedNodeCount = 0;
 
     // Recursive Branch Renderer for Active Masterlist Hierarchy
     function renderBranch(parentName, depth = 0) {
@@ -12309,21 +12380,26 @@ const BASELINE_ERP_TERRITORIES = [
       }
 
       children.forEach(t => {
+        const isDirectSearchMatch = Boolean(matchingNames && matchingNames.has(t.name));
         if (matchingNames) {
-          if (!matchingNames.has(t.name) && !matchingAncestors.has(t.name)) {
+          if (!isDirectSearchMatch && !matchingAncestors.has(t.name) && !matchingDescendants.has(t.name)) {
             return;
+          }
+          if (isDirectSearchMatch) {
+            visibleMatchedNodeCount++;
           }
         }
 
         const nodeDiv = document.createElement('div');
         nodeDiv.className = 'erp-tree-node';
 
+        const hasChildren = (childrenMap[t.name] || []).length > 0;
         const isGroup = Boolean(t.is_group);
-        const isExpanded = matchingNames ? true : treeExpandedNodes.has(t.name);
+        const isExpanded = matchingNames ? !treeFilterCollapsedNodes.has(t.name) : treeExpandedNodes.has(t.name);
         const isSelected = selectedTreeNode === t.name;
 
         const row = document.createElement('div');
-        row.className = `erp-tree-row ${isSelected ? 'selected' : ''}`;
+        row.className = `erp-tree-row ${isSelected ? 'selected' : ''} ${isDirectSearchMatch ? 'search-match' : ''}`;
         row.style.paddingLeft = `${depth * 20 + 8}px`;
 
         // 1. Toggle Arrow (only for groups)
@@ -12447,8 +12523,14 @@ const BASELINE_ERP_TERRITORIES = [
         row.onclick = (e) => {
           if (e.target.closest('.erp-tree-actions')) return;
           selectedTreeNode = t.name;
-          if (isGroup && !e.target.closest('.erp-tree-toggle')) {
-            if (treeExpandedNodes.has(t.name)) {
+          if ((isGroup || hasChildren) && !e.target.closest('.erp-tree-toggle')) {
+            if (treeFilterQuery) {
+              if (treeFilterCollapsedNodes.has(t.name)) {
+                treeFilterCollapsedNodes.delete(t.name);
+              } else {
+                treeFilterCollapsedNodes.add(t.name);
+              }
+            } else if (treeExpandedNodes.has(t.name)) {
               treeExpandedNodes.delete(t.name);
             } else {
               treeExpandedNodes.add(t.name);
@@ -12461,7 +12543,13 @@ const BASELINE_ERP_TERRITORIES = [
         if (toggleBtn) {
           toggleBtn.onclick = (e) => {
             e.stopPropagation();
-            if (treeExpandedNodes.has(t.name)) {
+            if (treeFilterQuery) {
+              if (treeFilterCollapsedNodes.has(t.name)) {
+                treeFilterCollapsedNodes.delete(t.name);
+              } else {
+                treeFilterCollapsedNodes.add(t.name);
+              }
+            } else if (treeExpandedNodes.has(t.name)) {
               treeExpandedNodes.delete(t.name);
             } else {
               treeExpandedNodes.add(t.name);
@@ -12472,7 +12560,7 @@ const BASELINE_ERP_TERRITORIES = [
 
         nodeDiv.appendChild(row);
 
-        if (isGroup && isExpanded) {
+        if ((isGroup || hasChildren) && isExpanded) {
           const subBranch = renderBranch(t.name, depth + 1);
           if (subBranch) nodeDiv.appendChild(subBranch);
         }
@@ -12489,7 +12577,7 @@ const BASELINE_ERP_TERRITORIES = [
       const rootEl = document.createElement('div');
       rootEl.className = 'erp-tree-node';
 
-      const isExpanded = treeExpandedNodes.has('All Territories') || Boolean(matchingNames);
+      const isExpanded = matchingNames ? !treeFilterCollapsedNodes.has('All Territories') : treeExpandedNodes.has('All Territories');
       const isSelected = selectedTreeNode === 'All Territories';
 
       const rootRow = document.createElement('div');
@@ -12510,7 +12598,13 @@ const BASELINE_ERP_TERRITORIES = [
       rootRow.onclick = (e) => {
         if (e.target.closest('.erp-tree-actions')) return;
         selectedTreeNode = 'All Territories';
-        if (treeExpandedNodes.has('All Territories')) {
+        if (treeFilterQuery) {
+          if (treeFilterCollapsedNodes.has('All Territories')) {
+            treeFilterCollapsedNodes.delete('All Territories');
+          } else {
+            treeFilterCollapsedNodes.add('All Territories');
+          }
+        } else if (treeExpandedNodes.has('All Territories')) {
           treeExpandedNodes.delete('All Territories');
         } else {
           treeExpandedNodes.add('All Territories');
@@ -12520,15 +12614,39 @@ const BASELINE_ERP_TERRITORIES = [
 
       rootEl.appendChild(rootRow);
 
+      let renderedRootChildrenCount = 0;
       if (isExpanded) {
         const childrenBranch = renderBranch('All Territories', 1);
-        if (childrenBranch) rootEl.appendChild(childrenBranch);
+        if (childrenBranch) {
+          renderedRootChildrenCount = childrenBranch.children.length;
+          rootEl.appendChild(childrenBranch);
+        }
       }
 
       container.appendChild(rootEl);
+
+      if (matchingNames && isExpanded && renderedRootChildrenCount === 0 && visibleMatchedNodeCount === 0) {
+        const emptyEl = document.createElement('div');
+        emptyEl.style.cssText = 'padding:18px 16px; margin-top:8px; border-radius:8px; border:1px dashed #CBD5E1; background:#F8FAFC; color:#475569; font-size:12.5px; display:flex; align-items:center; justify-content:space-between; gap:12px;';
+        emptyEl.innerHTML = `
+          <span>No territories or MedReps matching <strong>"${escapeHtml(treeFilterQuery)}"</strong> in ${escapeHtml(activeProgram || 'active program')}.</span>
+          <button type="button" class="erp-tree-btn" onclick="clearTreeFilterInput()" style="white-space:nowrap;">Clear Filter</button>
+        `;
+        container.appendChild(emptyEl);
+      }
     } else {
       const branch = renderBranch('ROOT', 0);
+      const renderedRootCount = branch ? branch.children.length : 0;
       if (branch) container.appendChild(branch);
+      if (matchingNames && renderedRootCount === 0 && visibleMatchedNodeCount === 0) {
+        const emptyEl = document.createElement('div');
+        emptyEl.style.cssText = 'padding:18px 16px; margin-top:8px; border-radius:8px; border:1px dashed #CBD5E1; background:#F8FAFC; color:#475569; font-size:12.5px; display:flex; align-items:center; justify-content:space-between; gap:12px;';
+        emptyEl.innerHTML = `
+          <span>No territories or MedReps matching <strong>"${escapeHtml(treeFilterQuery)}"</strong> in ${escapeHtml(activeProgram || 'active program')}.</span>
+          <button type="button" class="erp-tree-btn" onclick="clearTreeFilterInput()" style="white-space:nowrap;">Clear Filter</button>
+        `;
+        container.appendChild(emptyEl);
+      }
     }
   }
 
