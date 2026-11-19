@@ -7198,6 +7198,14 @@ const BASELINE_ERP_TERRITORIES = [
     const targetProg = programName || getSelectedProgramName();
     const spPool = [];
     const seenNames = new Set(['sales team']);
+    const seenCleanNames = new Set();
+
+    const getCleanSpKey = (rawName) => {
+      const cleaned = (typeof cleanRepDisplayName === 'function')
+        ? cleanRepDisplayName(rawName)
+        : String(rawName || '').replace(/\s*\([^)]*\)/g, '').trim();
+      return cleaned.trim().toLowerCase();
+    };
 
     if (typeof availableSalesPersons !== 'undefined' && Array.isArray(availableSalesPersons)) {
       availableSalesPersons.forEach(s => {
@@ -7206,17 +7214,22 @@ const BASELINE_ERP_TERRITORIES = [
         if (s.enabled === 0 || s.enabled === false) return;
         if (!isSalesPersonInProgram(s, targetProg, false)) return;
         seenNames.add(sName.toLowerCase());
+        const cleanKey = getCleanSpKey(sName);
+        if (cleanKey) seenCleanNames.add(cleanKey);
         spPool.push(s);
       });
     }
 
-    // Include baseline program roster entries not yet in availableSalesPersons
+    // Include baseline program roster entries not yet in availableSalesPersons (deduping by base MedRep name)
     const progRoster = (typeof PROGRAM_SALES_PERSON_ROSTER === 'object' && PROGRAM_SALES_PERSON_ROSTER && PROGRAM_SALES_PERSON_ROSTER[targetProg]) || [];
     progRoster.forEach(s => {
       const sName = (s && (s.sales_person_name || s.name)) ? String(s.sales_person_name || s.name).trim() : '';
       if (!sName || seenNames.has(sName.toLowerCase())) return;
       if (s.enabled === 0 || s.enabled === false) return;
+      const cleanKey = getCleanSpKey(sName);
+      if (cleanKey && seenCleanNames.has(cleanKey)) return;
       seenNames.add(sName.toLowerCase());
+      if (cleanKey) seenCleanNames.add(cleanKey);
       spPool.push(s);
     });
 
@@ -7240,8 +7253,9 @@ const BASELINE_ERP_TERRITORIES = [
         : String((pt && pt.rep) || '').trim();
       const lowerRep = rawRep.toLowerCase();
       if (!rawRep || lowerRep.includes('unassigned') || lowerRep.includes('vacant') || lowerRep.includes('folder')) return;
-      if (seenNames.has(lowerRep)) return;
+      if (seenNames.has(lowerRep) || seenCleanNames.has(lowerRep)) return;
       seenNames.add(lowerRep);
+      seenCleanNames.add(lowerRep);
       spPool.push({
         name: rawRep,
         sales_person_name: rawRep,
@@ -14807,6 +14821,145 @@ const BASELINE_ERP_TERRITORIES = [
     document.getElementById('treeRenameModalOverlay').classList.remove('active');
   }
 
+  function escapeRegExpToken(str) {
+    return String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function replaceParenthesizedTerritoryCode(spName, fromCode, toCode) {
+    const cleanSp = String(spName || '').trim();
+    const cleanFrom = String(fromCode || '').trim();
+    const cleanTo = String(toCode || '').trim();
+    if (!cleanSp || !cleanFrom || !cleanTo || cleanFrom.toLowerCase() === cleanTo.toLowerCase()) {
+      return null;
+    }
+    const re = new RegExp('\\(\\s*' + escapeRegExpToken(cleanFrom) + '\\s*\\)', 'i');
+    if (!re.test(cleanSp)) return null;
+    return cleanSp.replace(re, () => `(${cleanTo})`);
+  }
+
+  function syncSalesPersonTerritoryCodeLocally(oldCode, newCode, assignedRepRaw, prevCode, triggerStandaloneApi = true) {
+    const fromCode = String(oldCode || '').trim();
+    const toCode = String(newCode || '').trim();
+    if (!fromCode || !toCode || fromCode.toLowerCase() === toCode.toLowerCase()) return [];
+
+    const cleanAssignedBase = typeof cleanRepDisplayName === 'function'
+      ? cleanRepDisplayName(assignedRepRaw || '').toLowerCase()
+      : String(assignedRepRaw || '').replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+    const priorCode = String(prevCode || '').trim();
+    const renamedPairs = [];
+    const renamedMap = new Map();
+
+    if (typeof availableSalesPersons !== 'undefined' && Array.isArray(availableSalesPersons)) {
+      const existingNamesLower = new Set(
+        availableSalesPersons
+          .filter(s => s && (s.name || s.sales_person_name))
+          .map(s => String(s.name || s.sales_person_name).trim().toLowerCase())
+      );
+
+      availableSalesPersons.forEach(sp => {
+        if (!sp) return;
+        const origSpId = String(sp.name || sp.sales_person_name || '').trim();
+        if (!origSpId) return;
+
+        let nextSpId = replaceParenthesizedTerritoryCode(origSpId, fromCode, toCode);
+        if (!nextSpId && priorCode && priorCode.toLowerCase() !== fromCode.toLowerCase() && !Number(sp.is_group || 0)) {
+          const spBase = (typeof cleanRepDisplayName === 'function')
+            ? cleanRepDisplayName(origSpId).toLowerCase()
+            : origSpId.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+          if (cleanAssignedBase && spBase === cleanAssignedBase) {
+            nextSpId = replaceParenthesizedTerritoryCode(origSpId, priorCode, toCode);
+          }
+        }
+
+        if (nextSpId && nextSpId !== origSpId) {
+          if (existingNamesLower.has(nextSpId.toLowerCase()) && origSpId.toLowerCase() !== nextSpId.toLowerCase()) {
+            return;
+          }
+          existingNamesLower.delete(origSpId.toLowerCase());
+          existingNamesLower.add(nextSpId.toLowerCase());
+          sp.name = nextSpId;
+          sp.sales_person_name = nextSpId;
+          renamedMap.set(origSpId.toLowerCase(), nextSpId);
+          renamedPairs.push({ oldSp: origSpId, newSp: nextSpId });
+          if (typeof registerSalesPersonProgram === 'function') {
+            registerSalesPersonProgram(nextSpId, activeProgram);
+          }
+        }
+      });
+
+      if (renamedMap.size > 0) {
+        availableSalesPersons.forEach(sp => {
+          if (!sp || !sp.parent_sales_person) return;
+          const mappedParent = renamedMap.get(String(sp.parent_sales_person).trim().toLowerCase());
+          if (mappedParent) sp.parent_sales_person = mappedParent;
+        });
+      }
+
+      try {
+        localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons));
+      } catch (_) {}
+    }
+
+    if (typeof PROGRAM_SALES_PERSON_ROSTER === 'object' && PROGRAM_SALES_PERSON_ROSTER) {
+      Object.values(PROGRAM_SALES_PERSON_ROSTER).forEach(roster => {
+        if (!Array.isArray(roster)) return;
+        roster.forEach(sp => {
+          if (!sp) return;
+          const origId = String(sp.name || sp.sales_person_name || '').trim();
+          const nextId = replaceParenthesizedTerritoryCode(origId, fromCode, toCode);
+          if (nextId && nextId !== origId) {
+            sp.name = nextId;
+            sp.sales_person_name = nextId;
+            if (!renamedMap.has(origId.toLowerCase())) renamedMap.set(origId.toLowerCase(), nextId);
+          }
+          if (sp.parent_sales_person) {
+            const mp = renamedMap.get(String(sp.parent_sales_person).trim().toLowerCase());
+            if (mp) sp.parent_sales_person = mp;
+          }
+        });
+      });
+    }
+
+    if (typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData)) {
+      territoryTreeData.forEach(t => {
+        if (!t || !t.territory_manager) return;
+        const tm = String(t.territory_manager).trim();
+        const mapped = renamedMap.get(tm.toLowerCase()) || replaceParenthesizedTerritoryCode(tm, fromCode, toCode);
+        if (mapped) t.territory_manager = mapped;
+      });
+    }
+
+    if (typeof populateParentSalesPersonSelect === 'function') {
+      populateParentSalesPersonSelect();
+    }
+
+    if (triggerStandaloneApi && renamedPairs.length > 0) {
+      renamedPairs.forEach(pair => {
+        try {
+          fetch('/api/method/frappe.client.rename_doc', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              doctype: 'Sales Person',
+              old_name: pair.oldSp,
+              new_name: pair.newSp
+            })
+          }).then(res => {
+            if (res.ok) {
+              return fetch(`/api/resource/Sales%20Person/${encodeURIComponent(pair.newSp)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sales_person_name: pair.newSp })
+              });
+            }
+          }).catch(() => {});
+        } catch (_) {}
+      });
+    }
+
+    return renamedPairs;
+  }
+
   async function submitTreeRename() {
     const oldName = document.getElementById('treeRenameOldName').value.trim();
     const newName = document.getElementById('treeRenameNewNameInput').value.trim();
@@ -14838,6 +14991,10 @@ const BASELINE_ERP_TERRITORIES = [
     showToast(`Updating field... Renaming territory "${oldName}" &rarr; "${newName}"`, 'info', 2000);
 
     const node = territoryTreeData.find(t => t.name === oldName || t.territory_name === oldName);
+    const matchedPt = programTerritories.find(pt => pt.activeCode === oldName || pt.latestPrevCode === oldName || pt.histCode === oldName);
+    const prevCode = (matchedPt && matchedPt.latestPrevCode && matchedPt.latestPrevCode !== oldName) ? matchedPt.latestPrevCode : '';
+    const assignedMgr = (node && node.territory_manager) || (matchedPt && matchedPt.rep) || '';
+
     if (node) {
       node.name = newName;
       node.territory_name = newName;
@@ -14904,13 +15061,16 @@ const BASELINE_ERP_TERRITORIES = [
       } catch (_) {}
     }
 
+    const isStreamlitEnv = isStreamlitActive || (window.parent && window.parent !== window);
+    syncSalesPersonTerritoryCodeLocally(oldName, newName, assignedMgr, prevCode, !isStreamlitEnv);
+
     localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
     try {
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
     } catch (_) {}
 
-    // Streamlit bidirectional dispatch (with territory_name, name, old_name, new_name)
-    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+    // Streamlit bidirectional dispatch (with territory_name, name, old_name, new_name, sales person code context)
+    if (isStreamlitEnv) {
       try {
         window.parent.postMessage({
           isStreamlitMessage: true,
@@ -14922,6 +15082,8 @@ const BASELINE_ERP_TERRITORIES = [
             old_name: oldName,
             new_name: newName,
             parent_territory: (node && node.parent_territory) || 'Abbott DC Territories',
+            territory_manager: assignedMgr,
+            prev_code: prevCode,
             timestamp: Date.now()
           }
         }, "*");
@@ -15239,6 +15401,7 @@ const BASELINE_ERP_TERRITORIES = [
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const changes = [];
     const oldCode = row.activeCode;
+    const prevCodeBeforeRename = row.latestPrevCode;
 
     if (newActiveCode !== row.activeCode) {
       changes.push(`Code renamed from ${row.activeCode} to ${newActiveCode}`);
@@ -15331,17 +15494,32 @@ const BASELINE_ERP_TERRITORIES = [
       });
     }
 
+    const isStreamlitEnv = isStreamlitActive || (window.parent && window.parent !== window);
+    if (newActiveCode !== oldCode) {
+      syncSalesPersonTerritoryCodeLocally(oldCode, newActiveCode, rawRepInput, prevCodeBeforeRename, !isStreamlitEnv);
+    }
+
     try {
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
       localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
     } catch (_) {}
 
-    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+    if (isStreamlitEnv) {
       try {
         window.parent.postMessage({
           isStreamlitMessage: true,
           type: "streamlit:setComponentValue",
-          value: {
+          value: (newActiveCode !== oldCode) ? {
+            action: "tree_rename",
+            name: oldCode,
+            territory_name: oldCode,
+            old_name: oldCode,
+            new_name: newActiveCode,
+            parent_territory: row.district || 'All Territories',
+            territory_manager: (row.operationalStatus === 'Active') ? newRep : '',
+            prev_code: prevCodeBeforeRename || oldCode,
+            timestamp: Date.now()
+          } : {
             action: "tree_edit",
             name: row.activeCode,
             parent_territory: row.district || 'All Territories',
@@ -15608,10 +15786,30 @@ const BASELINE_ERP_TERRITORIES = [
       if (row.activeCode.startsWith(oldPfx)) {
         const updated = newPfx + row.activeCode.slice(oldPfx.length);
         const oldCode = row.activeCode;
+        const prevCodeBeforeRename = row.latestPrevCode;
         row.latestPrevCode = oldCode;
         row.activeCode = updated;
         row.status = 'CHANGED';
         renamedCount++;
+
+        const bNode = (territoryTreeData || []).find(t => t && (t.name === oldCode || t.territory_name === oldCode));
+        if (bNode) {
+          bNode.name = updated;
+          bNode.territory_name = updated;
+        }
+        (territoryTreeData || []).forEach(t => {
+          if (t && t.parent_territory === oldCode) t.parent_territory = updated;
+        });
+        if (Array.isArray(programAccounts)) {
+          programAccounts.forEach(acc => {
+            if (acc.liveTerritory === oldCode || acc.territory === oldCode || acc.activeCode === oldCode) {
+              acc.liveTerritory = updated;
+              acc.territory = updated;
+              acc.activeCode = updated;
+            }
+          });
+        }
+        syncSalesPersonTerritoryCodeLocally(oldCode, updated, row.rep, prevCodeBeforeRename, false);
 
         const entry = {
           timestamp: nowStr,
@@ -15628,6 +15826,12 @@ const BASELINE_ERP_TERRITORIES = [
         });
       }
     });
+
+    try {
+      localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
+      localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_accounts_' + activeProgram, JSON.stringify(programAccounts));
+    } catch (_) {}
 
     closeBatchRenameModal();
     renderTable();
