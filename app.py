@@ -172,6 +172,69 @@ def record_shared_territory_edit(orig_name, parent=None, is_group=None, manager=
     terrs[orig_name] = entry
     save_shared_territory_state(st_data)
 
+def _replace_parenthesized_territory_code(sp_name, old_code, new_code):
+    """Replaces only an exact parenthesized territory code token (e.g. 'ARCENE PIANG (AD0116)' -> 'ARCENE PIANG (AD0900)')."""
+    clean_sp = safe_str(sp_name)
+    clean_old = safe_str(old_code)
+    clean_new = safe_str(new_code)
+    if not clean_sp or not clean_old or not clean_new:
+        return None
+    if clean_old.lower() == clean_new.lower():
+        return None
+    pattern = re.compile(r"\(\s*" + re.escape(clean_old) + r"\s*\)", re.IGNORECASE)
+    if not pattern.search(clean_sp):
+        return None
+    return pattern.sub(lambda _m: f"({clean_new})", clean_sp)
+
+def record_shared_sales_person_rename(old_sp_name, new_sp_name):
+    if not old_sp_name or not new_sp_name:
+        return
+    st_data = load_shared_territory_state()
+    sp_renames = st_data.setdefault("sp_renames", {})
+    for k, v in list(sp_renames.items()):
+        if v == old_sp_name:
+            sp_renames[k] = new_sp_name
+    sp_renames[old_sp_name] = new_sp_name
+    save_shared_territory_state(st_data)
+
+def merge_shared_sales_persons_into_list(sp_list):
+    if not isinstance(sp_list, list):
+        return sp_list
+    st_data = load_shared_territory_state()
+    sp_renames = st_data.get("sp_renames", {})
+    if not sp_renames:
+        return sp_list
+    existing_lower = set()
+    for s in sp_list:
+        if isinstance(s, dict):
+            n = safe_str(s.get("name") or s.get("sales_person_name"))
+            if n and n not in sp_renames:
+                existing_lower.add(n.lower())
+    merged = []
+    seen = set()
+    for s in sp_list:
+        if not isinstance(s, dict):
+            continue
+        sp_copy = dict(s)
+        orig_name = sp_copy.get("name") or sp_copy.get("sales_person_name") or ""
+        orig_sp_name = sp_copy.get("sales_person_name") or orig_name
+        target_name = sp_renames.get(orig_name) or sp_renames.get(orig_sp_name)
+        if target_name:
+            if target_name.lower() in seen or (orig_name != target_name and target_name.lower() in existing_lower):
+                continue
+            sp_copy["name"] = target_name
+            sp_copy["sales_person_name"] = target_name
+        parent_sp = sp_copy.get("parent_sales_person") or ""
+        if parent_sp in sp_renames:
+            sp_copy["parent_sales_person"] = sp_renames[parent_sp]
+        key = safe_str(sp_copy.get("name") or sp_copy.get("sales_person_name")).lower()
+        if key and key in seen:
+            continue
+        if key:
+            seen.add(key)
+        merged.append(sp_copy)
+    return merged
+
 def record_shared_territory_rename(old_name, new_name):
     if not old_name or not new_name:
         return
@@ -183,6 +246,10 @@ def record_shared_territory_rename(old_name, new_name):
         entry = terrs.pop(old_name)
         entry["name"] = new_name
         entry["territory_name"] = new_name
+        if entry.get("territory_manager"):
+            updated_mgr = _replace_parenthesized_territory_code(entry.get("territory_manager"), old_name, new_name)
+            if updated_mgr:
+                entry["territory_manager"] = updated_mgr
         terrs[new_name] = entry
     save_shared_territory_state(st_data)
 
@@ -833,7 +900,7 @@ def fetch_live_sales_persons(opener):
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
         res = call_erpnext_resiliently(opener, req, timeout=12)
         data = json.loads(res.read().decode("utf-8")).get("data", [])
-        return data
+        return merge_shared_sales_persons_into_list(data)
     except Exception as e:
         print(f"[Streamlit Proxy] Failed to fetch live sales persons: {e}")
         return None
@@ -1776,6 +1843,175 @@ def _ensure_parent_sales_person_is_group(opener, parent_name, headers_json):
         pass
 
 
+def _sync_sales_person_code_on_territory_rename(opener, old_terr, new_terr, headers_json, assigned_mgr="", prev_terr=""):
+    """
+    Synchronizes the parenthesized territory code suffix in ERPNext's Sales Person Tree
+    (e.g. 'ARCENE PIANG (AD0116)' -> 'ARCENE PIANG (AD0900)') whenever a territory is renamed.
+    Preserves the MedRep base name and updates linked Territory Manager references cleanly.
+    """
+    clean_old = safe_str(old_terr)
+    clean_new = safe_str(new_terr)
+    if not opener or not clean_old or not clean_new or clean_old.lower() == clean_new.lower():
+        return []
+
+    renamed_results = []
+    try:
+        live_sps = fetch_live_sales_persons(opener)
+        if not isinstance(live_sps, list):
+            live_sps = st.session_state.get("live_sales_persons") or []
+
+        # Confirm current Territory.territory_manager on ERPNext if not already known
+        live_terr_mgr = safe_str(assigned_mgr)
+        for probe_terr in (clean_new, clean_old):
+            if live_terr_mgr:
+                break
+            try:
+                t_url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(probe_terr)}"
+                t_res = call_erpnext_resiliently(opener, urllib.request.Request(t_url, headers=headers_json), timeout=6)
+                t_data = json.loads(t_res.read().decode("utf-8")).get("data", {})
+                if t_data.get("territory_manager"):
+                    live_terr_mgr = safe_str(t_data.get("territory_manager"))
+                    break
+            except Exception:
+                pass
+
+        sp_by_lower = {}
+        for sp in live_sps:
+            if not isinstance(sp, dict):
+                continue
+            sp_key = safe_str(sp.get("name") or sp.get("sales_person_name"))
+            if sp_key:
+                sp_by_lower[sp_key.lower()] = sp
+
+        targets = []
+        seen_old = set()
+
+        # 1. Exact match on parenthesized old_terr across Sales Person Tree
+        for sp in live_sps:
+            if not isinstance(sp, dict):
+                continue
+            sp_id = safe_str(sp.get("name") or sp.get("sales_person_name"))
+            sp_label = safe_str(sp.get("sales_person_name") or sp_id)
+            if not sp_id or sp_id.lower() in seen_old:
+                continue
+            candidate_new = _replace_parenthesized_territory_code(sp_id, clean_old, clean_new)
+            if not candidate_new:
+                candidate_new = _replace_parenthesized_territory_code(sp_label, clean_old, clean_new)
+            if candidate_new:
+                seen_old.add(sp_id.lower())
+                targets.append((sp, sp_id, candidate_new))
+
+        # 2. If territory was previously renamed before this sync, also check non-group assigned manager matching prev_terr
+        clean_prev = safe_str(prev_terr)
+        clean_mgr_base = re.sub(r"\s*\([^)]*\)", "", live_terr_mgr).strip().lower() if live_terr_mgr else ""
+        if clean_prev and clean_prev.lower() != clean_old.lower() and (live_terr_mgr or clean_mgr_base):
+            for sp in live_sps:
+                if not isinstance(sp, dict):
+                    continue
+                if int(sp.get("is_group") or 0):
+                    continue
+                sp_id = safe_str(sp.get("name") or sp.get("sales_person_name"))
+                if not sp_id or sp_id.lower() in seen_old:
+                    continue
+                sp_base = re.sub(r"\s*\([^)]*\)", "", sp_id).strip().lower()
+                if sp_id.lower() == live_terr_mgr.lower() or (clean_mgr_base and sp_base == clean_mgr_base):
+                    candidate_new = _replace_parenthesized_territory_code(sp_id, clean_prev, clean_new)
+                    if candidate_new:
+                        seen_old.add(sp_id.lower())
+                        targets.append((sp, sp_id, candidate_new))
+
+        for sp_obj, old_sp, new_sp in targets:
+            is_terr_mgr = bool(
+                live_terr_mgr and (
+                    old_sp.lower() == live_terr_mgr.lower()
+                    or re.sub(r"\s*\([^)]*\)", "", old_sp).strip().lower() == clean_mgr_base
+                )
+            )
+            # Collision guard: avoid overwriting an existing distinct Sales Person record
+            if new_sp.lower() in sp_by_lower and old_sp.lower() != new_sp.lower():
+                existing_target = safe_str(sp_by_lower[new_sp.lower()].get("name") or new_sp)
+                if is_terr_mgr:
+                    try:
+                        mgr_req = urllib.request.Request(
+                            f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(clean_new)}",
+                            data=json.dumps({"territory_manager": existing_target}).encode("utf-8"),
+                            headers=headers_json,
+                            method="PUT"
+                        )
+                        call_erpnext_resiliently(opener, mgr_req, timeout=8)
+                    except Exception:
+                        pass
+                continue
+
+            sp_renamed = False
+            try:
+                sp_form = urllib.parse.urlencode({
+                    "doctype": "Sales Person",
+                    "old_name": old_sp,
+                    "new_name": new_sp
+                }).encode("utf-8")
+                sp_req = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.rename_doc",
+                    data=sp_form,
+                    headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+                    method="POST"
+                )
+                sp_res = call_erpnext_resiliently(opener, sp_req, timeout=12)
+                if sp_res and sp_res.status == 200:
+                    sp_renamed = True
+                    try:
+                        sp_put = urllib.request.Request(
+                            f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person/{urllib.parse.quote(new_sp)}",
+                            data=json.dumps({"sales_person_name": new_sp}).encode("utf-8"),
+                            headers=headers_json,
+                            method="PUT"
+                        )
+                        call_erpnext_resiliently(opener, sp_put, timeout=10)
+                    except Exception:
+                        pass
+            except Exception as sp_err:
+                print(f"[Sales Person Code Rename Warning] {old_sp} -> {new_sp}: {sp_err}")
+
+            if sp_renamed:
+                sp_by_lower.pop(old_sp.lower(), None)
+                sp_by_lower[new_sp.lower()] = {**sp_obj, "name": new_sp, "sales_person_name": new_sp}
+                record_shared_sales_person_rename(old_sp, new_sp)
+                if is_terr_mgr:
+                    record_shared_territory_edit(clean_new, manager=new_sp)
+                    try:
+                        mgr_req = urllib.request.Request(
+                            f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(clean_new)}",
+                            data=json.dumps({"territory_manager": new_sp}).encode("utf-8"),
+                            headers=headers_json,
+                            method="PUT"
+                        )
+                        call_erpnext_resiliently(opener, mgr_req, timeout=8)
+                    except Exception:
+                        pass
+
+                # Reflect immediately in session state (including child parent_sales_person links)
+                if "live_sales_persons" in st.session_state and isinstance(st.session_state.live_sales_persons, list):
+                    for s in st.session_state.live_sales_persons:
+                        if not isinstance(s, dict):
+                            continue
+                        if s.get("name") == old_sp or s.get("sales_person_name") == old_sp:
+                            s["name"] = new_sp
+                            s["sales_person_name"] = new_sp
+                        if s.get("parent_sales_person") == old_sp:
+                            s["parent_sales_person"] = new_sp
+
+                if "live_territories" in st.session_state and isinstance(st.session_state.live_territories, list):
+                    for t in st.session_state.live_territories:
+                        if isinstance(t, dict) and safe_str(t.get("territory_manager")).lower() == old_sp.lower():
+                            t["territory_manager"] = new_sp
+
+                renamed_results.append(new_sp)
+    except Exception as ex:
+        print(f"[Sales Person Rename Sync Error] {ex}")
+
+    return renamed_results
+
+
 def _resolve_sales_person_for_manager(opener, rep_name, headers_json):
     """
     Defensively resolves territory manager string to exact Sales Person DocType name on ERPNext.
@@ -2121,6 +2357,16 @@ def execute_tree_action(opener, action, payload):
                 except Exception:
                     pass
 
+            # Synchronize Sales Person parenthesized territory code (e.g. 'MEDREP (OLD)' -> 'MEDREP (NEW)')
+            renamed_sps = _sync_sales_person_code_on_territory_rename(
+                opener,
+                old_name,
+                new_name,
+                headers_json,
+                assigned_mgr=safe_str(payload.get("territory_manager")),
+                prev_terr=safe_str(payload.get("prev_code"))
+            )
+
             # Update session state live_territories in-memory immediately to prevent revert
             if "live_territories" in st.session_state and isinstance(st.session_state.live_territories, list):
                 found = False
@@ -2128,6 +2374,10 @@ def execute_tree_action(opener, action, payload):
                     if t.get("name") == old_name or t.get("territory_name") == old_name:
                         t["name"] = new_name
                         t["territory_name"] = new_name
+                        if renamed_sps and safe_str(t.get("territory_manager")):
+                            updated_tm = _replace_parenthesized_territory_code(t.get("territory_manager"), old_name, new_name)
+                            if updated_tm:
+                                t["territory_manager"] = updated_tm
                         found = True
                         break
                 if not found:
@@ -2138,9 +2388,10 @@ def execute_tree_action(opener, action, payload):
                         "is_group": 0
                     })
 
+            sp_suffix = f' (Synced Sales Person: {", ".join(renamed_sps)})' if renamed_sps else ""
             if renamed:
-                return "success", f'Renamed "{old_name}" -> "{new_name}" live on {get_server_display_name()}!'
-            return "success", f'Renamed "{old_name}" to "{new_name}".'
+                return "success", f'Renamed "{old_name}" -> "{new_name}"{sp_suffix} live on {get_server_display_name()}!'
+            return "success", f'Renamed "{old_name}" to "{new_name}"{sp_suffix}.'
 
         elif action == "tree_delete":
             name = safe_str(payload.get("name") or payload.get("territory_name") or payload.get("territory"))
