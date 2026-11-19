@@ -14887,6 +14887,44 @@ const BASELINE_ERP_TERRITORIES = [
         }
       });
 
+      if (renamedPairs.length === 0 && cleanAssignedBase) {
+        const renamedNode = (typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData))
+          ? territoryTreeData.find(t => t && (t.name === toCode || t.territory_name === toCode || t.name === fromCode || t.territory_name === fromCode))
+          : null;
+        const isTerrGroup = Boolean(renamedNode && Number(renamedNode.is_group || 0));
+        if (!isTerrGroup) {
+          const leafMatches = availableSalesPersons.filter(sp => {
+            if (!sp || Number(sp.is_group || 0)) return false;
+            const origSpId = String(sp.name || sp.sales_person_name || '').trim();
+            if (!origSpId) return false;
+            const spBase = (typeof cleanRepDisplayName === 'function')
+              ? cleanRepDisplayName(origSpId).toLowerCase()
+              : origSpId.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+            return spBase === cleanAssignedBase;
+          });
+          if (leafMatches.length === 1) {
+            const sp = leafMatches[0];
+            const origSpId = String(sp.name || sp.sales_person_name || '').trim();
+            const mCode = origSpId.match(/\(\s*([^()]+?)\s*\)\s*$/);
+            const staleCode = mCode ? String(mCode[1] || '').trim() : '';
+            if (staleCode && staleCode.toLowerCase() !== toCode.toLowerCase()) {
+              const nextSpId = replaceParenthesizedTerritoryCode(origSpId, staleCode, toCode);
+              if (nextSpId && nextSpId !== origSpId && (!existingNamesLower.has(nextSpId.toLowerCase()) || origSpId.toLowerCase() === nextSpId.toLowerCase())) {
+                existingNamesLower.delete(origSpId.toLowerCase());
+                existingNamesLower.add(nextSpId.toLowerCase());
+                sp.name = nextSpId;
+                sp.sales_person_name = nextSpId;
+                renamedMap.set(origSpId.toLowerCase(), nextSpId);
+                renamedPairs.push({ oldSp: origSpId, newSp: nextSpId });
+                if (typeof registerSalesPersonProgram === 'function') {
+                  registerSalesPersonProgram(nextSpId, activeProgram);
+                }
+              }
+            }
+          }
+        }
+      }
+
       if (renamedMap.size > 0) {
         availableSalesPersons.forEach(sp => {
           if (!sp || !sp.parent_sales_person) return;
@@ -14906,7 +14944,7 @@ const BASELINE_ERP_TERRITORIES = [
         roster.forEach(sp => {
           if (!sp) return;
           const origId = String(sp.name || sp.sales_person_name || '').trim();
-          const nextId = replaceParenthesizedTerritoryCode(origId, fromCode, toCode);
+          const nextId = renamedMap.get(origId.toLowerCase()) || replaceParenthesizedTerritoryCode(origId, fromCode, toCode);
           if (nextId && nextId !== origId) {
             sp.name = nextId;
             sp.sales_person_name = nextId;
