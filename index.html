@@ -847,27 +847,90 @@
   }
 
   .menu-toggle-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.28);
     color: #38BDF8;
     padding: 0;
-    width: 34px;
-    height: 34px;
-    border-radius: 6px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
     font-size: 18px;
     line-height: 1;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.14s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    position: relative;
   }
 
   .menu-toggle-btn:hover {
-    background: #1E293B;
+    background: rgba(56, 189, 248, 0.14);
+    border-color: rgba(56, 189, 248, 0.55);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
     color: #FFFFFF;
+  }
+
+  .menu-toggle-btn:active {
+    transform: scale(0.92);
+  }
+
+  .hamburger-lines {
+    position: relative;
+    width: 18px;
+    height: 14px;
+    display: inline-block;
+  }
+
+  .hamburger-line {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 2.2px;
+    background-color: #38BDF8;
+    border-radius: 999px;
+    transform-origin: center;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.2s ease,
+                width 0.22s ease,
+                background-color 0.2s ease;
+  }
+
+  .hamburger-line:nth-child(1) {
+    top: 0;
+  }
+
+  .hamburger-line:nth-child(2) {
+    top: 5.9px;
+  }
+
+  .hamburger-line:nth-child(3) {
+    top: 11.8px;
+  }
+
+  .menu-toggle-btn:hover .hamburger-line {
+    background-color: #FFFFFF;
+  }
+
+  /* Intuitive Menu Open <-> Closed Morph Animation (Animated X <-> 3 Bars) */
+  .menu-toggle-btn.is-open {
+    background: rgba(56, 189, 248, 0.14);
+    border-color: rgba(56, 189, 248, 0.45);
+  }
+
+  .menu-toggle-btn.is-open .hamburger-line:nth-child(1) {
+    transform: translateY(5.9px) rotate(45deg);
+  }
+
+  .menu-toggle-btn.is-open .hamburger-line:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+
+  .menu-toggle-btn.is-open .hamburger-line:nth-child(3) {
+    transform: translateY(-5.9px) rotate(-45deg);
   }
 
   .brand {
@@ -3008,8 +3071,10 @@
 
   .transfer-workbench-modal {
     max-width: 1060px !important;
-    width: 95% !important;
-    max-height: 90vh !important;
+    width: min(96%, 1060px) !important;
+    height: auto !important;
+    max-height: calc(100vh - 24px) !important;
+    padding: 16px 20px !important;
     display: flex !important;
     flex-direction: column !important;
     background: #FFFFFF !important;
@@ -3019,20 +3084,58 @@
     overflow: hidden !important;
   }
 
+  .transfer-workbench-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding-right: 2px;
+  }
+
+  .transfer-workbench-footer {
+    flex-shrink: 0;
+    border-top: 1px solid #E2E8F0;
+    padding-top: 10px;
+    margin-top: 10px;
+    background: #FFFFFF;
+  }
+
   .transfer-split-layout {
     display: grid;
     grid-template-columns: 1fr 140px 1fr;
     gap: 12px;
     align-items: stretch;
-    flex: 1;
-    min-height: 420px;
-    max-height: 520px;
-    margin-top: 10px;
+    flex: 1 1 auto;
+    min-height: 220px;
+    margin-top: 0;
   }
 
   @media (max-width: 900px) {
     .transfer-split-layout {
       grid-template-columns: 1fr;
+    }
+    .workbench-center-cluster {
+      flex-direction: row !important;
+      flex-wrap: wrap;
+      padding: 4px 0 !important;
+    }
+    .btn-workbench-transfer {
+      width: auto !important;
+      flex: 1 1 auto;
+    }
+  }
+
+  @media (max-height: 760px) {
+    .transfer-workbench-modal {
+      padding: 12px 16px !important;
+    }
+    .workbench-dropzone {
+      min-height: 110px !important;
+      max-height: 260px !important;
+    }
+    #transferAuditNotesInput {
+      min-height: 38px !important;
     }
   }
 
@@ -3040,21 +3143,24 @@
     background: #F8FAFC;
     border: 1px solid #E2E8F0;
     border-radius: 8px;
-    padding: 12px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .workbench-pane-header {
-    margin-bottom: 10px;
+    margin-bottom: 6px;
+    flex-shrink: 0;
   }
 
   .workbench-dropzone {
-    flex: 1;
+    flex: 1 1 auto;
     overflow-y: auto;
-    min-height: 280px;
-    max-height: 380px;
+    min-height: 130px;
+    max-height: 340px;
     padding: 8px;
     border-radius: 8px;
     border: 2px dashed #CBD5E1;
@@ -3191,8 +3297,12 @@
 <!-- Header -->
 <header>
   <div class="header-left">
-    <button class="menu-toggle-btn" onclick="toggleSidebar()" id="sidebarToggleBtn" title="Hide Menu" aria-label="Toggle Navigation Menu" style="display:none;">
-      <span style="font-size: 18px; line-height: 1;">&#9776;</span>
+    <button type="button" class="menu-toggle-btn is-open" onclick="toggleSidebar()" id="sidebarToggleBtn" title="Hide Menu" aria-label="Hide Menu" aria-expanded="true" aria-controls="sidebarNav" style="display:none;">
+      <span class="hamburger-lines" aria-hidden="true">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </span>
     </button>
     <div class="brand">
       <div class="brand-icon" style="background:#FFFFFF; border:1.5px solid #38BDF8; padding:2px; display:flex; align-items:center; justify-content:center; border-radius:8px; overflow:hidden; width:34px; height:34px;">
@@ -4407,10 +4517,10 @@
 <!-- ======================================================== -->
 <!-- MODAL: Two-Pane Doctor Transfer & Handover Workbench     -->
 <!-- ======================================================== -->
-<div class="modal-overlay" id="doctorTransferModalOverlay">
-  <div class="modal-card transfer-workbench-modal" style="padding:24px;">
+<div class="modal-overlay" id="doctorTransferModalOverlay" style="padding:12px;">
+  <div class="modal-card transfer-workbench-modal">
     <!-- Header -->
-    <div class="modal-header" style="border-bottom:1px solid #E2E8F0; padding-bottom:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+    <div class="modal-header" style="flex-shrink:0; border-bottom:1px solid #E2E8F0; padding-bottom:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
       <div>
         <h2 style="font-size:16px; font-weight:800; color:#0F172A; margin:0;" id="doctorTransferModalTitle">
           Doctor Transfer &amp; Handover
@@ -4422,99 +4532,101 @@
       <button class="btn btn-sm btn-outline" onclick="closeDoctorTransferModal()" style="color:#64748B; border-color:#CBD5E1; background:#FFF; font-size:13px; padding:4px 10px;">✕</button>
     </div>
 
-    <!-- Representative Reassignment & Operational Status Bar -->
-    <div id="transferHandoverHeaderBar" style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
-      <div style="display:flex; align-items:center; gap:10px; font-size:12px;">
-        <span style="font-weight:700; color:#475569;">Source Rep:</span>
-        <strong id="handoverSourceRepDisplay" style="color:#0F172A;">---</strong>
-        
-        <div style="display:inline-flex; border:1.5px solid #CBD5E1; border-radius:6px; overflow:hidden; background:#FFF; margin-left:6px;">
-          <button type="button" id="btnTransferStatus_active" onclick="setTransferSourceOperationalStatus('Active')" style="padding:3px 9px; font-size:11px; font-weight:700; border:none; cursor:pointer; background:#DCFCE7; color:#15803D;">Active (Working)</button>
-          <button type="button" id="btnTransferStatus_inactive" onclick="setTransferSourceOperationalStatus('Inactive')" style="padding:3px 9px; font-size:11px; font-weight:700; border:none; border-left:1px solid #CBD5E1; cursor:pointer; background:#F8FAFC; color:#64748B;">Inactive (Resigned)</button>
-          <button type="button" id="btnTransferStatus_vacant" onclick="setTransferSourceOperationalStatus('Vacant')" style="padding:3px 9px; font-size:11px; font-weight:700; border:none; border-left:1px solid #CBD5E1; cursor:pointer; background:#F8FAFC; color:#64748B;">Vacant</button>
+    <div class="transfer-workbench-body">
+      <!-- Representative Reassignment & Operational Status Bar -->
+      <div id="transferHandoverHeaderBar" style="flex-shrink:0; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:7px 12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:10px; font-size:12px;">
+          <span style="font-weight:700; color:#475569;">Source Rep:</span>
+          <strong id="handoverSourceRepDisplay" style="color:#0F172A;">---</strong>
+          
+          <div style="display:inline-flex; border:1.5px solid #CBD5E1; border-radius:6px; overflow:hidden; background:#FFF; margin-left:6px;">
+            <button type="button" id="btnTransferStatus_active" onclick="setTransferSourceOperationalStatus('Active')" style="padding:3px 9px; font-size:11px; font-weight:700; border:none; cursor:pointer; background:#DCFCE7; color:#15803D;">Active (Working)</button>
+            <button type="button" id="btnTransferStatus_inactive" onclick="setTransferSourceOperationalStatus('Inactive')" style="padding:3px 9px; font-size:11px; font-weight:700; border:none; border-left:1px solid #CBD5E1; cursor:pointer; background:#F8FAFC; color:#64748B;">Inactive (Resigned)</button>
+            <button type="button" id="btnTransferStatus_vacant" onclick="setTransferSourceOperationalStatus('Vacant')" style="padding:3px 9px; font-size:11px; font-weight:700; border:none; border-left:1px solid #CBD5E1; cursor:pointer; background:#F8FAFC; color:#64748B;">Vacant</button>
+          </div>
         </div>
-      </div>
-      <div style="font-size:11.5px; color:#64748B;">
-        <span>Direct Doctor Portfolio Transfer between Territories</span>
-      </div>
-    </div>
-
-    <!-- Dual-Pane Split Layout -->
-    <div class="transfer-split-layout">
-      <!-- LEFT PANE: Target / Destination -->
-      <div class="workbench-pane" id="targetWorkbenchPane">
-        <div class="workbench-pane-header">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <span style="font-size:11.5px; font-weight:700; color:#0066FF;">Target Territory (Destination)</span>
-            <span class="badge" id="targetDocsCountBadge" style="background:#0066FF; color:#FFF; font-weight:700; font-size:11px;">0 Doctors</span>
-          </div>
-          <!-- Target MedRep Search Feature Bar -->
-          <div style="margin-bottom:6px; position:relative;">
-            <input type="text" id="transferTargetRepSearchInput" class="form-control" placeholder="Search / filter MedRep..." oninput="filterTransferRepDropdown('target')" style="font-size:11.5px; padding:6px 10px; border:1.5px solid #CBD5E1; border-radius:6px; width:100%; background:#F8FAFC; color:#0F172A;" title="Filter MedRep name or territory in the dropdown below">
-          </div>
-          <select id="transferTargetTerritorySelect" class="form-control" style="font-size:12px; font-weight:700; padding:6px 10px; margin-bottom:6px;" onchange="onTransferTerritorySelectionChanged('target')">
-          </select>
-          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; margin-bottom:8px;">
-            <span id="targetRepDistrictLabel">District: ---</span>
-            <span id="targetRepUserIdLabel" class="badge badge-user-id" style="display:none;">User ID: ---</span>
-          </div>
-          <input type="text" id="transferTargetSearchInput" class="form-control" placeholder="Search target doctors..." oninput="filterTransferDoctorsList('target')" style="font-size:11.5px; padding:5px 10px;">
-        </div>
-
-        <!-- Target Dropzone -->
-        <div id="transferTargetDropzone" class="workbench-dropzone" ondragover="handleTransferDragOver(event)" ondragleave="handleTransferDragLeave(event)" ondrop="handleTransferDrop(event, 'target')">
+        <div style="font-size:11.5px; color:#64748B;">
+          <span>Direct Doctor Portfolio Transfer between Territories</span>
         </div>
       </div>
 
-      <!-- CENTER CLUSTER: Controls & Directional Transfer (All 3 Buttons Active & Vibrant) -->
-      <div class="workbench-center-cluster">
-        <button type="button" class="btn btn-workbench-transfer" onclick="mergeAllResignedDoctors()" title="Transfer all doctors to target territory" style="font-size:11.5px; font-weight:700; background:#0066FF; color:#FFF; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; box-shadow:0 1px 3px rgba(0,102,255,0.3);">
-          &lt;&lt; Move All
-        </button>
-        <button type="button" class="btn btn-workbench-transfer" onclick="transferSelectedDoctors('to_target')" title="Move checked doctors to target" style="border:1.5px solid #0066FF; color:#0066FF; background:#EFF6FF; font-size:11.5px; font-weight:700; padding:7px 10px; border-radius:6px; cursor:pointer;">
-          &lt; Move Selected
-        </button>
-        <button type="button" class="btn btn-workbench-transfer" onclick="transferSelectedDoctors('to_source')" title="Move checked doctors back to source" style="border:1.5px solid #0066FF; color:#0066FF; background:#EFF6FF; font-size:11.5px; font-weight:700; padding:7px 10px; border-radius:6px; cursor:pointer;">
-          Move Selected &gt;
-        </button>
-        <div style="font-size:10.5px; color:#94A3B8; text-align:center; margin-top:8px; line-height:1.3;">
-          Drag cards or check boxes to move
-        </div>
-      </div>
+      <!-- Dual-Pane Split Layout -->
+      <div class="transfer-split-layout">
+        <!-- LEFT PANE: Target / Destination -->
+        <div class="workbench-pane" id="targetWorkbenchPane">
+          <div class="workbench-pane-header">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <span style="font-size:11.5px; font-weight:700; color:#0066FF;">Target Territory (Destination)</span>
+              <span class="badge" id="targetDocsCountBadge" style="background:#0066FF; color:#FFF; font-weight:700; font-size:11px;">0 Doctors</span>
+            </div>
+            <!-- Target MedRep Search Feature Bar -->
+            <div style="margin-bottom:4px; position:relative;">
+              <input type="text" id="transferTargetRepSearchInput" class="form-control" placeholder="Search / filter MedRep..." oninput="filterTransferRepDropdown('target')" style="font-size:11.5px; padding:5px 10px; border:1.5px solid #CBD5E1; border-radius:6px; width:100%; background:#F8FAFC; color:#0F172A;" title="Filter MedRep name or territory in the dropdown below">
+            </div>
+            <select id="transferTargetTerritorySelect" class="form-control" style="font-size:12px; font-weight:700; padding:5px 10px; margin-bottom:4px;" onchange="onTransferTerritorySelectionChanged('target')">
+            </select>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; margin-bottom:6px;">
+              <span id="targetRepDistrictLabel">District: ---</span>
+              <span id="targetRepUserIdLabel" class="badge badge-user-id" style="display:none;">User ID: ---</span>
+            </div>
+            <input type="text" id="transferTargetSearchInput" class="form-control" placeholder="Search target doctors..." oninput="filterTransferDoctorsList('target')" style="font-size:11.5px; padding:5px 10px;">
+          </div>
 
-      <!-- RIGHT PANE: Source Territory -->
-      <div class="workbench-pane" id="sourceWorkbenchPane">
-        <div class="workbench-pane-header">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <span style="font-size:11.5px; font-weight:700; color:#475569;">Source Territory</span>
-            <span class="badge" id="sourceDocsCountBadge" style="background:#64748B; color:#FFF; font-weight:700; font-size:11px;">0 Doctors</span>
+          <!-- Target Dropzone -->
+          <div id="transferTargetDropzone" class="workbench-dropzone" ondragover="handleTransferDragOver(event)" ondragleave="handleTransferDragLeave(event)" ondrop="handleTransferDrop(event, 'target')">
           </div>
-          <!-- Source MedRep Search Feature Bar -->
-          <div style="margin-bottom:6px; position:relative;">
-            <input type="text" id="transferSourceRepSearchInput" class="form-control" placeholder="Search / filter MedRep..." oninput="filterTransferRepDropdown('source')" style="font-size:11.5px; padding:6px 10px; border:1.5px solid #CBD5E1; border-radius:6px; width:100%; background:#F8FAFC; color:#0F172A;" title="Filter MedRep name or territory in the dropdown below">
-          </div>
-          <select id="transferSourceTerritorySelect" class="form-control" style="font-size:12px; font-weight:700; padding:6px 10px; margin-bottom:6px;" onchange="onTransferTerritorySelectionChanged('source')">
-          </select>
-          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; margin-bottom:8px;">
-            <span id="sourceRepDistrictLabel">District: ---</span>
-            <span id="sourceRepStatusLabel" class="badge" style="background:#F1F5F9; color:#475569; font-weight:600; font-size:10.5px;">Active</span>
-          </div>
-          <input type="text" id="transferSourceSearchInput" class="form-control" placeholder="Search source doctors..." oninput="filterTransferDoctorsList('source')" style="font-size:11.5px; padding:5px 10px;">
         </div>
 
-        <!-- Source Dropzone -->
-        <div id="transferSourceDropzone" class="workbench-dropzone" ondragover="handleTransferDragOver(event)" ondragleave="handleTransferDragLeave(event)" ondrop="handleTransferDrop(event, 'source')">
+        <!-- CENTER CLUSTER: Controls & Directional Transfer (All 3 Buttons Active & Vibrant) -->
+        <div class="workbench-center-cluster">
+          <button type="button" class="btn btn-workbench-transfer" onclick="mergeAllResignedDoctors()" title="Transfer all doctors to target territory" style="font-size:11.5px; font-weight:700; background:#0066FF; color:#FFF; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; box-shadow:0 1px 3px rgba(0,102,255,0.3);">
+            &lt;&lt; Move All
+          </button>
+          <button type="button" class="btn btn-workbench-transfer" onclick="transferSelectedDoctors('to_target')" title="Move checked doctors to target" style="border:1.5px solid #0066FF; color:#0066FF; background:#EFF6FF; font-size:11.5px; font-weight:700; padding:7px 10px; border-radius:6px; cursor:pointer;">
+            &lt; Move Selected
+          </button>
+          <button type="button" class="btn btn-workbench-transfer" onclick="transferSelectedDoctors('to_source')" title="Move checked doctors back to source" style="border:1.5px solid #0066FF; color:#0066FF; background:#EFF6FF; font-size:11.5px; font-weight:700; padding:7px 10px; border-radius:6px; cursor:pointer;">
+            Move Selected &gt;
+          </button>
+          <div style="font-size:10.5px; color:#94A3B8; text-align:center; margin-top:4px; line-height:1.3;">
+            Drag cards or check boxes to move
+          </div>
+        </div>
+
+        <!-- RIGHT PANE: Source Territory -->
+        <div class="workbench-pane" id="sourceWorkbenchPane">
+          <div class="workbench-pane-header">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <span style="font-size:11.5px; font-weight:700; color:#475569;">Source Territory</span>
+              <span class="badge" id="sourceDocsCountBadge" style="background:#64748B; color:#FFF; font-weight:700; font-size:11px;">0 Doctors</span>
+            </div>
+            <!-- Source MedRep Search Feature Bar -->
+            <div style="margin-bottom:4px; position:relative;">
+              <input type="text" id="transferSourceRepSearchInput" class="form-control" placeholder="Search / filter MedRep..." oninput="filterTransferRepDropdown('source')" style="font-size:11.5px; padding:5px 10px; border:1.5px solid #CBD5E1; border-radius:6px; width:100%; background:#F8FAFC; color:#0F172A;" title="Filter MedRep name or territory in the dropdown below">
+            </div>
+            <select id="transferSourceTerritorySelect" class="form-control" style="font-size:12px; font-weight:700; padding:5px 10px; margin-bottom:4px;" onchange="onTransferTerritorySelectionChanged('source')">
+            </select>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; margin-bottom:6px;">
+              <span id="sourceRepDistrictLabel">District: ---</span>
+              <span id="sourceRepStatusLabel" class="badge" style="background:#F1F5F9; color:#475569; font-weight:600; font-size:10.5px;">Active</span>
+            </div>
+            <input type="text" id="transferSourceSearchInput" class="form-control" placeholder="Search source doctors..." oninput="filterTransferDoctorsList('source')" style="font-size:11.5px; padding:5px 10px;">
+          </div>
+
+          <!-- Source Dropzone -->
+          <div id="transferSourceDropzone" class="workbench-dropzone" ondragover="handleTransferDragOver(event)" ondragleave="handleTransferDragLeave(event)" ondrop="handleTransferDrop(event, 'source')">
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Modal Footer with Multiline Free-Typing Audit Notes -->
-    <div style="border-top:1px solid #E2E8F0; padding-top:14px; margin-top:16px;">
-      <div style="margin-bottom:10px;">
+    <div class="transfer-workbench-footer">
+      <div style="margin-bottom:8px;">
         <label for="transferAuditNotesInput" style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">
           SFE Reconfiguration &amp; Handover Audit Notes (Free Typing for Future Reference):
         </label>
-        <textarea id="transferAuditNotesInput" rows="3" class="form-control" placeholder="Enter detailed transfer notes, doctor handover details, territory reason for change, or other future reference notes..." style="font-size:12px; padding:8px 12px; resize:vertical; min-height:64px; width:100%; border:1.5px solid #CBD5E1; border-radius:6px; line-height:1.5; color:#0F172A; background:#FFF;"></textarea>
+        <textarea id="transferAuditNotesInput" rows="2" class="form-control" placeholder="Enter detailed transfer notes, doctor handover details, territory reason for change, or other future reference notes..." style="font-size:12px; padding:6px 10px; resize:vertical; min-height:44px; max-height:96px; width:100%; border:1.5px solid #CBD5E1; border-radius:6px; line-height:1.4; color:#0F172A; background:#FFF;"></textarea>
       </div>
       <div style="display:flex; justify-content:flex-end; gap:10px; align-items:center;">
         <button type="button" class="btn btn-outline" onclick="closeDoctorTransferModal()" style="padding:7px 18px; font-size:12px; font-weight:600; border:1px solid #CBD5E1; border-radius:6px; color:#475569; background:#FFF; cursor:pointer;">
@@ -7680,19 +7792,28 @@ const BASELINE_ERP_TERRITORIES = [
     }
   }
 
-  function toggleSidebar() {
+  function syncSidebarToggleState() {
     const sidebar = document.getElementById('sidebarNav');
-    if (!sidebar) return;
-    const isCollapsed = sidebar.classList.toggle('collapsed');
     const toggleBtn = document.getElementById('sidebarToggleBtn');
+    if (!sidebar) return;
+    const isCollapsed = sidebar.classList.contains('collapsed');
     if (toggleBtn) {
+      toggleBtn.classList.toggle('is-open', !isCollapsed);
       toggleBtn.title = isCollapsed ? 'Show Menu' : 'Hide Menu';
       toggleBtn.setAttribute('aria-label', isCollapsed ? 'Show Menu' : 'Hide Menu');
+      toggleBtn.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
     }
     const toggleTextEl = document.getElementById('toggleText');
     if (toggleTextEl) {
       toggleTextEl.innerText = isCollapsed ? 'Show Menu' : 'Hide Menu';
     }
+  }
+
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebarNav');
+    if (!sidebar) return;
+    sidebar.classList.toggle('collapsed');
+    syncSidebarToggleState();
   }
 
     // --- RECONFIGURATION EDITOR (TAB 1) ---
