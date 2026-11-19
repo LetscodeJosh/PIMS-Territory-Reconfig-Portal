@@ -4187,8 +4187,13 @@
       </div>
       <div class="form-group">
         <label>Parent Territory / District:</label>
-        <select id="editParentSelect" style="width:100%; height:36px; background:#FFFFFF; border:1px solid #CBD5E1; border-radius:6px; padding:0 10px; color:#0F172A; font-size:12.5px; cursor:pointer;">
-        </select>
+        <div class="erp-search-container" id="editParentContainer">
+          <input type="hidden" id="editParentInput" value="All Territories">
+          <input type="text" id="editParentDisplay" class="erp-search-input-box" placeholder="Search parent territory code..." autocomplete="off" onfocus="openErpDropdown('editParent', true)" onclick="toggleErpDropdown('editParent', event)" oninput="onErpSearchInput('editParent')" onkeydown="onErpSearchKeydown('editParent', event)">
+          <button type="button" class="erp-clear-btn" id="editParentClear" onclick="clearErpSelection('editParent')">✕</button>
+          <span class="erp-search-chevron" onclick="toggleErpDropdown('editParent', event)">▼</span>
+          <div class="erp-dropdown-menu" id="editParentMenu"></div>
+        </div>
       </div>
     </div>
 
@@ -12518,6 +12523,165 @@ const BASELINE_ERP_TERRITORIES = [
 
   }
 
+  // --- Parent Territory Tree Search & Lineage Helpers ---
+  function isParentTerritoryField(fieldId) {
+    return fieldId === 'treeEditParent' || fieldId === 'treeAddParent' || fieldId === 'editParent';
+  }
+
+  function getTerritoryAncestryPath(nodeName) {
+    const targetName = String(nodeName || '').trim();
+    if (!targetName || targetName === 'All Territories') return 'Root Node';
+    const tree = Array.isArray(territoryTreeData) ? territoryTreeData : [];
+    const lookup = new Map();
+    tree.forEach(t => {
+      if (t && t.name) lookup.set(t.name, t);
+    });
+    const ancestors = [];
+    const visited = new Set([targetName]);
+    let curr = lookup.get(targetName);
+    let depth = 0;
+    while (curr && curr.parent_territory && depth < 10) {
+      const pName = String(curr.parent_territory).trim();
+      if (!pName || visited.has(pName)) break;
+      ancestors.unshift(pName);
+      visited.add(pName);
+      curr = lookup.get(pName);
+      depth++;
+    }
+    return ancestors.length > 0 ? ancestors.join(' › ') : 'All Territories';
+  }
+
+  function getParentTerritoryCandidates(fieldId) {
+    const allowed = typeof getProgramTerritoryNames === 'function' ? getProgramTerritoryNames(activeProgram) : new Set();
+    const excluded = new Set();
+
+    if (fieldId === 'treeEditParent') {
+      const origName = (document.getElementById('treeEditOrigName')?.value || '').trim();
+      if (origName) {
+        if (typeof getDescendantNames === 'function') {
+          getDescendantNames(origName).forEach(d => excluded.add(d));
+        }
+        excluded.add(origName);
+      }
+    } else if (fieldId === 'editParent') {
+      const idxVal = parseInt(document.getElementById('editRecordIndex')?.value, 10);
+      const editRow = (!isNaN(idxVal) && Array.isArray(programTerritories)) ? programTerritories[idxVal] : null;
+      const code = editRow ? String(editRow.activeCode || editRow.latestPrevCode || '').trim() : '';
+      if (code) {
+        if (typeof getDescendantNames === 'function') {
+          getDescendantNames(code).forEach(d => excluded.add(d));
+        }
+        excluded.add(code);
+      }
+    }
+
+    const candidates = [];
+    const seen = new Set();
+    const tree = Array.isArray(territoryTreeData) ? territoryTreeData : [];
+    tree.forEach(t => {
+      if (!t || !t.name) return;
+      if (excluded.has(t.name) || seen.has(t.name)) return;
+      if (t.name === 'All Territories' || allowed.has(t.name)) {
+        seen.add(t.name);
+        candidates.push(t);
+      }
+    });
+
+    if (!seen.has('All Territories') && !excluded.has('All Territories')) {
+      seen.add('All Territories');
+      candidates.unshift({
+        name: 'All Territories',
+        territory_name: 'All Territories',
+        parent_territory: '',
+        is_group: 1
+      });
+    }
+
+    const inp = document.getElementById(fieldId + 'Input');
+    const curVal = (inp?.value || inp?.dataset?.lastValidValue || '').trim();
+    if (curVal && !seen.has(curVal) && !excluded.has(curVal)) {
+      seen.add(curVal);
+      candidates.push({
+        name: curVal,
+        territory_name: curVal,
+        parent_territory: '',
+        is_group: 1
+      });
+    }
+
+    candidates.sort((a, b) => {
+      if (a.name === 'All Territories') return -1;
+      if (b.name === 'All Territories') return 1;
+      const aGrp = (a.is_group === 1 || a.is_group === '1' || a.is_group === true) ? 0 : 1;
+      const bGrp = (b.is_group === 1 || b.is_group === '1' || b.is_group === true) ? 0 : 1;
+      if (aGrp !== bGrp) return aGrp - bGrp;
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+
+    return candidates;
+  }
+
+  function findParentTerritoryCandidateMatch(fieldId, text) {
+    const clean = String(text || '').trim().toLowerCase();
+    if (!clean) return null;
+    const candidates = getParentTerritoryCandidates(fieldId);
+    return candidates.find(t => String(t.name || '').trim().toLowerCase() === clean) || null;
+  }
+
+  function setParentTerritoryFieldValue(fieldId, value) {
+    const cleanVal = String(value || '').trim();
+    const inp = document.getElementById(fieldId + 'Input');
+    const disp = document.getElementById(fieldId + 'Display');
+    const clr = document.getElementById(fieldId + 'Clear');
+    if (inp) {
+      inp.value = cleanVal;
+      inp.dataset.lastValidValue = cleanVal;
+      delete inp.dataset.userManuallySelected;
+    }
+    if (disp) {
+      disp.value = cleanVal;
+      disp.placeholder = 'Search parent territory code...';
+    }
+    if (clr) clr.style.display = cleanVal ? 'block' : 'none';
+  }
+
+  function onErpSearchKeydown(fieldId, event) {
+    if (!event) return;
+    const menu = document.getElementById(fieldId + 'Menu');
+    if (!menu) return;
+    const items = Array.from(menu.querySelectorAll('.erp-dropdown-item'));
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (!menu.classList.contains('active')) {
+        openErpDropdown(fieldId, true);
+        return;
+      }
+      if (!items.length) return;
+      event.preventDefault();
+      const curIdx = items.findIndex(el => el.classList.contains('focused'));
+      items.forEach(el => el.classList.remove('focused'));
+      let nextIdx = 0;
+      if (event.key === 'ArrowDown') {
+        nextIdx = curIdx >= 0 ? (curIdx + 1) % items.length : 0;
+      } else {
+        nextIdx = curIdx > 0 ? curIdx - 1 : items.length - 1;
+      }
+      items[nextIdx].classList.add('focused');
+      try { items[nextIdx].scrollIntoView({ block: 'nearest' }); } catch (_) {}
+    } else if (event.key === 'Enter') {
+      if (menu.classList.contains('active') && items.length > 0) {
+        event.preventDefault();
+        const focusedItem = menu.querySelector('.erp-dropdown-item.focused') || items[0];
+        if (focusedItem) focusedItem.click();
+      }
+    } else if (event.key === 'Escape') {
+      if (menu.classList.contains('active')) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeAllErpDropdowns();
+      }
+    }
+  }
+
   // --- ERPNext Searchable Select Controller ---
   function toggleErpDropdown(fieldId, event) {
     if (event) {
@@ -12553,6 +12717,38 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   function closeAllErpDropdowns() {
+    if (activeErpDropdown && isParentTerritoryField(activeErpDropdown)) {
+      const inp = document.getElementById(activeErpDropdown + 'Input');
+      const disp = document.getElementById(activeErpDropdown + 'Display');
+      const clr = document.getElementById(activeErpDropdown + 'Clear');
+      if (inp && disp) {
+        const typed = disp.value.trim();
+        if (typed) {
+          const match = findParentTerritoryCandidateMatch(activeErpDropdown, typed);
+          if (match) {
+            inp.value = match.name;
+            inp.dataset.lastValidValue = match.name;
+            disp.value = match.name;
+            if (clr) clr.style.display = 'block';
+          } else {
+            const fallback = inp.dataset.lastValidValue || inp.value || '';
+            disp.value = fallback;
+            inp.value = fallback;
+            if (clr) clr.style.display = fallback ? 'block' : 'none';
+          }
+        } else {
+          const fallback = inp.dataset.lastValidValue || '';
+          if (fallback) {
+            disp.value = fallback;
+            inp.value = fallback;
+            if (clr) clr.style.display = 'block';
+          } else {
+            inp.value = '';
+            if (clr) clr.style.display = 'none';
+          }
+        }
+      }
+    }
     document.querySelectorAll('.erp-dropdown-menu').forEach(m => m.classList.remove('active'));
     activeErpDropdown = null;
   }
@@ -12563,7 +12759,18 @@ const BASELINE_ERP_TERRITORIES = [
     const clr = document.getElementById(fieldId + 'Clear');
     if (clr) clr.style.display = q ? 'block' : 'none';
     if (q.toLowerCase() === 'unassigned') q = '';
-    if (!q) {
+    if (isParentTerritoryField(fieldId)) {
+      const inp = document.getElementById(fieldId + 'Input');
+      if (inp) {
+        const exact = findParentTerritoryCandidateMatch(fieldId, q);
+        if (exact) {
+          inp.value = exact.name;
+          inp.dataset.lastValidValue = exact.name;
+        } else {
+          inp.value = '';
+        }
+      }
+    } else if (!q) {
       const inp = document.getElementById(fieldId + 'Input');
       if (inp) {
         inp.value = '';
@@ -12585,6 +12792,7 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   async function dispatchRemoteErpSearch(fieldId, query) {
+    if (isParentTerritoryField(fieldId)) return;
     const isSalesPerson = (fieldId === 'treeAddManager' || fieldId === 'treeEditManager' || fieldId === 'editManager' || fieldId === 'addManager' || fieldId === 'newSpParent');
     const isUser = (fieldId === 'treeEditUserAccount' || fieldId === 'treeAddUserAccount' || fieldId === 'editUserAccount' || fieldId === 'addUserAccount' || fieldId === 'newSpUserAccount');
     
@@ -12646,14 +12854,24 @@ const BASELINE_ERP_TERRITORIES = [
     const clr = document.getElementById(fieldId + 'Clear');
     if (inp) {
       inp.value = '';
+      if (isParentTerritoryField(fieldId)) {
+        inp.dataset.lastValidValue = '';
+      }
       delete inp.dataset.userManuallySelected;
     }
     if (disp) {
       disp.value = '';
-      disp.placeholder = fieldId === 'newSpParent' ? 'Search parent sales person...' : 'Unassigned';
+      disp.placeholder = isParentTerritoryField(fieldId)
+        ? 'Search parent territory code...'
+        : (fieldId === 'newSpParent' ? 'Search parent sales person...' : 'Unassigned');
       disp.focus();
     }
     if (clr) clr.style.display = 'none';
+    if (isParentTerritoryField(fieldId)) {
+      activeErpDropdown = fieldId;
+      const menu = document.getElementById(fieldId + 'Menu');
+      if (menu) menu.classList.add('active');
+    }
     renderErpDropdownMenu(fieldId, '');
   }
 
@@ -12663,10 +12881,18 @@ const BASELINE_ERP_TERRITORIES = [
     const clr = document.getElementById(fieldId + 'Clear');
     if (inp) {
       inp.value = value;
+      if (isParentTerritoryField(fieldId)) {
+        inp.dataset.lastValidValue = value;
+      }
       inp.dataset.userManuallySelected = 'true';
     }
     if (disp) disp.value = displayLabel;
     if (clr) clr.style.display = 'block';
+
+    if (fieldId === 'editParent') {
+      const distInp = document.getElementById('editDistrict');
+      if (distInp && value) distInp.value = value;
+    }
 
     // Auto-populate User ID when selecting Territory Manager in New Territory modal
     if (fieldId === 'treeAddManager' && extraData) {
@@ -13000,6 +13226,82 @@ const BASELINE_ERP_TERRITORIES = [
         });
       }
       // Note: "Adding new Employees is restricted to HR / System Manager" and "Advanced Search" rows removed per user specification
+    } else if (isParentTerritoryField(fieldId)) {
+      const candidates = getParentTerritoryCandidates(fieldId);
+      const currentVal = (document.getElementById(fieldId + 'Input')?.value || '').trim();
+
+      let matches = candidates.filter(t => {
+        if (!tokens.length) return true;
+        const cleanMgr = typeof cleanRepDisplayName === 'function' ? cleanRepDisplayName(t.territory_manager || '') : (t.territory_manager || '');
+        const searchable = [
+          t.name || '',
+          t.territory_name || '',
+          t.parent_territory || '',
+          getTerritoryAncestryPath(t.name),
+          cleanMgr
+        ].join(' ').toLowerCase();
+        return tokens.every(tok => searchable.includes(tok));
+      });
+
+      if (rawQ) {
+        const qLower = rawQ.toLowerCase();
+        matches.sort((a, b) => {
+          const an = String(a.name || '').toLowerCase();
+          const bn = String(b.name || '').toLowerCase();
+          const aExact = an === qLower ? 0 : 1;
+          const bExact = bn === qLower ? 0 : 1;
+          if (aExact !== bExact) return aExact - bExact;
+          const aStarts = an.startsWith(qLower) ? 0 : 1;
+          const bStarts = bn.startsWith(qLower) ? 0 : 1;
+          if (aStarts !== bStarts) return aStarts - bStarts;
+          const aGrp = (a.is_group === 1 || a.is_group === '1' || a.is_group === true || a.name === 'All Territories') ? 0 : 1;
+          const bGrp = (b.is_group === 1 || b.is_group === '1' || b.is_group === true || b.name === 'All Territories') ? 0 : 1;
+          if (aGrp !== bGrp) return aGrp - bGrp;
+          return String(a.name || '').localeCompare(String(b.name || ''));
+        });
+      }
+
+      if (matches.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.cssText = 'padding: 10px 14px; color: #64748B; font-size: 11.5px;';
+        emptyDiv.innerText = rawQ
+          ? `No parent territory matching "${query}"`
+          : `No parent territories available for ${activeProgram}`;
+        menu.appendChild(emptyDiv);
+      } else {
+        matches.forEach(t => {
+          const item = document.createElement('div');
+          const tName = t.name || t.territory_name;
+          const isSelected = Boolean(currentVal && tName === currentVal);
+          item.className = 'erp-dropdown-item' + (isSelected ? ' focused' : '');
+          const isRoot = tName === 'All Territories';
+          const isGroup = Boolean(t.is_group === 1 || t.is_group === '1' || t.is_group === true);
+          const badgeHtml = isRoot
+            ? '<span style="background:rgba(2,132,199,0.14); color:#0284C7; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700; margin-left:6px;">Root</span>'
+            : (isGroup
+              ? '<span style="background:rgba(16,185,129,0.14); color:#059669; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700; margin-left:6px;">Group</span>'
+              : '');
+          const selectedMark = isSelected ? '<span style="color:#0284C7; font-weight:800; margin-left:auto;">✓</span>' : '';
+          const pathText = getTerritoryAncestryPath(tName);
+          const rawMgr = t.territory_manager ? (typeof cleanRepDisplayName === 'function' ? cleanRepDisplayName(t.territory_manager) : t.territory_manager) : '';
+          const cleanMgr = (rawMgr && !/^unassigned/i.test(rawMgr) && !/^vacant/i.test(rawMgr) && !/^folder/i.test(rawMgr)) ? rawMgr : '';
+          const subText = cleanMgr ? `Path: ${pathText} • Mgr: ${cleanMgr}` : `Path: ${pathText}`;
+
+          item.innerHTML = `
+            <div class="erp-dropdown-item-title" style="display:flex; align-items:center; gap:4px;">
+              <span>${escapeHtml(tName)}</span>${badgeHtml}${selectedMark}
+            </div>
+            <div class="erp-dropdown-item-sub">${escapeHtml(subText)}</div>
+          `;
+          item.onclick = () => selectErpItem(fieldId, tName, tName, t);
+          menu.appendChild(item);
+        });
+
+        const footerDiv = document.createElement('div');
+        footerDiv.style.cssText = 'padding: 6px 12px; font-size: 10.5px; color: #64748B; border-top: 1px solid rgba(148, 163, 184, 0.2);';
+        footerDiv.innerText = `${matches.length} ${matches.length === 1 ? 'territory' : 'territories'} in ${activeProgram}`;
+        menu.appendChild(footerDiv);
+      }
     }
   }
 
@@ -13930,30 +14232,8 @@ const BASELINE_ERP_TERRITORIES = [
     const rawParent = parentName || selectedTreeNode || 'All Territories';
     const parent = (rawParent === 'All Territories' || allowed.has(rawParent)) ? rawParent : 'All Territories';
     
-    // Populate Parent Territory select strictly with territories belonging to activeProgram (including leaf nodes so sub-territories like AD101 - sub can be added under AD0101)
-    const parentSelect = document.getElementById('treeAddParentSelect');
-    if (parentSelect) {
-      parentSelect.innerHTML = '';
-      const groupNodes = territoryTreeData.filter(t => (t.name === 'All Territories' || allowed.has(t.name)));
-      groupNodes.sort((a, b) => a.name.localeCompare(b.name));
-      if (!groupNodes.some(g => g.name === 'All Territories')) {
-        groupNodes.unshift({ name: 'All Territories' });
-      }
-      if (parent && (parent === 'All Territories' || allowed.has(parent)) && !groupNodes.some(g => g.name === parent)) {
-        groupNodes.push({ name: parent });
-      }
-      groupNodes.forEach(g => {
-        const opt = document.createElement('option');
-        opt.value = g.name;
-        opt.innerText = g.name;
-        if (g.name === parent) opt.selected = true;
-        parentSelect.appendChild(opt);
-      });
-      parentSelect.value = parent;
-    }
-
-    const parentInp = document.getElementById('treeAddParentInput');
-    if (parentInp) parentInp.value = parent;
+    // Searchable Parent Territory selector (strictly scoped to activeProgram, including leaf nodes)
+    setParentTerritoryFieldValue('treeAddParent', parent);
     
     document.getElementById('treeAddIsGroup').checked = false;
     const titleEl = document.getElementById('treeAddModalTitle');
@@ -14012,8 +14292,23 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   async function submitTreeAdd() {
-    const parentSel = document.getElementById('treeAddParentSelect');
-    const rawParent = (parentSel ? parentSel.value : document.getElementById('treeAddParentInput').value).trim() || 'All Territories';
+    const addParentInp = document.getElementById('treeAddParentInput');
+    const addParentDisp = document.getElementById('treeAddParentDisplay');
+    let rawParent = addParentInp ? addParentInp.value.trim() : '';
+    const typedAddParent = addParentDisp ? addParentDisp.value.trim() : '';
+    if (!rawParent && typedAddParent) {
+      const exactMatch = findParentTerritoryCandidateMatch('treeAddParent', typedAddParent);
+      if (exactMatch) {
+        rawParent = exactMatch.name;
+        setParentTerritoryFieldValue('treeAddParent', rawParent);
+      } else {
+        showToast('Please select a valid Parent Territory from the dropdown list.', 'error');
+        if (addParentDisp) addParentDisp.focus();
+        openErpDropdown('treeAddParent', false);
+        return;
+      }
+    }
+    if (!rawParent) rawParent = 'All Territories';
     const isGroup = document.getElementById('treeAddIsGroup').checked ? 1 : 0;
     const progBranch = (LIVE_DATA[activeProgram] && LIVE_DATA[activeProgram].territoryBranch) ? LIVE_DATA[activeProgram].territoryBranch : 'All Territories';
     const parent = (rawParent === 'All Territories' && !isGroup) ? progBranch : rawParent;
@@ -14193,24 +14488,10 @@ const BASELINE_ERP_TERRITORIES = [
 
     const descendants = getDescendantNames(name);
     descendants.add(name);
-
-    const parentSelect = document.getElementById('treeEditParentSelect');
-    parentSelect.innerHTML = '';
-    
-    const allowed = getProgramTerritoryNames(activeProgram);
-    const candidateParents = territoryTreeData.filter(t => !descendants.has(t.name) && (t.name === 'All Territories' || allowed.has(t.name)));
-    candidateParents.sort((a, b) => a.name.localeCompare(b.name));
-    if (!candidateParents.some(g => g.name === 'All Territories') && !descendants.has('All Territories')) {
-      candidateParents.unshift({ name: 'All Territories' });
-    }
-
-    candidateParents.forEach(g => {
-      const opt = document.createElement('option');
-      opt.value = g.name;
-      opt.innerText = g.name;
-      if (g.name === node.parent_territory) opt.selected = true;
-      parentSelect.appendChild(opt);
-    });
+    const currentParent = (node.parent_territory && !descendants.has(node.parent_territory))
+      ? node.parent_territory
+      : 'All Territories';
+    setParentTerritoryFieldValue('treeEditParent', currentParent);
 
     document.getElementById('treeEditProgramInput').value = activeProgram;
     const isRepUnassigned = !currentMgr;
@@ -14236,7 +14517,25 @@ const BASELINE_ERP_TERRITORIES = [
 
   async function submitTreeEdit() {
     const origName = document.getElementById('treeEditOrigName').value;
-    const newParent = document.getElementById('treeEditParentSelect').value;
+    const editParentInp = document.getElementById('treeEditParentInput');
+    const editParentDisp = document.getElementById('treeEditParentDisplay');
+    let newParent = editParentInp ? editParentInp.value.trim() : '';
+    const typedEditParent = editParentDisp ? editParentDisp.value.trim() : '';
+    if (!newParent && typedEditParent) {
+      const exactMatch = findParentTerritoryCandidateMatch('treeEditParent', typedEditParent);
+      if (exactMatch) {
+        newParent = exactMatch.name;
+        setParentTerritoryFieldValue('treeEditParent', newParent);
+      }
+    }
+    const invalidDescendants = typeof getDescendantNames === 'function' ? getDescendantNames(origName) : new Set();
+    invalidDescendants.add(origName);
+    if (!newParent || invalidDescendants.has(newParent) || !findParentTerritoryCandidateMatch('treeEditParent', newParent)) {
+      showToast('Please select a valid Parent Territory from the dropdown list.', 'error');
+      if (editParentDisp) editParentDisp.focus();
+      openErpDropdown('treeEditParent', !typedEditParent);
+      return;
+    }
     const newMgr = cleanRepDisplayName(document.getElementById('treeEditManagerInput').value.trim());
     const newIsGroup = document.getElementById('treeEditIsGroup').checked ? 1 : 0;
     const newUserId = (document.getElementById('treeEditUserAccountInput') ? document.getElementById('treeEditUserAccountInput').value : '').trim();
@@ -14713,26 +15012,12 @@ const BASELINE_ERP_TERRITORIES = [
     }
     if (editMgrClr) editMgrClr.style.display = editMgrVal ? 'block' : 'none';
 
-    // Parent Territory select (strictly locked to activeProgram)
-    const parentSel = document.getElementById('editParentSelect');
-    if (parentSel) {
-      parentSel.innerHTML = '';
-      const descendants = getDescendantNames(code);
-      descendants.add(code);
-      const allowed = getProgramTerritoryNames(activeProgram);
-      const groupNodes = territoryTreeData.filter(t => !descendants.has(t.name) && (t.name === 'All Territories' || allowed.has(t.name)));
-      groupNodes.sort((a, b) => a.name.localeCompare(b.name));
-      if (!groupNodes.some(g => g.name === 'All Territories') && !descendants.has('All Territories')) {
-        groupNodes.unshift({ name: 'All Territories' });
-      }
-      groupNodes.forEach(g => {
-        const opt = document.createElement('option');
-        opt.value = g.name;
-        opt.innerText = g.name;
-        if (g.name === (treeNode ? treeNode.parent_territory : row.district)) opt.selected = true;
-        parentSel.appendChild(opt);
-      });
-    }
+    // Searchable Parent Territory selector (strictly locked to activeProgram)
+    const descendants = getDescendantNames(code);
+    descendants.add(code);
+    const rawParentVal = (treeNode && treeNode.parent_territory) ? treeNode.parent_territory : (row.district || 'All Territories');
+    const currentParentVal = (rawParentVal && !descendants.has(rawParentVal)) ? rawParentVal : 'All Territories';
+    setParentTerritoryFieldValue('editParent', currentParentVal);
 
     document.getElementById('editLatestPrevCode').value = row.latestPrevCode || '';
     document.getElementById('editActiveCode').value = row.activeCode || '';
@@ -14803,8 +15088,23 @@ const BASELINE_ERP_TERRITORIES = [
     const rawRepInput = (editMgrInp && editMgrInp.value.trim()) ? editMgrInp.value.trim() : document.getElementById('editRepName').value.trim();
     const isExplicitResigned = /resigned/i.test(rawRepInput);
     const newRep = cleanRepDisplayName(rawRepInput);
-    const parentSel = document.getElementById('editParentSelect');
-    const newDistrict = (parentSel && parentSel.value) ? parentSel.value.trim() : document.getElementById('editDistrict').value.trim();
+    const modalParentInp = document.getElementById('editParentInput');
+    const modalParentDisp = document.getElementById('editParentDisplay');
+    let selectedParentVal = modalParentInp ? modalParentInp.value.trim() : '';
+    const typedModalParent = modalParentDisp ? modalParentDisp.value.trim() : '';
+    if (!selectedParentVal && typedModalParent) {
+      const exactMatch = findParentTerritoryCandidateMatch('editParent', typedModalParent);
+      if (exactMatch) {
+        selectedParentVal = exactMatch.name;
+        setParentTerritoryFieldValue('editParent', selectedParentVal);
+      } else {
+        showToast('Please select a valid Parent Territory from the dropdown list.', 'error');
+        if (modalParentDisp) modalParentDisp.focus();
+        openErpDropdown('editParent', false);
+        return;
+      }
+    }
+    const newDistrict = selectedParentVal || document.getElementById('editDistrict').value.trim();
     const newDocs = parseInt(document.getElementById('editDocs').value, 10) || 0;
     const userAccInp = document.getElementById('editUserAccountInput') || document.getElementById('editUserId');
     const newUserId = userAccInp ? userAccInp.value.trim() : (row.userId || '');
@@ -17277,10 +17577,13 @@ const BASELINE_ERP_TERRITORIES = [
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
       <div>
         <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Parent Territory</label>
-        <select id="treeAddParentSelect" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; cursor:pointer;">
-          <!-- Dynamically populated with all group nodes -->
-        </select>
-        <input type="hidden" id="treeAddParentInput" value="All Territories">
+        <div class="erp-search-container" id="treeAddParentContainer">
+          <input type="hidden" id="treeAddParentInput" value="All Territories">
+          <input type="text" id="treeAddParentDisplay" class="erp-search-input-box" placeholder="Search parent territory code..." autocomplete="off" onfocus="openErpDropdown('treeAddParent', true)" onclick="toggleErpDropdown('treeAddParent', event)" oninput="onErpSearchInput('treeAddParent')" onkeydown="onErpSearchKeydown('treeAddParent', event)">
+          <button type="button" class="erp-clear-btn" id="treeAddParentClear" onclick="clearErpSelection('treeAddParent')">✕</button>
+          <span class="erp-search-chevron" onclick="toggleErpDropdown('treeAddParent', event)">▼</span>
+          <div class="erp-dropdown-menu" id="treeAddParentMenu"></div>
+        </div>
       </div>
       <div>
         <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
@@ -17370,9 +17673,13 @@ const BASELINE_ERP_TERRITORIES = [
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
       <div>
         <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Parent Territory</label>
-        <select id="treeEditParentSelect" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; cursor:pointer;">
-          <!-- Dynamically populated with all group nodes -->
-        </select>
+        <div class="erp-search-container" id="treeEditParentContainer">
+          <input type="hidden" id="treeEditParentInput" value="All Territories">
+          <input type="text" id="treeEditParentDisplay" class="erp-search-input-box" placeholder="Search parent territory code..." autocomplete="off" onfocus="openErpDropdown('treeEditParent', true)" onclick="toggleErpDropdown('treeEditParent', event)" oninput="onErpSearchInput('treeEditParent')" onkeydown="onErpSearchKeydown('treeEditParent', event)">
+          <button type="button" class="erp-clear-btn" id="treeEditParentClear" onclick="clearErpSelection('treeEditParent')">✕</button>
+          <span class="erp-search-chevron" onclick="toggleErpDropdown('treeEditParent', event)">▼</span>
+          <div class="erp-dropdown-menu" id="treeEditParentMenu"></div>
+        </div>
       </div>
       <div>
         <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">Territory Manager</label>
