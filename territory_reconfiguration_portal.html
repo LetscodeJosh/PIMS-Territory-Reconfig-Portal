@@ -4942,19 +4942,23 @@
     <div id="bulkPane_add" class="bulk-tab-pane">
       <div class="form-group">
         <label style="display:flex; justify-content:space-between;">
-          <span>Enter Territory Codes (One per line or comma-separated):</span>
+          <span>Paste Territory Codes or Excel Rows (Code, MedRep, District):</span>
           <span id="bulkAddCountBadge" style="font-size:11px; color:#0066FF; font-weight:700;">0 Valid Codes</span>
         </label>
-        <textarea id="bulkAddCodesTextarea" class="form-control" rows="3" placeholder="e.g.&#10;ADC0120&#10;ADC0121&#10;ADC0122" style="font-family:monospace; font-size:12px; font-weight:600;" oninput="onBulkAddCodesInput()"></textarea>
+        <textarea id="bulkAddCodesTextarea" class="form-control" rows="3" placeholder="Paste codes (one per line / comma-separated) OR copy rows directly from Excel template:&#10;BA1-01&#9;KC Casandra Enriquez&#9;Makati&#10;BA1-02&#9;Dimple Mozo&#9;Makati / Taguig" style="font-family:monospace; font-size:12px; font-weight:600;" oninput="onBulkAddCodesInput()"></textarea>
         <div id="bulkAddWarningBox" style="display:none; color:#DC2626; font-size:11px; font-weight:700; margin-top:4px;"></div>
       </div>
 
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px;">
         <div class="form-group" style="margin-bottom:0;">
-          <label>Default District Cluster:</label>
+          <label>Default Parent Cluster:</label>
           <select id="bulkAddDistrictSelect" class="form-control" style="font-weight:600;" onchange="onBulkAddDefaultDistrictChange()">
             <!-- Populated dynamically -->
           </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Default District:</label>
+          <input type="text" id="bulkAddAreaDistrictInput" class="form-control" placeholder="e.g. Makati" style="font-weight:600;">
         </div>
         <div class="form-group" style="margin-bottom:0;">
           <label>Default Assigned MedRep:</label>
@@ -4962,24 +4966,27 @@
             <select id="bulkAddRepSelect" class="form-control" style="font-weight:600; flex:1;" onchange="onBulkAddDefaultRepChange()">
               <!-- Populated dynamically -->
             </select>
-            <button type="button" class="btn btn-sm btn-outline" onclick="applyBulkAddDefaultsToAllRows()" style="font-size:11px; padding:4px 8px; white-space:nowrap;" title="Apply default cluster & rep to all rows below">Fill All</button>
+            <button type="button" class="btn btn-sm btn-outline" onclick="applyBulkAddDefaultsToAllRows()" style="font-size:11px; padding:4px 8px; white-space:nowrap;" title="Apply default cluster, district & rep to all rows below">Fill All</button>
           </div>
         </div>
       </div>
 
-      <!-- Per-Territory Custom Assignment Grid (Freedom to Assign Different MedReps to Shared Coverage) -->
+      <datalist id="bulkAddRepDatalist"></datalist>
+
+      <!-- Per-Territory Custom Assignment Grid (Freedom to Assign Different MedReps & Districts to Shared Coverage) -->
       <div id="bulkAddRowsContainer" style="display:none; margin-top:8px; margin-bottom:12px;">
         <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-          <span>Territory MedRep &amp; Cluster Allocation:</span>
-          <span style="font-size:10.5px; color:#64748B; font-weight:500;">Assign freely across MedReps sharing coverage</span>
+          <span>Territory MedRep &amp; District Allocation:</span>
+          <span style="font-size:10.5px; color:#64748B; font-weight:500;">Pick existing MedRep or type new name &amp; district</span>
         </div>
-        <div style="max-height:160px; overflow-y:auto; border:1.5px solid #CBD5E1; border-radius:6px; background:#FFF;">
+        <div style="max-height:170px; overflow-y:auto; border:1.5px solid #CBD5E1; border-radius:6px; background:#FFF;">
           <table class="preview-table" style="font-size:11.5px; margin:0;">
             <thead>
               <tr style="position:sticky; top:0; background:#F8FAFC; z-index:1;">
-                <th style="width:25%; padding:6px 8px;">Code</th>
-                <th style="width:35%; padding:6px 8px;">Cluster</th>
-                <th style="width:40%; padding:6px 8px;">Assigned MedRep</th>
+                <th style="width:17%; padding:6px 8px;">Code</th>
+                <th style="width:24%; padding:6px 8px;">Parent Folder</th>
+                <th style="width:27%; padding:6px 8px;">District</th>
+                <th style="width:32%; padding:6px 8px;">Assigned MedRep</th>
               </tr>
             </thead>
             <tbody id="bulkAddTableBody">
@@ -6114,11 +6121,24 @@ const BASELINE_ERP_TERRITORIES = [
       }
     }
     if (typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData)) {
+      const parentMap = {};
+      const nodeMap = {};
+      territoryTreeData.forEach(t => {
+        if (t && t.name) {
+          parentMap[t.name] = t.parent_territory;
+          nodeMap[t.name] = t;
+        }
+      });
       for (const t of territoryTreeData) {
         if (t && t.territory_manager) {
-          const mgrLower = t.territory_manager.trim().toLowerCase();
-          if (mgrLower === spName.toLowerCase() || mgrLower === cleanSp) {
+          const mgrRaw = String(t.territory_manager).trim().toLowerCase();
+          const mgrClean = (typeof cleanRepDisplayName === 'function' ? cleanRepDisplayName(t.territory_manager) : mgrRaw).toLowerCase();
+          if (mgrRaw === spName.toLowerCase() || (mgrClean && mgrClean === cleanSp)) {
             if (nodeProgMap[t.name]) return nodeProgMap[t.name];
+            if (typeof detectNodeProgram === 'function') {
+              const detectedNodeProg = detectNodeProgram(t, parentMap, nodeMap);
+              if (detectedNodeProg) return detectedNodeProg;
+            }
             const tProg = detectTextProgram(`${t.name || ''} ${t.parent_territory || ''} ${t.custom_account_or_program || ''}`);
             if (tProg && tProg !== 'OTHER_PROGRAM') return tProg;
           }
@@ -6142,6 +6162,11 @@ const BASELINE_ERP_TERRITORIES = [
     if (detected === 'OTHER_PROGRAM') return false;
     if (detected) {
       return detected === targetProg;
+    }
+    // Live ERPNext Sales Persons created from another device without an explicit program tag
+    // should remain visible instead of being hidden by stale localStorage scoping
+    if (typeof spOrName === 'object' && spOrName !== null) {
+      return true;
     }
     return false;
   }
@@ -8153,6 +8178,69 @@ const BASELINE_ERP_TERRITORIES = [
     return 'Coverage Area';
   }
 
+  function getSalesPersonDistrict(spNameOrObj) {
+    if (!spNameOrObj) return '';
+    if (typeof spNameOrObj === 'object') {
+      const direct = (spNameOrObj.custom_district || spNameOrObj.district || '').trim();
+      if (direct) return direct;
+      spNameOrObj = spNameOrObj.name || spNameOrObj.sales_person_name || '';
+    }
+    const raw = String(spNameOrObj || '').trim();
+    if (!raw || /^unassigned|^vacant|^folder/i.test(raw)) return '';
+    const cleanTarget = (typeof cleanRepDisplayName === 'function' ? cleanRepDisplayName(raw) : raw).toLowerCase();
+    const list = (typeof availableSalesPersons !== 'undefined' && Array.isArray(availableSalesPersons))
+      ? availableSalesPersons
+      : [];
+    const exact = list.find(s => s && (
+      String(s.name || '').trim().toLowerCase() === raw.toLowerCase() ||
+      String(s.sales_person_name || '').trim().toLowerCase() === raw.toLowerCase()
+    ));
+    if (exact && (exact.custom_district || exact.district)) {
+      return String(exact.custom_district || exact.district).trim();
+    }
+    if (cleanTarget) {
+      const byClean = list.find(s => {
+        if (!s || !(s.custom_district || s.district)) return false;
+        const cName = (typeof cleanRepDisplayName === 'function'
+          ? cleanRepDisplayName(s.sales_person_name || s.name)
+          : String(s.sales_person_name || s.name || '')).trim().toLowerCase();
+        return cName && cName === cleanTarget;
+      });
+      if (byClean) {
+        return String(byClean.custom_district || byClean.district).trim();
+      }
+    }
+    return '';
+  }
+
+  function resolveTerritoryDistrict(terrNodeOrCode, ptRowOrNull) {
+    const isObj = terrNodeOrCode && typeof terrNodeOrCode === 'object';
+    const treeNode = isObj
+      ? terrNodeOrCode
+      : ((typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData))
+        ? territoryTreeData.find(n => n && (n.name === terrNodeOrCode || n.territory_name === terrNodeOrCode))
+        : null);
+    const code = isObj ? (terrNodeOrCode.name || terrNodeOrCode.territory_name || '') : String(terrNodeOrCode || '').trim();
+    const ptRow = ptRowOrNull || (code && typeof findProgramTerritoryByCode === 'function' ? findProgramTerritoryByCode(code) : null);
+
+    // 1. Primary source: Sales Person DocType District (custom_district)
+    const mgrSource = (treeNode && treeNode.territory_manager) || (ptRow && ptRow.rep) || '';
+    const spDistrict = getSalesPersonDistrict(mgrSource);
+    if (spDistrict) return spDistrict;
+
+    // 2. Secondary source: Explicit Territory custom_district / areaDistrict field
+    const terrDistrict = String(
+      (treeNode && (treeNode.custom_district || treeNode.area_district || treeNode.district_area)) ||
+      (ptRow && (ptRow.areaDistrict || ptRow.custom_district)) ||
+      ''
+    ).trim();
+    if (terrDistrict) return terrDistrict;
+
+    // 3. Fallback: Legacy mapped area or parent district cluster
+    const parentDist = (treeNode && treeNode.parent_territory) || (ptRow && ptRow.district) || '';
+    return resolveTerritoryArea(code, parentDist);
+  }
+
 
     // --- RENDER TABLE ---
   function renderTable() {
@@ -8220,13 +8308,15 @@ const BASELINE_ERP_TERRITORIES = [
         if (rowStatus === 'Vacant' && !showVacant) isMatch = false;
         if (rowStatus === 'Inactive' && !showInactive) isMatch = false;
       } else if (filterText) {
-        const rowAreaTag = resolveTerritoryArea(row.activeCode || row.latestPrevCode, row.district);
+        const treeNode = Array.isArray(territoryTreeData)
+          ? territoryTreeData.find(t => t && (t.name === (row.activeCode || row.latestPrevCode) || t.territory_name === (row.activeCode || row.latestPrevCode)))
+          : null;
+        const rowAreaTag = resolveTerritoryDistrict(treeNode || (row.activeCode || row.latestPrevCode), row);
         if (filterField === 'area') {
           isMatch = (rowAreaTag || '').toLowerCase().includes(filterText) || (row.district || '').toLowerCase().includes(filterText);
         } else
         if (filterField === 'all') {
           const userStr = (row.userId && row.userId.includes('@')) ? row.userId : 'unassigned';
-          const rowAreaTag = resolveTerritoryArea(row.activeCode || row.latestPrevCode, row.district);
           const statusText = rowStatus.toLowerCase();
           const combined = [
             row.latestPrevCode || '',
@@ -8321,7 +8411,10 @@ const BASELINE_ERP_TERRITORIES = [
             </td>
           `;
         } else {
-          const rowAreaTag = resolveTerritoryArea(row.activeCode || row.latestPrevCode, row.district);
+          const treeNode = Array.isArray(territoryTreeData)
+            ? territoryTreeData.find(t => t && (t.name === (row.activeCode || row.latestPrevCode) || t.territory_name === (row.activeCode || row.latestPrevCode)))
+            : null;
+          const rowAreaTag = resolveTerritoryDistrict(treeNode || (row.activeCode || row.latestPrevCode), row);
           middleTds = `
             <td class="col-prev" style="${tableColumnVisibility.prev ? '' : 'display:none;'}"><strong>${escapeHtml(row.latestPrevCode)}</strong></td>
             <td class="col-active" style="${tableColumnVisibility.active ? '' : 'display:none;'}"><strong style="color:#0284C7;">${escapeHtml(row.activeCode)}</strong></td>
@@ -9403,9 +9496,25 @@ const BASELINE_ERP_TERRITORIES = [
   function populateBulkAddDropdowns() {
     const distSelect = document.getElementById('bulkAddDistrictSelect');
     const repSelect = document.getElementById('bulkAddRepSelect');
+    const areaInput = document.getElementById('bulkAddAreaDistrictInput');
+    const repDatalist = document.getElementById('bulkAddRepDatalist');
 
-    const uniqueDistricts = [...new Set(programTerritories.map(t => (t.district || '').trim()).filter(Boolean))].sort();
-    
+    const distSet = new Set();
+    programTerritories.forEach(t => {
+      const d = (t.district || '').trim();
+      if (d) distSet.add(d);
+    });
+    if (Array.isArray(territoryTreeData)) {
+      const progRoot = (LIVE_DATA[activeProgram] && LIVE_DATA[activeProgram].territoryBranch) ? LIVE_DATA[activeProgram].territoryBranch : '';
+      territoryTreeData.forEach(t => {
+        if ((t.is_group == 1 || t.is_group === true) && typeof isNodeInProgram === 'function' && isNodeInProgram(t, activeProgram)) {
+          const nm = (t.name || t.territory_name || '').trim();
+          if (nm && nm !== 'All Territories' && nm !== progRoot) distSet.add(nm);
+        }
+      });
+    }
+    const uniqueDistricts = [...distSet].sort();
+
     const programReps = new Set();
     programTerritories.forEach(t => {
       const r = cleanRepDisplayName(t.rep);
@@ -9414,10 +9523,11 @@ const BASELINE_ERP_TERRITORIES = [
       }
     });
     availableSalesPersons.forEach(s => {
+      if (s.is_group == 1 || s.is_group === true) return;
       const prog = s.custom_account_or_program || s.program;
       if (!prog || prog === activeProgram || activeProgram.includes(prog) || prog.includes(activeProgram)) {
         const r = cleanRepDisplayName(s.sales_person_name || s.name);
-        if (r) programReps.add(r);
+        if (r && r !== 'Sales Team') programReps.add(r);
       }
     });
 
@@ -9432,18 +9542,66 @@ const BASELINE_ERP_TERRITORIES = [
       repSelect.innerHTML = '<option value="Unassigned Slot">Unassigned (Vacant Slot)</option>' +
         cachedBulkAddOptions.reps.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
     }
+    if (repDatalist) {
+      repDatalist.innerHTML = cachedBulkAddOptions.reps.map(r => {
+        const dist = (typeof getSalesPersonDistrict === 'function') ? getSalesPersonDistrict(r) : '';
+        return `<option value="${escapeHtml(r)}">${dist ? escapeHtml('District: ' + dist) : ''}</option>`;
+      }).join('');
+    }
+    if (areaInput && areaInput.value === undefined) areaInput.value = '';
 
     onBulkAddCodesInput();
   }
 
-  function parseBulkAddCodes() {
+  function parseBulkAddEntries() {
     const val = document.getElementById('bulkAddCodesTextarea')?.value || '';
-    const rawTokens = val.split(/[\n,;]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
-    return [...new Set(rawTokens)];
+    const lines = val.split(/\r?\n/);
+    const entryMap = new Map();
+    const statusTokens = new Set(['confirmed', 'active', 'vacant', 'resigned', 'pending', 'erp status']);
+    const headerCodes = new Set(['TERRITORY CODE', 'CODE', 'TERRITORY', 'ERP STATUS']);
+
+    lines.forEach(rawLine => {
+      const line = rawLine.trim();
+      if (!line) return;
+
+      if (line.includes('\t') || line.includes('|')) {
+        const sep = line.includes('\t') ? '\t' : '|';
+        let cells = line.split(sep).map(c => c.trim());
+        while (cells.length > 1 && (!cells[0] || statusTokens.has(cells[0].toLowerCase()))) {
+          cells.shift();
+        }
+        const code = (cells[0] || '').toUpperCase().trim();
+        if (!code || headerCodes.has(code)) return;
+        const rep = cleanRepDisplayName(cells[1] || '');
+        let dist = (cells[2] || '').trim();
+        if (dist.includes('@') || /^0?9\d{8,}/.test(dist.replace(/[-\s]/g, ''))) {
+          dist = '';
+        }
+        const prev = entryMap.get(code) || { code, rep: '', district: '' };
+        entryMap.set(code, {
+          code,
+          rep: rep || prev.rep,
+          district: dist || prev.district
+        });
+      } else {
+        line.split(/[,;]+/).map(s => s.trim().toUpperCase()).filter(Boolean).forEach(code => {
+          if (!headerCodes.has(code) && !entryMap.has(code)) {
+            entryMap.set(code, { code, rep: '', district: '' });
+          }
+        });
+      }
+    });
+
+    return Array.from(entryMap.values());
+  }
+
+  function parseBulkAddCodes() {
+    return parseBulkAddEntries().map(e => e.code);
   }
 
   function onBulkAddCodesInput() {
-    const codes = parseBulkAddCodes();
+    const entries = parseBulkAddEntries();
+    const codes = entries.map(e => e.code);
     const badge = document.getElementById('bulkAddCountBadge');
     const warning = document.getElementById('bulkAddWarningBox');
     const gridWrap = document.getElementById('bulkAddRowsContainer');
@@ -9451,7 +9609,7 @@ const BASELINE_ERP_TERRITORIES = [
 
     if (badge) badge.innerText = `${codes.length} Valid Codes`;
 
-    if (codes.length === 0) {
+    if (entries.length === 0) {
       if (warning) warning.style.display = 'none';
       if (gridWrap) gridWrap.style.display = 'none';
       if (tbody) tbody.innerHTML = '';
@@ -9470,15 +9628,32 @@ const BASELINE_ERP_TERRITORIES = [
       if (warning) warning.style.display = 'none';
     }
 
-    renderBulkAddAssignmentRows(codes);
+    renderBulkAddAssignmentRows(entries);
   }
 
-  function renderBulkAddAssignmentRows(codes) {
+  function onBulkAddRowRepInput(inp) {
+    if (!inp) return;
+    const tr = inp.closest('tr');
+    if (!tr) return;
+    const areaInp = tr.querySelector('.bulk-add-row-area-district');
+    if (!areaInp) return;
+    const spDist = (typeof getSalesPersonDistrict === 'function') ? getSalesPersonDistrict(inp.value.trim()) : '';
+    if (spDist && (!areaInp.value.trim() || areaInp.dataset.autoFilled === '1')) {
+      areaInp.value = spDist;
+      areaInp.dataset.autoFilled = '1';
+    }
+  }
+
+  function renderBulkAddAssignmentRows(entriesOrCodes) {
     const gridWrap = document.getElementById('bulkAddRowsContainer');
     const tbody = document.getElementById('bulkAddTableBody');
     if (!gridWrap || !tbody) return;
 
-    if (codes.length === 0) {
+    const entries = (entriesOrCodes || []).map(item =>
+      typeof item === 'string' ? { code: item, rep: '', district: '' } : item
+    );
+
+    if (entries.length === 0) {
       gridWrap.style.display = 'none';
       tbody.innerHTML = '';
       return;
@@ -9487,18 +9662,20 @@ const BASELINE_ERP_TERRITORIES = [
     gridWrap.style.display = 'block';
 
     const defaultDist = document.getElementById('bulkAddDistrictSelect')?.value || (cachedBulkAddOptions.districts[0] || 'Unassigned Cluster');
+    const defaultAreaDist = (document.getElementById('bulkAddAreaDistrictInput')?.value || '').trim();
     const defaultRep = document.getElementById('bulkAddRepSelect')?.value || 'Unassigned Slot';
 
-    // Build district and rep options HTML
     const distOptsHtml = cachedBulkAddOptions.districts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
-    const repOptsHtml = '<option value="Unassigned Slot">Unassigned (Vacant Slot)</option>' +
-      cachedBulkAddOptions.reps.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
 
-    tbody.innerHTML = codes.map((code, idx) => `
+    tbody.innerHTML = entries.map(entry => {
+      const cleanRepVal = entry.rep || ((defaultRep && defaultRep !== 'Unassigned Slot') ? defaultRep : '');
+      const spKnownDist = (cleanRepVal && typeof getSalesPersonDistrict === 'function') ? getSalesPersonDistrict(cleanRepVal) : '';
+      const areaVal = entry.district || spKnownDist || defaultAreaDist || '';
+      return `
       <tr style="border-bottom:1px solid #E2E8F0;">
         <td style="padding:5px 8px; font-weight:700; color:#0F172A; font-family:monospace; font-size:12px;">
-          <input type="hidden" class="bulk-add-row-code" value="${escapeHtml(code)}">
-          ${escapeHtml(code)}
+          <input type="hidden" class="bulk-add-row-code" value="${escapeHtml(entry.code)}">
+          ${escapeHtml(entry.code)}
         </td>
         <td style="padding:4px 6px;">
           <select class="form-control bulk-add-row-dist" style="font-size:11px; padding:3px 6px; height:28px;">
@@ -9506,26 +9683,25 @@ const BASELINE_ERP_TERRITORIES = [
           </select>
         </td>
         <td style="padding:4px 6px;">
-          <select class="form-control bulk-add-row-rep" style="font-size:11px; padding:3px 6px; height:28px;">
-            ${repOptsHtml}
-          </select>
+          <input type="text" class="form-control bulk-add-row-area-district" value="${escapeHtml(areaVal)}" placeholder="e.g. Makati" oninput="this.dataset.autoFilled='0'" style="font-size:11px; padding:3px 6px; height:28px;">
+        </td>
+        <td style="padding:4px 6px;">
+          <input type="text" class="form-control bulk-add-row-rep" list="bulkAddRepDatalist" value="${escapeHtml(cleanRepVal)}" placeholder="Unassigned (Vacant)" oninput="onBulkAddRowRepInput(this)" style="font-size:11px; padding:3px 6px; height:28px;">
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
 
-    // Preselect defaults
+    // Preselect parent folder defaults
     tbody.querySelectorAll('.bulk-add-row-dist').forEach(sel => {
       if (defaultDist && defaultDist !== 'NEW_CLUSTER') sel.value = defaultDist;
-    });
-    tbody.querySelectorAll('.bulk-add-row-rep').forEach(sel => {
-      if (defaultRep) sel.value = defaultRep;
     });
   }
 
   function onBulkAddDefaultDistrictChange() {
     const distSel = document.getElementById('bulkAddDistrictSelect');
     if (distSel && distSel.value === 'NEW_CLUSTER') {
-      const customCluster = prompt('Enter new District Cluster name:');
+      const customCluster = prompt('Enter new Parent Cluster / Folder name:');
       if (customCluster && customCluster.trim()) {
         const clean = customCluster.trim();
         if (!cachedBulkAddOptions.districts.includes(clean)) {
@@ -9536,17 +9712,27 @@ const BASELINE_ERP_TERRITORIES = [
           distSel.insertBefore(opt, distSel.lastElementChild);
         }
         distSel.value = clean;
-        renderBulkAddAssignmentRows(parseBulkAddCodes());
+        renderBulkAddAssignmentRows(parseBulkAddEntries());
+      } else if (cachedBulkAddOptions.districts.length > 0) {
+        distSel.value = cachedBulkAddOptions.districts[0];
       }
     }
   }
 
   function onBulkAddDefaultRepChange() {
-    // When default rep changes, user can click 'Fill All' or individually customize rows
+    const repVal = document.getElementById('bulkAddRepSelect')?.value || '';
+    const areaInput = document.getElementById('bulkAddAreaDistrictInput');
+    if (areaInput && repVal && repVal !== 'Unassigned Slot' && typeof getSalesPersonDistrict === 'function') {
+      const spDist = getSalesPersonDistrict(repVal);
+      if (spDist && !areaInput.value.trim()) {
+        areaInput.value = spDist;
+      }
+    }
   }
 
   function applyBulkAddDefaultsToAllRows() {
     const defaultDist = document.getElementById('bulkAddDistrictSelect')?.value || '';
+    const defaultAreaDist = (document.getElementById('bulkAddAreaDistrictInput')?.value || '').trim();
     const defaultRep = document.getElementById('bulkAddRepSelect')?.value || '';
     const tbody = document.getElementById('bulkAddTableBody');
     if (!tbody) return;
@@ -9554,23 +9740,33 @@ const BASELINE_ERP_TERRITORIES = [
     if (defaultDist && defaultDist !== 'NEW_CLUSTER') {
       tbody.querySelectorAll('.bulk-add-row-dist').forEach(sel => { sel.value = defaultDist; });
     }
-    if (defaultRep) {
-      tbody.querySelectorAll('.bulk-add-row-rep').forEach(sel => { sel.value = defaultRep; });
+    if (defaultAreaDist) {
+      tbody.querySelectorAll('.bulk-add-row-area-district').forEach(inp => {
+        inp.value = defaultAreaDist;
+        inp.dataset.autoFilled = '0';
+      });
     }
-    showToast('Applied default cluster & representative to all rows below!', 'info');
+    if (defaultRep) {
+      const repText = (defaultRep === 'Unassigned Slot') ? '' : defaultRep;
+      tbody.querySelectorAll('.bulk-add-row-rep').forEach(inp => {
+        inp.value = repText;
+        onBulkAddRowRepInput(inp);
+      });
+    }
+    showToast('Applied default cluster, district & representative to all rows below!', 'info');
   }
 
   function applyBulkAdd() {
-    const codes = parseBulkAddCodes();
-    if (codes.length === 0) {
+    const entries = parseBulkAddEntries();
+    if (entries.length === 0) {
       showToast('Please enter at least one valid territory code!', 'error');
       return;
     }
 
     const existingActive = new Set(programTerritories.map(t => (t.activeCode || '').toUpperCase()));
-    const validCodesToAdd = codes.filter(c => !existingActive.has(c));
+    const validEntriesToAdd = entries.filter(e => !existingActive.has(e.code));
 
-    if (validCodesToAdd.length === 0) {
+    if (validEntriesToAdd.length === 0) {
       showToast('All entered territory codes already exist in this program!', 'error');
       return;
     }
@@ -9578,17 +9774,21 @@ const BASELINE_ERP_TERRITORIES = [
     const tbody = document.getElementById('bulkAddTableBody');
     const rowCodeEls = tbody ? tbody.querySelectorAll('.bulk-add-row-code') : [];
     const rowDistEls = tbody ? tbody.querySelectorAll('.bulk-add-row-dist') : [];
+    const rowAreaDistEls = tbody ? tbody.querySelectorAll('.bulk-add-row-area-district') : [];
     const rowRepEls = tbody ? tbody.querySelectorAll('.bulk-add-row-rep') : [];
 
     const rowMap = new Map();
     for (let i = 0; i < rowCodeEls.length; i++) {
       const c = rowCodeEls[i].value;
       const d = rowDistEls[i] ? rowDistEls[i].value : 'Unassigned Cluster';
-      const r = rowRepEls[i] ? rowRepEls[i].value : 'Unassigned Slot';
-      rowMap.set(c, { district: d, rep: r });
+      const ad = rowAreaDistEls[i] ? rowAreaDistEls[i].value.trim() : '';
+      const rawR = rowRepEls[i] ? rowRepEls[i].value.trim() : '';
+      const r = (!rawR || rawR.toLowerCase().includes('unassigned')) ? 'Unassigned Slot' : cleanRepDisplayName(rawR);
+      rowMap.set(c, { district: d, areaDistrict: ad, rep: r });
     }
 
     const defaultDist = document.getElementById('bulkAddDistrictSelect')?.value || 'Unassigned Cluster';
+    const defaultAreaDist = (document.getElementById('bulkAddAreaDistrictInput')?.value || '').trim();
     const defaultRep = document.getElementById('bulkAddRepSelect')?.value || 'Unassigned Slot';
 
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -9600,16 +9800,25 @@ const BASELINE_ERP_TERRITORIES = [
     const progBranch = (LIVE_DATA[activeProgram] && LIVE_DATA[activeProgram].territoryBranch) ? LIVE_DATA[activeProgram].territoryBranch : 'All Territories';
 
     selectedRowIndices.clear();
+    let salesPersonListDirty = false;
+    const bulkPayloads = [];
 
-    validCodesToAdd.forEach((code, i) => {
-      const alloc = rowMap.get(code) || { district: defaultDist, rep: defaultRep };
+    validEntriesToAdd.forEach((entry) => {
+      const code = entry.code;
+      const alloc = rowMap.get(code) || {
+        district: defaultDist,
+        areaDistrict: entry.district || defaultAreaDist,
+        rep: entry.rep || defaultRep
+      };
       const rowDistrict = (alloc.district && alloc.district !== 'NEW_CLUSTER') ? alloc.district : defaultDist;
-      const rowRep = alloc.rep || defaultRep;
+      const rowAreaDist = (alloc.areaDistrict || entry.district || defaultAreaDist || '').trim();
+      const rowRep = (alloc.rep && alloc.rep !== 'Unassigned Slot') ? alloc.rep : 'Unassigned Slot';
+      const assignedMgr = (rowRep === 'Unassigned Slot') ? '' : cleanRepDisplayName(rowRep);
 
       // Lookup user ID from availableUsers
       let userId = '';
-      if (rowRep && rowRep !== 'Unassigned Slot') {
-        const clean = rowRep.trim().toLowerCase();
+      if (assignedMgr) {
+        const clean = assignedMgr.trim().toLowerCase();
         const matchedUser = availableUsers.find(u => {
           const fn = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
           const email = (u.email || u.name || '').toLowerCase();
@@ -9618,8 +9827,9 @@ const BASELINE_ERP_TERRITORIES = [
         userId = matchedUser ? (matchedUser.email || matchedUser.name) : '';
       }
 
+      const resolvedAreaDist = rowAreaDist || ((assignedMgr && typeof getSalesPersonDistrict === 'function') ? getSalesPersonDistrict(assignedMgr) : '');
       const newRecordId = `TERR-${pfx}-${Math.floor(1000 + Math.random() * 8999)}`;
-      const isVacant = (!rowRep || rowRep === 'Unassigned Slot' || rowRep.toLowerCase().includes('unassigned'));
+      const isVacant = !assignedMgr;
       const initialOpStatus = isVacant ? 'Vacant' : 'Active';
 
       const newRecord = {
@@ -9628,7 +9838,9 @@ const BASELINE_ERP_TERRITORIES = [
         latestPrevCode: code,
         activeCode: code,
         district: rowDistrict,
-        rep: rowRep,
+        areaDistrict: resolvedAreaDist,
+        custom_district: resolvedAreaDist,
+        rep: assignedMgr || 'Unassigned Slot',
         docs: 0,
         status: 'CHANGED',
         operationalStatus: initialOpStatus,
@@ -9641,7 +9853,7 @@ const BASELINE_ERP_TERRITORIES = [
           timestamp: nowStr,
           action: 'BULK_ADD',
           user: loggedUser,
-          details: `Created in bulk by SFE: ${code} in ${rowDistrict} assigned to ${rowRep} (${userId || 'Unassigned'}).`
+          details: `Created in bulk by SFE: ${code} in ${rowDistrict}${resolvedAreaDist ? ' [District: ' + resolvedAreaDist + ']' : ''} assigned to ${assignedMgr || 'Unassigned Slot'} (${userId || 'Unassigned'}).`
         }]
       };
 
@@ -9671,12 +9883,13 @@ const BASELINE_ERP_TERRITORIES = [
 
       // 2. Add territory node to territoryTreeData
       const existingTreeNode = territoryTreeData.find(t => t.name === code || t.territory_name === code);
-      const assignedMgr = (rowRep === 'Unassigned Slot') ? '' : rowRep;
       if (existingTreeNode) {
         existingTreeNode.parent_territory = rowDistrict;
         existingTreeNode.territory_manager = assignedMgr;
         existingTreeNode.operational_status = initialOpStatus;
         existingTreeNode.status = initialOpStatus;
+        existingTreeNode.custom_district = resolvedAreaDist;
+        existingTreeNode.district = resolvedAreaDist;
         existingTreeNode.custom_account_or_program = activeProgram;
         existingTreeNode.program = activeProgram;
       } else {
@@ -9688,14 +9901,44 @@ const BASELINE_ERP_TERRITORIES = [
           territory_manager: assignedMgr,
           operational_status: initialOpStatus,
           status: initialOpStatus,
+          custom_district: resolvedAreaDist,
+          district: resolvedAreaDist,
           custom_account_or_program: activeProgram,
           program: activeProgram
         });
       }
       if (typeof registerNodeProgram === 'function') registerNodeProgram(code, activeProgram);
-      if (assignedMgr && typeof registerSalesPersonProgram === 'function') {
-        registerSalesPersonProgram(assignedMgr, activeProgram);
+
+      // 3. Ensure Sales Person record + District is registered locally
+      if (assignedMgr) {
+        if (typeof registerSalesPersonProgram === 'function') registerSalesPersonProgram(assignedMgr, activeProgram);
+        const existingSp = availableSalesPersons.find(s => {
+          const sn = cleanRepDisplayName(s.sales_person_name || s.name).toLowerCase();
+          return sn === assignedMgr.toLowerCase();
+        });
+        if (existingSp) {
+          if (resolvedAreaDist) {
+            existingSp.custom_district = resolvedAreaDist;
+            existingSp.district = resolvedAreaDist;
+            salesPersonListDirty = true;
+          }
+        } else {
+          const defaultParentSp = (LIVE_DATA[activeProgram] && LIVE_DATA[activeProgram].salesBranch) || 'Sales Team';
+          availableSalesPersons.push({
+            name: assignedMgr,
+            sales_person_name: assignedMgr,
+            parent_sales_person: defaultParentSp,
+            is_group: 0,
+            enabled: 1,
+            custom_district: resolvedAreaDist,
+            district: resolvedAreaDist,
+            custom_account_or_program: activeProgram,
+            program: activeProgram
+          });
+          salesPersonListDirty = true;
+        }
       }
+
       if (LIVE_DATA[activeProgram] && Array.isArray(LIVE_DATA[activeProgram].territories)) {
         if (!LIVE_DATA[activeProgram].territories.some(t => t.activeCode === code || t.histCode === code)) {
           LIVE_DATA[activeProgram].territories.unshift(newRecord);
@@ -9708,7 +9951,18 @@ const BASELINE_ERP_TERRITORIES = [
         action: 'BULK_ADD',
         territoryCode: code,
         user: loggedUser,
-        details: `Created in bulk: territory ${code} in cluster ${rowDistrict} assigned to ${rowRep}.`
+        details: `Created in bulk: territory ${code} in cluster ${rowDistrict}${resolvedAreaDist ? ' [District: ' + resolvedAreaDist + ']' : ''} assigned to ${assignedMgr || 'Unassigned Slot'}.`
+      });
+
+      bulkPayloads.push({
+        territory_name: code,
+        parent_territory: rowDistrict,
+        is_group: 0,
+        territory_manager: assignedMgr,
+        custom_district: resolvedAreaDist,
+        district: resolvedAreaDist,
+        area_district: resolvedAreaDist,
+        custom_account_or_program: activeProgram
       });
     });
 
@@ -9716,35 +9970,28 @@ const BASELINE_ERP_TERRITORIES = [
     try {
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
       localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
+      if (salesPersonListDirty) {
+        localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons));
+      }
     } catch (_) {}
 
     // Streamlit bidirectional dispatch for bulk creation on ERPNext
     if (isStreamlitActive || (window.parent && window.parent !== window)) {
       try {
-        const payloadList = validCodesToAdd.map(code => {
-          const alloc = rowMap.get(code) || { district: defaultDist, rep: defaultRep };
-          const rowDistrict = (alloc.district && alloc.district !== 'NEW_CLUSTER') ? alloc.district : defaultDist;
-          const rowRep = alloc.rep || defaultRep;
-          return {
-            territory_name: code,
-            parent_territory: rowDistrict,
-            is_group: 0,
-            territory_manager: (rowRep === 'Unassigned Slot') ? '' : rowRep,
-            custom_account_or_program: activeProgram
-          };
-        });
         window.parent.postMessage({
           isStreamlitMessage: true,
           type: "streamlit:setComponentValue",
           value: {
             action: "bulk_tree_add",
-            territories: payloadList,
+            territories: bulkPayloads,
             timestamp: Date.now()
           }
         }, "*");
       } catch (_) {}
     }
 
+    const bulkTa = document.getElementById('bulkAddCodesTextarea');
+    if (bulkTa) bulkTa.value = '';
     closeBulkEditModal();
 
     renderTable();
@@ -9752,7 +9999,7 @@ const BASELINE_ERP_TERRITORIES = [
     renderRealignmentAndArchive();
     renderSummaryReport();
 
-    showToast(`Created ${validCodesToAdd.length} territories in bulk! Synced to Table Grid and Territory Tree.`, 'success');
+    showToast(`Created ${validEntriesToAdd.length} territories in bulk! Synced to Table Grid, District & Territory Tree.`, 'success');
   }
 
   // ========================================================
@@ -12281,6 +12528,10 @@ const BASELINE_ERP_TERRITORIES = [
       const cleanTreeMgr = rawTreeMgr ? cleanRepDisplayName(rawTreeMgr) : '';
       const isResignedTree = treeStatus === 'Inactive' || /resigned|inactive/i.test(rawTreeMgr);
       const isVacantTree = treeStatus === 'Vacant';
+      const resolvedDist = String(t.custom_district || (typeof getSalesPersonDistrict === 'function' ? getSalesPersonDistrict(rawTreeMgr) : '') || '').trim();
+      if (cleanTreeMgr && cleanTreeMgr !== 'Folder (Group)' && !isResignedTree && typeof registerSalesPersonProgram === 'function') {
+        registerSalesPersonProgram(cleanTreeMgr, activeProgram);
+      }
 
       let existing = ptMap.get(t.name) ||
                      programTerritories.find(p => p.activeCode === t.name || p.latestPrevCode === t.name || p.histCode === t.name || p.activeCode === t.territory_name);
@@ -12303,6 +12554,8 @@ const BASELINE_ERP_TERRITORIES = [
           latestPrevCode: t.name,
           activeCode: t.name,
           district: t.parent_territory || (base ? base.district : (LIVE_DATA[activeProgram]?.territoryBranch || 'All Territories')),
+          areaDistrict: resolvedDist,
+          custom_district: resolvedDist,
           rep: resolvedRep,
           docs: getCoveredDoctorsForTerritory({ activeCode: t.name, latestPrevCode: t.name, histCode: t.name, rep: resolvedRep }).length,
           status: base ? (base.status || 'UNCHANGED') : 'UNCHANGED',
@@ -12322,13 +12575,21 @@ const BASELINE_ERP_TERRITORIES = [
         programTerritories.push(newRow);
         ptMap.set(t.name, newRow);
       } else {
-        // PRESERVE renamed activeCode and sync status, manager, userId, and parent folder across both views
+        // PRESERVE renamed activeCode and sync status, manager, userId, district, and parent folder across both views
         if (existing.activeCode !== t.name && (existing.latestPrevCode === t.name || existing.histCode === t.name)) {
           // Renamed territory preserves current activeCode
         } else {
           existing.activeCode = t.name;
         }
         existing.isGroup = t.is_group ? 1 : 0;
+
+        if (resolvedDist) {
+          existing.areaDistrict = resolvedDist;
+          existing.custom_district = resolvedDist;
+        } else if (t.custom_district === '' && !(typeof getSalesPersonDistrict === 'function' && getSalesPersonDistrict(rawTreeMgr))) {
+          existing.areaDistrict = '';
+          existing.custom_district = '';
+        }
 
         const accurateUid = t.custom_user_id || ERP_TERRITORY_USER_MAP[t.name];
         if (accurateUid && !isVacantTree) {
@@ -12358,6 +12619,12 @@ const BASELINE_ERP_TERRITORIES = [
               existing.isActive = true;
               existing.isResigned = false;
             }
+          } else if (!t.is_group) {
+            existing.rep = 'Unassigned Rep';
+            existing.operationalStatus = 'Vacant';
+            existing.isActive = true;
+            existing.isResigned = false;
+            existing.userId = '';
           } else if (treeStatus === 'Active') {
             existing.operationalStatus = 'Active';
             existing.isActive = true;
@@ -12701,9 +12968,11 @@ const BASELINE_ERP_TERRITORIES = [
         if (t.name === 'All Territories') return;
 
         const ptMatch = typeof findProgramTerritoryByCode === 'function' ? findProgramTerritoryByCode(t.name) : null;
-        const areaText = !t.is_group && typeof resolveTerritoryArea === 'function'
-          ? resolveTerritoryArea(t.name, ptMatch ? ptMatch.district : (t.parent_territory || ''))
-          : '';
+        const areaText = typeof resolveTerritoryDistrict === 'function'
+          ? resolveTerritoryDistrict(t, ptMatch)
+          : (!t.is_group && typeof resolveTerritoryArea === 'function'
+            ? resolveTerritoryArea(t.name, ptMatch ? ptMatch.district : (t.parent_territory || ''))
+            : '');
         const statusText = !t.is_group && typeof getTerritoryOperationalStatus === 'function'
           ? getTerritoryOperationalStatus(ptMatch, t)
           : '';
@@ -12871,36 +13140,52 @@ const BASELINE_ERP_TERRITORIES = [
 
         let treeLabelHtml = '';
         if (isGroup) {
-          treeLabelHtml = `<span class="erp-tree-label">${escapeHtml(t.name)}</span>`;
+          const grpDist = (t.name !== 'All Territories')
+            ? String(t.custom_district || (typeof getSalesPersonDistrict === 'function' ? getSalesPersonDistrict(t.territory_manager) : '') || '').trim()
+            : '';
+          if (grpDist) {
+            treeLabelHtml = `
+              <span class="erp-tree-label">${escapeHtml(t.name)}</span>
+              <span style="color:#94A3B8; margin:0 5px;">-</span>
+              <span class="badge" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; font-weight:700; font-size:10.5px; padding:1px 7px; border-radius:6px;">${escapeHtml(grpDist)}</span>
+            `;
+          } else {
+            treeLabelHtml = `<span class="erp-tree-label">${escapeHtml(t.name)}</span>`;
+          }
         } else {
           const nodePt = matchedPt;
           const nodeDistrict = nodePt ? nodePt.district : (t.parent_territory || '');
-          const nodeArea = resolveTerritoryArea(t.name, nodeDistrict);
+          const nodeDistrictDisplay = (typeof resolveTerritoryDistrict === 'function')
+            ? resolveTerritoryDistrict(t, nodePt)
+            : resolveTerritoryArea(t.name, nodeDistrict);
           const rawRepSource = (nodePt && nodePt.rep) ? nodePt.rep : (t.territory_manager || '');
           const nodeRep = cleanRepDisplayName(rawRepSource) || (isNodeVacant ? 'Vacant Slot' : 'Unassigned Rep');
           if (isNodeInactive) {
             treeLabelHtml = `
               <span class="erp-tree-label" style="font-weight:700; color:#64748B; font-size:13px;">${escapeHtml(t.name)}</span>
-              <span class="badge" style="background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:6px; margin:0 4px;">(${escapeHtml(nodeArea)})</span>
-              <span style="color:#94A3B8; margin-right:4px;">-</span>
+              <span style="color:#94A3B8; margin:0 5px;">-</span>
+              <span class="badge" style="background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; font-weight:700; font-size:10.5px; padding:2px 7px; border-radius:6px;">${escapeHtml(nodeDistrictDisplay)}</span>
+              <span style="color:#94A3B8; margin:0 5px;">-</span>
               <span style="font-weight:600; color:#94A3B8; font-size:12.5px; text-decoration:line-through;">${escapeHtml(nodeRep)}</span>
-              <span class="badge" style="background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; font-weight:700; font-size:10px; padding:1px 6px; border-radius:4px; margin-left:4px;">Inactive</span>
+              <span class="badge" style="background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; font-weight:700; font-size:10px; padding:1px 6px; border-radius:4px; margin-left:6px;">Inactive</span>
             `;
           } else if (isNodeVacant) {
             treeLabelHtml = `
               <span class="erp-tree-label" style="font-weight:700; color:#0284C7; font-size:13px;">${escapeHtml(t.name)}</span>
-              <span class="badge" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; font-weight:700; font-size:11px; padding:2px 7px; border-radius:6px; margin:0 4px;">(${escapeHtml(nodeArea)})</span>
-              <span style="color:#94A3B8; margin-right:4px;">-</span>
+              <span style="color:#94A3B8; margin:0 5px;">-</span>
+              <span class="badge" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; font-weight:700; font-size:11px; padding:2px 7px; border-radius:6px;">${escapeHtml(nodeDistrictDisplay)}</span>
+              <span style="color:#94A3B8; margin:0 5px;">-</span>
               <span style="font-weight:600; color:#D97706; font-size:12.5px; font-style:italic;">${escapeHtml(nodeRep)}</span>
-              <span class="badge" style="background:#FEF3C7; color:#D97706; border:1px solid #FCD34D; font-weight:700; font-size:10px; padding:1px 6px; border-radius:4px; margin-left:4px;">Vacant</span>
+              <span class="badge" style="background:#FEF3C7; color:#D97706; border:1px solid #FCD34D; font-weight:700; font-size:10px; padding:1px 6px; border-radius:4px; margin-left:6px;">Vacant</span>
             `;
           } else {
             treeLabelHtml = `
               <span class="erp-tree-label" style="font-weight:700; color:#0284C7; font-size:13px;">${escapeHtml(t.name)}</span>
-              <span class="badge" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; font-weight:700; font-size:11px; padding:2px 7px; border-radius:6px; margin:0 4px;">(${escapeHtml(nodeArea)})</span>
-              <span style="color:#94A3B8; margin-right:4px;">-</span>
+              <span style="color:#94A3B8; margin:0 5px;">-</span>
+              <span class="badge" style="background:#F0F9FF; color:#0369A1; border:1px solid #BAE6FD; font-weight:700; font-size:11px; padding:2px 7px; border-radius:6px;">${escapeHtml(nodeDistrictDisplay)}</span>
+              <span style="color:#94A3B8; margin:0 5px;">-</span>
               <span style="font-weight:600; color:#0F172A; font-size:12.5px;">${escapeHtml(nodeRep)}</span>
-              <span class="badge" style="background:#DCFCE7; color:#15803D; border:1px solid #86EFAC; font-weight:700; font-size:10px; padding:1px 6px; border-radius:4px; margin-left:4px;">Active</span>
+              <span class="badge" style="background:#DCFCE7; color:#15803D; border:1px solid #86EFAC; font-weight:700; font-size:10px; padding:1px 6px; border-radius:4px; margin-left:6px;">Active</span>
             `;
           }
         }
@@ -13109,11 +13394,16 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   async function syncSalesPersonsAndEmployeesWithERPNext() {
-    // 1. Fetch Sales Persons
+    // 1. Fetch Sales Persons (requesting custom_district with schema-safe fallback)
     try {
-      const res = await fetch('/api/resource/Sales%20Person?fields=["name","sales_person_name","parent_sales_person","employee","is_group","enabled","department"]&limit_page_length=2000', {
+      let res = await fetch('/api/resource/Sales%20Person?fields=["name","sales_person_name","parent_sales_person","employee","is_group","enabled","department","custom_district"]&limit_page_length=2000', {
         headers: { 'Accept': 'application/json' }
       });
+      if (!res.ok) {
+        res = await fetch('/api/resource/Sales%20Person?fields=["name","sales_person_name","parent_sales_person","employee","is_group","enabled","department"]&limit_page_length=2000', {
+          headers: { 'Accept': 'application/json' }
+        });
+      }
       if (res.ok) {
         const body = await res.json();
         const live = body.data || [];
@@ -13541,31 +13831,72 @@ const BASELINE_ERP_TERRITORIES = [
       if (distInp && value) distInp.value = value;
     }
 
-    // Auto-populate User ID when selecting Territory Manager in New Territory modal
-    if (fieldId === 'treeAddManager' && extraData) {
-      const uid = extraData.user_id || extraData.company_email || extraData.personal_email || extraData.email;
-      if (uid) {
-        selectErpItem('treeAddUserAccount', uid, uid, { email: uid });
-      } else {
-        const mgrClean = cleanRepDisplayName(displayLabel || value);
-        const uMatch = availableUsers.find(u => {
-          const uName = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
-          return uName && (uName === mgrClean.toLowerCase() || uName.includes(mgrClean.toLowerCase()) || mgrClean.toLowerCase().includes(uName));
-        });
-        if (uMatch) {
-          const uEmail = uMatch.email || uMatch.name;
-          selectErpItem('treeAddUserAccount', uEmail, uEmail, uMatch);
+    // Auto-populate User ID & District when selecting Territory Manager in New Territory modal
+    if (fieldId === 'treeAddManager') {
+      const spDist = (extraData && (extraData.custom_district || extraData.district)) ||
+        (typeof getSalesPersonDistrict === 'function' ? getSalesPersonDistrict(extraData || value) : '');
+      const distAddInp = document.getElementById('treeAddDistrictInput');
+      if (distAddInp && spDist) {
+        distAddInp.value = spDist;
+      }
+      if (extraData) {
+        const uid = extraData.user_id || extraData.company_email || extraData.personal_email || extraData.email;
+        if (uid) {
+          selectErpItem('treeAddUserAccount', uid, uid, { email: uid });
+        } else {
+          const mgrClean = cleanRepDisplayName(displayLabel || value);
+          const uMatch = availableUsers.find(u => {
+            const uName = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
+            return uName && (uName === mgrClean.toLowerCase() || uName.includes(mgrClean.toLowerCase()) || mgrClean.toLowerCase().includes(uName));
+          });
+          if (uMatch) {
+            const uEmail = uMatch.email || uMatch.name;
+            selectErpItem('treeAddUserAccount', uEmail, uEmail, uMatch);
+          }
         }
       }
     }
 
-    // If selecting employee in New Sales Person modal, auto-fill Sales Person Name and User ID based on HR records
+    // Auto-populate District (and blank User ID) when selecting Territory Manager in Edit Territory modal
+    if (fieldId === 'treeEditManager') {
+      const spDist = (extraData && (extraData.custom_district || extraData.district)) ||
+        (typeof getSalesPersonDistrict === 'function' ? getSalesPersonDistrict(extraData || value) : '');
+      const distEditInp = document.getElementById('treeEditDistrictInput');
+      if (distEditInp && spDist) {
+        distEditInp.value = spDist;
+      }
+      const editUidInp = document.getElementById('treeEditUserAccountInput');
+      if (extraData && editUidInp && !editUidInp.value.trim()) {
+        const uid = extraData.user_id || extraData.company_email || extraData.personal_email || extraData.email;
+        if (uid) {
+          selectErpItem('treeEditUserAccount', uid, uid, { email: uid });
+        } else {
+          const mgrClean = cleanRepDisplayName(displayLabel || value);
+          const uMatch = availableUsers.find(u => {
+            const uName = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
+            return uName && (uName === mgrClean.toLowerCase() || uName.includes(mgrClean.toLowerCase()) || mgrClean.toLowerCase().includes(uName));
+          });
+          if (uMatch) {
+            const uEmail = uMatch.email || uMatch.name;
+            selectErpItem('treeEditUserAccount', uEmail, uEmail, uMatch);
+          }
+        }
+      }
+    }
+
+    // If selecting employee in New Sales Person modal, auto-fill Sales Person Name, District (if blank), and User ID based on HR records
     if (fieldId === 'newSpEmployee' && extraData) {
       const empFullName = extraData.employee_name || `${extraData.first_name || ''} ${extraData.last_name || ''}`.trim() || extraData.name;
       const cleanName = cleanRepDisplayName(empFullName);
       const spNameInp = document.getElementById('newSpNameInput');
       if (spNameInp && cleanName) {
         spNameInp.value = cleanName;
+      }
+
+      const empDist = (extraData.custom_district || extraData.district || '').trim();
+      const spDistInp = document.getElementById('newSpDistrictInput');
+      if (spDistInp && empDist && !spDistInp.value.trim()) {
+        spDistInp.value = empDist;
       }
 
       // Auto-match user account (User ID) from employee record or availableUsers
@@ -13667,10 +13998,35 @@ const BASELINE_ERP_TERRITORIES = [
       menu.appendChild(advRow);
 
     } else if (fieldId === 'newSpParent') {
-      // Parent Sales Person: Program-based pool tied to #programSelect,
-      // excluding the top-level "Sales Team" container and cross-program branches, without truncation.
+      // Parent Sales Person: combine Sales Team root, live group branches, and program-scoped sales persons
       const currentProg = getSelectedProgramName();
-      const spPool = getProgramScopedSalesPersonPool(currentProg);
+      const spPool = [];
+      const seenParents = new Set();
+      const pushUniqueParent = (sObj) => {
+        if (!sObj) return;
+        const rawKey = String(sObj.name || sObj.sales_person_name || '').trim();
+        if (!rawKey) return;
+        const lowKey = rawKey.toLowerCase();
+        if (seenParents.has(lowKey)) return;
+        seenParents.add(lowKey);
+        spPool.push(sObj);
+      };
+
+      pushUniqueParent({ name: 'Sales Team', sales_person_name: 'Sales Team', is_group: 1, parent_sales_person: '' });
+      if (Array.isArray(availableSalesPersons)) {
+        availableSalesPersons.forEach(s => {
+          if (!s) return;
+          const isGrpSp = (s.is_group == 1 || s.is_group === true);
+          if (!isGrpSp) return;
+          const detProg = typeof detectSalesPersonProgram === 'function' ? detectSalesPersonProgram(s) : null;
+          if (!detProg || detProg === currentProg) {
+            pushUniqueParent(s);
+          }
+        });
+      }
+      if (typeof getProgramScopedSalesPersonPool === 'function') {
+        getProgramScopedSalesPersonPool(currentProg).forEach(pushUniqueParent);
+      }
 
       // Filter by query tokens
       let matches = spPool.filter(s => {
@@ -13679,7 +14035,9 @@ const BASELINE_ERP_TERRITORIES = [
           s.sales_person_name || '',
           s.name || '',
           s.parent_sales_person || '',
-          s.employee || ''
+          s.employee || '',
+          s.custom_district || '',
+          s.district || ''
         ].join(' ').toLowerCase();
         return tokens.every(tok => searchable.includes(tok));
       });
@@ -13691,7 +14049,7 @@ const BASELINE_ERP_TERRITORIES = [
         customItem.style.borderTop = '1px solid rgba(148, 163, 184, 0.2)';
         customItem.innerHTML = `
           <div class="erp-dropdown-item-title" style="color:#0284C7; font-weight:700;">+ Add "${escapeHtml(rawQ)}"</div>
-          <div class="erp-dropdown-item-sub">New parent branch</div>
+          <div class="erp-dropdown-item-sub">New parent folder (is_group = 1 under Sales Team)</div>
         `;
         customItem.onclick = () => {
           if (typeof registerSalesPersonProgram === 'function') {
@@ -13717,9 +14075,16 @@ const BASELINE_ERP_TERRITORIES = [
           item.className = 'erp-dropdown-item';
           const name = s.sales_person_name || s.name;
           const rawParent = (s.parent_sales_person || '').trim();
-          const subLabel = (rawParent && rawParent.toLowerCase() !== 'sales team' && rawParent.toLowerCase() !== currentProg.toLowerCase())
-            ? `Parent: ${rawParent}`
-            : (s.employee ? `Employee: ${s.employee}` : '');
+          const spDist = (s.custom_district || s.district || '').trim();
+          const subParts = [];
+          if (s.is_group == 1 || s.is_group === true) subParts.push('Folder');
+          if (rawParent && rawParent.toLowerCase() !== 'sales team' && rawParent.toLowerCase() !== currentProg.toLowerCase()) {
+            subParts.push(`Parent: ${rawParent}`);
+          } else if (s.employee) {
+            subParts.push(`Employee: ${s.employee}`);
+          }
+          if (spDist) subParts.push(`District: ${spDist}`);
+          const subLabel = subParts.join(' • ');
 
           item.innerHTML = `
             <div class="erp-dropdown-item-title">${escapeHtml(name)}</div>
@@ -13754,7 +14119,7 @@ const BASELINE_ERP_TERRITORIES = [
         menu.appendChild(unassignedItem);
       }
 
-      // Filter Sales Persons across fields (name, sales_person_name, parent_sales_person, employee)
+      // Filter Sales Persons across fields (name, sales_person_name, parent_sales_person, employee, custom_district)
       // Strictly scope Territory Manager to activeProgram managers/reps
       const currentProg = getSelectedProgramName();
       const programScopedPool = getProgramScopedSalesPersonPool(currentProg);
@@ -13767,7 +14132,9 @@ const BASELINE_ERP_TERRITORIES = [
           s.sales_person_name || '',
           s.name || '',
           s.parent_sales_person || '',
-          s.employee || ''
+          s.employee || '',
+          s.custom_district || '',
+          s.district || ''
         ].join(' ').toLowerCase();
 
         return tokens.every(tok => searchable.includes(tok));
@@ -13786,8 +14153,10 @@ const BASELINE_ERP_TERRITORIES = [
         matches.slice(0, 50).forEach(s => {
           const item = document.createElement('div');
           const name = s.sales_person_name || s.name;
-          const parent = s.parent_sales_person ? s.parent_sales_person : (s.employee ? `Employee: ${s.employee}` : activeProgram);
-          
+          const spDist = (s.custom_district || s.district || '').trim();
+          const parentBase = s.parent_sales_person ? s.parent_sales_person : (s.employee ? `Employee: ${s.employee}` : activeProgram);
+          const subText = [parentBase, spDist ? `District: ${spDist}` : ''].filter(Boolean).join(' • ');
+
           // Check if this sales person has an Active territory vs only an Inactive territory
           const cleanSp = cleanRepDisplayName(name).toLowerCase();
           const activeMatch = programTerritories.find(p => {
@@ -13806,12 +14175,12 @@ const BASELINE_ERP_TERRITORIES = [
                 <span>${escapeHtml(name)}</span>
                 <span style="font-size:10px; font-weight:700; color:#D97706; background:#FFFBEB; border:1px solid #FDE68A; padding:1px 6px; border-radius:4px;">Select to Reactivate</span>
               </div>
-              ${parent ? `<div class="erp-dropdown-item-sub">${escapeHtml(parent)}</div>` : ''}
+              ${subText ? `<div class="erp-dropdown-item-sub">${escapeHtml(subText)}</div>` : ''}
             `;
           } else {
             item.innerHTML = `
               <div class="erp-dropdown-item-title">${escapeHtml(name)}</div>
-              ${parent ? `<div class="erp-dropdown-item-sub">${escapeHtml(parent)}</div>` : ''}
+              ${subText ? `<div class="erp-dropdown-item-sub">${escapeHtml(subText)}</div>` : ''}
             `;
           }
           item.onclick = () => selectErpItem(fieldId, s.name || name, name, s);
@@ -13825,6 +14194,7 @@ const BASELINE_ERP_TERRITORIES = [
       createRow.innerHTML = `<span>+</span> <span>Create a new Sales Person (${escapeHtml(activeProgram)})</span>`;
       createRow.onclick = (e) => {
         e.stopPropagation();
+        window.activeSpCreationTriggerField = fieldId;
         closeAllErpDropdowns();
         openNewSalesPersonModal(rawQ);
       };
@@ -14365,11 +14735,20 @@ const BASELINE_ERP_TERRITORIES = [
   function openNewSalesPersonModal(prefillName) {
     const nameInp = document.getElementById('newSpNameInput');
     if (nameInp) nameInp.value = prefillName || '';
-    
-    // Clear Employee selection
+
+    // Clear Employee selection & notice
     clearErpSelection('newSpEmployee');
     clearErpSelection('newSpUserAccount');
-    
+    const empNotice = document.getElementById('newSpEmployeeDetailsNotice');
+    if (empNotice) {
+      empNotice.style.display = 'none';
+      empNotice.innerHTML = '';
+    }
+
+    // Reset District input
+    const distInp = document.getElementById('newSpDistrictInput');
+    if (distInp) distInp.value = '';
+
     // Reset parent sales person selection (blank UI; falls back to Sales Team on save if unset)
     const parentInp = document.getElementById('newSpParentInput');
     const parentDisp = document.getElementById('newSpParentDisplay');
@@ -14380,7 +14759,7 @@ const BASELINE_ERP_TERRITORIES = [
     }
     if (parentDisp) {
       parentDisp.value = '';
-      parentDisp.placeholder = 'Search parent sales person...';
+      parentDisp.placeholder = 'Search or type parent sales person folder...';
     }
     if (parentClr) parentClr.style.display = 'none';
 
@@ -14415,8 +14794,11 @@ const BASELINE_ERP_TERRITORIES = [
     const empId = document.getElementById('newSpEmployeeInput').value.trim();
     const userAcc = document.getElementById('newSpUserAccountInput') ? document.getElementById('newSpUserAccountInput').value.trim() : '';
 
-    // HR Department Invariant: Employee record from HR is recommended; auto-link if selected
-    const parentSp = (document.getElementById('newSpParentInput') ? document.getElementById('newSpParentInput').value.trim() : '') || 'Sales Team';
+    // Allow selecting OR typing a Parent Sales Person folder directly
+    const parentSpInpVal = document.getElementById('newSpParentInput') ? document.getElementById('newSpParentInput').value.trim() : '';
+    const parentSpDispVal = document.getElementById('newSpParentDisplay') ? document.getElementById('newSpParentDisplay').value.trim() : '';
+    const parentSp = parentSpInpVal || parentSpDispVal || 'Sales Team';
+    const spDistrict = document.getElementById('newSpDistrictInput') ? document.getElementById('newSpDistrictInput').value.trim() : '';
     const commRate = parseFloat(document.getElementById('newSpCommissionInput').value) || 0;
     const isGrp = document.getElementById('newSpIsGroup').checked ? 1 : 0;
     const isEnabled = document.getElementById('newSpEnabled').checked ? 1 : 0;
@@ -14432,6 +14814,27 @@ const BASELINE_ERP_TERRITORIES = [
         distribution_id: t.distribution_id || 'Evenly Distributed'
       }));
 
+    // Ensure non-root parent folder is represented as is_group = 1 locally
+    if (parentSp && parentSp.toLowerCase() !== 'sales team') {
+      registerSalesPersonProgram(parentSp, activeProgram);
+      const existingParent = availableSalesPersons.find(s =>
+        s && ((s.name || '').toLowerCase() === parentSp.toLowerCase() || (s.sales_person_name || '').toLowerCase() === parentSp.toLowerCase())
+      );
+      if (existingParent) {
+        existingParent.is_group = 1;
+      } else {
+        availableSalesPersons.unshift({
+          name: parentSp,
+          sales_person_name: parentSp,
+          parent_sales_person: 'Sales Team',
+          is_group: 1,
+          enabled: 1,
+          program: activeProgram,
+          custom_account_or_program: activeProgram
+        });
+      }
+    }
+
     const newSpRecord = {
       name: spName,
       sales_person_name: spName,
@@ -14440,6 +14843,8 @@ const BASELINE_ERP_TERRITORIES = [
       enabled: isEnabled,
       employee: empId || null,
       user_id: userAcc || null,
+      district: spDistrict,
+      custom_district: spDistrict,
       commission_rate: commRate,
       targets: targets,
       program: activeProgram,
@@ -14448,16 +14853,19 @@ const BASELINE_ERP_TERRITORIES = [
     registerSalesPersonProgram(spName, activeProgram);
 
     // Update local list
-    const existingIdx = availableSalesPersons.findIndex(s => s.name === spName);
+    const existingIdx = availableSalesPersons.findIndex(s => s && (s.name === spName || s.sales_person_name === spName));
     if (existingIdx >= 0) {
       availableSalesPersons[existingIdx] = newSpRecord;
     } else {
       availableSalesPersons.unshift(newSpRecord);
     }
-    localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons));
+    try {
+      localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons));
+    } catch (_) {}
 
-    // Streamlit bidirectional dispatch
-    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+    const inStreamlit = Boolean(isStreamlitActive || (window.parent && window.parent !== window));
+    if (inStreamlit) {
+      // Streamlit bidirectional dispatch (single authoritative ERPNext sync path)
       try {
         window.parent.postMessage({
           isStreamlitMessage: true,
@@ -14469,90 +14877,110 @@ const BASELINE_ERP_TERRITORIES = [
             is_group: isGrp,
             enabled: isEnabled,
             employee: empId || null,
+            district: spDistrict,
+            custom_district: spDistrict,
+            program: activeProgram,
+            custom_account_or_program: activeProgram,
             commission_rate: commRate,
             targets: targets,
             timestamp: Date.now()
           }
         }, "*");
       } catch (_) {}
-    }
+    } else {
+      // Direct ERPNext API call (desktop/standalone mode only) with parent folder creation/promotion
+      try {
+        const postSp = async (b) => {
+          return await fetch('/api/resource/Sales%20Person', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(b)
+          });
+        };
 
-    // Direct ERPNext API call (with multi-stage resilience catching HTTP 417)
-    try {
-      const payload = {
-        sales_person_name: spName,
-        parent_sales_person: parentSp || 'Sales Team',
-        is_group: isGrp,
-        enabled: isEnabled
-      };
-      if (empId) payload.employee = empId;
-      if (commRate) payload.commission_rate = commRate;
-      if (targets && targets.length > 0) payload.targets = targets;
-
-      const postSp = async (b) => {
-        return await fetch('/api/resource/Sales%20Person', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify(b)
-        });
-      };
-
-      postSp(payload).then(async res => {
-        if (res.ok) {
-          console.log(`[ERPNext] Created Sales Person "${spName}" online`);
-          showToast(`Sales Person "${spName}" created live on ERPNext!`, 'success');
-          syncSalesPersonsAndEmployeesWithERPNext();
-        } else if (res.status === 417) {
-          // Resilience Stage 1: Retry without targets if child table validation failed
-          const retryBody = Object.assign({}, payload);
-          delete retryBody.targets;
-          let retryRes = await postSp(retryBody);
-          if (retryRes.ok) {
-            showToast(`Sales Person "${spName}" created live (targets schema aligned)!`, 'success');
-            syncSalesPersonsAndEmployeesWithERPNext();
-            return;
-          }
-          // Resilience Stage 2: Retry under parent "Sales Team"
-          retryBody.parent_sales_person = 'Sales Team';
-          retryRes = await postSp(retryBody);
-          if (retryRes.ok) {
-            showToast(`Sales Person "${spName}" created under "Sales Team"!`, 'success');
-            syncSalesPersonsAndEmployeesWithERPNext();
-            return;
-          }
-          // Resilience Stage 3: Retry without employee link
-          delete retryBody.employee;
-          retryRes = await postSp(retryBody);
-          if (retryRes.ok) {
-            showToast(`Sales Person "${spName}" created successfully!`, 'success');
-            syncSalesPersonsAndEmployeesWithERPNext();
-            return;
-          }
+        if (parentSp && parentSp.toLowerCase() !== 'sales team') {
           try {
-            const err = await res.json();
-            const msg = err.exception || err.message || 'ERPNext validation failed (HTTP 417)';
-            showToast(`ERPNext Warning: ${msg}`, 'warning');
-          } catch (_) {}
-        } else {
-          try {
-            const err = await res.json();
-            const msg = err.exception || err.message || (err._server_messages ? JSON.parse(err._server_messages)[0] : 'Server Error');
-            showToast(`ERPNext Warning: ${msg}`, 'warning');
+            const pChk = await fetch(`/api/resource/Sales%20Person/${encodeURIComponent(parentSp)}`, {
+              headers: { 'Accept': 'application/json' }
+            });
+            if (pChk.ok) {
+              const pData = (await pChk.json()).data || {};
+              if (!pData.is_group) {
+                await fetch(`/api/resource/Sales%20Person/${encodeURIComponent(parentSp)}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                  body: JSON.stringify({ is_group: 1 })
+                });
+              }
+            } else {
+              await postSp({
+                sales_person_name: parentSp,
+                parent_sales_person: 'Sales Team',
+                is_group: 1,
+                enabled: 1
+              });
+            }
           } catch (_) {}
         }
-      }).catch(err => {
-        console.warn(`[ERPNext Sales Person Warning] ${err.message}`);
-      });
-    } catch (_) {}
+
+        const payload = {
+          sales_person_name: spName,
+          parent_sales_person: parentSp || 'Sales Team',
+          is_group: isGrp,
+          enabled: isEnabled
+        };
+        if (empId) payload.employee = empId;
+        if (spDistrict) payload.custom_district = spDistrict;
+        if (commRate) payload.commission_rate = commRate;
+        if (targets && targets.length > 0) payload.targets = targets;
+
+        postSp(payload).then(async res => {
+          if (res.ok) {
+            showToast(`Sales Person "${spName}" created live on ERPNext!`, 'success');
+            syncSalesPersonsAndEmployeesWithERPNext();
+          } else {
+            const retryBody = Object.assign({}, payload);
+            delete retryBody.targets;
+            delete retryBody.custom_district;
+            let retryRes = await postSp(retryBody);
+            if (retryRes.ok) {
+              showToast(`Sales Person "${spName}" created live under "${parentSp}"!`, 'success');
+              syncSalesPersonsAndEmployeesWithERPNext();
+              return;
+            }
+            delete retryBody.employee;
+            retryRes = await postSp(retryBody);
+            if (retryRes.ok) {
+              showToast(`Sales Person "${spName}" created under "${parentSp}"!`, 'success');
+              syncSalesPersonsAndEmployeesWithERPNext();
+              return;
+            }
+            try {
+              const err = await res.json();
+              const msg = err.exception || err.message || 'ERPNext validation failed';
+              showToast(`ERPNext Warning: ${msg}`, 'warning');
+            } catch (_) {}
+          }
+        }).catch(err => {
+          console.warn(`[ERPNext Sales Person Warning] ${err.message}`);
+        });
+      } catch (_) {}
+    }
 
     closeNewSalesPersonModal();
     populateParentSalesPersonSelect();
 
-    // Auto-select in active caller
-    if (document.getElementById('treeAddModalOverlay').classList.contains('active')) {
+    // Auto-select into the triggering dropdown (or active modal)
+    const triggerField = window.activeSpCreationTriggerField;
+    window.activeSpCreationTriggerField = null;
+    if (triggerField && document.getElementById(triggerField + 'Input')) {
+      selectErpItem(triggerField, spName, spName, newSpRecord);
+    } else if (document.getElementById('treeAddModalOverlay').classList.contains('active')) {
       selectErpItem('treeAddManager', spName, spName, newSpRecord);
     } else if (document.getElementById('treeEditModalOverlay').classList.contains('active')) {
       selectErpItem('treeEditManager', spName, spName, newSpRecord);
+    } else if (document.getElementById('editModalOverlay') && document.getElementById('editModalOverlay').classList.contains('active')) {
+      selectErpItem('editManager', spName, spName, newSpRecord);
     }
 
     // Synchronize views across the portal so changes are immediately visible
@@ -14564,7 +14992,11 @@ const BASELINE_ERP_TERRITORIES = [
     if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
     if (typeof renderSummaryReport === 'function') renderSummaryReport();
 
-    showToast(`Sales Person "${spName}" created and synchronized successfully!`, 'success');
+    if (inStreamlit) {
+      showToast(`Saving Sales Person "${spName}" under "${parentSp}" to ERPNext...`, 'info');
+    } else {
+      showToast(`Sales Person "${spName}" created and synchronized successfully!`, 'success');
+    }
   }
 
   // --- MODAL: New Employee (Image 3 Flow) ---
@@ -14909,6 +15341,8 @@ const BASELINE_ERP_TERRITORIES = [
     if (titleEl) titleEl.innerText = 'New Territory (Add Child)';
     const nameInp = document.getElementById('treeAddNameInput');
     if (nameInp) nameInp.value = '';
+    const distAddInp = document.getElementById('treeAddDistrictInput');
+    if (distAddInp) distAddInp.value = '';
     
     clearErpSelection('treeAddManager');
     clearErpSelection('treeAddUserAccount');
@@ -14983,6 +15417,8 @@ const BASELINE_ERP_TERRITORIES = [
     const parent = (rawParent === 'All Territories' && !isGroup) ? progBranch : rawParent;
     const name = document.getElementById('treeAddNameInput').value.trim();
     const mgr = cleanRepDisplayName(document.getElementById('treeAddManagerInput').value.trim());
+    const rawAddDist = document.getElementById('treeAddDistrictInput') ? document.getElementById('treeAddDistrictInput').value.trim() : '';
+    const terrDistrict = rawAddDist || (mgr && typeof getSalesPersonDistrict === 'function' ? getSalesPersonDistrict(mgr) : '');
     const userAcc = document.getElementById('treeAddUserAccountInput') ? document.getElementById('treeAddUserAccountInput').value.trim() : '';
 
     if (!name) {
@@ -15002,13 +15438,27 @@ const BASELINE_ERP_TERRITORIES = [
       parent_territory: parent,
       is_group: isGroup,
       territory_manager: mgr || "",
+      custom_district: terrDistrict,
+      district: terrDistrict,
       operational_status: initialStatus,
       status: initialStatus,
       custom_account_or_program: activeProgram,
       program: activeProgram
     };
     registerNodeProgram(name, activeProgram);
-    if (mgr) registerSalesPersonProgram(mgr, activeProgram);
+    if (mgr) {
+      registerSalesPersonProgram(mgr, activeProgram);
+      if (terrDistrict && Array.isArray(availableSalesPersons)) {
+        const spMatch = availableSalesPersons.find(s =>
+          s && (cleanRepDisplayName(s.sales_person_name || s.name).toLowerCase() === mgr.toLowerCase())
+        );
+        if (spMatch) {
+          spMatch.custom_district = terrDistrict;
+          spMatch.district = terrDistrict;
+          try { localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons)); } catch (_) {}
+        }
+      }
+    }
 
     territoryTreeData.push(newNode);
 
@@ -15028,6 +15478,8 @@ const BASELINE_ERP_TERRITORIES = [
       histCode: name,
       newCode: name,
       district: parent,
+      areaDistrict: terrDistrict,
+      custom_district: terrDistrict,
       rep: mgr ? mgr : (isGroup ? 'Folder (Group)' : 'Unassigned Rep'),
       operationalStatus: initialStatus,
       isActive: true,
@@ -15043,7 +15495,7 @@ const BASELINE_ERP_TERRITORIES = [
         timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
         action: isGroup ? 'ADD_CHILD_FOLDER' : 'ADD_CHILD_TREE',
         user: 'admin@pims.com [SFE Lead]',
-        details: `Created new ${isGroup ? 'child folder' : 'territory'} "${name}" under parent "${parent}" (Status: ${initialStatus}).`
+        details: `Created new ${isGroup ? 'child folder' : 'territory'} "${name}" under parent "${parent}"${terrDistrict ? ' (District: ' + terrDistrict + ')' : ''} (Status: ${initialStatus}).`
       }]
     };
     programTerritories.unshift(newRow);
@@ -15068,6 +15520,9 @@ const BASELINE_ERP_TERRITORIES = [
             parent_territory: parent,
             is_group: isGroup,
             territory_manager: mgr || "",
+            custom_district: terrDistrict || "",
+            district: terrDistrict || "",
+            area_district: terrDistrict || "",
             custom_user_id: userAcc || "",
             custom_account_or_program: activeProgram || "",
             timestamp: Date.now()
@@ -15081,7 +15536,8 @@ const BASELINE_ERP_TERRITORIES = [
           territory_name: name,
           parent_territory: parent,
           is_group: isGroup,
-          ...(mgr ? { territory_manager: mgr } : {})
+          ...(mgr ? { territory_manager: mgr } : {}),
+          ...(terrDistrict ? { custom_district: terrDistrict } : {})
         };
         fetch('/api/resource/Territory', {
           method: 'POST',
@@ -15153,6 +15609,17 @@ const BASELINE_ERP_TERRITORIES = [
       mgrDisp.placeholder = 'Unassigned';
     }
     if (editClr) editClr.style.display = currentMgr ? 'block' : 'none';
+    const distEditInp = document.getElementById('treeEditDistrictInput');
+    if (distEditInp) {
+      const currentDist = String(
+        node.custom_district ||
+        node.district ||
+        (pt && (pt.areaDistrict || pt.custom_district)) ||
+        (currentMgr && typeof getSalesPersonDistrict === 'function' ? getSalesPersonDistrict(currentMgr) : '') ||
+        ''
+      ).trim();
+      distEditInp.value = currentDist;
+    }
     document.getElementById('treeEditIsGroup').checked = Boolean(node.is_group);
 
     const descendants = getDescendantNames(name);
@@ -15206,6 +15673,9 @@ const BASELINE_ERP_TERRITORIES = [
       return;
     }
     const newMgr = cleanRepDisplayName(document.getElementById('treeEditManagerInput').value.trim());
+    const distEditEl = document.getElementById('treeEditDistrictInput');
+    const rawEditDist = distEditEl ? distEditEl.value.trim() : '';
+    const newTerrDistrict = rawEditDist || (newMgr && typeof getSalesPersonDistrict === 'function' ? getSalesPersonDistrict(newMgr) : '');
     const newIsGroup = document.getElementById('treeEditIsGroup').checked ? 1 : 0;
     const newUserId = (document.getElementById('treeEditUserAccountInput') ? document.getElementById('treeEditUserAccountInput').value : '').trim();
 
@@ -15216,12 +15686,26 @@ const BASELINE_ERP_TERRITORIES = [
     node.parent_territory = newParent;
     node.territory_manager = newMgr || '';
     node.is_group = newIsGroup;
+    node.custom_district = newTerrDistrict;
+    node.district = newTerrDistrict;
     node.operational_status = updatedStatus;
     node.status = updatedStatus;
     node.custom_account_or_program = activeProgram;
     node.program = activeProgram;
     registerNodeProgram(origName, activeProgram);
-    if (newMgr) registerSalesPersonProgram(newMgr, activeProgram);
+    if (newMgr) {
+      registerSalesPersonProgram(newMgr, activeProgram);
+      if (rawEditDist && Array.isArray(availableSalesPersons)) {
+        const spMatch = availableSalesPersons.find(s =>
+          s && (cleanRepDisplayName(s.sales_person_name || s.name).toLowerCase() === newMgr.toLowerCase())
+        );
+        if (spMatch) {
+          spMatch.custom_district = rawEditDist;
+          spMatch.district = rawEditDist;
+          try { localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons)); } catch (_) {}
+        }
+      }
+    }
 
     // Promote newParent to is_group = 1 so the transferred territory displays under it in Tree View
     const pNode = territoryTreeData.find(t => t.name === newParent || t.territory_name === newParent);
@@ -15240,13 +15724,15 @@ const BASELINE_ERP_TERRITORIES = [
       pt.isActive = true;
       pt.isResigned = false;
       pt.district = newParent;
+      pt.areaDistrict = newTerrDistrict;
+      pt.custom_district = newTerrDistrict;
       pt.status = 'CHANGED';
       pt.auditTrail = pt.auditTrail || [];
       pt.auditTrail.unshift({
         timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
         action: 'EDIT_TREE',
         user: 'admin@pims.com [SFE Lead]',
-        details: `Reconfigured territory. Parent: ${newParent}, Manager: ${newMgr || 'Unassigned (Vacant)'}, Status: ${updatedStatus}.`
+        details: `Reconfigured territory. Parent: ${newParent}, District: ${newTerrDistrict || 'N/A'}, Manager: ${newMgr || 'Unassigned (Vacant)'}, Status: ${updatedStatus}.`
       });
     }
     if (updatedStatus === 'Active' && Array.isArray(archivedRecords)) {
@@ -15260,6 +15746,8 @@ const BASELINE_ERP_TERRITORIES = [
       if (baseRow) {
         baseRow.rep = pt ? pt.rep : (newMgr || 'Unassigned Rep');
         baseRow.district = newParent;
+        baseRow.areaDistrict = newTerrDistrict;
+        baseRow.custom_district = newTerrDistrict;
         baseRow.status = 'CHANGED';
       }
     }
@@ -15282,6 +15770,9 @@ const BASELINE_ERP_TERRITORIES = [
             parent_territory: newParent,
             is_group: newIsGroup,
             territory_manager: newMgr,
+            custom_district: newTerrDistrict,
+            district_area: newTerrDistrict,
+            area_district: newTerrDistrict,
             custom_user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
             user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
             custom_account_or_program: activeProgram,
@@ -15292,7 +15783,7 @@ const BASELINE_ERP_TERRITORIES = [
       } catch (_) {}
     } else {
       try {
-        const updateBody = { parent_territory: newParent, is_group: newIsGroup };
+        const updateBody = { parent_territory: newParent, is_group: newIsGroup, custom_district: newTerrDistrict };
         if (newMgr) updateBody.territory_manager = newMgr;
         fetch(`/api/resource/Territory/${encodeURIComponent(origName)}`, {
           method: 'PUT',
@@ -16136,6 +16627,13 @@ const BASELINE_ERP_TERRITORIES = [
     } catch (_) {}
 
     if (isStreamlitEnv) {
+      const preservedDist = String(
+        row.areaDistrict ||
+        row.custom_district ||
+        (treeNode && (treeNode.custom_district || treeNode.district)) ||
+        (effectiveTreeMgr && typeof getSalesPersonDistrict === 'function' ? getSalesPersonDistrict(effectiveTreeMgr) : '') ||
+        ''
+      ).trim();
       try {
         window.parent.postMessage({
           isStreamlitMessage: true,
@@ -16149,6 +16647,7 @@ const BASELINE_ERP_TERRITORIES = [
             parent_territory: row.district || 'All Territories',
             is_group: treeNode ? (treeNode.is_group || 0) : 0,
             territory_manager: (row.operationalStatus === 'Active') ? newRep : '',
+            ...(preservedDist ? { custom_district: preservedDist } : {}),
             custom_user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
             user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
             custom_account_or_program: activeProgram,
@@ -16163,6 +16662,7 @@ const BASELINE_ERP_TERRITORIES = [
             parent_territory: row.district || 'All Territories',
             is_group: treeNode ? (treeNode.is_group || 0) : 0,
             territory_manager: (row.operationalStatus === 'Active') ? newRep : '',
+            ...(preservedDist ? { custom_district: preservedDist } : {}),
             custom_user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
             user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
             custom_account_or_program: activeProgram,
@@ -18820,6 +19320,14 @@ const BASELINE_ERP_TERRITORIES = [
       <input type="text" id="treeAddNameInput" placeholder="e.g. AD3 - GMA/EAST LUZON" style="width:100%; height:38px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 12px; color:#FFFFFF; font-size:13px; outline:none;" oninput="onTreeAddNameInput(this.value)" onkeydown="if(event.key==='Enter') submitTreeAdd()">
     </div>
 
+    <!-- District Field (Displayed in Tree View center: Code - District - MedRep) -->
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+        District
+      </label>
+      <input type="text" id="treeAddDistrictInput" placeholder="e.g. Makati, Makati / Taguig (auto-fills from Sales Person)" style="width:100%; height:38px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 12px; color:#FFFFFF; font-size:13px; outline:none; box-sizing:border-box;">
+    </div>
+
     <!-- Checkbox Is Group -->
     <div style="margin-bottom:16px;">
       <label style="display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#FFFFFF; cursor:pointer;">
@@ -18904,6 +19412,14 @@ const BASELINE_ERP_TERRITORIES = [
           <div class="erp-dropdown-menu" id="treeEditManagerMenu"></div>
         </div>
       </div>
+    </div>
+
+    <!-- District Field (Displayed in Tree View center: Code - District - MedRep) -->
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+        District
+      </label>
+      <input type="text" id="treeEditDistrictInput" placeholder="e.g. Makati, Makati / Taguig" style="width:100%; height:38px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 12px; color:#FFFFFF; font-size:13px; outline:none; box-sizing:border-box;">
     </div>
 
     <!-- Checkbox Is Group -->
@@ -19006,7 +19522,16 @@ const BASELINE_ERP_TERRITORIES = [
           <div style="font-size:10.5px; color:#71717A; margin-top:4px;">Select parent sales person in tree.</div>
         </div>
 
-        <!-- Row 2 Right: User ID (Hidden per SFE UAT specification) -->
+        <!-- Row 2 Right: District (Saved on Sales Person & shown in Tree View center) -->
+        <div>
+          <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
+            District
+          </label>
+          <input type="text" id="newSpDistrictInput" placeholder="e.g. Makati, South | West GMA" style="width:100%; height:36px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12.5px; outline:none; box-sizing:border-box;">
+          <div style="font-size:10.5px; color:#71717A; margin-top:4px;">Stored on Sales Person &amp; displayed in Territory Tree View</div>
+        </div>
+
+        <!-- Row 2 Hidden: User ID (Hidden per SFE UAT specification) -->
         <div style="display:none;">
           <label style="font-size:11.5px; font-weight:700; color:#A1A1AA; display:block; margin-bottom:6px;">
             User ID
