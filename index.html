@@ -3548,10 +3548,9 @@
                 <span id="bulkSelectedCount">0</span> Selected
               </span>
               <button class="btn btn-sm btn-primary" onclick="openBulkEditModal()" style="display:inline-flex; align-items:center; gap:6px; background:#0066FF; color:#FFFFFF; border:none; padding:6px 12px; font-weight:700; border-radius:6px; cursor:pointer;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                Bulk Edit
+                Bulk Operation
               </button>
-              <button class="btn btn-sm" onclick="clearRowSelection()" title="Deselect all (✕)" style="background:#FFFFFF; border:1px solid #CBD5E1; color:#64748B; font-weight:700; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px;">
+              <button class="btn btn-sm" onclick="clearRowSelection()" title="Deselect all" style="background:#FFFFFF; border:1px solid #CBD5E1; color:#64748B; font-weight:700; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px;">
                 ✕
               </button>
             </div>
@@ -3559,17 +3558,6 @@
             <!-- Top-Right Actions Dropdown Menu (Clean, Neat & Uncluttered) -->
             <div class="editor-actions-dropdown-container" id="editorActionsDropdownContainer">
               <button type="button" class="btn btn-outline" id="btnEditorActionsDropdown" onclick="toggleEditorActionsDropdown(event)" style="height:36px; padding:0 14px; font-size:12.5px; font-weight:700; color:#1E293B; background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:8px; display:inline-flex; align-items:center; gap:8px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.06);" title="Reconfiguration Actions & Tools">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:#0066FF;">
-                  <line x1="4" y1="21" x2="4" y2="14"></line>
-                  <line x1="4" y1="10" x2="4" y2="3"></line>
-                  <line x1="12" y1="21" x2="12" y2="12"></line>
-                  <line x1="12" y1="8" x2="12" y2="3"></line>
-                  <line x1="20" y1="21" x2="20" y2="16"></line>
-                  <line x1="20" y1="12" x2="20" y2="3"></line>
-                  <line x1="1" y1="14" x2="7" y2="14"></line>
-                  <line x1="9" y1="8" x2="15" y2="8"></line>
-                  <line x1="17" y1="16" x2="23" y2="16"></line>
-                </svg>
                 <span>Actions</span>
                 <svg id="editorActionsChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:#64748B; transition:transform 0.2s ease;"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </button>
@@ -3582,44 +3570,30 @@
 
                 <!-- 1. Add Child / Territory -->
                 <button type="button" class="editor-action-menu-item" id="btnAddTerritoryRecord" onclick="handleEditorActionClick('add')">
-                  <span class="editor-action-menu-icon" style="background:#DCFCE7; color:#16A34A; border:1px solid #BBF7D0;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                  </span>
                   <span class="editor-action-menu-title">+ Add Child / Territory</span>
                 </button>
 
                 <!-- 2. Batch Code Rename -->
                 <button type="button" class="editor-action-menu-item" id="btnBatchCodeRename" onclick="handleEditorActionClick('batch_rename')">
-                  <span class="editor-action-menu-icon" style="background:#DBEAFE; color:#0066FF; border:1px solid #BFDBFE;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                  </span>
                   <span class="editor-action-menu-title">Batch Code Rename</span>
                 </button>
 
-                <!-- 3. Transfer / Merge Doctors -->
+                <!-- 3. Transfer Doctor -->
                 <button type="button" class="editor-action-menu-item" id="btnDoctorTransferWorkbench" onclick="handleEditorActionClick('transfer_doctors')">
-                  <span class="editor-action-menu-icon" style="background:#F5F3FF; color:#7C3AED; border:1px solid #DDD6FE;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path></svg>
-                  </span>
-                  <span class="editor-action-menu-title" style="color:#7C3AED;">Transfer / Merge Doctors</span>
+                  <span class="editor-action-menu-title" style="color:#7C3AED;">Transfer Doctor</span>
                 </button>
 
                 <div style="height:1px; background:#F1F5F9; margin:4px 0;"></div>
 
                 <!-- 4. Toggle View (Table vs Tree) -->
                 <button type="button" class="editor-action-menu-item" id="btnToggleView" onclick="handleEditorActionClick('toggle_view', event)">
-                  <span class="editor-action-menu-icon" style="background:#F0F9FF; color:#0284C7; border:1px solid #BAE6FD;" id="editorActionViewIcon">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
-                  </span>
+                  <span id="editorActionViewIcon" style="display:none;"></span>
                   <span class="editor-action-menu-title" id="editorActionViewTitle">View as Territory Tree</span>
                   <span id="editorActionViewDesc" style="display:none;"></span>
                 </button>
 
                 <!-- 5. Export CSV -->
                 <button type="button" class="editor-action-menu-item" id="btnExportCsv" onclick="handleEditorActionClick('export_csv')">
-                  <span class="editor-action-menu-icon" style="background:#F8FAFC; color:#475569; border:1px solid #E2E8F0;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                  </span>
                   <span class="editor-action-menu-title">Export CSV</span>
                 </button>
               </div>
@@ -3841,10 +3815,9 @@
         <div style="margin-top:28px;" id="archiveFolderDropdownContainer">
           <div class="archive-folder-dropdown-card" id="archiveFolderCard" style="border:1.5px solid #CBD5E1; border-radius:10px; background:#FFFFFF; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.04); transition:border-color 0.2s ease;">
             
-            <!-- 📁 ARCHIVE FOLDER TRIGGER / HEADER (BEHAVES AS A DROPDOWN) -->
+            <!-- ARCHIVE FOLDER TRIGGER / HEADER (BEHAVES AS A DROPDOWN) -->
             <div id="archiveFolderTrigger" onclick="toggleArchiveFolderDropdown()" style="display:flex; justify-content:space-between; align-items:center; padding:14px 18px; background:#F8FAFC; border-bottom:1.5px solid transparent; cursor:pointer; user-select:none; flex-wrap:wrap; gap:12px; transition:background 0.15s ease;" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='#F8FAFC'">
               <div style="display:flex; align-items:center; gap:12px;">
-                <span style="font-size:24px; line-height:1;">📁</span>
                 <div>
                   <div style="display:flex; align-items:center; gap:8px;">
                     <h3 style="font-size:14px; font-weight:800; color:#0F172A; text-transform:uppercase; letter-spacing:0.5px; margin:0;">
@@ -3866,7 +3839,7 @@
               </div>
             </div>
 
-            <!-- 📂 DROPDOWN CONTENT (DROPS DOWN ON CLICK, ACTIVE REGARDLESS OF RECORD COUNT) -->
+            <!-- DROPDOWN CONTENT (DROPS DOWN ON CLICK, ACTIVE REGARDLESS OF RECORD COUNT) -->
             <div id="archiveFolderDropdownContent" style="display:none; padding:18px; background:#FFFFFF; border-top:1.5px solid #E2E8F0;">
               
               <!-- Toolbar Inside Dropped-Down Folder -->
@@ -3874,7 +3847,6 @@
                 <!-- Dedicated Dropdown Selector for Archived Territories -->
                 <div style="display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;">
                   <label for="archivedTerritoryDropdownSelect" style="font-size:11px; font-weight:800; color:#991B1B; text-transform:uppercase; letter-spacing:0.3px; margin:0; display:inline-flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                     Archived Dropdown Selector:
                   </label>
                   <select id="archivedTerritoryDropdownSelect" class="crm-filter-select" onchange="onArchiveFolderSelectChange(this.value)" style="height:32px; font-size:12px; font-weight:700; border-radius:6px; border:1.5px solid #FCA5A5; background:#FFFFFF; color:#991B1B; cursor:pointer; min-width:260px; max-width:380px;">
@@ -4363,7 +4335,7 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
         <label style="margin:0;">Assigned Medical Rep:</label>
         <div style="display:flex; gap:6px;">
-          <button type="button" class="btn btn-sm" id="btnEditTagResigned" style="font-size:10px; padding:2px 7px; background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5; font-weight:800; border-radius:4px; display:inline-flex; align-items:center; gap:4px; cursor:pointer;" onclick="tagCurrentRepAsResignedFromEdit()" title="Tag representative as resigned and open doctor handover workbench">🔴 Tag as Resigned &amp; Handover</button>
+          <button type="button" class="btn btn-sm" id="btnEditTagResigned" style="font-size:10px; padding:2px 7px; background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5; font-weight:800; border-radius:4px; display:inline-flex; align-items:center; gap:4px; cursor:pointer;" onclick="tagCurrentRepAsResignedFromEdit()" title="Tag representative as resigned and open doctor handover workbench">Tag as Resigned &amp; Handover</button>
           <button type="button" class="btn btn-sm btn-action-docs" style="font-size:10px; padding:2px 6px;" onclick="transferRepPrompt()">Transfer Rep</button>
           <button type="button" class="btn btn-sm btn-reset-filter" style="font-size:10px; padding:2px 6px;" onclick="markRepResigned()">Mark Resigned</button>
         </div>
@@ -4501,7 +4473,7 @@
 
 <!-- MODAL 4: Record Audit Trail Modal -->
 <div class="modal-overlay" id="auditModalOverlay">
-  <div class="modal-card">
+  <div class="modal-card" style="max-width:640px; width:92%;">
     <div class="modal-header">
       <div>
         <h2 style="font-size:15px; font-weight:800; color:#0F172A;" id="auditModalTitle">Record Audit Trail</h2>
@@ -4512,7 +4484,11 @@
       <button class="btn btn-sm btn-outline" onclick="closeAuditModal()">✕</button>
     </div>
 
-    <div id="auditTimelineContainer" style="display:flex; flex-direction:column; gap:10px; max-height:420px; overflow-y:auto;">
+    <div id="auditRecordSummary" style="margin-bottom:14px;">
+      <!-- Populated dynamically with structured record metadata -->
+    </div>
+
+    <div id="auditTimelineContainer" style="display:flex; flex-direction:column; gap:10px; max-height:380px; overflow-y:auto;">
       <!-- Populated dynamically -->
     </div>
 
@@ -4701,13 +4677,10 @@
     
     <!-- Header -->
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #E2E8F0; padding-bottom:12px;">
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span style="font-size:20px;">🔴</span>
-        <div>
-          <h3 style="font-size:16px; font-weight:800; color:#0F172A; margin:0;">Representative Resignation &amp; Handover Advisory</h3>
-          <div style="font-size:11.5px; color:#64748B; margin-top:2px;" id="resignModalSubtitle">
-            Territory Reconfiguration &bull; Reassign Territory Code &amp; Merge Doctors
-          </div>
+      <div>
+        <h3 style="font-size:16px; font-weight:800; color:#0F172A; margin:0;">Representative Resignation &amp; Handover Advisory</h3>
+        <div style="font-size:11.5px; color:#64748B; margin-top:2px;" id="resignModalSubtitle">
+          Territory Reconfiguration &bull; Reassign Territory Code &amp; Merge Doctors
         </div>
       </div>
       <button type="button" onclick="closeResignedHandoverPromptModal()" style="background:none; border:none; color:#64748B; font-size:18px; cursor:pointer; line-height:1;">✕</button>
@@ -4720,12 +4693,11 @@
     <!-- Current State Notice (Amber Card) -->
     <div style="background:#FFFBEB; border:1.5px solid #FDE68A; border-radius:8px; padding:12px 16px; margin-bottom:14px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <div style="font-size:12px; font-weight:800; color:#B45309; display:flex; align-items:center; gap:6px;">
-          <span>⚠️</span>
-          <span>CURRENT ASSIGNMENT STATUS</span>
+        <div style="font-size:12px; font-weight:800; color:#B45309;">
+          CURRENT ASSIGNMENT STATUS
         </div>
         <span class="badge" style="background:#FEE2E2; color:#DC2626; font-weight:800; font-size:11px; padding:2px 8px; border-radius:4px;">
-          🔴 TAG: RESIGNED
+          TAG: RESIGNED
         </span>
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:12px;">
@@ -4742,8 +4714,7 @@
 
     <!-- Program Advisory & Directive (Green Card) -->
     <div style="background:#F0FDF4; border:1.5px solid #BBF7D0; border-radius:8px; padding:12px 16px; margin-bottom:14px;">
-      <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-        <span style="font-size:14px;">📋</span>
+      <div style="margin-bottom:6px;">
         <span style="font-size:12px; font-weight:800; color:#15803D; text-transform:uppercase; letter-spacing:0.5px;">Program Reconfiguration Directive</span>
       </div>
       <div style="font-size:12px; line-height:1.5; color:#166534;" id="resignProgramDirectiveText">
@@ -4790,7 +4761,7 @@
           </label>
           <input type="text" id="resignNewUserIdInput" class="form-control" readonly placeholder="Auto-populated from ERPNext User ID..." style="font-size:12px; height:34px; padding:0 10px; border-radius:6px; background:#F8FAFC; color:#0F172A; font-weight:600;">
           <div id="resignHrValidationNotice" style="font-size:11px; margin-top:4px; font-weight:600; color:#15803D;">
-            ✓ Validated against ERPNext HR Masterlist
+            Validated against ERPNext HR Masterlist
           </div>
         </div>
       </div>
@@ -4803,10 +4774,10 @@
       </button>
       <div style="display:flex; gap:8px; align-items:center;">
         <button type="button" class="btn btn-outline btn-sm" id="btnResignOpenWorkbench" onclick="proceedToCustomHandoverWorkbench()" style="border-color:#7C3AED; color:#7C3AED; font-weight:700; padding:7px 14px;" title="Open interactive two-window drag-and-drop workbench">
-          🔄 Open 2-Window Drag &amp; Drop
+          Open 2-Window Drag &amp; Drop
         </button>
         <button type="button" class="btn btn-primary btn-sm" id="btnResignQuickMergeSave" onclick="executeQuickResignAndMerge()" style="background:#16A34A; border-color:#16A34A; font-weight:700; padding:7px 16px;" title="Reassign territory code, merge all HCPs, and sync automatically">
-          💾 Save &amp; Sync Handover
+          Save &amp; Sync Handover
         </button>
       </div>
     </div>
@@ -4815,13 +4786,13 @@
 </div>
 
 
-<!-- MODAL 6: 4-in-1 Bulk Operations Workbench (Modify, Rename, Delete, Add) -->
+<!-- MODAL 6: Bulk Operation Modal (Modify, Rename, Archive, Bulk Add) -->
 <div class="modal-overlay" id="bulkEditModalOverlay">
-  <div class="modal-card" style="max-width:640px; width:92%;">
+  <div class="modal-card" style="max-width:720px; width:94%;">
     <div class="modal-header">
       <div>
         <h2 style="font-size:16px; font-weight:800; color:#0F172A;">
-          Bulk Operations Workbench
+          Bulk Operation
         </h2>
         <div style="font-size:11.5px; color:var(--text-secondary); margin-top:2px;" id="bulkModalSubtitle">
           Apply actions across <strong id="bulkModalCount" style="color:#0066FF;">0</strong> selected territories in <span id="bulkModalProgram" style="font-weight:700; color:#0F172A;">Abbott Diabetes Care</span>
@@ -4830,7 +4801,7 @@
       <button class="btn btn-sm btn-outline" onclick="closeBulkEditModal()">✕</button>
     </div>
 
-    <!-- 4 Operation Tabs (Icons Cleaned for Professional SFE Reconfiguration) -->
+    <!-- 4 Operation Tabs -->
     <div class="bulk-tabs-bar">
       <button type="button" class="bulk-tab-btn active" id="btnBulkTab_modify" onclick="switchBulkTab('modify')">
         Modify
@@ -4857,10 +4828,10 @@
       </div>
     </div>
 
-    <!-- TAB 1: MODIFY PANE (Status Selector Removed per SFE Reconfiguration Standard) -->
+    <!-- TAB 1: MODIFY PANE -->
     <div id="bulkPane_modify" class="bulk-tab-pane active">
       <div class="form-group">
-        <label>Reassign Assigned MedRep (ERPNext HR Registered):</label>
+        <label>Assigned MedRep</label>
         <select id="bulkEditRepSelect" class="form-control" style="font-weight:600;" onchange="onBulkRepSelectChange(this)">
           <option value="">-- No Change (Keep Current) --</option>
         </select>
@@ -4869,113 +4840,60 @@
         </div>
       </div>
       <div class="form-group">
-        <label>Reassign District Group / Cluster:</label>
+        <label>Assigned District</label>
         <div style="display:flex; gap:6px;">
           <select id="bulkEditDistrictSelect" class="form-control" style="font-weight:600; flex:1;" onchange="onBulkDistrictSelectChange(this)">
             <option value="">-- No Change (Keep Current) --</option>
           </select>
-          <input type="text" id="bulkEditDistrict" class="form-control" style="display:none; flex:1;" placeholder="Enter custom cluster name...">
+          <input type="text" id="bulkEditDistrict" class="form-control" style="display:none; flex:1;" placeholder="Enter custom district name...">
         </div>
       </div>
       <div class="form-group">
         <label>Audit Reason / Notes (Logged in Audit Trail):</label>
         <input type="text" id="bulkEditReason" class="form-control" value="Bulk reconfiguration by SFE Lead">
       </div>
-      <div style="background:#EFF6FF; border:1.5px solid #BFDBFE; border-radius:6px; padding:9px 12px; font-size:11.5px; color:#1E40AF; margin-bottom:14px; line-height:1.4;">
-        Bulk modifications apply immediately to all selected records, updating territory and tree hierarchies, and logging an audit trail for each territory in the <strong>Summary Report &amp; Audit Trail</strong>.
-      </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; border-top:1px solid var(--border); padding-top:14px;">
         <button class="btn btn-outline" onclick="closeBulkEditModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="applyBulkEdit()" style="background:#0066FF; color:#fff; font-weight:700;">Apply Bulk Modifications</button>
+        <button class="btn btn-primary" onclick="applyBulkEdit()" style="background:#0066FF; color:#fff; font-weight:700;">Apply Changes</button>
       </div>
     </div>
 
-    <!-- TAB 2: RENAME PANE -->
+    <!-- TAB 2: INTELLIGENT BULK RENAME PANE (Individual + Optional Global Replace) -->
     <div id="bulkPane_rename" class="bulk-tab-pane">
-      <div style="margin-bottom:12px;">
-        <label style="font-weight:700; font-size:12px; color:#1E293B; display:block; margin-bottom:6px;">Rename Mode:</label>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; background:#F8FAFC; border:1px solid #CBD5E1; padding:8px 12px; border-radius:6px;">
-          <label style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; cursor:pointer;">
-            <input type="radio" name="renameMode" value="find_replace" checked onchange="onRenameModeChange()" style="accent-color:#0066FF;">
-            Find & Replace
-          </label>
-          <label style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; cursor:pointer;">
-            <input type="radio" name="renameMode" value="prefix" onchange="onRenameModeChange()" style="accent-color:#0066FF;">
-            Add Prefix
-          </label>
-          <label style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; cursor:pointer;">
-            <input type="radio" name="renameMode" value="suffix" onchange="onRenameModeChange()" style="accent-color:#0066FF;">
-            Add Suffix
-          </label>
-          <label style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; cursor:pointer;">
-            <input type="radio" name="renameMode" value="sequence" onchange="onRenameModeChange()" style="accent-color:#0066FF;">
-            Sequential Pattern
-          </label>
+      <!-- Optional Global Find/Replace/Prefix Helper Bar -->
+      <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:10px 12px; margin-bottom:10px;">
+        <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:6px; letter-spacing:0.3px;">
+          Optional Global Pattern Fill (or Edit Each Code Individually Below)
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr auto auto; gap:8px; align-items:center;">
+          <input type="text" id="bulkRenameGlobalFind" class="form-control" placeholder="Find text (leave blank for prefix)" style="height:32px; font-size:12px;">
+          <input type="text" id="bulkRenameGlobalReplace" class="form-control" placeholder="Replace with / Prefix" style="height:32px; font-size:12px;">
+          <button type="button" class="btn btn-sm btn-outline" onclick="applyGlobalBulkRenameHelper()" style="height:32px; white-space:nowrap; font-weight:700; border-color:#0066FF; color:#0066FF;">Apply to All</button>
+          <button type="button" class="btn btn-sm btn-outline" onclick="resetBulkRenameInputs()" style="height:32px; white-space:nowrap; font-weight:600;">Reset All</button>
         </div>
       </div>
 
-      <!-- Mode Inputs -->
-      <div id="renameInput_find_replace" class="rename-sub-inputs">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-          <div class="form-group">
-            <label>Find Text (In Active Code):</label>
-            <input type="text" id="renameFindText" class="form-control" placeholder="e.g. AD" oninput="updateRenamePreview()">
-          </div>
-          <div class="form-group">
-            <label>Replace With:</label>
-            <input type="text" id="renameReplaceText" class="form-control" placeholder="e.g. ADC" oninput="updateRenamePreview()">
-          </div>
-        </div>
-      </div>
-      <div id="renameInput_prefix" class="rename-sub-inputs" style="display:none;">
-        <div class="form-group">
-          <label>Prefix to Prepend:</label>
-          <input type="text" id="renamePrefixText" class="form-control" placeholder="e.g. ADC_" oninput="updateRenamePreview()">
-        </div>
-      </div>
-      <div id="renameInput_suffix" class="rename-sub-inputs" style="display:none;">
-        <div class="form-group">
-          <label>Suffix to Append:</label>
-          <input type="text" id="renameSuffixText" class="form-control" placeholder="e.g. _2026" oninput="updateRenamePreview()">
-        </div>
-      </div>
-      <div id="renameInput_sequence" class="rename-sub-inputs" style="display:none;">
-        <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:8px;">
-          <div class="form-group">
-            <label>Base Code:</label>
-            <input type="text" id="renameSeqBase" class="form-control" placeholder="e.g. ADC_TERR_" oninput="updateRenamePreview()">
-          </div>
-          <div class="form-group">
-            <label>Start Number:</label>
-            <input type="number" id="renameSeqStart" class="form-control" value="101" min="1" oninput="updateRenamePreview()">
-          </div>
-          <div class="form-group">
-            <label>Digits (Pad):</label>
-            <input type="number" id="renameSeqDigits" class="form-control" value="3" min="1" max="6" oninput="updateRenamePreview()">
-          </div>
-        </div>
+      <!-- Validation Summary Bar -->
+      <div id="bulkRenameSummaryBar" style="font-size:11.5px; font-weight:700; color:#475569; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+        <span>0 ready to rename</span>
+        <span style="font-weight:600; color:#64748B;">Matching Sales Person territory codes sync automatically</span>
       </div>
 
-      <!-- Live Rename Preview Table -->
-      <div style="margin-bottom:12px;">
-        <div style="font-size:11px; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:5px;">
-          Live Transformation Preview:
-        </div>
-        <div style="max-height:130px; overflow-y:auto; border:1px solid #CBD5E1; border-radius:6px;">
-          <table class="preview-table">
-            <thead>
-              <tr>
-                <th style="width:10%;">#</th>
-                <th style="width:40%;">Current Active Code</th>
-                <th style="width:40%;">Renamed Code</th>
-                <th style="width:10%;">Status</th>
-              </tr>
-            </thead>
-            <tbody id="renamePreviewTableBody">
-              <!-- Rendered dynamically -->
-            </tbody>
-          </table>
-        </div>
+      <!-- Editable Per-Row Bulk Rename Table -->
+      <div style="margin-bottom:12px; max-height:230px; overflow-y:auto; border:1.5px solid #CBD5E1; border-radius:6px;">
+        <table class="preview-table" style="width:100%;">
+          <thead>
+            <tr>
+              <th style="width:7%;">#</th>
+              <th style="width:29%;">Current Code</th>
+              <th style="width:46%;">New Territory Code</th>
+              <th style="width:18%;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="renamePreviewTableBody">
+            <!-- Rendered dynamically with editable inputs -->
+          </tbody>
+        </table>
       </div>
 
       <div class="form-group" style="margin-bottom:10px;">
@@ -4992,40 +4910,21 @@
 
       <div style="display:flex; justify-content:flex-end; gap:8px; border-top:1px solid var(--border); padding-top:14px;">
         <button class="btn btn-outline" onclick="closeBulkEditModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="applyBulkRename()" style="background:#0066FF; color:#fff; font-weight:700;">Execute Bulk Rename</button>
+        <button class="btn btn-primary" id="btnExecuteBulkRename" onclick="applyBulkRename()" style="background:#0066FF; color:#fff; font-weight:700;">Execute Bulk Rename</button>
       </div>
     </div>
 
-    <!-- TAB 3: ARCHIVE PANE (Strict Zero-Deletion Architecture - Move to Archive Vault) -->
+    <!-- TAB 3: ARCHIVE PANE (Clean Actionable Form Only) -->
     <div id="bulkPane_decommission" class="bulk-tab-pane">
-      <div style="background:#FFFBEB; border:1.5px solid #FCD34D; border-radius:8px; padding:12px 14px; margin-bottom:14px;">
-        <div style="display:flex; align-items:center; gap:8px; color:#92400E; font-weight:800; font-size:13px; margin-bottom:4px;">
-          <span>Archive Policy (Zero Data Loss Guarantee)</span>
-        </div>
-        <div style="font-size:12px; color:#78350F; line-height:1.4;">
-          You have selected <strong id="deleteTerritoryCount" style="color:#B45309;">0</strong> territory records.
-          Total Covered Doctors: <strong id="deleteDoctorCount" style="color:#B45309;">0</strong> doctors mapped to these territories.
-        </div>
-      </div>
-
-      <div class="form-group">
-        <div style="background:#F8FAFC; border:1.5px solid #CBD5E1; padding:10px 12px; border-radius:6px;">
-          <strong style="color:#0F172A; font-size:12px;">Tag as Inactive &amp; Move to Archive Vault</strong>
-          <div style="font-size:11px; color:#64748B; margin-top:3px; line-height:1.4;">
-            Safely preserves all territory records, past MedRep affiliations, and doctor assignments in the <strong>Archive Vault (Tab 2)</strong>. Archived territories are marked as <strong>Inactive</strong> and excluded from active reconfiguration dropdowns. Permanent deletion is prohibited.
-          </div>
-        </div>
-      </div>
-
       <div class="form-group">
         <label>Archive Reason (Required):</label>
         <input type="text" id="bulkDeleteReason" class="form-control" value="Archived during SFE cycle realignment">
       </div>
 
-      <div class="form-group" style="margin-bottom:14px; background:#F8FAFC; border:1.5px solid #CBD5E1; padding:8px 10px; border-radius:6px;">
+      <div class="form-group" style="margin-bottom:14px; background:#F8FAFC; border:1.5px solid #CBD5E1; padding:10px 12px; border-radius:6px;">
         <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:#334155; cursor:pointer; margin:0; user-select:none;">
           <input type="checkbox" id="bulkDeleteConfirmCheckbox" onchange="onBulkDeleteConfirmChange()" style="cursor:pointer; width:16px; height:16px; accent-color:#0066FF;">
-          I confirm archiving of these selected territories (tag Inactive and move to Archive).
+          <span>Confirm archiving <strong id="deleteTerritoryCount" style="color:#0066FF;">0</strong> selected territories (<strong id="deleteDoctorCount" style="color:#0066FF;">0</strong> covered doctors preserved).</span>
         </label>
       </div>
 
@@ -6967,25 +6866,21 @@ const BASELINE_ERP_TERRITORIES = [
     const toastEl = document.getElementById('toast');
     if (!toastEl) return;
 
-    let icon = 'ℹ️';
     let borderColor = '#0066FF';
     let shadowColor = 'rgba(0, 102, 255, 0.3)';
 
     if (type === 'success') {
-      icon = '✅';
       borderColor = '#10B981';
       shadowColor = 'rgba(16, 185, 129, 0.3)';
     } else if (type === 'error') {
-      icon = '⚠️';
       borderColor = '#EF4444';
       shadowColor = 'rgba(239, 68, 68, 0.3)';
     } else if (type === 'warning') {
-      icon = '🔔';
       borderColor = '#F59E0B';
       shadowColor = 'rgba(245, 158, 11, 0.3)';
     }
 
-    toastEl.innerHTML = `<span style="margin-right:6px;">${icon}</span><span>${escapeHtml(message)}</span>`;
+    toastEl.innerHTML = `<span>${escapeHtml(message)}</span>`;
     toastEl.style.borderColor = borderColor;
     toastEl.style.boxShadow = `0 6px 20px rgba(0,0,0,0.4), 0 0 12px ${shadowColor}`;
     
@@ -8382,7 +8277,6 @@ const BASELINE_ERP_TERRITORIES = [
       const emptyTr = document.createElement('tr');
       emptyTr.innerHTML = `
         <td colspan="${colSpan}" style="text-align:center; padding:32px 16px; color:#64748B;">
-          <div style="font-size:24px; margin-bottom:6px;">🔍</div>
           <div style="font-size:13px; font-weight:700; color:#1E293B;">No matching territory records found</div>
           <div style="font-size:11.5px; color:#94A3B8; margin-top:4px;">
             No records matched your current filter criteria. 
@@ -8622,7 +8516,7 @@ const BASELINE_ERP_TERRITORIES = [
   function openBulkEditModal(initialTab) {
     const reqTab = initialTab || 'modify';
     if (reqTab !== 'add' && selectedRowIndices.size === 0) {
-      showToast('Please select at least one territory to bulk edit, or use Bulk Add', 'error');
+      showToast('Please select at least one territory to open Bulk Operation, or use Bulk Add', 'error');
       return;
     }
 
@@ -8933,75 +8827,236 @@ const BASELINE_ERP_TERRITORIES = [
     showToast(`Applied bulk changes across ${affectedCount} territories! Saved successfully.`, 'success');
   }
 
-  // --- TAB 2: BULK RENAME HANDLERS ---
-  function onRenameModeChange() {
-    const selectedMode = document.querySelector('input[name="renameMode"]:checked')?.value || 'find_replace';
-    ['find_replace', 'prefix', 'suffix', 'sequence'].forEach(m => {
-      const el = document.getElementById('renameInput_' + m);
-      if (el) el.style.display = (m === selectedMode) ? 'block' : 'none';
-    });
-    updateRenamePreview();
-  }
-
-  function calculateRenamedCode(currCode, mode, index) {
-    if (!currCode) return '';
-    if (mode === 'find_replace') {
-      const findText = document.getElementById('renameFindText')?.value || '';
-      const replaceText = document.getElementById('renameReplaceText')?.value || '';
-      if (!findText) return currCode;
-      return currCode.split(findText).join(replaceText);
-    } else if (mode === 'prefix') {
-      const prefix = document.getElementById('renamePrefixText')?.value || '';
-      return prefix + currCode;
-    } else if (mode === 'suffix') {
-      const suffix = document.getElementById('renameSuffixText')?.value || '';
-      return currCode + suffix;
-    } else if (mode === 'sequence') {
-      const base = document.getElementById('renameSeqBase')?.value || 'TERR_';
-      const start = parseInt(document.getElementById('renameSeqStart')?.value, 10) || 101;
-      const digits = parseInt(document.getElementById('renameSeqDigits')?.value, 10) || 3;
-      const numStr = String(start + index).padStart(digits, '0');
-      return base + numStr;
-    }
-    return currCode;
-  }
-
-  function updateRenamePreview() {
+  // --- TAB 2: INTELLIGENT BULK RENAME HANDLERS (Per-Row + Optional Global Helper) ---
+  function renderBulkRenameTable() {
     const tbody = document.getElementById('renamePreviewTableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    const mode = document.querySelector('input[name="renameMode"]:checked')?.value || 'find_replace';
-    const selectedArr = Array.from(selectedRowIndices);
+    const findEl = document.getElementById('bulkRenameGlobalFind');
+    const repEl = document.getElementById('bulkRenameGlobalReplace');
+    if (findEl) findEl.value = '';
+    if (repEl) repEl.value = '';
 
+    const selectedArr = Array.from(selectedRowIndices);
     if (selectedArr.length === 0) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94A3B8; padding:12px;">No territories selected.</td></tr>';
+      validateBulkRenameTable();
       return;
     }
 
-    const previewLimit = 15;
-    selectedArr.slice(0, previewLimit).forEach((idx, i) => {
+    selectedArr.forEach((idx, i) => {
       const row = programTerritories[idx];
       if (!row) return;
-
-      const curr = row.activeCode || row.latestPrevCode;
-      const renamed = calculateRenamedCode(curr, mode, i);
-      const isChanged = (renamed !== curr);
+      const curr = (row.activeCode || row.latestPrevCode || '').trim();
+      const repClean = cleanRepDisplayName(row.rep || '');
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td style="color:#64748B;">${i + 1}</td>
-        <td><strong>${escapeHtml(curr)}</strong></td>
-        <td><strong style="color:${isChanged ? '#0066FF' : '#475569'};">${escapeHtml(renamed)}</strong></td>
-        <td>${isChanged ? '<span class="badge badge-changed">CHANGED</span>' : '<span class="badge badge-unchanged">UNCHANGED</span>'}</td>
+        <td style="color:#64748B; vertical-align:top; padding-top:9px;">${i + 1}</td>
+        <td style="vertical-align:top; padding-top:8px;">
+          <strong style="color:#0F172A;">${escapeHtml(curr)}</strong>
+          ${repClean && !/^unassigned|^vacant|^folder/i.test(repClean) ? `<div style="font-size:10px; color:#64748B; margin-top:2px;">${escapeHtml(repClean)}</div>` : ''}
+        </td>
+        <td style="vertical-align:top;">
+          <input type="text" class="form-control bulk-rename-row-input" data-row-index="${idx}" data-orig-code="${escapeHtml(curr)}" value="${escapeHtml(curr)}" oninput="validateBulkRenameTable()" placeholder="Enter new territory code..." style="height:30px; font-size:12px; font-weight:700;">
+          <div class="bulk-rename-sp-hint" style="font-size:10px; color:#0284C7; margin-top:3px; display:none;"></div>
+        </td>
+        <td class="bulk-rename-status-cell" style="vertical-align:top; padding-top:8px;">
+          <span class="badge badge-unchanged">UNCHANGED</span>
+        </td>
       `;
       tbody.appendChild(tr);
     });
 
-    if (selectedArr.length > previewLimit) {
-      const moreTr = document.createElement('tr');
-      moreTr.innerHTML = `<td colspan="4" style="text-align:center; color:#64748B; font-style:italic;">...and ${selectedArr.length - previewLimit} more selected territories</td>`;
-      tbody.appendChild(moreTr);
+    validateBulkRenameTable();
+  }
+
+  function updateRenamePreview() {
+    renderBulkRenameTable();
+  }
+
+  function applyGlobalBulkRenameHelper() {
+    const findVal = document.getElementById('bulkRenameGlobalFind')?.value || '';
+    const replaceVal = document.getElementById('bulkRenameGlobalReplace')?.value || '';
+    if (!findVal && !replaceVal) {
+      showToast('Enter text to find or a prefix/replacement to apply.', 'warning');
+      return;
+    }
+
+    const inputs = document.querySelectorAll('#renamePreviewTableBody .bulk-rename-row-input');
+    let blankPrevented = 0;
+    const findRegex = findVal
+      ? new RegExp(typeof escapeRegExpToken === 'function' ? escapeRegExpToken(findVal) : findVal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+      : null;
+
+    inputs.forEach(inp => {
+      const orig = (inp.dataset.origCode || '').trim();
+      if (!orig) return;
+      let nextVal = orig;
+      if (findRegex) {
+        if (findRegex.test(orig)) {
+          findRegex.lastIndex = 0;
+          const candidate = orig.replace(findRegex, replaceVal).trim();
+          if (candidate) {
+            nextVal = candidate;
+          } else {
+            blankPrevented++;
+          }
+        }
+      } else if (replaceVal) {
+        nextVal = `${replaceVal}${orig}`.trim();
+      }
+      inp.value = nextVal;
+    });
+
+    validateBulkRenameTable();
+    if (blankPrevented > 0) {
+      showToast(`${blankPrevented} code(s) kept unchanged because replacement would leave them blank.`, 'warning');
+    }
+  }
+
+  function resetBulkRenameInputs() {
+    const findEl = document.getElementById('bulkRenameGlobalFind');
+    const repEl = document.getElementById('bulkRenameGlobalReplace');
+    if (findEl) findEl.value = '';
+    if (repEl) repEl.value = '';
+    document.querySelectorAll('#renamePreviewTableBody .bulk-rename-row-input').forEach(inp => {
+      inp.value = inp.dataset.origCode || '';
+    });
+    validateBulkRenameTable();
+  }
+
+  function collectValidatedBulkRenameItems() {
+    const inputs = Array.from(document.querySelectorAll('#renamePreviewTableBody .bulk-rename-row-input'));
+
+    const existingAllLower = new Set();
+    (programTerritories || []).forEach(t => {
+      if (t && t.activeCode) {
+        existingAllLower.add(String(t.activeCode).trim().toLowerCase());
+      }
+    });
+    (territoryTreeData || []).forEach(t => {
+      const n = t && (t.name || t.territory_name);
+      if (n) {
+        existingAllLower.add(String(n).trim().toLowerCase());
+      }
+    });
+
+    const targetCounts = new Map();
+    inputs.forEach(inp => {
+      const valLower = inp.value.trim().toLowerCase();
+      if (valLower) targetCounts.set(valLower, (targetCounts.get(valLower) || 0) + 1);
+    });
+
+    let readyCount = 0;
+    let unchangedCount = 0;
+    let errorCount = 0;
+
+    const evaluated = inputs.map(inp => {
+      const idx = parseInt(inp.dataset.rowIndex, 10);
+      const row = (!isNaN(idx) && programTerritories[idx]) ? programTerritories[idx] : null;
+      const orig = (inp.dataset.origCode || '').trim();
+      const nextVal = inp.value.trim();
+      const nextLower = nextVal.toLowerCase();
+      const tr = inp.closest('tr');
+
+      let state = 'UNCHANGED';
+      let reasonMsg = '';
+      if (!nextVal) {
+        state = 'EMPTY';
+        reasonMsg = 'Cannot be blank';
+        errorCount++;
+      } else if (orig.toLowerCase() !== nextLower && existingAllLower.has(nextLower)) {
+        state = 'EXISTS';
+        reasonMsg = 'Already exists in masterlist';
+        errorCount++;
+      } else if ((targetCounts.get(nextLower) || 0) > 1) {
+        state = 'DUPLICATE';
+        reasonMsg = 'Duplicate target in batch';
+        errorCount++;
+      } else if (nextVal === orig) {
+        state = 'UNCHANGED';
+        unchangedCount++;
+      } else {
+        state = 'READY';
+        readyCount++;
+      }
+
+      return { inp, tr, idx, row, orig, nextVal, state, reasonMsg };
+    });
+
+    return { evaluated, readyCount, unchangedCount, errorCount };
+  }
+
+  function validateBulkRenameTable() {
+    const { evaluated, readyCount, unchangedCount, errorCount } = collectValidatedBulkRenameItems();
+
+    evaluated.forEach(item => {
+      const { inp, tr, orig, nextVal, state, reasonMsg } = item;
+      const statusCell = tr ? tr.querySelector('.bulk-rename-status-cell') : null;
+      const spHintEl = tr ? tr.querySelector('.bulk-rename-sp-hint') : null;
+
+      if (state === 'READY') {
+        inp.style.borderColor = '#0066FF';
+        inp.style.backgroundColor = '#F0F9FF';
+        if (statusCell) statusCell.innerHTML = '<span class="badge badge-changed">READY</span>';
+      } else if (state === 'UNCHANGED') {
+        inp.style.borderColor = '#CBD5E1';
+        inp.style.backgroundColor = '#FFFFFF';
+        if (statusCell) statusCell.innerHTML = '<span class="badge badge-unchanged">UNCHANGED</span>';
+      } else {
+        inp.style.borderColor = '#DC2626';
+        inp.style.backgroundColor = '#FEF2F2';
+        if (statusCell) {
+          statusCell.innerHTML = `<span class="badge" style="background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5;" title="${escapeHtml(reasonMsg)}">${escapeHtml(state)}</span>`;
+        }
+      }
+
+      if (spHintEl) {
+        if (state === 'READY' && typeof replaceParenthesizedTerritoryCode === 'function' && Array.isArray(availableSalesPersons)) {
+          const prevCode = (item.row && item.row.latestPrevCode) ? item.row.latestPrevCode : '';
+          const matchedSp = availableSalesPersons.find(s => {
+            const sId = (s && (s.name || s.sales_person_name)) ? String(s.name || s.sales_person_name).trim() : '';
+            if (!sId) return false;
+            return Boolean(replaceParenthesizedTerritoryCode(sId, orig, nextVal)) ||
+                   Boolean(prevCode && replaceParenthesizedTerritoryCode(sId, prevCode, nextVal));
+          });
+          if (matchedSp) {
+            const spId = String(matchedSp.name || matchedSp.sales_person_name).trim();
+            const spNext = replaceParenthesizedTerritoryCode(spId, orig, nextVal) ||
+                           replaceParenthesizedTerritoryCode(spId, prevCode, nextVal);
+            spHintEl.style.display = 'block';
+            spHintEl.textContent = `Sales Person: ${spId} → ${spNext}`;
+          } else {
+            spHintEl.style.display = 'none';
+            spHintEl.textContent = '';
+          }
+        } else {
+          spHintEl.style.display = 'none';
+          spHintEl.textContent = '';
+        }
+      }
+    });
+
+    const summaryBar = document.getElementById('bulkRenameSummaryBar');
+    if (summaryBar) {
+      const leftSpan = summaryBar.querySelector('span:first-child');
+      if (leftSpan) {
+        const parts = [`${readyCount} ready to rename`, `${unchangedCount} unchanged`];
+        if (errorCount > 0) parts.push(`${errorCount} conflict(s)`);
+        leftSpan.textContent = parts.join(' • ');
+        leftSpan.style.color = errorCount > 0 ? '#DC2626' : (readyCount > 0 ? '#0066FF' : '#475569');
+      }
+    }
+
+    const execBtn = document.getElementById('btnExecuteBulkRename');
+    if (execBtn) {
+      const canSubmit = readyCount > 0 && errorCount === 0;
+      execBtn.disabled = !canSubmit;
+      execBtn.style.opacity = canSubmit ? '1' : '0.5';
+      execBtn.style.cursor = canSubmit ? 'pointer' : 'not-allowed';
+      execBtn.textContent = readyCount > 0 ? `Execute Bulk Rename (${readyCount})` : 'Execute Bulk Rename';
     }
   }
 
@@ -9011,51 +9066,26 @@ const BASELINE_ERP_TERRITORIES = [
       return;
     }
 
-    const mode = document.querySelector('input[name="renameMode"]:checked')?.value || 'find_replace';
+    const { evaluated, readyCount, errorCount } = collectValidatedBulkRenameItems();
+    if (errorCount > 0) {
+      const firstErr = evaluated.find(e => e.state !== 'READY' && e.state !== 'UNCHANGED');
+      showToast(`Rename error for ${firstErr ? firstErr.orig : 'territory'}: ${firstErr ? firstErr.reasonMsg : 'Invalid target code'}.`, 'error');
+      if (firstErr && firstErr.inp) firstErr.inp.focus();
+      return;
+    }
+    if (readyCount === 0) {
+      showToast('No territory codes were modified. Edit at least one target code before executing.', 'warning');
+      return;
+    }
+
     const autoMarkChanged = document.getElementById('renameAutoMarkChanged')?.checked ?? true;
     const reason = (document.getElementById('renameAuditReason')?.value || '').trim() || 'Bulk territory code rename by SFE Lead';
-
-    const selectedArr = Array.from(selectedRowIndices);
-    const plannedRenames = [];
-    const newCodeSet = new Set();
-
-    // Pre-calculate and validate
-    for (let i = 0; i < selectedArr.length; i++) {
-      const idx = selectedArr[i];
-      const row = programTerritories[idx];
-      if (!row) continue;
-
-      const curr = row.activeCode || row.latestPrevCode;
-      const renamed = calculateRenamedCode(curr, mode, i).trim().toUpperCase();
-
-      if (!renamed) {
-        showToast(`Rename error: Blank code generated for ${curr}!`, 'error');
-        return;
-      }
-
-      if (newCodeSet.has(renamed)) {
-        showToast(`Rename error: Duplicate code '${renamed}' generated within batch!`, 'error');
-        return;
-      }
-      newCodeSet.add(renamed);
-
-      plannedRenames.push({ idx, row, curr, renamed });
-    }
-
-    // Check conflict with non-selected territories
-    const nonSelectedCodes = new Set();
-    programTerritories.forEach((t, i) => {
-      if (!selectedRowIndices.has(i)) {
-        if (t.activeCode) nonSelectedCodes.add(t.activeCode.toUpperCase());
-      }
-    });
-
-    for (const item of plannedRenames) {
-      if (item.curr.toUpperCase() !== item.renamed && nonSelectedCodes.has(item.renamed)) {
-        showToast(`Conflict: Code '${item.renamed}' already exists in this program!`, 'error');
-        return;
-      }
-    }
+    const plannedRenames = evaluated.filter(e => e.state === 'READY' && e.row).map(e => ({
+      idx: e.idx,
+      row: e.row,
+      curr: e.orig,
+      renamed: e.nextVal
+    }));
 
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const loggedUser = (authenticatedUser && authenticatedUser.email)
@@ -13629,7 +13659,7 @@ const BASELINE_ERP_TERRITORIES = [
 
       const advRow = document.createElement('div');
       advRow.className = 'erp-dropdown-adv-search';
-      advRow.innerHTML = `<span>🔍</span> <span>Advanced Search (${matches.length} Users found)</span>`;
+      advRow.innerHTML = `<span>Advanced Search (${matches.length} Users found)</span>`;
       menu.appendChild(advRow);
 
     } else if (fieldId === 'newSpParent') {
@@ -14746,6 +14776,28 @@ const BASELINE_ERP_TERRITORIES = [
     const docCountEl = document.getElementById('gridActionDocCount');
     if (docCountEl) docCountEl.innerText = docCount;
 
+    // Toggle operational status actions dynamically based on row status
+    const treeNode = Array.isArray(territoryTreeData)
+      ? territoryTreeData.find(t => t && (t.name === terrCode || t.territory_name === terrCode))
+      : null;
+    const rowStatus = getTerritoryOperationalStatus(row, treeNode);
+    const btnSetActive = document.getElementById('gridActionSetActive');
+    const btnVacant = document.getElementById('gridActionTagVacant');
+    const btnInactive = document.getElementById('gridActionDeactivate');
+    if (rowStatus === 'Active') {
+      if (btnSetActive) btnSetActive.style.display = 'none';
+      if (btnVacant) btnVacant.style.display = 'flex';
+      if (btnInactive) btnInactive.style.display = 'flex';
+    } else if (rowStatus === 'Inactive') {
+      if (btnSetActive) btnSetActive.style.display = 'flex';
+      if (btnVacant) btnVacant.style.display = 'flex';
+      if (btnInactive) btnInactive.style.display = 'none';
+    } else {
+      if (btnSetActive) btnSetActive.style.display = 'flex';
+      if (btnVacant) btnVacant.style.display = 'none';
+      if (btnInactive) btnInactive.style.display = 'flex';
+    }
+
     // Mark current button active
     const btn = event.currentTarget;
     if (btn) btn.classList.add('active');
@@ -15671,7 +15723,7 @@ const BASELINE_ERP_TERRITORIES = [
       titleEl.style.color = '#F59E0B';
       msgEl.innerHTML = `
         <div style="background:#451A03; border:1px solid #78350F; padding:12px 14px; border-radius:6px; color:#FDE68A; margin-bottom:10px;">
-          ⚠️ <strong>Group Node Contains Children</strong>
+          <strong>Group Node Contains Children</strong>
         </div>
         Cannot delete territory <strong>"${escapeHtml(name)}"</strong> because it contains <strong>${childCount}</strong> child territories.<br><br>
         Please delete, reassign, or move all child territories before deleting this group node.
@@ -15847,13 +15899,21 @@ const BASELINE_ERP_TERRITORIES = [
       box.innerHTML = '<div style="font-style:italic; color:#64748B;">No prior modifications recorded.</div>';
       return;
     }
-    box.innerHTML = trail.map(item => `
-      <div style="border-bottom:1px solid #E2E8F0; padding:4px 0; margin-bottom:3px;">
-        <span style="color:#0066FF; font-weight:700;">[${escapeHtml(item.action)}]</span> 
-        <span style="color:#64748B;">${escapeHtml(item.timestamp)}</span> &bull; 
-        <span style="color:#0F172A;">${escapeHtml(item.details)}</span>
-      </div>
-    `).join('');
+    box.innerHTML = trail.map(item => {
+      const meta = typeof formatAuditActionMeta === 'function'
+        ? formatAuditActionMeta(item.action)
+        : { label: item.action || 'Activity Update', color: '#0066FF' };
+      const detailText = typeof decodeAuditText === 'function'
+        ? decodeAuditText(item.details)
+        : String(item.details || '');
+      return `
+        <div style="border-bottom:1px solid #E2E8F0; padding:5px 0; margin-bottom:3px; line-height:1.45;">
+          <span style="color:${meta.color}; font-weight:700;">[${escapeHtml(meta.label)}]</span>
+          <span style="color:#64748B; font-size:11px;">${escapeHtml(item.timestamp || 'Recorded')}</span> &bull;
+          <span style="color:#0F172A;">${escapeHtml(detailText)}</span>
+        </div>
+      `;
+    }).join('');
   }
 
   function transferRepPrompt() {
@@ -16446,6 +16506,47 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   // --- AUDIT TRAIL MODAL (PER RECORD) ---
+  function decodeAuditText(raw) {
+    if (raw === null || raw === undefined) return '';
+    return String(raw)
+      .replace(/&rarr;/g, ' → ')
+      .replace(/&bull;/g, ' • ')
+      .replace(/&amp;/g, '&')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function formatAuditActionMeta(rawAction) {
+    const key = String(rawAction || '').trim().toUpperCase();
+    const map = {
+      INITIAL_SYNC: { label: 'Initial Sync', bg: '#F1F5F9', color: '#475569', border: '#CBD5E1' },
+      RENAME_TREE: { label: 'Territory Renamed', bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE' },
+      BULK_RENAME: { label: 'Territory Renamed', bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE' },
+      BATCH_RENAMED: { label: 'Territory Renamed', bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE' },
+      EDIT_TREE: { label: 'Territory Updated', bg: '#EEF2FF', color: '#4338CA', border: '#C7D2FE' },
+      MODIFIED: { label: 'Territory Updated', bg: '#EEF2FF', color: '#4338CA', border: '#C7D2FE' },
+      BULK_EDIT: { label: 'Bulk Updated', bg: '#EEF2FF', color: '#4338CA', border: '#C7D2FE' },
+      NEW_RECORD_ADDED: { label: 'Territory Created', bg: '#ECFDF5', color: '#047857', border: '#A7F3D0' },
+      ADD_CHILD_TREE: { label: 'Territory Created', bg: '#ECFDF5', color: '#047857', border: '#A7F3D0' },
+      ADD_CHILD_FOLDER: { label: 'Folder Created', bg: '#ECFDF5', color: '#047857', border: '#A7F3D0' },
+      BULK_ADD: { label: 'Bulk Created', bg: '#ECFDF5', color: '#047857', border: '#A7F3D0' },
+      STATUS_ACTIVE: { label: 'Set Active', bg: '#DCFCE7', color: '#15803D', border: '#86EFAC' },
+      REACTIVATED: { label: 'Set Active', bg: '#DCFCE7', color: '#15803D', border: '#86EFAC' },
+      STATUS_VACANT: { label: 'Marked Vacant', bg: '#FEF3C7', color: '#B45309', border: '#FCD34D' },
+      STATUS_INACTIVE: { label: 'Marked Inactive', bg: '#FEE2E2', color: '#B91C1C', border: '#FCA5A5' },
+      BULK_DECOMMISSION: { label: 'Marked Inactive', bg: '#FEE2E2', color: '#B91C1C', border: '#FCA5A5' },
+      BULK_DELETE: { label: 'Marked Inactive', bg: '#FEE2E2', color: '#B91C1C', border: '#FCA5A5' },
+      ARCHIVED: { label: 'Marked Inactive', bg: '#FEE2E2', color: '#B91C1C', border: '#FCA5A5' },
+      DOCTOR_TRANSFER_HANDOVER: { label: 'Doctor Transferred', bg: '#F5F3FF', color: '#6D28D9', border: '#DDD6FE' },
+      RESIGNATION_HANDOVER_QUICK_MERGE: { label: 'MedRep Handover', bg: '#F0FDFA', color: '#0F766E', border: '#99F6E4' }
+    };
+    if (map[key]) return map[key];
+    const pretty = key
+      ? key.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      : 'Activity Update';
+    return { label: pretty, bg: '#F8FAFC', color: '#334155', border: '#CBD5E1' };
+  }
+
   function openAuditModal(target) {
     let row = null;
     if (typeof target === 'number') {
@@ -16458,26 +16559,74 @@ const BASELINE_ERP_TERRITORIES = [
     }
     if (!row) return;
 
-    document.getElementById('auditModalTitle').innerText = `Audit Trail: ${row.activeCode || row.histCode} (${row.recordId})`;
-    document.getElementById('auditModalSubtitle').innerText = `Assigned to: ${row.rep || 'Unassigned'} (${row.userId || 'N/A'}) &bull; District: ${row.district || 'Unassigned'}`;
+    const activeCode = row.activeCode || row.histCode || row.recordId || '---';
+    const prevCode = row.latestPrevCode || '';
+    const repLabel = cleanRepDisplayName(row.rep || '') || 'Unassigned';
+    const opStatus = getTerritoryOperationalStatus(row);
+    const docCount = (typeof getCoveredDoctorsForTerritory === 'function')
+      ? getCoveredDoctorsForTerritory(row).length
+      : (parseInt(row.docs, 10) || 0);
+    const statusPillStyle = opStatus === 'Active'
+      ? 'background:#DCFCE7; color:#15803D; border:1px solid #86EFAC;'
+      : (opStatus === 'Vacant'
+        ? 'background:#FEF3C7; color:#D97706; border:1px solid #FCD34D;'
+        : 'background:#FEE2E2; color:#DC2626; border:1px solid #FCA5A5;');
+
+    document.getElementById('auditModalTitle').innerText = `Audit Trail: ${activeCode}`;
+    document.getElementById('auditModalSubtitle').innerText = `Record ${row.recordId || activeCode} • ${(row.auditTrail || []).length} recorded event(s)`;
+
+    const summaryEl = document.getElementById('auditRecordSummary');
+    if (summaryEl) {
+      summaryEl.innerHTML = `
+        <div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; background:#F8FAFC; border:1.5px solid #E2E8F0; border-radius:8px; padding:12px 14px; font-size:12px;">
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.4px;">Territory Code</div>
+            <div style="font-weight:800; color:#0284C7; margin-top:2px;">${escapeHtml(activeCode)}${prevCode && prevCode !== activeCode ? ` <span style="font-size:10.5px; color:#64748B; font-weight:600;">(was ${escapeHtml(prevCode)})</span>` : ''}</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.4px;">Operational Status</div>
+            <div style="margin-top:3px;"><span class="badge" style="${statusPillStyle} font-weight:700; font-size:11px; padding:2px 8px;">${escapeHtml(opStatus)}</span></div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.4px;">Covered Doctors</div>
+            <div style="font-weight:800; color:#0F172A; margin-top:2px;">${docCount}</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.4px;">Assigned MedRep</div>
+            <div style="font-weight:700; color:#0F172A; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(repLabel)}</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.4px;">Assigned District</div>
+            <div style="font-weight:600; color:#334155; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(row.district || 'Unassigned')}">${escapeHtml(row.district || 'Unassigned')}</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.4px;">User ID</div>
+            <div style="font-weight:600; color:#334155; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(row.userId || 'Unassigned')}">${escapeHtml(row.userId || 'Unassigned')}</div>
+          </div>
+        </div>
+      `;
+    }
 
     const container = document.getElementById('auditTimelineContainer');
     container.innerHTML = '';
 
     const trail = row.auditTrail || [];
     if (trail.length === 0) {
-      container.innerHTML = '<div style="color:#94A3B8; text-align:center; padding:20px;">No audit history found for this record.</div>';
+      container.innerHTML = '<div style="color:#64748B; text-align:center; padding:24px; background:#F8FAFC; border:1px dashed #CBD5E1; border-radius:8px;">No audit history recorded yet for this territory.</div>';
     } else {
-      trail.forEach(item => {
+      trail.forEach((item, idx) => {
+        const meta = formatAuditActionMeta(item.action);
+        const actor = item.user || (authenticatedUser ? authenticatedUser.email : 'SFE Lead');
+        const detailText = decodeAuditText(item.details || 'Status or assignment updated.');
         const div = document.createElement('div');
-        div.style = 'background:#F8FAFC; border:1.5px solid #E2E8F0; border-radius:6px; padding:10px 14px;';
+        div.style = `background:#FFFFFF; border:1.5px solid #E2E8F0; border-left:4px solid ${meta.color}; border-radius:8px; padding:12px 14px;`;
         div.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span class="badge badge-changed">${escapeHtml(item.action)}</span>
-            <span style="font-size:11px; color:#64748B;">${escapeHtml(item.timestamp)}</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+            <span class="badge" style="background:${meta.bg}; color:${meta.color}; border:1px solid ${meta.border}; font-weight:700; font-size:11px; padding:2px 9px;">${escapeHtml(meta.label)}</span>
+            <span style="font-size:11px; color:#64748B; font-weight:600;">${escapeHtml(item.timestamp || 'Recorded')}${idx === 0 ? ' • Latest' : ''}</span>
           </div>
-          <div style="font-size:12.5px; color:#0F172A; margin-bottom:4px; font-weight:500;">${escapeHtml(item.details)}</div>
-          <div style="font-size:11px; color:#0066FF; font-weight:600;">Logged by: ${escapeHtml(item.user)}</div>
+          <div style="font-size:13px; color:#0F172A; line-height:1.5; font-weight:500; margin-bottom:6px;">${escapeHtml(detailText)}</div>
+          <div style="font-size:11px; color:#475569; font-weight:600;">Performed by: <span style="color:#0284C7;">${escapeHtml(actor)}</span></div>
         `;
         container.appendChild(div);
       });
@@ -16595,14 +16744,13 @@ const BASELINE_ERP_TERRITORIES = [
         <tr>
           <td colspan="7" style="text-align:center; padding:60px 24px; background:#FFFFFF; border:none;">
             <div style="max-width:480px; margin:0 auto; padding:36px 28px; background:#F8FAFC; border:1.5px dashed #CBD5E1; border-radius:14px; box-shadow:0 4px 16px rgba(0,0,0,0.03);">
-              <div style="width:58px; height:58px; border-radius:50%; background:#EFF6FF; color:#0066FF; display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 16px auto; box-shadow:0 2px 10px rgba(0,102,255,0.14);">👁️‍🗨️</div>
               <div style="font-size:16px; font-weight:800; color:#0F172A; margin-bottom:8px; letter-spacing:-0.2px;">All Archive Vault Columns Are Hidden</div>
               <div style="font-size:12.5px; color:#64748B; line-height:1.6; margin-bottom:22px;">
                 All archive data columns are currently hidden. Select columns to view from the <strong>Columns (0/7) ▾</strong> menu above, or restore all columns in one click:
               </div>
               <div style="display:flex; justify-content:center; gap:10px;">
                 <button type="button" class="btn btn-primary" onclick="setAllArcColumnsVisibility(true)" style="background:#0066FF; color:#FFFFFF; font-weight:700; padding:9px 22px; border-radius:7px; font-size:12.5px; box-shadow:0 2px 8px rgba(0,102,255,0.25); cursor:pointer; border:none; display:inline-flex; align-items:center; gap:6px;">
-                  👁️ Restore All Columns
+                  Restore All Columns
                 </button>
               </div>
             </div>
@@ -16674,7 +16822,6 @@ const BASELINE_ERP_TERRITORIES = [
         arcTbody.innerHTML = `
           <tr>
             <td colspan="7" style="text-align:center; padding:24px 16px; color:#64748B;">
-              <div style="font-size:22px; margin-bottom:6px;">🔍</div>
               <div style="font-size:12.5px; font-weight:700; color:#1E293B;">No matching archived territory records found</div>
               <div style="font-size:11px; color:#94A3B8; margin-top:4px;">
                 <a href="javascript:void(0)" onclick="clearArcFilter()" style="color:#0066FF; font-weight:700; text-decoration:underline;">Reset Vault Filter</a>
@@ -16746,13 +16893,13 @@ const BASELINE_ERP_TERRITORIES = [
       if (!archivedRecords || archivedRecords.length === 0) {
         const opt = document.createElement('option');
         opt.value = '';
-        opt.innerText = '📁 Archived Territories Folder (0 Available • Active for Future SFE Deployments)';
+        opt.innerText = 'Archived Territories Folder (0 Available • Active for Future SFE Deployments)';
         selectEl.appendChild(opt);
         if (btnRestoreAll) btnRestoreAll.style.display = 'none';
       } else {
         const defOpt = document.createElement('option');
         defOpt.value = '';
-        defOpt.innerText = `📁 Select Archived Territory (${archivedRecords.length} available)...`;
+        defOpt.innerText = `Select Archived Territory (${archivedRecords.length} available)...`;
         selectEl.appendChild(defOpt);
 
         archivedRecords.forEach(arc => {
@@ -16761,7 +16908,7 @@ const BASELINE_ERP_TERRITORIES = [
           const rep = arc.assignedRep || arc.rep || 'Unassigned / Reserved';
           const docs = arc.doctorsCovered || arc.docs || 0;
           opt.value = code;
-          opt.innerText = `📁 ${code} — ${rep} (${docs} Docs Preserved)`;
+          opt.innerText = `${code} — ${rep} (${docs} Docs Preserved)`;
           selectEl.appendChild(opt);
         });
 
@@ -16776,7 +16923,6 @@ const BASELINE_ERP_TERRITORIES = [
       if (!archivedRecords || archivedRecords.length === 0) {
         cardsList.innerHTML = `
           <div style="padding:28px 20px; text-align:center; background:#F8FAFC; border:1.5px dashed #CBD5E1; border-radius:8px;">
-            <div style="font-size:28px; margin-bottom:8px;">📁</div>
             <div style="font-size:14px; font-weight:800; color:#0F172A; margin-bottom:4px;">Archived Territories Folder (Empty)</div>
             <div style="font-size:12px; color:#64748B; max-width:480px; margin:0 auto; line-height:1.5;">
               Active and ready for future SFE commercial realignments. Any territories decommissioned during SFE cycle planning will automatically appear in this archive dropdown folder with full physician preservation.
@@ -16802,7 +16948,6 @@ const BASELINE_ERP_TERRITORIES = [
 
           card.innerHTML = `
             <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
-              <span style="font-size:20px; line-height:1; flex-shrink:0;">📄</span>
               <div style="min-width:0;">
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                   <strong style="color:#0066FF; font-size:13.5px; font-family:monospace;">${escapeHtml(code)}</strong>
@@ -17226,14 +17371,13 @@ const BASELINE_ERP_TERRITORIES = [
         <tr>
           <td colspan="6" style="text-align:center; padding:60px 24px; background:#FFFFFF; border:none;">
             <div style="max-width:480px; margin:0 auto; padding:36px 28px; background:#F8FAFC; border:1.5px dashed #CBD5E1; border-radius:14px; box-shadow:0 4px 16px rgba(0,0,0,0.03);">
-              <div style="width:58px; height:58px; border-radius:50%; background:#EFF6FF; color:#0066FF; display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 16px auto; box-shadow:0 2px 10px rgba(0,102,255,0.14);">👁️‍🗨️</div>
               <div style="font-size:16px; font-weight:800; color:#0F172A; margin-bottom:8px; letter-spacing:-0.2px;">All Audit Trail Columns Are Hidden</div>
               <div style="font-size:12.5px; color:#64748B; line-height:1.6; margin-bottom:22px;">
                 All audit log columns are currently hidden. Select columns to view from the <strong>Columns (0/6) ▾</strong> menu above, or restore all columns in one click:
               </div>
               <div style="display:flex; justify-content:center; gap:10px;">
                 <button type="button" class="btn btn-primary" onclick="setAllAuditColumnsVisibility(true)" style="background:#0066FF; color:#FFFFFF; font-weight:700; padding:9px 22px; border-radius:7px; font-size:12.5px; box-shadow:0 2px 8px rgba(0,102,255,0.25); cursor:pointer; border:none; display:inline-flex; align-items:center; gap:6px;">
-                  👁️ Restore All Columns
+                  Restore All Columns
                 </button>
               </div>
             </div>
@@ -17310,22 +17454,20 @@ const BASELINE_ERP_TERRITORIES = [
         visibleLogsCount++;
         const tr = document.createElement('tr');
         
-        let actionBadgeClass = 'badge-changed';
-        if (log.action === 'INITIAL_SYNC') actionBadgeClass = 'badge-unchanged';
-        else if (log.action === 'ARCHIVED' || log.action === 'BULK_DELETE' || log.action === 'BULK_DECOMMISSION' || log.action === 'TAG_INACTIVE' || log.action === 'DEACTIVATED') actionBadgeClass = 'badge-archive';
-        else if (log.action === 'REACTIVATED' || log.action === 'BULK_ADD') actionBadgeClass = 'badge-unchanged';
-
-        const isLongText = (log.details || '').length > 80;
+        const actionMeta = formatAuditActionMeta(log.action);
+        const cleanDetails = decodeAuditText(log.details || '');
+        const cleanCode = decodeAuditText(log.territoryCode || '');
+        const isLongText = cleanDetails.length > 90;
         const detailsDisplay = isLongText
-          ? `<span>${escapeHtml(log.details.substring(0, 80))}...</span> <button type="button" onclick="openAuditModal('${escapeHtml(log.territoryCode)}')" style="background:none; border:none; color:#0066FF; font-weight:700; font-size:11px; cursor:pointer; padding:0; text-decoration:underline;" title="View full audit trail">[View Details ↗]</button>`
-          : escapeHtml(log.details || '');
+          ? `<span>${escapeHtml(cleanDetails.substring(0, 90))}...</span> <button type="button" onclick="openAuditModal('${escapeHtml(cleanCode || log.recordId)}')" style="background:none; border:none; color:#0066FF; font-weight:700; font-size:11px; cursor:pointer; padding:0; text-decoration:underline;" title="View full audit trail">View Details</button>`
+          : escapeHtml(cleanDetails);
 
         tr.innerHTML = `
-          <td class="col-audit-time" style="${auditColumnVisibility.time ? '' : 'display:none;'}"><span style="font-size:11.5px; color:#334155; font-weight:600;">${escapeHtml(log.timestamp)}</span></td>
-          <td class="col-audit-id" style="${auditColumnVisibility.id ? '' : 'display:none;'}"><code onclick="openAuditModal('${escapeHtml(log.recordId)}')" title="Click to view audit history for this territory" style="cursor:pointer; color:#0066FF; text-decoration:underline;">${escapeHtml(log.recordId)}</code></td>
-          <td class="col-audit-action" style="${auditColumnVisibility.action ? '' : 'display:none;'}"><span class="badge ${actionBadgeClass}">${escapeHtml(log.action)}</span></td>
-          <td class="col-audit-code" style="${auditColumnVisibility.code ? '' : 'display:none;'}"><a href="javascript:void(0)" onclick="openAuditModal('${escapeHtml(log.territoryCode)}')" title="Click to view full audit trail for this territory" style="color:#0066FF; font-weight:700; text-decoration:underline; cursor:pointer;">${escapeHtml(log.territoryCode)}</a></td>
-          <td class="col-audit-user" style="${auditColumnVisibility.user ? '' : 'display:none;'}"><span style="font-size:11.5px; color:#0F172A; font-weight:600;">${escapeHtml(log.user)}</span></td>
+          <td class="col-audit-time" style="${auditColumnVisibility.time ? '' : 'display:none;'}"><span style="font-size:11.5px; color:#334155; font-weight:600;">${escapeHtml(log.timestamp || 'Recorded')}</span></td>
+          <td class="col-audit-id" style="${auditColumnVisibility.id ? '' : 'display:none;'}"><code onclick="openAuditModal('${escapeHtml(log.recordId)}')" title="Click to view audit history for this territory" style="cursor:pointer; color:#0066FF; text-decoration:underline;">${escapeHtml(log.recordId || '---')}</code></td>
+          <td class="col-audit-action" style="${auditColumnVisibility.action ? '' : 'display:none;'}"><span class="badge" style="background:${actionMeta.bg}; color:${actionMeta.color}; border:1px solid ${actionMeta.border}; font-weight:700;">${escapeHtml(actionMeta.label)}</span></td>
+          <td class="col-audit-code" style="${auditColumnVisibility.code ? '' : 'display:none;'}"><a href="javascript:void(0)" onclick="openAuditModal('${escapeHtml(cleanCode || log.recordId)}')" title="Click to view full audit trail for this territory" style="color:#0066FF; font-weight:700; text-decoration:underline; cursor:pointer;">${escapeHtml(cleanCode)}</a></td>
+          <td class="col-audit-user" style="${auditColumnVisibility.user ? '' : 'display:none;'}"><span style="font-size:11.5px; color:#0F172A; font-weight:600;">${escapeHtml(log.user || 'SFE Lead')}</span></td>
           <td class="col-audit-details" style="font-size:12px; color:#475569; ${auditColumnVisibility.details ? '' : 'display:none;'}">${detailsDisplay}</td>
         `;
         tbody.appendChild(tr);
@@ -17341,7 +17483,6 @@ const BASELINE_ERP_TERRITORIES = [
       tbody.innerHTML = `
         <tr>
           <td colspan="6" style="text-align:center; padding:32px 16px; color:#64748B;">
-            <div style="font-size:24px; margin-bottom:6px;">🔍</div>
             <div style="font-size:13px; font-weight:700; color:#1E293B;">No matching audit trail logs found</div>
             <div style="font-size:11.5px; color:#94A3B8; margin-top:4px;">
               No entries matched your search criteria.
@@ -17619,7 +17760,6 @@ const BASELINE_ERP_TERRITORIES = [
       const searchVal = (document.getElementById('coveredDocsSearchInput')?.value || '').trim();
       container.innerHTML = `
         <div style="text-align:center; padding:32px 20px; background:#F8FAFC; border:1.5px dashed #CBD5E1; border-radius:10px; margin:8px 0;">
-          <div style="font-size:30px; margin-bottom:8px;">🩺</div>
           <div style="font-size:14.5px; font-weight:800; color:#0F172A; margin-bottom:4px;">No Doctors Found</div>
           <div style="font-size:12px; color:#64748B; max-width:440px; margin:0 auto; line-height:1.5;">
             ${searchVal 
@@ -18194,19 +18334,23 @@ const BASELINE_ERP_TERRITORIES = [
     });
 
     // Record Audit Trails
-    const auditDetail = `Reassignment Handover: ${transferredToTargetCount} docs moved from ${sourceRep} (${sourceCode}) to ${targetRep} (${targetCode}). ${customNotes ? `Note: ${customNotes}` : ''}`;
-    
+    const auditDetail = `Transferred ${transferredToTargetCount} doctor(s) from ${sourceRep} (${sourceCode}) to ${targetRep} (${targetCode}). ${customNotes ? `Note: ${customNotes}` : ''}`;
+    const transferActor = (authenticatedUser && authenticatedUser.email)
+      ? `${authenticatedUser.email} [${authenticatedUser.role_title || 'SFE Lead'}]`
+      : 'SFE Lead';
+
     if (!activeTransferTargetRow.auditTrail) activeTransferTargetRow.auditTrail = [];
-    activeTransferTargetRow.auditTrail.unshift({ timestamp: nowStr, details: auditDetail });
+    activeTransferTargetRow.auditTrail.unshift({ timestamp: nowStr, action: 'DOCTOR_TRANSFER_HANDOVER', user: transferActor, details: auditDetail });
 
     if (!activeTransferSourceRow.auditTrail) activeTransferSourceRow.auditTrail = [];
-    activeTransferSourceRow.auditTrail.unshift({ timestamp: nowStr, details: auditDetail });
+    activeTransferSourceRow.auditTrail.unshift({ timestamp: nowStr, action: 'DOCTOR_TRANSFER_HANDOVER', user: transferActor, details: auditDetail });
 
     globalAuditLogs.unshift({
       timestamp: nowStr,
       recordId: activeTransferTargetRow.recordId,
       activeCode: targetCode,
       rep: targetRep,
+      user: transferActor,
       action: 'DOCTOR_TRANSFER_HANDOVER',
       details: auditDetail
     });
@@ -18332,7 +18476,7 @@ const BASELINE_ERP_TERRITORIES = [
               <span style="color:#64748B; font-size:10.5px; margin-left:6px;">(${escapeHtml(d.spec || 'General Practice')})</span>
             </div>
             <div style="font-size:10.5px; color:#64748B; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:240px;">
-              🏥 ${escapeHtml(d.hospital || 'Workplace Unassigned')}
+              ${escapeHtml(d.hospital || 'Workplace Unassigned')}
             </div>
           </div>
         `).join('');
@@ -18375,7 +18519,7 @@ const BASELINE_ERP_TERRITORIES = [
     if (newUserIdInp) newUserIdInp.value = '';
     const noticeEl = document.getElementById('resignHrValidationNotice');
     if (noticeEl) {
-      noticeEl.innerText = '⚠️ Please select a registered MedRep';
+      noticeEl.innerText = 'Please select a registered MedRep';
       noticeEl.style.color = '#B45309';
     }
 
@@ -18422,7 +18566,7 @@ const BASELINE_ERP_TERRITORIES = [
     if (!repName) {
       if (userIdInp) userIdInp.value = '';
       if (noticeEl) {
-        noticeEl.innerText = '⚠️ Please select a registered MedRep';
+        noticeEl.innerText = 'Please select a registered MedRep';
         noticeEl.style.color = '#B45309';
       }
       return;
@@ -18439,10 +18583,10 @@ const BASELINE_ERP_TERRITORIES = [
     if (userIdInp) userIdInp.value = uid || 'Pending HR User Creation';
     if (noticeEl) {
       if (uid && uid.includes('@')) {
-        noticeEl.innerText = '✓ Validated against ERPNext HR Masterlist (' + uid + ')';
+        noticeEl.innerText = 'Validated against ERPNext HR Masterlist (' + uid + ')';
         noticeEl.style.color = '#15803D';
       } else {
-        noticeEl.innerText = '⚠️ User ID pending creation in ERPNext User Doctype';
+        noticeEl.innerText = 'User ID pending creation in ERPNext User Doctype';
         noticeEl.style.color = '#B45309';
       }
     }
@@ -18520,15 +18664,19 @@ const BASELINE_ERP_TERRITORIES = [
     activeResignTerritoryRow.docs = activeResignDoctors.length;
 
     // 4. Audit logging
-    const auditDetail = `Resignation Handover: Reassigned territory ${terrCode} from ${oldRep} to ${newRep}. Merged all ${transferredCount} HCPs to new MedRep.`;
+    const auditDetail = `MedRep Handover: Reassigned territory ${terrCode} from ${oldRep} to ${newRep}. Merged all ${transferredCount} HCPs to new MedRep.`;
+    const handoverActor = (authenticatedUser && authenticatedUser.email)
+      ? `${authenticatedUser.email} [${authenticatedUser.role_title || 'SFE Lead'}]`
+      : 'SFE Lead';
     if (!activeResignTerritoryRow.auditTrail) activeResignTerritoryRow.auditTrail = [];
-    activeResignTerritoryRow.auditTrail.unshift({ timestamp: nowStr, details: auditDetail });
+    activeResignTerritoryRow.auditTrail.unshift({ timestamp: nowStr, action: 'RESIGNATION_HANDOVER_QUICK_MERGE', user: handoverActor, details: auditDetail });
 
     globalAuditLogs.unshift({
       timestamp: nowStr,
       recordId: activeResignTerritoryRow.recordId,
       activeCode: terrCode,
       rep: newRep,
+      user: handoverActor,
       action: 'RESIGNATION_HANDOVER_QUICK_MERGE',
       details: auditDetail
     });
@@ -19205,12 +19353,9 @@ const BASELINE_ERP_TERRITORIES = [
   <div class="modal-overlay" id="archivedRecordPreviewModalOverlay">
     <div class="modal-card" style="background:#FFFFFF; border:1.5px solid #E2E8F0; color:#0F172A; max-width:480px; border-radius:12px; padding:22px; box-shadow:0 20px 48px rgba(0,0,0,0.18);">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #E2E8F0; padding-bottom:12px;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-          <div>
-            <h3 style="font-size:15px; font-weight:800; color:#0F172A; margin:0;">Archived Territory Details</h3>
-            <span style="font-size:11.5px; color:#64748B;">Preserved from previous reconfiguration cycle</span>
-          </div>
+        <div>
+          <h3 style="font-size:15px; font-weight:800; color:#0F172A; margin:0;">Archived Territory Details</h3>
+          <span style="font-size:11.5px; color:#64748B;">Preserved from previous reconfiguration cycle</span>
         </div>
         <button type="button" onclick="closeArchivedRecordPreviewModal()" style="background:none; border:none; color:#64748B; font-size:18px; cursor:pointer;">✕</button>
       </div>
@@ -19218,7 +19363,7 @@ const BASELINE_ERP_TERRITORIES = [
       <div style="display:flex; flex-direction:column; gap:10px; font-size:12.5px; margin-bottom:20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#F8FAFC; border-radius:6px; border:1px solid #E2E8F0;">
           <span style="color:#64748B; font-weight:600;">Folder Location:</span>
-          <strong style="color:#DC2626; display:inline-flex; align-items:center; gap:5px;">📁 Archived Territories (Folder)</strong>
+          <strong style="color:#DC2626;">Archived Territories (Folder)</strong>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#F8FAFC; border-radius:6px; border:1px solid #E2E8F0;">
           <span style="color:#64748B; font-weight:600;">Territory Code:</span>
@@ -19280,81 +19425,33 @@ const BASELINE_ERP_TERRITORIES = [
   </div>
   <div class="grid-actions-list">
     <button type="button" class="grid-action-item" id="gridActionEdit" onclick="handleGridActionClick('edit')">
-      <span class="grid-action-icon edit-icon">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-        </svg>
-      </span>
       <span class="grid-action-title">Edit</span>
     </button>
     <button type="button" class="grid-action-item" id="gridActionAddChild" onclick="handleGridActionClick('add_child')">
-      <span class="grid-action-icon add-icon">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="16"></line>
-          <line x1="8" y1="12" x2="16" y2="12"></line>
-        </svg>
-      </span>
       <span class="grid-action-title">Add Child</span>
     </button>
     <button type="button" class="grid-action-item" id="gridActionRename" onclick="handleGridActionClick('rename')">
-      <span class="grid-action-icon rename-icon">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-          <line x1="7" y1="7" x2="7.01" y2="7"></line>
-        </svg>
-      </span>
       <span class="grid-action-title">Rename</span>
     </button>
 
     <div class="grid-actions-divider"></div>
 
     <button type="button" class="grid-action-item" id="gridActionSetActive" onclick="handleGridActionClick('set_active')" style="color:#15803D;">
-      <span class="grid-action-icon" style="background:#DCFCE7; color:#15803D; border:1px solid #86EFAC;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-      </span>
-      <span class="grid-action-title">Set Active</span>
+      <span class="grid-action-title" style="color:#15803D;">Set Active</span>
     </button>
     <button type="button" class="grid-action-item" id="gridActionTagVacant" onclick="handleGridActionClick('tag_vacant')" style="color:#D97706;">
-      <span class="grid-action-icon" style="background:#FEF3C7; color:#D97706; border:1px solid #FDE68A;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="8" y1="12" x2="16" y2="12"></line>
-        </svg>
-      </span>
-      <span class="grid-action-title">Tag as Vacant</span>
+      <span class="grid-action-title" style="color:#D97706;">Vacant</span>
     </button>
     <button type="button" class="grid-action-item" id="gridActionDeactivate" onclick="handleGridActionClick('tag_inactive')" style="color:#DC2626;">
-      <span class="grid-action-icon" style="background:#FEF2F2; color:#DC2626; border:1px solid #FECACA;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-        </svg>
-      </span>
-      <span class="grid-action-title">Tag as Inactive</span>
+      <span class="grid-action-title" style="color:#DC2626;">Inactive</span>
     </button>
-    
+
     <div class="grid-actions-divider"></div>
 
-
     <button type="button" class="grid-action-item" id="gridActionTransferHandover" onclick="handleGridActionClick('transfer_handover')">
-      <span class="grid-action-icon" style="background:#EFF6FF; color:#0066FF; border-color:#BFDBFE;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path>
-        </svg>
-      </span>
-      <span class="grid-action-title">Transfer &amp; Handover</span>
+      <span class="grid-action-title" style="color:#0066FF;">Transfer Doctor</span>
     </button>
     <button type="button" class="grid-action-item" id="gridActionAudit" onclick="handleGridActionClick('audit')">
-      <span class="grid-action-icon audit-icon">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="12 6 12 12 16 14"></polyline>
-        </svg>
-      </span>
       <span class="grid-action-title">Audit Trail</span>
     </button>
   </div>
@@ -19364,10 +19461,7 @@ const BASELINE_ERP_TERRITORIES = [
 <div class="modal-overlay" id="inactiveModalOverlay">
   <div class="modal-card" style="max-width:480px; border-radius:12px; border:1.5px solid #CBD5E1; box-shadow:0 16px 40px rgba(0,0,0,0.15);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1.5px solid #E2E8F0; padding-bottom:10px;">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size:20px;">⚙️</span>
-        <h3 style="font-size:15px; font-weight:800; color:#0F172A; margin:0;">Update Territory Operational Status</h3>
-      </div>
+      <h3 style="font-size:15px; font-weight:800; color:#0F172A; margin:0;">Update Territory Operational Status</h3>
       <button type="button" onclick="closeTagInactiveModal()" style="background:none; border:none; color:#94A3B8; font-size:18px; cursor:pointer; line-height:1;">✕</button>
     </div>
 
@@ -19375,7 +19469,7 @@ const BASELINE_ERP_TERRITORIES = [
 
     <div style="background:#FFFBEB; border:1.5px solid #FDE68A; padding:12px 14px; border-radius:8px; margin-bottom:14px;">
       <div style="font-size:12.5px; color:#92400E; font-weight:700; margin-bottom:4px;">
-        🛡️ SFE Zero Data Loss &amp; 3-State Status Policy
+        SFE Zero Data Loss &amp; 3-State Status Policy
       </div>
       <div style="font-size:11.5px; color:#78350F; line-height:1.5;">
         Territories are <strong>never deleted</strong>. Choose between <strong>Active</strong> (assigned coverage), <strong>Vacant</strong> (open slot awaiting MedRep assignment), or <strong>Inactive</strong> (decommissioned / resigned slot preserved in Archive Directory).
@@ -19391,9 +19485,9 @@ const BASELINE_ERP_TERRITORIES = [
     <div style="margin-bottom:14px;">
       <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">Select Operational Status</label>
       <select id="inactiveTargetStatusSelect" onchange="onInactiveModalStatusChange(this.value)" style="width:100%; height:38px; padding:0 12px; border-radius:6px; border:1.5px solid #CBD5E1; font-size:13px; font-weight:700; color:#0F172A; background:#FFFFFF;">
-        <option value="Active">🟢 Active — Assigned &amp; Operational</option>
-        <option value="Vacant">🟡 Vacant — Open Territory Slot (Unassigned)</option>
-        <option value="Inactive">🔴 Inactive — Decommissioned / Resigned</option>
+        <option value="Active">Active — Assigned &amp; Operational</option>
+        <option value="Vacant">Vacant — Open Territory Slot (Unassigned)</option>
+        <option value="Inactive">Inactive — Decommissioned / Resigned</option>
       </select>
       <div id="inactiveModalStatusEffectText" style="margin-top:8px; font-size:11.5px; color:#64748B;">
         Status will update and synchronize across Table Grid, Territory Tree, and ERPNext.
@@ -19635,53 +19729,24 @@ const BASELINE_ERP_TERRITORIES = [
   </div>
   <div class="grid-actions-list">
     <button type="button" class="grid-action-item" id="instActionApprove" onclick="handleInstActionMenuClick('approve')">
-      <span class="grid-action-icon add-icon">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-        </svg>
-      </span>
       <span class="grid-action-title" id="instActionApproveLabel">Approve</span>
     </button>
 
     <button type="button" class="grid-action-item" id="instActionNormalize" onclick="handleInstActionMenuClick('normalize')">
-      <span class="grid-action-icon edit-icon">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-        </svg>
-      </span>
       <span class="grid-action-title">Normalize &amp; Standardize</span>
     </button>
 
     <button type="button" class="grid-action-item" id="instActionRemap" onclick="handleInstActionMenuClick('remap')">
-      <span class="grid-action-icon" style="background:#EFF6FF; color:#0066FF; border:1px solid #BFDBFE;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path>
-        </svg>
-      </span>
       <span class="grid-action-title">Remap Duplicate</span>
     </button>
 
     <button type="button" class="grid-action-item" id="instActionReject" onclick="handleInstActionMenuClick('reject')" style="color:#D97706;">
-      <span class="grid-action-icon" style="background:#FEF3C7; color:#D97706; border:1px solid #FDE68A;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-        </svg>
-      </span>
       <span class="grid-action-title">Reject Proposal</span>
     </button>
 
     <div class="grid-actions-divider"></div>
 
     <button type="button" class="grid-action-item" id="instActionAudit" onclick="handleInstActionMenuClick('audit')">
-      <span class="grid-action-icon audit-icon">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="12 6 12 12 16 14"></polyline>
-        </svg>
-      </span>
       <span class="grid-action-title">Audit Trail</span>
     </button>
   </div>
@@ -19694,18 +19759,9 @@ const BASELINE_ERP_TERRITORIES = [
     
     <!-- Modal Header -->
     <div style="background:#0B192C; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #1E293B;">
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:rgba(0,102,255,0.2); color:#60A5FA;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="12" y1="8" x2="12" y2="16"></line>
-            <line x1="8" y1="12" x2="16" y2="12"></line>
-          </svg>
-        </span>
-        <div>
-          <h3 style="font-size:15px; font-weight:800; color:#FFFFFF; margin:0;">+ Propose New Facility (MedRep Submission)</h3>
-          <div style="font-size:11px; color:#94A3B8; margin-top:2px;">Step 1: Classification &bull; Step 2: Facility Name &bull; Step 3: Location</div>
-        </div>
+      <div>
+        <h3 style="font-size:15px; font-weight:800; color:#FFFFFF; margin:0;">+ Propose New Facility (MedRep Submission)</h3>
+        <div style="font-size:11px; color:#94A3B8; margin-top:2px;">Step 1: Classification &bull; Step 2: Facility Name &bull; Step 3: Location</div>
       </div>
       <button type="button" onclick="closeSfeProposeInstitutionModal()" style="border:none; background:rgba(255,255,255,0.1); color:#94A3B8; width:28px; height:28px; border-radius:6px; cursor:pointer; font-size:16px; font-weight:bold; display:flex; align-items:center; justify-content:center;">&times;</button>
     </div>
@@ -21400,7 +21456,7 @@ const BASELINE_ERP_TERRITORIES = [
         certBox.style.background = '#F0FDF4';
       }
       if (certText) {
-        certText.textContent = '✓ Certified accurate & active for coverage. Location fields unlocked for encoding.';
+        certText.textContent = 'Certified accurate & active for coverage. Location fields unlocked for encoding.';
         certText.style.color = '#15803D';
         certText.style.fontWeight = '700';
       }
