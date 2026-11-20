@@ -120,7 +120,7 @@ def save_shared_territory_state(state):
     except Exception as e:
         print(f"[Shared Territory Save Error] {e}")
 
-def record_shared_territory_add(name, parent, is_group, manager="", user_id="", program=""):
+def record_shared_territory_add(name, parent, is_group, manager="", user_id="", program="", pending_erp_sync=False):
     if not name:
         return
     st_data = load_shared_territory_state()
@@ -137,7 +137,8 @@ def record_shared_territory_add(name, parent, is_group, manager="", user_id="", 
         "custom_user_id": user_id or "",
         "custom_account_or_program": program or "Abbott Diabetes Care",
         "operational_status": "Active" if manager or is_group else "Vacant",
-        "status": "Active" if manager or is_group else "Vacant"
+        "status": "Active" if manager or is_group else "Vacant",
+        "pending_erp_sync": bool(pending_erp_sync)
     }
     save_shared_territory_state(st_data)
 
@@ -280,21 +281,26 @@ def record_shared_territory_deletion(name):
     terrs.pop(name, None)
     save_shared_territory_state(st_data)
 
-def merge_shared_territories_into_list(terrs_list):
+def merge_shared_territories_into_list(terrs_list, is_live_erpnext=False):
     st_data = load_shared_territory_state()
-    del_set = set(st_data.get("deleted", []))
-    renames = st_data.get("renames", {})
-    custom_terrs = st_data.get("territories", {})
+    del_list = st_data.setdefault("deleted", [])
+    del_set = set(del_list)
+    renames = st_data.setdefault("renames", {})
+    custom_terrs = st_data.setdefault("territories", {})
+    state_dirty = False
 
     merged = []
     seen = set()
+    raw_live_names = set()
     existing_unrenamed = set()
     if isinstance(terrs_list, list):
         for orig_t in terrs_list:
             if isinstance(orig_t, dict):
                 n = orig_t.get("name") or orig_t.get("territory_name")
-                if n and n not in renames and n not in del_set:
-                    existing_unrenamed.add(n)
+                if n:
+                    raw_live_names.add(n)
+                    if n not in renames and n not in del_set:
+                        existing_unrenamed.add(n)
 
     if isinstance(terrs_list, list):
         for orig_t in terrs_list:
@@ -334,14 +340,46 @@ def merge_shared_territories_into_list(terrs_list):
                     if "status" in c:
                         t["status"] = c["status"]
                         t["operational_status"] = c["status"]
+                    if is_live_erpnext and c.get("pending_erp_sync"):
+                        c["pending_erp_sync"] = False
+                        state_dirty = True
             seen.add(name)
             merged.append(t)
 
-    # Append only full custom territories created by SFE that aren't yet in upstream ERPNext list
-    for c_name, c_node in custom_terrs.items():
-        if c_name not in seen and c_name not in del_set and isinstance(c_node, dict) and c_node.get("parent_territory"):
-            seen.add(c_name)
-            merged.append(dict(c_node))
+    if is_live_erpnext:
+        # Live ERPNext is authoritative for existence: only retain non-live entries queued offline (pending_erp_sync)
+        for c_name, c_node in list(custom_terrs.items()):
+            if c_name in seen:
+                continue
+            if isinstance(c_node, dict) and c_node.get("pending_erp_sync") is True and c_name not in del_set and c_node.get("parent_territory"):
+                seen.add(c_name)
+                c_copy = dict(c_node)
+                c_copy.pop("pending_erp_sync", None)
+                merged.append(c_copy)
+            else:
+                custom_terrs.pop(c_name, None)
+                state_dirty = True
+
+        pruned_deleted = [d for d in del_list if d in raw_live_names]
+        if len(pruned_deleted) != len(del_list):
+            st_data["deleted"] = pruned_deleted
+            state_dirty = True
+
+        pruned_renames = {k: v for k, v in renames.items() if k in raw_live_names}
+        if len(pruned_renames) != len(renames):
+            st_data["renames"] = pruned_renames
+            state_dirty = True
+
+        if state_dirty:
+            save_shared_territory_state(st_data)
+    else:
+        # Offline/unreachable ERPNext fallback: preserve cached territories for 24/7 continuity
+        for c_name, c_node in custom_terrs.items():
+            if c_name not in seen and c_name not in del_set and isinstance(c_node, dict) and c_node.get("parent_territory"):
+                seen.add(c_name)
+                c_copy = dict(c_node)
+                c_copy.pop("pending_erp_sync", None)
+                merged.append(c_copy)
 
     return merged
 
@@ -911,7 +949,7 @@ def verify_erpnext_credentials(usr, pwd, client_failed_attempts=0):
 
 def fetch_live_territories(opener):
     if not opener:
-        return merge_shared_territories_into_list([])
+        return merge_shared_territories_into_list([], is_live_erpnext=False)
     for fields_list in [
         ["name", "territory_name", "parent_territory", "is_group", "territory_manager", "custom_user_id", "custom_account_or_program"],
         ["name", "territory_name", "parent_territory", "is_group", "territory_manager"]
@@ -922,12 +960,12 @@ def fetch_live_territories(opener):
             req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
             res = call_erpnext_resiliently(opener, req, timeout=12)
             data = json.loads(res.read().decode("utf-8")).get("data", [])
-            if data is not None:
-                return merge_shared_territories_into_list(data)
+            if isinstance(data, list) and len(data) > 0:
+                return merge_shared_territories_into_list(data, is_live_erpnext=True)
         except Exception as e:
             print(f"[Streamlit Proxy] fetch_live_territories fallback with {fields_list}: {e}")
             continue
-    return merge_shared_territories_into_list([])
+    return merge_shared_territories_into_list([], is_live_erpnext=False)
 
 def fetch_live_sales_persons(opener):
     if not opener:
@@ -2177,9 +2215,6 @@ def execute_tree_action(opener, action, payload):
             resolved_mgr = _resolve_sales_person_for_manager(opener, t_mgr, headers_json) if t_mgr else None
             resolved_uid = _resolve_user_id(opener, custom_uid, headers_json) if custom_uid else None
 
-            # Multi-User Real-time Mirroring: Immediately persist to shared territory state
-            record_shared_territory_add(t_name, parent, is_group, manager=resolved_mgr or t_mgr, user_id=resolved_uid or custom_uid, program=custom_prog)
-
             body = {
                 "territory_name": t_name,
                 "parent_territory": parent or "All Territories",
@@ -2251,6 +2286,17 @@ def execute_tree_action(opener, action, payload):
                             pass
             except Exception:
                 pass
+
+            # Persist locally only marking pending_erp_sync when upstream POST failed so ERPNext deletions remain authoritative
+            record_shared_territory_add(
+                t_name,
+                parent,
+                is_group,
+                manager=resolved_mgr or t_mgr,
+                user_id=resolved_uid or custom_uid,
+                program=custom_prog,
+                pending_erp_sync=(not success)
+            )
 
             # In all cases, immediately reflect node in session state live_territories so UI never wipes it
             if "live_territories" in st.session_state and isinstance(st.session_state["live_territories"], list):
