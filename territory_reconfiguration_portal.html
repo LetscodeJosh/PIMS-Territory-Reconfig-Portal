@@ -753,24 +753,28 @@
   }
 
   function onInactiveModalStatusChange(val) {
+    const titleEl = document.getElementById('inactiveModalTitle');
     const descEl = document.getElementById('inactiveModalStatusEffectText');
     const btnEl = document.getElementById('btnConfirmTerritoryStatus');
     if (val === 'Active') {
+      if (titleEl) titleEl.innerText = 'Set Territory Active';
       if (descEl) descEl.innerHTML = 'Status will update to <strong style="color:#15803D;">Active</strong> and restore the territory for active MedRep coverage.';
       if (btnEl) {
         btnEl.innerText = 'Confirm Set Active';
         btnEl.style.background = '#15803D';
       }
     } else if (val === 'Vacant') {
+      if (titleEl) titleEl.innerText = 'Tag Territory as Vacant';
       if (descEl) descEl.innerHTML = 'Status will update to <strong style="color:#D97706;">Vacant</strong> (open territory slot awaiting MedRep assignment) while preserving all affiliated doctors.';
       if (btnEl) {
-        btnEl.innerText = 'Confirm Tag as Vacant';
+        btnEl.innerText = 'Confirm Vacant';
         btnEl.style.background = '#D97706';
       }
     } else {
+      if (titleEl) titleEl.innerText = 'Tag Territory as Inactive';
       if (descEl) descEl.innerHTML = 'Status will update to <strong style="color:#475569;">Inactive</strong> and be preserved in the Archived Territories Directory.';
       if (btnEl) {
-        btnEl.innerText = 'Confirm Tag as Inactive';
+        btnEl.innerText = 'Confirm Inactive';
         btnEl.style.background = '#475569';
       }
     }
@@ -19457,41 +19461,25 @@ const BASELINE_ERP_TERRITORIES = [
   </div>
 </div>
 
-<!-- MODAL: Territory Operational Status Update (Active | Vacant | Inactive — 3 Separate Statuses) -->
+<!-- MODAL: Territory Operational Status Confirmation -->
 <div class="modal-overlay" id="inactiveModalOverlay">
-  <div class="modal-card" style="max-width:480px; border-radius:12px; border:1.5px solid #CBD5E1; box-shadow:0 16px 40px rgba(0,0,0,0.15);">
+  <div class="modal-card" style="max-width:460px; border-radius:12px; border:1.5px solid #CBD5E1; box-shadow:0 16px 40px rgba(0,0,0,0.15);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1.5px solid #E2E8F0; padding-bottom:10px;">
-      <h3 style="font-size:15px; font-weight:800; color:#0F172A; margin:0;">Update Territory Operational Status</h3>
+      <h3 id="inactiveModalTitle" style="font-size:15px; font-weight:800; color:#0F172A; margin:0;">Update Territory Operational Status</h3>
       <button type="button" onclick="closeTagInactiveModal()" style="background:none; border:none; color:#94A3B8; font-size:18px; cursor:pointer; line-height:1;">✕</button>
     </div>
 
     <input type="hidden" id="inactiveTerritoryCode">
+    <input type="hidden" id="inactiveTargetStatusSelect" value="Inactive">
 
-    <div style="background:#FFFBEB; border:1.5px solid #FDE68A; padding:12px 14px; border-radius:8px; margin-bottom:14px;">
-      <div style="font-size:12.5px; color:#92400E; font-weight:700; margin-bottom:4px;">
-        SFE Zero Data Loss &amp; 3-State Status Policy
-      </div>
-      <div style="font-size:11.5px; color:#78350F; line-height:1.5;">
-        Territories are <strong>never deleted</strong>. Choose between <strong>Active</strong> (assigned coverage), <strong>Vacant</strong> (open slot awaiting MedRep assignment), or <strong>Inactive</strong> (decommissioned / resigned slot preserved in Archive Directory).
-      </div>
-    </div>
-
-    <div style="font-size:12.5px; color:#334155; line-height:1.5; margin-bottom:14px;">
+    <div style="font-size:13px; color:#334155; line-height:1.65; margin-bottom:12px;">
       <div>Territory Code: <strong id="inactiveTerritoryName" style="color:#0066FF;">---</strong></div>
       <div style="margin-top:4px;">Current MedRep: <strong id="inactiveRepName" style="color:#0F172A;">---</strong></div>
       <div style="margin-top:4px;">Affiliated Doctors: <span class="badge badge-primary" id="inactiveDocCount">0 Doctors Preserved</span></div>
     </div>
 
-    <div style="margin-bottom:14px;">
-      <label style="display:block; font-size:11.5px; font-weight:700; color:#334155; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">Select Operational Status</label>
-      <select id="inactiveTargetStatusSelect" onchange="onInactiveModalStatusChange(this.value)" style="width:100%; height:38px; padding:0 12px; border-radius:6px; border:1.5px solid #CBD5E1; font-size:13px; font-weight:700; color:#0F172A; background:#FFFFFF;">
-        <option value="Active">Active — Assigned &amp; Operational</option>
-        <option value="Vacant">Vacant — Open Territory Slot (Unassigned)</option>
-        <option value="Inactive">Inactive — Decommissioned / Resigned</option>
-      </select>
-      <div id="inactiveModalStatusEffectText" style="margin-top:8px; font-size:11.5px; color:#64748B;">
-        Status will update and synchronize across Table Grid, Territory Tree, and ERPNext.
-      </div>
+    <div id="inactiveModalStatusEffectText" style="margin-bottom:16px; font-size:12px; color:#64748B; line-height:1.5;">
+      Status will update and synchronize across Table Grid, Territory Tree, and ERPNext.
     </div>
 
     <div style="display:flex; justify-content:flex-end; gap:10px;">
