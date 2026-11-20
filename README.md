@@ -1,8 +1,8 @@
-# PIMS Territory Reconfiguration Portal (v.0.1.1)
+# PIMS Territory Reconfiguration Portal (v.0.1.2)
 
 Welcome to the **PIMS Territory Reconfiguration Portal** repository. This enterprise web application allows Sales Force Effectiveness (SFE) Leads and District Managers to reconfigure territories, manage MedRep resignations, execute portfolio doctor handovers, and review institution proposals with 1:1 ERPNext masterlist synchronization.
 
-See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for the complete `v.0.1.1` release notes and active feature matrix.
+See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for the complete `v.0.1.2` release notes and active feature matrix.
 
 ---
 
