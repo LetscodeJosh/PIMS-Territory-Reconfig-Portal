@@ -222,7 +222,7 @@ class TerritoryActionSchema:
         raw_action = sanitize_string(data.get("action", ""), max_len=30, allow_spaces=False)
         allowed_actions = {
             "tree_add", "tree_edit", "tree_rename", "tree_delete", "tree_refresh",
-            "bulk_tree_add",
+            "bulk_tree_add", "bulk_tree_edit", "bulk_tree_rename",
             "territory_toggle_status", "territory_deactivate",
             "sales_person_create", "employee_create", "doctor_transfer", "resignation_handover",
             "bulk_decommission", "bulk_archive",
@@ -246,7 +246,8 @@ class TerritoryActionSchema:
             "tree_refresh", "inst_refresh", "doctor_transfer", "resignation_handover",
             "bulk_decommission", "bulk_archive", "inst_create", "inst_propose",
             "inst_approve", "inst_normalize", "inst_reject", "inst_remap",
-            "bulk_tree_add", "sales_person_create", "employee_create", "tree_rename"
+            "bulk_tree_add", "bulk_tree_edit", "bulk_tree_rename",
+            "sales_person_create", "employee_create", "tree_rename"
         }
         if raw_action == "sales_person_create":
             sp_name = sanitize_string(data.get("sales_person_name") or data.get("name") or "", max_len=140)

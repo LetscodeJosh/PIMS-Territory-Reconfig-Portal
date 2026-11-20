@@ -2266,6 +2266,231 @@ def execute_tree_action(opener, action, payload):
                     })
             return success
 
+        def _edit_single_territory_record(orig_name, new_parent, new_is_group, new_mgr, custom_uid="", custom_prog="", explicit_status=None):
+            if not orig_name:
+                return "error", "Territory original name is missing."
+            if new_parent and new_parent != "All Territories":
+                _ensure_parent_territory_is_group(opener, new_parent, headers_json)
+
+            is_unassigned_mgr = (not new_mgr) or new_mgr.lower() in ("unassigned", "unassigned rep", "unassigned slot", "vacant", "folder (group)")
+            resolved_mgr = _resolve_sales_person_for_manager(opener, new_mgr, headers_json) if not is_unassigned_mgr else None
+            resolved_uid = _resolve_user_id(opener, custom_uid, headers_json) if custom_uid else None
+
+            if explicit_status in ("Active", "Vacant", "Inactive"):
+                eff_status = explicit_status
+            else:
+                eff_status = "Active" if ((not is_unassigned_mgr) or new_is_group) else "Vacant"
+
+            shared_mgr = "" if (is_unassigned_mgr or eff_status == "Vacant") else (resolved_mgr or new_mgr)
+            record_shared_territory_edit(
+                orig_name,
+                parent=new_parent if new_parent else None,
+                is_group=new_is_group,
+                manager=shared_mgr,
+                user_id=(resolved_uid or custom_uid) if custom_uid else None,
+                program=custom_prog if custom_prog else None,
+                status=eff_status
+            )
+
+            body = {}
+            if new_parent:
+                body["parent_territory"] = new_parent
+            if new_is_group is not None:
+                body["is_group"] = int(new_is_group or 0)
+            if eff_status == "Vacant" or is_unassigned_mgr:
+                body["territory_manager"] = ""
+            elif eff_status == "Inactive":
+                body["territory_manager"] = ""
+            elif resolved_mgr:
+                body["territory_manager"] = resolved_mgr
+            elif new_mgr:
+                body["territory_manager"] = new_mgr
+
+            if resolved_uid:
+                body["custom_user_id"] = resolved_uid
+            elif custom_uid and "@" in custom_uid:
+                body["custom_user_id"] = custom_uid
+            if custom_prog:
+                body["custom_account_or_program"] = custom_prog
+
+            data = json.dumps(body).encode("utf-8")
+            req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name, safe='')}",
+                data=data,
+                headers=headers_json,
+                method="PUT"
+            )
+            try:
+                res = call_erpnext_resiliently(opener, req, timeout=12)
+                if res.status == 200:
+                    return "success", f'Territory "{orig_name}" transferred/updated under "{new_parent or "All Territories"}" on {get_server_display_name()}!'
+                return "warning", f"ERPNext responded with HTTP {res.status}"
+            except urllib.error.HTTPError as he:
+                _ = he.read().decode("utf-8", errors="ignore")
+                for lf in ["custom_account_or_program", "custom_user_id"]:
+                    body.pop(lf, None)
+                try:
+                    data = json.dumps(body).encode("utf-8")
+                    req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name, safe='')}",
+                        data=data,
+                        headers=headers_json,
+                        method="PUT"
+                    )
+                    res = call_erpnext_resiliently(opener, req, timeout=12)
+                    if res.status == 200:
+                        return "success", f'Territory "{orig_name}" transferred/updated under "{new_parent or "All Territories"}" on {get_server_display_name()}!'
+                except urllib.error.HTTPError as he2:
+                    _ = he2.read().decode("utf-8", errors="ignore")
+                    body.pop("territory_manager", None)
+                    try:
+                        data = json.dumps(body).encode("utf-8")
+                        req = urllib.request.Request(
+                            f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name, safe='')}",
+                            data=data,
+                            headers=headers_json,
+                            method="PUT"
+                        )
+                        res = call_erpnext_resiliently(opener, req, timeout=12)
+                        if res.status == 200:
+                            return "success", f'Territory "{orig_name}" transferred/updated under "{new_parent or "All Territories"}" on {get_server_display_name()}!'
+                    except urllib.error.HTTPError as he3:
+                        _ = he3.read().decode("utf-8", errors="ignore")
+                        if he3.code == 404:
+                            try:
+                                create_body = {
+                                    "territory_name": orig_name,
+                                    "parent_territory": new_parent or "All Territories",
+                                    "is_group": int(new_is_group or 0)
+                                }
+                                create_req = urllib.request.Request(
+                                    f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+                                    data=json.dumps(create_body).encode("utf-8"),
+                                    headers=headers_json,
+                                    method="POST"
+                                )
+                                c_res = call_erpnext_resiliently(opener, create_req, timeout=12)
+                                if c_res.status in [200, 201]:
+                                    return "success", f'Territory "{orig_name}" created & linked under "{new_parent or "All Territories"}" on {get_server_display_name()}!'
+                            except Exception:
+                                pass
+                return "success", f'Territory "{orig_name}" transferred & saved under "{new_parent or "All Territories"}".'
+
+        def _rename_single_territory_record(old_name, new_name, parent_terr="Abbott DC Territories", assigned_mgr="", prev_terr=""):
+            if not old_name or not new_name:
+                return False, "Both old and new names are required to rename.", []
+
+            def _extract_erp_http_err(http_err):
+                try:
+                    body_txt = http_err.read().decode("utf-8", errors="ignore")
+                    body_json = json.loads(body_txt) if body_txt else {}
+                    msg_val = body_json.get("exception") or body_json.get("message")
+                    if not msg_val and body_json.get("_server_messages"):
+                        msgs = json.loads(body_json["_server_messages"])
+                        if msgs:
+                            m_obj = json.loads(msgs[0]) if isinstance(msgs[0], str) else msgs[0]
+                            msg_val = m_obj.get("message")
+                    return msg_val or body_txt or f"HTTP Error {http_err.code}"
+                except Exception:
+                    return f"HTTP Error {http_err.code}"
+
+            form_data = urllib.parse.urlencode({
+                "doctype": "Territory",
+                "old_name": old_name,
+                "new_name": new_name
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.rename_doc",
+                data=form_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+                method="POST"
+            )
+            res = None
+            rename_err_msg = ""
+            try:
+                res = call_erpnext_resiliently(opener, req, timeout=12)
+            except urllib.error.HTTPError as he:
+                rename_err_msg = _extract_erp_http_err(he)
+                low_err = rename_err_msg.lower()
+                if he.code != 404 and "does not exist" not in low_err and "not found" not in low_err:
+                    return False, f"ERPNext: {rename_err_msg}", []
+
+            renamed = False
+            if res and res.status == 200:
+                renamed = True
+                try:
+                    put_data = json.dumps({"territory_name": new_name}).encode("utf-8")
+                    put_req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(new_name, safe='')}",
+                        data=put_data,
+                        headers=headers_json,
+                        method="PUT"
+                    )
+                    call_erpnext_resiliently(opener, put_req, timeout=10)
+                except Exception:
+                    pass
+            else:
+                # If old_name was a local/baseline territory not yet present in ERPNext, register new_name directly
+                try:
+                    if parent_terr and parent_terr != "All Territories":
+                        _ensure_parent_territory_is_group(opener, parent_terr, headers_json)
+                    c_data = json.dumps({
+                        "territory_name": new_name,
+                        "parent_territory": parent_terr or "All Territories",
+                        "is_group": 0
+                    }).encode("utf-8")
+                    c_req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+                        data=c_data,
+                        headers=headers_json,
+                        method="POST"
+                    )
+                    c_res = call_erpnext_resiliently(opener, c_req, timeout=12)
+                    if c_res and c_res.status in [200, 201]:
+                        renamed = True
+                except urllib.error.HTTPError as che:
+                    rename_err_msg = _extract_erp_http_err(che) or rename_err_msg
+                except Exception as cex:
+                    rename_err_msg = str(cex) or rename_err_msg
+
+            if not renamed:
+                return False, f"ERPNext: {rename_err_msg or f'Could not rename {old_name} to {new_name}'}", []
+
+            record_shared_territory_rename(old_name, new_name)
+
+            # Synchronize Sales Person parenthesized territory code (e.g. 'MEDREP (OLD)' -> 'MEDREP (NEW)')
+            renamed_sps = _sync_sales_person_code_on_territory_rename(
+                opener,
+                old_name,
+                new_name,
+                headers_json,
+                assigned_mgr=assigned_mgr,
+                prev_terr=prev_terr
+            )
+
+            # Update session state live_territories in-memory immediately to prevent revert
+            if "live_territories" in st.session_state and isinstance(st.session_state.live_territories, list):
+                found = False
+                for t in st.session_state.live_territories:
+                    if t.get("name") == old_name or t.get("territory_name") == old_name:
+                        t["name"] = new_name
+                        t["territory_name"] = new_name
+                        if renamed_sps and safe_str(t.get("territory_manager")):
+                            updated_tm = _replace_parenthesized_territory_code(t.get("territory_manager"), old_name, new_name)
+                            if updated_tm:
+                                t["territory_manager"] = updated_tm
+                        found = True
+                        break
+                if not found:
+                    st.session_state.live_territories.append({
+                        "name": new_name,
+                        "territory_name": new_name,
+                        "parent_territory": parent_terr or "All Territories",
+                        "is_group": 0
+                    })
+
+            return True, "", renamed_sps
+
         if action == "tree_add":
             t_name = safe_str(payload.get("territory_name"))
             parent = safe_str(payload.get("parent_territory")) or "All Territories"
@@ -2301,95 +2526,28 @@ def execute_tree_action(opener, action, payload):
             new_mgr = safe_str(payload.get("territory_manager") or payload.get("rep"))
             custom_uid = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
             custom_prog = safe_str(payload.get("custom_account_or_program") or payload.get("program"))
+            explicit_status = safe_str(payload.get("status") or payload.get("operational_status")) or None
+            return _edit_single_territory_record(orig_name, new_parent, new_is_group, new_mgr, custom_uid, custom_prog, explicit_status)
 
-            if not orig_name:
-                return "error", "Territory original name is missing."
-            record_shared_territory_edit(orig_name, parent=new_parent, is_group=new_is_group, manager=new_mgr)
-            if new_parent and new_parent != "All Territories":
-                _ensure_parent_territory_is_group(opener, new_parent, headers_json)
-
-            resolved_mgr = _resolve_sales_person_for_manager(opener, new_mgr, headers_json) if new_mgr else None
-            resolved_uid = _resolve_user_id(opener, custom_uid, headers_json) if custom_uid else None
-
-            body = {
-                "parent_territory": new_parent,
-                "is_group": new_is_group
-            }
-            if resolved_mgr:
-                body["territory_manager"] = resolved_mgr
-            elif not new_mgr or new_mgr.lower() in ("unassigned", "unassigned rep", "vacant", "folder (group)"):
-                body["territory_manager"] = ""
-            elif new_mgr:
-                body["territory_manager"] = new_mgr
-
-            if resolved_uid:
-                body["custom_user_id"] = resolved_uid
-            elif custom_uid and "@" in custom_uid:
-                body["custom_user_id"] = custom_uid
-            if custom_prog:
-                body["custom_account_or_program"] = custom_prog
-            data = json.dumps(body).encode("utf-8")
-            req = urllib.request.Request(
-                f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name, safe='')}",
-                data=data,
-                headers=headers_json,
-                method="PUT"
-            )
-            try:
-                res = call_erpnext_resiliently(opener, req, timeout=12)
-                if res.status == 200:
-                    return "success", f'Territory "{orig_name}" transferred/updated under "{new_parent}" on {get_server_display_name()}!'
-                return "warning", f"ERPNext responded with HTTP {res.status}"
-            except urllib.error.HTTPError as he:
-                _ = he.read().decode("utf-8", errors="ignore")
-                for lf in ["custom_account_or_program", "custom_user_id"]:
-                    body.pop(lf, None)
-                try:
-                    data = json.dumps(body).encode("utf-8")
-                    req = urllib.request.Request(
-                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name, safe='')}",
-                        data=data,
-                        headers=headers_json,
-                        method="PUT"
-                    )
-                    res = call_erpnext_resiliently(opener, req, timeout=12)
-                    if res.status == 200:
-                        return "success", f'Territory "{orig_name}" transferred/updated under "{new_parent}" on {get_server_display_name()}!'
-                except urllib.error.HTTPError as he2:
-                    _ = he2.read().decode("utf-8", errors="ignore")
-                    body.pop("territory_manager", None)
-                    try:
-                        data = json.dumps(body).encode("utf-8")
-                        req = urllib.request.Request(
-                            f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(orig_name, safe='')}",
-                            data=data,
-                            headers=headers_json,
-                            method="PUT"
-                        )
-                        res = call_erpnext_resiliently(opener, req, timeout=12)
-                        if res.status == 200:
-                            return "success", f'Territory "{orig_name}" transferred/updated under "{new_parent}" on {get_server_display_name()}!'
-                    except urllib.error.HTTPError as he3:
-                        _ = he3.read().decode("utf-8", errors="ignore")
-                        if he3.code == 404:
-                            try:
-                                create_body = {
-                                    "territory_name": orig_name,
-                                    "parent_territory": new_parent,
-                                    "is_group": new_is_group
-                                }
-                                create_req = urllib.request.Request(
-                                    f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
-                                    data=json.dumps(create_body).encode("utf-8"),
-                                    headers=headers_json,
-                                    method="POST"
-                                )
-                                c_res = call_erpnext_resiliently(opener, create_req, timeout=12)
-                                if c_res.status in [200, 201]:
-                                    return "success", f'Territory "{orig_name}" created & linked under "{new_parent}" on {get_server_display_name()}!'
-                            except Exception:
-                                pass
-                return "success", f'Territory "{orig_name}" transferred & saved under "{new_parent}".'
+        elif action == "bulk_tree_edit":
+            items = payload.get("territories", [])
+            updated_count = 0
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                t_name = safe_str(item.get("name") or item.get("territory_name") or item.get("activeCode") or item.get("code"))
+                if not t_name:
+                    continue
+                t_parent = safe_str(item.get("parent_territory") or item.get("district"))
+                t_is_group = int(item.get("is_group", 0) or 0)
+                t_mgr = safe_str(item.get("territory_manager") or item.get("rep"))
+                t_uid = safe_str(item.get("custom_user_id") or item.get("user_id") or item.get("userId"))
+                t_prog = safe_str(item.get("custom_account_or_program") or item.get("program"))
+                t_status = safe_str(item.get("status") or item.get("operational_status")) or None
+                st_code, _ = _edit_single_territory_record(t_name, t_parent, t_is_group, t_mgr, t_uid, t_prog, t_status)
+                if st_code == "success":
+                    updated_count += 1
+            return "success", f"Bulk updated {updated_count} territories live on {get_server_display_name()}!"
 
         elif action == "tree_rename":
             old_name = safe_str(payload.get("old_name") or payload.get("territory_name") or payload.get("name"))
@@ -2397,118 +2555,57 @@ def execute_tree_action(opener, action, payload):
             parent_terr = safe_str(payload.get("parent_territory") or "Abbott DC Territories")
             if not old_name or not new_name:
                 return "error", "Both old and new names are required to rename."
-
-            def _extract_erp_http_err(http_err):
-                try:
-                    body_txt = http_err.read().decode("utf-8", errors="ignore")
-                    body_json = json.loads(body_txt) if body_txt else {}
-                    msg_val = body_json.get("exception") or body_json.get("message")
-                    if not msg_val and body_json.get("_server_messages"):
-                        msgs = json.loads(body_json["_server_messages"])
-                        if msgs:
-                            m_obj = json.loads(msgs[0]) if isinstance(msgs[0], str) else msgs[0]
-                            msg_val = m_obj.get("message")
-                    return msg_val or body_txt or f"HTTP Error {http_err.code}"
-                except Exception:
-                    return f"HTTP Error {http_err.code}"
-
-            form_data = urllib.parse.urlencode({
-                "doctype": "Territory",
-                "old_name": old_name,
-                "new_name": new_name
-            }).encode("utf-8")
-            req = urllib.request.Request(
-                f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.rename_doc",
-                data=form_data,
-                headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": "Mozilla/5.0"},
-                method="POST"
-            )
-            res = None
-            rename_err_msg = ""
-            try:
-                res = call_erpnext_resiliently(opener, req, timeout=12)
-            except urllib.error.HTTPError as he:
-                rename_err_msg = _extract_erp_http_err(he)
-                low_err = rename_err_msg.lower()
-                if he.code != 404 and "does not exist" not in low_err and "not found" not in low_err:
-                    return "warning", f"ERPNext: {rename_err_msg}"
-
-            renamed = False
-            if res and res.status == 200:
-                renamed = True
-                try:
-                    put_data = json.dumps({"territory_name": new_name}).encode("utf-8")
-                    put_req = urllib.request.Request(
-                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(new_name, safe='')}",
-                        data=put_data,
-                        headers=headers_json,
-                        method="PUT"
-                    )
-                    call_erpnext_resiliently(opener, put_req, timeout=10)
-                except Exception:
-                    pass
-            else:
-                # If old_name was a local/baseline territory not yet present in ERPNext, register new_name directly
-                try:
-                    c_data = json.dumps({
-                        "territory_name": new_name,
-                        "parent_territory": parent_terr,
-                        "is_group": 0
-                    }).encode("utf-8")
-                    c_req = urllib.request.Request(
-                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
-                        data=c_data,
-                        headers=headers_json,
-                        method="POST"
-                    )
-                    c_res = call_erpnext_resiliently(opener, c_req, timeout=12)
-                    if c_res and c_res.status in [200, 201]:
-                        renamed = True
-                except urllib.error.HTTPError as che:
-                    rename_err_msg = _extract_erp_http_err(che) or rename_err_msg
-                except Exception as cex:
-                    rename_err_msg = str(cex) or rename_err_msg
-
-            if not renamed:
-                return "warning", f"ERPNext: {rename_err_msg or f'Could not rename {old_name} to {new_name}'}"
-
-            record_shared_territory_rename(old_name, new_name)
-
-            # Synchronize Sales Person parenthesized territory code (e.g. 'MEDREP (OLD)' -> 'MEDREP (NEW)')
-            renamed_sps = _sync_sales_person_code_on_territory_rename(
-                opener,
+            ok, err_msg, renamed_sps = _rename_single_territory_record(
                 old_name,
                 new_name,
-                headers_json,
+                parent_terr=parent_terr,
                 assigned_mgr=safe_str(payload.get("territory_manager")),
                 prev_terr=safe_str(payload.get("prev_code"))
             )
+            if not ok:
+                return "warning", err_msg
 
-            # Update session state live_territories in-memory immediately to prevent revert
-            if "live_territories" in st.session_state and isinstance(st.session_state.live_territories, list):
-                found = False
-                for t in st.session_state.live_territories:
-                    if t.get("name") == old_name or t.get("territory_name") == old_name:
-                        t["name"] = new_name
-                        t["territory_name"] = new_name
-                        if renamed_sps and safe_str(t.get("territory_manager")):
-                            updated_tm = _replace_parenthesized_territory_code(t.get("territory_manager"), old_name, new_name)
-                            if updated_tm:
-                                t["territory_manager"] = updated_tm
-                        found = True
-                        break
-                if not found:
-                    st.session_state.live_territories.append({
-                        "name": new_name,
-                        "territory_name": new_name,
-                        "parent_territory": parent_terr,
-                        "is_group": 0
-                    })
+            # If Grid Edit modal modified parent/manager/user/status alongside renaming the code, persist those fields too
+            if payload.get("apply_field_updates"):
+                edit_parent = safe_str(payload.get("parent_territory"))
+                edit_is_group = int(payload.get("is_group", 0) or 0)
+                edit_mgr = safe_str(payload.get("territory_manager"))
+                edit_uid = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
+                edit_prog = safe_str(payload.get("custom_account_or_program") or payload.get("program"))
+                edit_status = safe_str(payload.get("status") or payload.get("operational_status")) or None
+                _edit_single_territory_record(new_name, edit_parent, edit_is_group, edit_mgr, edit_uid, edit_prog, edit_status)
 
             sp_suffix = f' (Synced Sales Person: {", ".join(renamed_sps)})' if renamed_sps else ""
-            if renamed:
-                return "success", f'Renamed "{old_name}" -> "{new_name}"{sp_suffix} live on {get_server_display_name()}!'
-            return "success", f'Renamed "{old_name}" to "{new_name}"{sp_suffix}.'
+            return "success", f'Renamed "{old_name}" -> "{new_name}"{sp_suffix} live on {get_server_display_name()}!'
+
+        elif action == "bulk_tree_rename":
+            items = payload.get("renames", [])
+            renamed_count = 0
+            all_synced_sps = []
+            errors = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                old_n = safe_str(item.get("old_name") or item.get("name"))
+                new_n = safe_str(item.get("new_name"))
+                if not old_n or not new_n or old_n == new_n:
+                    continue
+                ok, err_msg, sps = _rename_single_territory_record(
+                    old_n,
+                    new_n,
+                    parent_terr=safe_str(item.get("parent_territory") or "Abbott DC Territories"),
+                    assigned_mgr=safe_str(item.get("territory_manager") or item.get("rep")),
+                    prev_terr=safe_str(item.get("prev_code"))
+                )
+                if ok:
+                    renamed_count += 1
+                    all_synced_sps.extend(sps)
+                elif err_msg:
+                    errors.append(f"{old_n}: {err_msg}")
+            if renamed_count == 0 and errors:
+                return "warning", errors[0]
+            sp_suffix = f" & synced {len(all_synced_sps)} Sales Person code(s)" if all_synced_sps else ""
+            return "success", f"Bulk renamed {renamed_count} territories{sp_suffix} live on {get_server_display_name()}!"
 
         elif action == "tree_delete":
             name = safe_str(payload.get("name") or payload.get("territory_name") or payload.get("territory"))
@@ -2531,22 +2628,94 @@ def execute_tree_action(opener, action, payload):
             new_status = safe_str(payload.get("status") or payload.get("operational_status") or ("Active" if new_mgr and "INACTIVE" not in new_mgr.upper() and "UNASSIGNED" not in new_mgr.upper() else "Inactive"))
             if not t_name:
                 return "error", "Territory name is required."
-            record_shared_territory_edit(t_name, manager=new_mgr, status=new_status)
-            body = {"territory_manager": new_mgr}
-            data = json.dumps(body).encode("utf-8")
-            req = urllib.request.Request(
-                f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}",
-                data=data,
-                headers=headers_json,
-                method="PUT"
+            resolved_mgr = _resolve_sales_person_for_manager(opener, new_mgr, headers_json) if (new_status == "Active" and new_mgr) else None
+            if new_status == "Vacant":
+                shared_mgr = ""
+                erp_mgr = ""
+            elif new_status == "Inactive":
+                shared_mgr = new_mgr
+                erp_mgr = ""
+            else:
+                shared_mgr = resolved_mgr or new_mgr
+                erp_mgr = resolved_mgr or new_mgr
+            record_shared_territory_edit(t_name, manager=shared_mgr, status=new_status)
+            if new_status != "Active" or erp_mgr:
+                body = {"territory_manager": erp_mgr}
+                data = json.dumps(body).encode("utf-8")
+                req = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}",
+                    data=data,
+                    headers=headers_json,
+                    method="PUT"
+                )
+                try:
+                    res = call_erpnext_resiliently(opener, req, timeout=12)
+                    if res.status == 200:
+                        return "success", f'Territory "{t_name}" status set to {new_status} on {get_server_display_name()}!'
+                    return "success", f'Territory "{t_name}" status updated to {new_status}.'
+                except Exception:
+                    return "success", f'Territory "{t_name}" status updated to {new_status}.'
+            return "success", f'Territory "{t_name}" status set to {new_status}!'
+
+        elif action in ["bulk_decommission", "bulk_archive"]:
+            items = payload.get("territories", [])
+            updated_count = 0
+            for item in items:
+                if isinstance(item, str):
+                    t_name = safe_str(item)
+                    item_mgr = ""
+                elif isinstance(item, dict):
+                    t_name = safe_str(item.get("territory") or item.get("name") or item.get("code") or item.get("activeCode"))
+                    item_mgr = safe_str(item.get("territory_manager") or item.get("rep"))
+                else:
+                    continue
+                if not t_name:
+                    continue
+                record_shared_territory_edit(t_name, manager=item_mgr, status="Inactive")
+                try:
+                    req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}",
+                        data=json.dumps({"territory_manager": ""}).encode("utf-8"),
+                        headers=headers_json,
+                        method="PUT"
+                    )
+                    call_erpnext_resiliently(opener, req, timeout=10)
+                except Exception:
+                    pass
+                updated_count += 1
+            return "success", f"Archived {updated_count} territories as Inactive on {get_server_display_name()}!"
+
+        elif action == "resignation_handover":
+            t_name = safe_str(payload.get("territory") or payload.get("name") or payload.get("territory_name"))
+            new_rep = safe_str(payload.get("new_rep") or payload.get("territory_manager"))
+            new_uid = safe_str(payload.get("new_user_id") or payload.get("custom_user_id"))
+            if not t_name:
+                return "error", "Territory name is required for handover."
+            resolved_mgr = _resolve_sales_person_for_manager(opener, new_rep, headers_json) if new_rep else None
+            resolved_uid = _resolve_user_id(opener, new_uid, headers_json) if new_uid else None
+            shared_mgr = resolved_mgr or new_rep
+            record_shared_territory_edit(
+                t_name,
+                manager=shared_mgr,
+                user_id=(resolved_uid or new_uid) if new_uid else None,
+                status="Active" if shared_mgr else "Vacant"
             )
+            body = {"territory_manager": shared_mgr}
+            if resolved_uid:
+                body["custom_user_id"] = resolved_uid
             try:
+                req = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}",
+                    data=json.dumps(body).encode("utf-8"),
+                    headers=headers_json,
+                    method="PUT"
+                )
                 res = call_erpnext_resiliently(opener, req, timeout=12)
                 if res.status == 200:
-                    return "success", f'Territory "{t_name}" status set to {new_status} on {get_server_display_name()}!'
-                return "success", f'Territory "{t_name}" status updated to {new_status}.'
+                    return "success", f'Handover saved: "{t_name}" reassigned to "{shared_mgr}" on {get_server_display_name()}!'
             except Exception:
-                return "success", f'Territory "{t_name}" status updated to {new_status}.'
+                pass
+            return "success", f'Handover saved: "{t_name}" reassigned to "{shared_mgr}".'
 
         elif action == "sales_person_create":
             sp_name = safe_str(payload.get("sales_person_name") or payload.get("name"))
@@ -3031,7 +3200,13 @@ if component_val and isinstance(component_val, dict):
                     "timestamp": ts
                 }
             st.rerun()
-        elif action in ["tree_add", "bulk_tree_add", "tree_edit", "tree_rename", "tree_delete", "territory_toggle_status", "territory_deactivate", "tree_refresh", "sales_person_create", "employee_create", "doctor_transfer"]:
+        elif action in [
+            "tree_add", "bulk_tree_add", "tree_edit", "bulk_tree_edit",
+            "tree_rename", "bulk_tree_rename", "tree_delete",
+            "territory_toggle_status", "territory_deactivate",
+            "bulk_decommission", "bulk_archive", "resignation_handover",
+            "tree_refresh", "sales_person_create", "employee_create", "doctor_transfer"
+        ]:
             opener = st.session_state.get("opener")
             if not opener:
                 opener = get_authenticated_opener()
