@@ -512,8 +512,13 @@
 
     const pt = findProgramTerritoryByCode(code);
     const treeNode = Array.isArray(territoryTreeData)
-      ? territoryTreeData.find(t => t.name === code || t.territory_name === code)
+      ? territoryTreeData.find(t =>
+          t.name === code ||
+          t.territory_name === code ||
+          (pt && (t.name === pt.activeCode || t.territory_name === pt.activeCode || t.name === pt.latestPrevCode))
+        )
       : null;
+    const targetTerrCode = (pt && pt.activeCode) || (treeNode && treeNode.name) || code;
 
     const prevStatus = getTerritoryOperationalStatus(pt, treeNode);
     let baseManager = '';
@@ -532,6 +537,13 @@
     if (!baseManager && pt && pt.previousRep) {
       baseManager = cleanRepDisplayName(pt.previousRep);
     }
+    if (!baseManager && nextStatus === 'Active' && Array.isArray(archivedRecords)) {
+      const archMatch = archivedRecords.find(a => a.code === targetTerrCode || a.histCode === targetTerrCode || a.code === code || a.histCode === code);
+      const archRep = archMatch ? cleanRepDisplayName(archMatch.originalRep || archMatch.rep || archMatch.assignedRep) : '';
+      if (archRep && !/^unassigned/i.test(archRep) && !/^vacant/i.test(archRep) && !/^folder/i.test(archRep)) {
+        baseManager = archRep;
+      }
+    }
 
     let updatedManagerForErp = '';
     if (nextStatus === 'Active') {
@@ -549,8 +561,12 @@
         treeNode.territory_manager = baseManager || '';
       }
       if (Array.isArray(archivedRecords)) {
-        const archIdx = archivedRecords.findIndex(a => a.code === code);
-        if (archIdx !== -1) archivedRecords.splice(archIdx, 1);
+        for (let ai = archivedRecords.length - 1; ai >= 0; ai--) {
+          const a = archivedRecords[ai];
+          if (a && (a.code === targetTerrCode || a.histCode === targetTerrCode || a.code === code || a.histCode === code)) {
+            archivedRecords.splice(ai, 1);
+          }
+        }
       }
     } else if (nextStatus === 'Vacant') {
       updatedManagerForErp = '';
@@ -568,26 +584,32 @@
         treeNode.status = 'Vacant';
         treeNode.territory_manager = '';
       }
-      if (Array.isArray(archivedRecords) && !archivedRecords.find(a => a.code === code)) {
+      if (Array.isArray(archivedRecords) && !archivedRecords.find(a => a.code === targetTerrCode || a.histCode === targetTerrCode)) {
         archivedRecords.push({
-          code: code,
-          name: code,
+          code: targetTerrCode,
+          histCode: targetTerrCode,
+          name: targetTerrCode,
+          recordId: pt ? pt.recordId : `REC-${targetTerrCode.replace(/[^A-Za-z0-9]/g, '_')}`,
+          archiveDate: new Date().toISOString().split('T')[0],
           dateArchived: new Date().toISOString().split('T')[0],
           reason: customReason || 'Tagged as Vacant — Open slot awaiting MedRep assignment',
+          district: pt ? pt.district : (treeNode ? treeNode.parent_territory : 'General'),
           originalDistrict: pt ? pt.district : (treeNode ? treeNode.parent_territory : 'General'),
+          rep: baseManager || 'Unassigned',
           originalRep: baseManager || 'Unassigned',
+          docs: pt && pt.coveredDoctors ? pt.coveredDoctors.length : (pt ? (pt.docs || 0) : 0),
           coveredDocsCount: pt && pt.coveredDoctors ? pt.coveredDoctors.length : (pt ? (pt.docs || 0) : 0)
         });
       }
     } else {
       // Inactive
-      updatedManagerForErp = baseManager ? `${baseManager} [RESIGNED]` : '';
+      updatedManagerForErp = baseManager ? `${baseManager} [RESIGNED]` : 'Unassigned Rep [RESIGNED]';
       if (pt) {
         if (baseManager) pt.previousRep = baseManager;
         pt.operationalStatus = 'Inactive';
         pt.isActive = false;
         pt.isResigned = true;
-        pt.rep = baseManager ? `${baseManager} [RESIGNED]` : 'Unassigned Rep [RESIGNED]';
+        pt.rep = updatedManagerForErp;
         pt.status = 'CHANGED';
       }
       if (treeNode) {
@@ -595,24 +617,40 @@
         treeNode.status = 'Inactive';
         treeNode.territory_manager = updatedManagerForErp;
       }
-      if (Array.isArray(archivedRecords) && !archivedRecords.find(a => a.code === code)) {
+      if (Array.isArray(archivedRecords) && !archivedRecords.find(a => a.code === targetTerrCode || a.histCode === targetTerrCode)) {
         archivedRecords.push({
-          code: code,
-          name: code,
+          code: targetTerrCode,
+          histCode: targetTerrCode,
+          name: targetTerrCode,
+          recordId: pt ? pt.recordId : `REC-${targetTerrCode.replace(/[^A-Za-z0-9]/g, '_')}`,
+          archiveDate: new Date().toISOString().split('T')[0],
           dateArchived: new Date().toISOString().split('T')[0],
           reason: customReason || 'Tagged as Inactive — Preserved in Archive Directory for future cycles',
+          district: pt ? pt.district : (treeNode ? treeNode.parent_territory : 'General'),
           originalDistrict: pt ? pt.district : (treeNode ? treeNode.parent_territory : 'General'),
+          rep: baseManager || 'Unassigned',
           originalRep: baseManager || 'Unassigned',
+          docs: pt && pt.coveredDoctors ? pt.coveredDoctors.length : (pt ? (pt.docs || 0) : 0),
           coveredDocsCount: pt && pt.coveredDoctors ? pt.coveredDoctors.length : (pt ? (pt.docs || 0) : 0)
         });
       }
+    }
+
+    if (typeof syncBaselineTerritoryEntry === 'function') {
+      syncBaselineTerritoryEntry(targetTerrCode, {
+        rep: pt ? pt.rep : (nextStatus === 'Vacant' ? 'Unassigned Rep' : (updatedManagerForErp || 'Unassigned Rep')),
+        operationalStatus: nextStatus,
+        isActive: nextStatus !== 'Inactive',
+        isResigned: nextStatus === 'Inactive',
+        status: 'CHANGED'
+      });
     }
 
     const actor = (typeof authenticatedUser !== 'undefined' && authenticatedUser && (authenticatedUser.email || authenticatedUser.full_name))
       ? (authenticatedUser.email || authenticatedUser.full_name)
       : 'SFE Lead';
     const nowFormatted = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const detailMsg = customReason || `Territory ${code} status updated from ${prevStatus} to ${nextStatus}.`;
+    const detailMsg = customReason || `Territory ${targetTerrCode} status updated from ${prevStatus} to ${nextStatus}.`;
 
     if (pt) {
       if (!Array.isArray(pt.auditTrail)) pt.auditTrail = [];
@@ -627,9 +665,9 @@
     if (Array.isArray(globalAuditLogs)) {
       globalAuditLogs.unshift({
         timestamp: new Date().toLocaleString(),
-        recordId: pt ? pt.recordId : code,
+        recordId: pt ? pt.recordId : targetTerrCode,
         action: `STATUS_${nextStatus.toUpperCase()}`,
-        territoryCode: code,
+        territoryCode: targetTerrCode,
         user: actor,
         details: detailMsg
       });
@@ -650,7 +688,7 @@
           type: "streamlit:setComponentValue",
           value: {
             action: "territory_toggle_status",
-            territory: code,
+            territory: targetTerrCode,
             status: nextStatus,
             custom_status: nextStatus,
             territory_manager: updatedManagerForErp,
@@ -660,10 +698,10 @@
       } catch (_) {}
     } else {
       try {
-        fetch(`/api/resource/Territory/${encodeURIComponent(code)}`, {
+        fetch(`/api/resource/Territory/${encodeURIComponent(targetTerrCode)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ territory_manager: updatedManagerForErp })
+          body: JSON.stringify({ territory_manager: nextStatus === 'Active' ? updatedManagerForErp : '' })
         }).catch(() => {});
       } catch (_) {}
     }
@@ -675,11 +713,11 @@
 
     if (typeof showToast === 'function') {
       if (nextStatus === 'Active') {
-        showToast(`Territory "${code}" set to Active! Ready for active cycle coverage.`, 'success', 3500);
+        showToast(`Territory "${targetTerrCode}" set to Active! Ready for active cycle coverage.`, 'success', 3500);
       } else if (nextStatus === 'Vacant') {
-        showToast(`Territory "${code}" tagged as Vacant (Open slot preserved with zero doctor loss).`, 'info', 3500);
+        showToast(`Territory "${targetTerrCode}" tagged as Vacant (Open slot preserved with zero doctor loss).`, 'info', 3500);
       } else {
-        showToast(`Territory "${code}" tagged as Inactive (Preserved in Archive Directory).`, 'info', 3500);
+        showToast(`Territory "${targetTerrCode}" tagged as Inactive (Preserved in Archive Directory).`, 'info', 3500);
       }
     }
   }
@@ -7474,11 +7512,8 @@ const BASELINE_ERP_TERRITORIES = [
               localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
             } catch (_) {}
             syncProgramTerritoriesWithTree();
-            if (window.activeEditorViewMode === 'grid') {
-              if (typeof renderTable === 'function') renderTable();
-            } else {
-              if (typeof renderTree === 'function') renderTree();
-            }
+            if (typeof renderTable === 'function') renderTable();
+            if (typeof renderTree === 'function') renderTree();
             if (typeof updateEditorViewModeUI === 'function') updateEditorViewModeUI();
             if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
             if (typeof renderSummaryReport === 'function') renderSummaryReport();
@@ -8715,44 +8750,64 @@ const BASELINE_ERP_TERRITORIES = [
       matchedUserId = matchedUser ? (matchedUser.email || matchedUser.name) : '';
     }
 
-    // Ensure cluster exists in territoryTreeData
+    // Ensure cluster exists in territoryTreeData and is marked as group so children nest cleanly
     const progBranch = (LIVE_DATA[activeProgram] && LIVE_DATA[activeProgram].territoryBranch) ? LIVE_DATA[activeProgram].territoryBranch : 'All Territories';
-    if (newDistrict && !territoryTreeData.some(t => t.name === newDistrict || t.territory_name === newDistrict)) {
-      territoryTreeData.push({
-        name: newDistrict,
-        territory_name: newDistrict,
-        parent_territory: progBranch,
-        is_group: 1,
-        territory_manager: ''
-      });
-      treeExpandedNodes.add(newDistrict);
+    if (newDistrict) {
+      const existingDistNode = territoryTreeData.find(t => t.name === newDistrict || t.territory_name === newDistrict);
+      if (existingDistNode) {
+        existingDistNode.is_group = 1;
+      } else {
+        territoryTreeData.push({
+          name: newDistrict,
+          territory_name: newDistrict,
+          parent_territory: progBranch,
+          is_group: 1,
+          territory_manager: '',
+          operational_status: 'Active',
+          status: 'Active',
+          custom_account_or_program: activeProgram,
+          program: activeProgram
+        });
+      }
+      if (typeof registerNodeProgram === 'function') registerNodeProgram(newDistrict, activeProgram);
+      if (typeof expandTreeAncestors === 'function') expandTreeAncestors(newDistrict);
+      else treeExpandedNodes.add(newDistrict);
     }
 
     let affectedCount = 0;
+    const bulkEditPayloads = [];
 
     selectedRowIndices.forEach(idx => {
       const row = programTerritories[idx];
       if (!row) return;
 
       const changeNotes = [];
+      const terrCode = row.activeCode || row.latestPrevCode || row.recordId;
+      const isUnassigning = (newRep === 'Unassigned Slot' || newRep === 'Unassigned Rep');
 
       if (newRep && row.rep !== newRep) {
         changeNotes.push(`Assigned Rep: ${row.rep || 'Unassigned'} -> ${newRep}`);
-        row.userId = matchedUserId;
+        row.userId = isUnassigning ? '' : matchedUserId;
         row.status = 'CHANGED';
-        if (newRep === 'Unassigned Slot' || newRep === 'Unassigned Rep' || !newRep) {
+        if (isUnassigning) {
           row.rep = 'Unassigned Rep';
           row.operationalStatus = 'Vacant';
+          row.isActive = true;
+          row.isResigned = false;
         } else {
           row.rep = cleanRepDisplayName(newRep);
           row.operationalStatus = 'Active';
+          row.isActive = true;
           row.isResigned = false;
+          if (typeof registerSalesPersonProgram === 'function') {
+            registerSalesPersonProgram(row.rep, activeProgram);
+          }
         }
 
         // Update rep in doctor accounts (clean rep name without territory code)
         programAccounts.forEach(acc => {
           if (acc.liveTerritory === row.activeCode || acc.territory === row.activeCode) {
-            acc.rep = (newRep === 'Unassigned Slot' || newRep === 'Unassigned Rep') ? 'Unassigned' : cleanRepDisplayName(newRep);
+            acc.rep = isUnassigning ? 'Unassigned' : cleanRepDisplayName(newRep);
           }
         });
       }
@@ -8763,14 +8818,44 @@ const BASELINE_ERP_TERRITORIES = [
         row.status = 'CHANGED';
       }
 
-      // Sync into territoryTreeData
-      const terrCode = row.activeCode || row.latestPrevCode || row.recordId;
-      const treeNode = territoryTreeData.find(t => t.name === terrCode || t.territory_name === terrCode);
-      if (treeNode) {
-        if (newRep) treeNode.territory_manager = (newRep === 'Unassigned Slot') ? '' : newRep;
+      // Sync into territoryTreeData (create if absent so tree always matches Table Grid)
+      let treeNode = territoryTreeData.find(t => t.name === terrCode || t.territory_name === terrCode);
+      const effectiveMgr = (row.operationalStatus === 'Active' && row.rep && !/^unassigned/i.test(row.rep)) ? cleanRepDisplayName(row.rep) : '';
+      if (!treeNode) {
+        treeNode = {
+          name: terrCode,
+          territory_name: terrCode,
+          parent_territory: row.district || newDistrict || progBranch,
+          is_group: row.isGroup ? 1 : 0,
+          territory_manager: effectiveMgr,
+          custom_user_id: row.userId || '',
+          custom_account_or_program: activeProgram,
+          program: activeProgram,
+          status: row.operationalStatus || 'Active',
+          operational_status: row.operationalStatus || 'Active'
+        };
+        territoryTreeData.push(treeNode);
+      } else {
+        if (newRep) treeNode.territory_manager = isUnassigning ? '' : cleanRepDisplayName(newRep);
         if (newDistrict) treeNode.parent_territory = newDistrict;
+        if (newRep) treeNode.custom_user_id = isUnassigning ? '' : (row.userId || '');
         treeNode.status = row.operationalStatus;
         treeNode.operational_status = row.operationalStatus;
+        treeNode.custom_account_or_program = activeProgram;
+        treeNode.program = activeProgram;
+      }
+      if (typeof registerNodeProgram === 'function') registerNodeProgram(terrCode, activeProgram);
+      if (typeof expandTreeAncestors === 'function') expandTreeAncestors(treeNode.parent_territory || terrCode);
+      if (typeof syncBaselineTerritoryEntry === 'function') {
+        syncBaselineTerritoryEntry(terrCode, {
+          rep: row.rep,
+          district: row.district,
+          userId: row.userId || '',
+          operationalStatus: row.operationalStatus,
+          isActive: row.isActive,
+          isResigned: row.isResigned,
+          status: 'CHANGED'
+        });
       }
 
       if (changeNotes.length > 0) {
@@ -8784,6 +8869,17 @@ const BASELINE_ERP_TERRITORIES = [
 
         if (!row.auditTrail) row.auditTrail = [];
         row.auditTrail.unshift(auditEntry);
+
+        bulkEditPayloads.push({
+          name: terrCode,
+          territory_name: terrCode,
+          parent_territory: treeNode.parent_territory || row.district || 'All Territories',
+          is_group: treeNode.is_group ? 1 : 0,
+          territory_manager: treeNode.territory_manager || '',
+          custom_user_id: treeNode.custom_user_id || '',
+          custom_account_or_program: activeProgram,
+          status: row.operationalStatus || 'Active'
+        });
       }
     });
 
@@ -8793,6 +8889,37 @@ const BASELINE_ERP_TERRITORIES = [
       localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
       localStorage.setItem('pims_accounts_' + activeProgram, JSON.stringify(programAccounts));
     } catch (_) {}
+
+    // Bidirectional dispatch to Streamlit / ERPNext
+    if (bulkEditPayloads.length > 0) {
+      if (isStreamlitActive || (window.parent && window.parent !== window)) {
+        try {
+          window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setComponentValue",
+            value: {
+              action: "bulk_tree_edit",
+              territories: bulkEditPayloads,
+              timestamp: Date.now()
+            }
+          }, "*");
+        } catch (_) {}
+      } else {
+        bulkEditPayloads.forEach(item => {
+          try {
+            fetch(`/api/resource/Territory/${encodeURIComponent(item.name)}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({
+                parent_territory: item.parent_territory,
+                is_group: item.is_group,
+                territory_manager: item.territory_manager
+              })
+            }).catch(() => {});
+          } catch (_) {}
+        });
+      }
+    }
 
     rebuildGlobalAuditLogs();
     closeBulkEditModal();
@@ -8936,20 +9063,70 @@ const BASELINE_ERP_TERRITORIES = [
       : 'admin@pims.com [SFE Lead]';
 
     let renamedCount = 0;
+    const bulkRenamePayloads = [];
+    const isStreamlitEnv = isStreamlitActive || (window.parent && window.parent !== window);
 
     plannedRenames.forEach(item => {
       const { row, curr, renamed } = item;
       if (curr !== renamed) {
         renamedCount++;
+        const prevCodeBeforeRename = row.latestPrevCode;
         row.latestPrevCode = curr;
         row.activeCode = renamed;
         if (autoMarkChanged) row.status = 'CHANGED';
 
+        // Mirror rename into territoryTreeData (node + child parent_territory + expanded/selected state)
+        const treeNode = (territoryTreeData || []).find(t => t && (t.name === curr || t.territory_name === curr));
+        const parentTerr = (treeNode && treeNode.parent_territory) || row.district || 'All Territories';
+        if (treeNode) {
+          treeNode.name = renamed;
+          treeNode.territory_name = renamed;
+          treeNode.custom_account_or_program = activeProgram;
+          treeNode.program = activeProgram;
+        }
+        (territoryTreeData || []).forEach(t => {
+          if (t && t.parent_territory === curr) {
+            t.parent_territory = renamed;
+          }
+        });
+        if (treeExpandedNodes.has(curr)) {
+          treeExpandedNodes.delete(curr);
+          treeExpandedNodes.add(renamed);
+        }
+        if (selectedTreeNode === curr) {
+          selectedTreeNode = renamed;
+        }
+        if (typeof registerNodeProgram === 'function') {
+          registerNodeProgram(renamed, activeProgram);
+        }
+        if (typeof syncBaselineTerritoryEntry === 'function') {
+          syncBaselineTerritoryEntry(curr, {
+            activeCode: renamed,
+            latestPrevCode: curr,
+            status: autoMarkChanged ? 'CHANGED' : row.status
+          });
+        }
+
         // Update doctor accounts mapping
         programAccounts.forEach(acc => {
-          if (acc.liveTerritory === curr) {
+          if (acc.liveTerritory === curr || acc.territory === curr || acc.activeCode === curr) {
             acc.liveTerritory = renamed;
+            acc.territory = renamed;
+            acc.activeCode = renamed;
           }
+        });
+
+        // Sync parenthesized territory code in Sales Person Tree locally
+        if (typeof syncSalesPersonTerritoryCodeLocally === 'function') {
+          syncSalesPersonTerritoryCodeLocally(curr, renamed, row.rep, prevCodeBeforeRename, !isStreamlitEnv);
+        }
+
+        bulkRenamePayloads.push({
+          old_name: curr,
+          new_name: renamed,
+          parent_territory: parentTerr,
+          territory_manager: (treeNode && treeNode.territory_manager) || row.rep || '',
+          prev_code: prevCodeBeforeRename || curr
         });
 
         const entry = {
@@ -8963,6 +9140,42 @@ const BASELINE_ERP_TERRITORIES = [
         row.auditTrail.unshift(entry);
       }
     });
+
+    try {
+      localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
+      localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_accounts_' + activeProgram, JSON.stringify(programAccounts));
+    } catch (_) {}
+
+    if (bulkRenamePayloads.length > 0) {
+      if (isStreamlitEnv) {
+        try {
+          window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setComponentValue",
+            value: {
+              action: "bulk_tree_rename",
+              renames: bulkRenamePayloads,
+              timestamp: Date.now()
+            }
+          }, "*");
+        } catch (_) {}
+      } else {
+        bulkRenamePayloads.forEach(p => {
+          try {
+            fetch('/api/method/frappe.client.rename_doc', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                doctype: 'Territory',
+                old_name: p.old_name,
+                new_name: p.new_name
+              })
+            }).catch(() => {});
+          } catch (_) {}
+        });
+      }
+    }
 
     rebuildGlobalAuditLogs();
     closeBulkEditModal();
@@ -9026,33 +9239,74 @@ const BASELINE_ERP_TERRITORIES = [
       : 'admin@pims.com [SFE Lead]';
 
     const sortedIndices = Array.from(selectedRowIndices).sort((a, b) => b - a);
+    const bulkDecommissionPayloads = [];
 
     sortedIndices.forEach(idx => {
       const row = programTerritories[idx];
       if (!row) return;
 
       const terrCode = row.activeCode || row.latestPrevCode || row.recordId;
+      const baseRep = cleanRepDisplayName(row.rep);
+      const hasValidRep = baseRep && !/^unassigned/i.test(baseRep) && !/^vacant/i.test(baseRep) && !/^folder/i.test(baseRep);
+      const resignedLabel = hasValidRep ? `${baseRep} [RESIGNED]` : 'Unassigned Rep [RESIGNED]';
 
       // Invariant: Zero permanent deletion. Tag Inactive and transfer to Archive Vault
+      if (hasValidRep) row.previousRep = baseRep;
       row.operationalStatus = 'Inactive';
-      row.status = 'CHANGED';
+      row.isActive = false;
       row.isResigned = true;
+      row.rep = resignedLabel;
+      row.status = 'CHANGED';
 
-      archivedRecords.unshift({
-        archiveDate: nowStr.substring(0, 10),
-        recordId: row.recordId,
-        histCode: terrCode,
-        rep: row.rep || 'Unassigned',
-        docs: row.docs || 0,
-        reason: reason
+      if (!Array.isArray(row.auditTrail)) row.auditTrail = [];
+      row.auditTrail.unshift({
+        timestamp: nowStr,
+        action: 'BULK_DECOMMISSION',
+        user: loggedUser,
+        details: `Archived to Archive Vault & tagged Inactive. Covered doctors preserved: ${row.docs || 0}. (Reason: ${reason})`
       });
 
-      // Update tree node to Inactive status
+      if (!archivedRecords.find(a => a.code === terrCode || a.histCode === terrCode)) {
+        archivedRecords.unshift({
+          archiveDate: nowStr.substring(0, 10),
+          dateArchived: nowStr.substring(0, 10),
+          recordId: row.recordId,
+          code: terrCode,
+          histCode: terrCode,
+          district: row.district || 'General',
+          originalDistrict: row.district || 'General',
+          rep: hasValidRep ? baseRep : 'Unassigned',
+          originalRep: hasValidRep ? baseRep : 'Unassigned',
+          docs: row.docs || 0,
+          coveredDocsCount: row.docs || 0,
+          userId: (row.userId && row.userId.includes('@')) ? row.userId : '',
+          reason: reason
+        });
+      }
+
+      // Update tree node to Inactive status cleanly
       const treeNode = territoryTreeData.find(t => t.name === terrCode || t.territory_name === terrCode);
       if (treeNode) {
         treeNode.operational_status = 'Inactive';
         treeNode.status = 'Inactive';
+        treeNode.territory_manager = resignedLabel;
       }
+
+      if (typeof syncBaselineTerritoryEntry === 'function') {
+        syncBaselineTerritoryEntry(terrCode, {
+          rep: resignedLabel,
+          operationalStatus: 'Inactive',
+          isActive: false,
+          isResigned: true,
+          status: 'CHANGED'
+        });
+      }
+
+      bulkDecommissionPayloads.push({
+        territory: terrCode,
+        territory_manager: resignedLabel,
+        status: 'Inactive'
+      });
 
       globalAuditLogs.unshift({
         timestamp: nowStr,
@@ -9070,6 +9324,33 @@ const BASELINE_ERP_TERRITORIES = [
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
       localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
     } catch (_) {}
+
+    // Bidirectional dispatch to Streamlit / ERPNext
+    if (bulkDecommissionPayloads.length > 0) {
+      if (isStreamlitActive || (window.parent && window.parent !== window)) {
+        try {
+          window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setComponentValue",
+            value: {
+              action: "bulk_decommission",
+              territories: bulkDecommissionPayloads,
+              timestamp: Date.now()
+            }
+          }, "*");
+        } catch (_) {}
+      } else {
+        bulkDecommissionPayloads.forEach(item => {
+          try {
+            fetch(`/api/resource/Territory/${encodeURIComponent(item.territory)}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({ territory_manager: '' })
+            }).catch(() => {});
+          } catch (_) {}
+        });
+      }
+    }
 
     closeBulkEditModal();
     selectedRowIndices.clear();
@@ -9333,8 +9614,11 @@ const BASELINE_ERP_TERRITORIES = [
       programTerritories.unshift(newRecord);
       selectedRowIndices.add(0);
 
-      // 1. Ensure district cluster exists in territoryTreeData
-      if (!territoryTreeData.some(t => t.name === rowDistrict || t.territory_name === rowDistrict)) {
+      // 1. Ensure district cluster exists in territoryTreeData and is promoted to group
+      const existingDistNode = territoryTreeData.find(t => t.name === rowDistrict || t.territory_name === rowDistrict);
+      if (existingDistNode) {
+        existingDistNode.is_group = 1;
+      } else {
         territoryTreeData.push({
           name: rowDistrict,
           territory_name: rowDistrict,
@@ -9346,28 +9630,42 @@ const BASELINE_ERP_TERRITORIES = [
           custom_account_or_program: activeProgram,
           program: activeProgram
         });
-        treeExpandedNodes.add(rowDistrict);
       }
+      if (typeof registerNodeProgram === 'function') registerNodeProgram(rowDistrict, activeProgram);
+      if (typeof expandTreeAncestors === 'function') expandTreeAncestors(rowDistrict);
+      else treeExpandedNodes.add(rowDistrict);
 
       // 2. Add territory node to territoryTreeData
       const existingTreeNode = territoryTreeData.find(t => t.name === code || t.territory_name === code);
+      const assignedMgr = (rowRep === 'Unassigned Slot') ? '' : rowRep;
       if (existingTreeNode) {
         existingTreeNode.parent_territory = rowDistrict;
-        existingTreeNode.territory_manager = (rowRep === 'Unassigned Slot') ? '' : rowRep;
+        existingTreeNode.territory_manager = assignedMgr;
         existingTreeNode.operational_status = initialOpStatus;
         existingTreeNode.status = initialOpStatus;
+        existingTreeNode.custom_account_or_program = activeProgram;
+        existingTreeNode.program = activeProgram;
       } else {
         territoryTreeData.push({
           name: code,
           territory_name: code,
           parent_territory: rowDistrict,
           is_group: 0,
-          territory_manager: (rowRep === 'Unassigned Slot') ? '' : rowRep,
+          territory_manager: assignedMgr,
           operational_status: initialOpStatus,
           status: initialOpStatus,
           custom_account_or_program: activeProgram,
           program: activeProgram
         });
+      }
+      if (typeof registerNodeProgram === 'function') registerNodeProgram(code, activeProgram);
+      if (assignedMgr && typeof registerSalesPersonProgram === 'function') {
+        registerSalesPersonProgram(assignedMgr, activeProgram);
+      }
+      if (LIVE_DATA[activeProgram] && Array.isArray(LIVE_DATA[activeProgram].territories)) {
+        if (!LIVE_DATA[activeProgram].territories.some(t => t.activeCode === code || t.histCode === code)) {
+          LIVE_DATA[activeProgram].territories.unshift(newRecord);
+        }
       }
 
       globalAuditLogs.unshift({
@@ -11861,6 +12159,32 @@ const BASELINE_ERP_TERRITORIES = [
   let activeErpDropdown = null;
 
 
+  function expandTreeAncestors(nodeName) {
+    let curr = nodeName;
+    const visited = new Set();
+    while (curr && !visited.has(curr)) {
+      visited.add(curr);
+      treeExpandedNodes.add(curr);
+      const pNode = Array.isArray(territoryTreeData)
+        ? territoryTreeData.find(t => t && (t.name === curr || t.territory_name === curr))
+        : null;
+      curr = (pNode && pNode.parent_territory) ? pNode.parent_territory : null;
+    }
+    treeExpandedNodes.add('All Territories');
+  }
+
+  function syncBaselineTerritoryEntry(matchCode, updates) {
+    if (!matchCode || !updates || typeof LIVE_DATA !== 'object' || !LIVE_DATA[activeProgram]) return;
+    const progTerrs = LIVE_DATA[activeProgram].territories;
+    if (!Array.isArray(progTerrs)) return;
+    const baseRow = progTerrs.find(t =>
+      t && (t.activeCode === matchCode || t.histCode === matchCode || t.latestPrevCode === matchCode)
+    );
+    if (baseRow) {
+      Object.assign(baseRow, updates);
+    }
+  }
+
   // Synchronize Table Grid programTerritories with live ERPNext territoryTreeData strictly within activeProgram
   function syncProgramTerritoriesWithTree() {
     if (!territoryTreeData || territoryTreeData.length === 0) {
@@ -11918,22 +12242,41 @@ const BASELINE_ERP_TERRITORIES = [
       if (t.name === 'Abbott DC Territories' || t.name === (LIVE_DATA[activeProgram]?.territoryBranch)) return;
       if (t.name === 'AD1 - GMA/NORTH LUZON/CENTRAL LUZON' || t.name === 'AD2 - GMA/SOUTH LUZON') return;
 
+      const treeStatus = t.operational_status || t.status || '';
+      const rawTreeMgr = (t.territory_manager || '').trim();
+      const cleanTreeMgr = rawTreeMgr ? cleanRepDisplayName(rawTreeMgr) : '';
+      const isResignedTree = treeStatus === 'Inactive' || /resigned|inactive/i.test(rawTreeMgr);
+      const isVacantTree = treeStatus === 'Vacant';
+
       let existing = ptMap.get(t.name) ||
                      programTerritories.find(p => p.activeCode === t.name || p.latestPrevCode === t.name || p.histCode === t.name || p.activeCode === t.territory_name);
       if (!existing) {
         const base = baseMap.get(t.name) || (t.territory_name ? baseMap.get(t.territory_name) : null);
         const newRecordId = `REC-${t.name.replace(/[^A-Za-z0-9]/g, '_')}`;
+        const resolvedRep = isResignedTree
+          ? (rawTreeMgr || 'Unassigned Rep [RESIGNED]')
+          : (isVacantTree
+            ? 'Unassigned Rep'
+            : ((cleanTreeMgr && cleanTreeMgr !== 'Folder (Group)') ? cleanTreeMgr : (base ? base.rep : 'Unassigned Rep')));
+        const resolvedOpStatus = isResignedTree
+          ? 'Inactive'
+          : (isVacantTree
+            ? 'Vacant'
+            : ((resolvedRep && !/^unassigned|^vacant/i.test(resolvedRep)) ? 'Active' : 'Vacant'));
         const newRow = {
           histCode: t.name,
           newCode: t.name,
           latestPrevCode: t.name,
           activeCode: t.name,
           district: t.parent_territory || (base ? base.district : (LIVE_DATA[activeProgram]?.territoryBranch || 'All Territories')),
-          rep: t.territory_manager ? cleanRepDisplayName(t.territory_manager) : (base ? base.rep : 'Unassigned Rep'),
-          docs: getCoveredDoctorsForTerritory({ activeCode: t.name, latestPrevCode: t.name, histCode: t.name, rep: t.territory_manager }).length,
+          rep: resolvedRep,
+          docs: getCoveredDoctorsForTerritory({ activeCode: t.name, latestPrevCode: t.name, histCode: t.name, rep: resolvedRep }).length,
           status: base ? (base.status || 'UNCHANGED') : 'UNCHANGED',
+          operationalStatus: resolvedOpStatus,
+          isActive: !isResignedTree,
+          isResigned: isResignedTree,
           recordId: newRecordId,
-          userId: t.custom_user_id || ERP_TERRITORY_USER_MAP[t.name] || (base ? (base.userId || '') : ''),
+          userId: isVacantTree ? '' : (t.custom_user_id || ERP_TERRITORY_USER_MAP[t.name] || (base ? (base.userId || '') : '')),
           isGroup: t.is_group ? 1 : 0,
           auditTrail: base ? (base.auditTrail || []) : [{
             timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
@@ -11945,26 +12288,46 @@ const BASELINE_ERP_TERRITORIES = [
         programTerritories.push(newRow);
         ptMap.set(t.name, newRow);
       } else {
-        // PRESERVE renamed activeCode and rep across syncs
+        // PRESERVE renamed activeCode and sync status, manager, userId, and parent folder across both views
         if (existing.activeCode !== t.name && (existing.latestPrevCode === t.name || existing.histCode === t.name)) {
           // Renamed territory preserves current activeCode
         } else {
           existing.activeCode = t.name;
         }
+        existing.isGroup = t.is_group ? 1 : 0;
 
         const accurateUid = t.custom_user_id || ERP_TERRITORY_USER_MAP[t.name];
-        if (accurateUid) {
+        if (accurateUid && !isVacantTree) {
           existing.userId = accurateUid;
         }
 
         if (t.parent_territory && existing.district !== t.parent_territory) {
           existing.district = t.parent_territory;
         }
-        // Update rep when tree node has an explicit territory_manager assigned
-        if (t.territory_manager && t.territory_manager.trim()) {
-          const cleanMgr = cleanRepDisplayName(t.territory_manager);
-          if (cleanMgr && cleanMgr !== 'Folder (Group)') {
-            existing.rep = cleanMgr;
+
+        if (isResignedTree) {
+          existing.operationalStatus = 'Inactive';
+          existing.isActive = false;
+          existing.isResigned = true;
+          if (rawTreeMgr) existing.rep = rawTreeMgr;
+        } else if (isVacantTree) {
+          existing.operationalStatus = 'Vacant';
+          existing.isActive = true;
+          existing.isResigned = false;
+          existing.rep = 'Unassigned Rep';
+          existing.userId = '';
+        } else {
+          if (cleanTreeMgr && cleanTreeMgr !== 'Folder (Group)') {
+            existing.rep = cleanTreeMgr;
+            if (treeStatus === 'Active' || existing.operationalStatus !== 'Inactive') {
+              existing.operationalStatus = 'Active';
+              existing.isActive = true;
+              existing.isResigned = false;
+            }
+          } else if (treeStatus === 'Active') {
+            existing.operationalStatus = 'Active';
+            existing.isActive = true;
+            existing.isResigned = false;
           }
         }
       }
@@ -12057,11 +12420,8 @@ const BASELINE_ERP_TERRITORIES = [
 
           localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
           syncProgramTerritoriesWithTree();
-          if (window.activeEditorViewMode === 'grid') {
-            renderTable();
-          } else {
-            renderTree();
-          }
+          if (typeof renderTable === 'function') renderTable();
+          if (typeof renderTree === 'function') renderTree();
           if (typeof updateEditorViewModeUI === 'function') updateEditorViewModeUI();
           renderRealignmentAndArchive();
           renderSummaryReport();
@@ -15276,11 +15636,8 @@ const BASELINE_ERP_TERRITORIES = [
     }
     closeTreeRenameModal();
 
-    if (window.activeEditorViewMode === 'grid') {
-      if (typeof renderTable === 'function') renderTable();
-    } else {
-      if (typeof renderTree === 'function') renderTree();
-    }
+    if (typeof renderTable === 'function') renderTable();
+    if (typeof renderTree === 'function') renderTree();
     if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
     if (typeof renderSummaryReport === 'function') renderSummaryReport();
 
@@ -15616,17 +15973,71 @@ const BASELINE_ERP_TERRITORIES = [
       row.status = 'CHANGED';
     }
 
-    const treeNode = (territoryTreeData || []).find(n => n.name === oldCode || n.name === row.activeCode || n.name === row.latestPrevCode);
-    if (treeNode) {
+    let treeNode = (territoryTreeData || []).find(n => n.name === oldCode || n.name === row.activeCode || n.name === row.latestPrevCode);
+    const effectiveTreeMgr = (row.operationalStatus === 'Active' && newRep && !/^unassigned/i.test(newRep) && !/^vacant/i.test(newRep))
+      ? newRep
+      : (row.operationalStatus === 'Inactive' ? row.rep : '');
+    if (newActiveCode !== oldCode) {
+      (territoryTreeData || []).forEach(t => {
+        if (t && t.parent_territory === oldCode) {
+          t.parent_territory = newActiveCode;
+        }
+      });
+      if (treeExpandedNodes.has(oldCode)) {
+        treeExpandedNodes.delete(oldCode);
+        treeExpandedNodes.add(newActiveCode);
+      }
+      if (selectedTreeNode === oldCode) {
+        selectedTreeNode = newActiveCode;
+      }
+    }
+    if (!treeNode) {
+      treeNode = {
+        name: row.activeCode,
+        territory_name: row.activeCode,
+        parent_territory: newDistrict || row.district || 'All Territories',
+        is_group: row.isGroup ? 1 : 0,
+        territory_manager: effectiveTreeMgr,
+        operational_status: row.operationalStatus,
+        status: row.operationalStatus,
+        custom_user_id: newUserId,
+        custom_account_or_program: activeProgram,
+        program: activeProgram
+      };
+      territoryTreeData.push(treeNode);
+    } else {
       treeNode.name = row.activeCode;
       treeNode.territory_name = row.activeCode;
       if (newDistrict) treeNode.parent_territory = newDistrict;
-      treeNode.territory_manager = (row.operationalStatus === 'Active') ? newRep : '';
+      treeNode.territory_manager = effectiveTreeMgr;
       treeNode.operational_status = row.operationalStatus;
       treeNode.status = row.operationalStatus;
       treeNode.custom_user_id = newUserId;
-      const pNode = (territoryTreeData || []).find(n => n.name === newDistrict);
+      treeNode.custom_account_or_program = activeProgram;
+      treeNode.program = activeProgram;
+    }
+    if (typeof registerNodeProgram === 'function') registerNodeProgram(row.activeCode, activeProgram);
+    if (effectiveTreeMgr && row.operationalStatus === 'Active' && typeof registerSalesPersonProgram === 'function') {
+      registerSalesPersonProgram(effectiveTreeMgr, activeProgram);
+    }
+    if (newDistrict) {
+      const pNode = (territoryTreeData || []).find(n => n.name === newDistrict || n.territory_name === newDistrict);
       if (pNode && !pNode.is_group) pNode.is_group = 1;
+      if (typeof expandTreeAncestors === 'function') expandTreeAncestors(newDistrict);
+      else treeExpandedNodes.add(newDistrict);
+    }
+    if (typeof syncBaselineTerritoryEntry === 'function') {
+      syncBaselineTerritoryEntry(oldCode, {
+        activeCode: row.activeCode,
+        latestPrevCode: row.latestPrevCode,
+        district: row.district,
+        rep: row.rep,
+        userId: row.userId,
+        operationalStatus: row.operationalStatus,
+        isActive: row.isActive,
+        isResigned: row.isResigned,
+        status: 'CHANGED'
+      });
     }
 
     if (newDocs !== row.docs) {
@@ -15672,15 +16083,26 @@ const BASELINE_ERP_TERRITORIES = [
             old_name: oldCode,
             new_name: newActiveCode,
             parent_territory: row.district || 'All Territories',
+            is_group: treeNode ? (treeNode.is_group || 0) : 0,
             territory_manager: (row.operationalStatus === 'Active') ? newRep : '',
+            custom_user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
+            user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
+            custom_account_or_program: activeProgram,
+            status: row.operationalStatus || 'Active',
+            apply_field_updates: true,
             prev_code: prevCodeBeforeRename || oldCode,
             timestamp: Date.now()
           } : {
             action: "tree_edit",
             name: row.activeCode,
+            territory_name: row.activeCode,
             parent_territory: row.district || 'All Territories',
             is_group: treeNode ? (treeNode.is_group || 0) : 0,
             territory_manager: (row.operationalStatus === 'Active') ? newRep : '',
+            custom_user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
+            user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
+            custom_account_or_program: activeProgram,
+            status: row.operationalStatus || 'Active',
             timestamp: Date.now()
           }
         }, "*");
@@ -15699,50 +16121,16 @@ const BASELINE_ERP_TERRITORIES = [
     const idx = parseInt(document.getElementById('editRecordIndex').value, 10);
     if (isNaN(idx) || !programTerritories[idx]) return;
 
-    if (!confirm('Are you sure you want to decommission and archive this territory code? All linked accounts will be preserved in the archive folder.')) return;
+    if (!confirm('Are you sure you want to decommission and mark this territory Inactive? All linked accounts will be preserved in the Archive Vault.')) return;
 
     const row = programTerritories[idx];
-    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-    archivedRecords.unshift({
-      archiveDate: nowStr,
-      recordId: row.recordId,
-      histCode: row.activeCode || row.latestPrevCode,
-      prevName: row.histName || `${row.activeCode || row.latestPrevCode} - Archived Area`,
-      assignedRep: row.rep,
-      rep: row.rep,
-      doctorsCovered: row.docs,
-      docs: row.docs,
-      userId: (row.userId && row.userId.includes('@')) ? row.userId : '',
-      reason: 'Decommissioned by SFE during realignment',
-      district: row.district || 'Unassigned Cluster',
-      program: activeProgram,
-      action: 'ARCHIVED',
-      details: `Territory ${row.activeCode} decommissioned and moved to Archive Folder with ${row.docs} doctors preserved.`
-    });
-
-    globalAuditLogs.unshift({
-      timestamp: nowStr,
-      recordId: row.recordId,
-      action: 'ARCHIVED',
-      territoryCode: row.activeCode,
-      user: 'admin@pims.com [SFE Lead]',
-      details: `Territory ${row.activeCode} decommissioned and moved to Archive Folder with ${row.docs} doctors preserved.`
-    });
-
-    programTerritories.splice(idx, 1);
-    saveArchivedRecordsForProgram();
-    try {
-      localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
-    } catch (_) {}
-
+    const targetCode = row.activeCode || row.latestPrevCode || row.histCode;
     closeEditModal();
-    renderTable();
-    renderTree();
-    renderRealignmentAndArchive();
-    renderSummaryReport();
-    renderArchiveFolderDropdown();
-    showToast(`Archived territory ${row.activeCode} moved to Archive Folder!`);
+    setTerritoryOperationalStatus(
+      targetCode,
+      'Inactive',
+      `Territory ${targetCode} decommissioned and moved to Archive Folder with ${row.docs || 0} doctors preserved.`
+    );
   }
 
   // --- ADD NEW TERRITORY MODAL ---
@@ -15937,6 +16325,8 @@ const BASELINE_ERP_TERRITORIES = [
 
     let renamedCount = 0;
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const batchRenames = [];
+    const isStreamlitEnv = isStreamlitActive || (window.parent && window.parent !== window);
 
     programTerritories.forEach(row => {
       if (row.activeCode.startsWith(oldPfx)) {
@@ -15949,13 +16339,33 @@ const BASELINE_ERP_TERRITORIES = [
         renamedCount++;
 
         const bNode = (territoryTreeData || []).find(t => t && (t.name === oldCode || t.territory_name === oldCode));
+        const parentTerr = (bNode && bNode.parent_territory) || row.district || 'All Territories';
         if (bNode) {
           bNode.name = updated;
           bNode.territory_name = updated;
+          bNode.custom_account_or_program = activeProgram;
+          bNode.program = activeProgram;
         }
         (territoryTreeData || []).forEach(t => {
           if (t && t.parent_territory === oldCode) t.parent_territory = updated;
         });
+        if (treeExpandedNodes.has(oldCode)) {
+          treeExpandedNodes.delete(oldCode);
+          treeExpandedNodes.add(updated);
+        }
+        if (selectedTreeNode === oldCode) {
+          selectedTreeNode = updated;
+        }
+        if (typeof registerNodeProgram === 'function') {
+          registerNodeProgram(updated, activeProgram);
+        }
+        if (typeof syncBaselineTerritoryEntry === 'function') {
+          syncBaselineTerritoryEntry(oldCode, {
+            activeCode: updated,
+            latestPrevCode: oldCode,
+            status: 'CHANGED'
+          });
+        }
         if (Array.isArray(programAccounts)) {
           programAccounts.forEach(acc => {
             if (acc.liveTerritory === oldCode || acc.territory === oldCode || acc.activeCode === oldCode) {
@@ -15965,7 +16375,15 @@ const BASELINE_ERP_TERRITORIES = [
             }
           });
         }
-        syncSalesPersonTerritoryCodeLocally(oldCode, updated, row.rep, prevCodeBeforeRename, false);
+        syncSalesPersonTerritoryCodeLocally(oldCode, updated, row.rep, prevCodeBeforeRename, !isStreamlitEnv);
+
+        batchRenames.push({
+          old_name: oldCode,
+          new_name: updated,
+          parent_territory: parentTerr,
+          territory_manager: (bNode && bNode.territory_manager) || row.rep || '',
+          prev_code: prevCodeBeforeRename || oldCode
+        });
 
         const entry = {
           timestamp: nowStr,
@@ -15988,6 +16406,36 @@ const BASELINE_ERP_TERRITORIES = [
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
       localStorage.setItem('pims_accounts_' + activeProgram, JSON.stringify(programAccounts));
     } catch (_) {}
+
+    if (batchRenames.length > 0) {
+      if (isStreamlitEnv) {
+        try {
+          window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setComponentValue",
+            value: {
+              action: "bulk_tree_rename",
+              renames: batchRenames,
+              timestamp: Date.now()
+            }
+          }, "*");
+        } catch (_) {}
+      } else {
+        batchRenames.forEach(p => {
+          try {
+            fetch('/api/method/frappe.client.rename_doc', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                doctype: 'Territory',
+                old_name: p.old_name,
+                new_name: p.new_name
+              })
+            }).catch(() => {});
+          } catch (_) {}
+        });
+      }
+    }
 
     closeBatchRenameModal();
     renderTable();
@@ -16453,33 +16901,121 @@ const BASELINE_ERP_TERRITORIES = [
     if (overlay) overlay.classList.remove('active');
   }
 
+  function restoreSingleArchivedRecord(arc, detailPrefix = 'Restored decommissioned territory') {
+    if (!arc) return '';
+    const restoredCode = arc.code || arc.histCode || arc.activeCode || arc.name || arc.recordId;
+    if (!restoredCode) return '';
+
+    const rawOrigRep = cleanRepDisplayName(arc.originalRep || arc.rep || arc.assignedRep || '');
+    const restoredRep = (rawOrigRep && !/^unassigned|^vacant/i.test(rawOrigRep)) ? rawOrigRep : '';
+    const existingPt = findProgramTerritoryByCode(restoredCode);
+    const progBranch = (LIVE_DATA[activeProgram] && LIVE_DATA[activeProgram].territoryBranch) ? LIVE_DATA[activeProgram].territoryBranch : 'All Territories';
+    const restoredDistrict = arc.originalDistrict || arc.district || progBranch;
+
+    if (existingPt) {
+      existingPt.operationalStatus = restoredRep ? 'Active' : 'Vacant';
+      existingPt.isActive = true;
+      existingPt.isResigned = false;
+      existingPt.rep = restoredRep || 'Unassigned Rep';
+      existingPt.status = 'CHANGED';
+      if (!Array.isArray(existingPt.auditTrail)) existingPt.auditTrail = [];
+      existingPt.auditTrail.unshift({
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        action: 'REACTIVATED',
+        user: 'admin@pims.com [SFE Lead]',
+        details: `${detailPrefix} ${restoredCode} from Archive Folder back into active masterlist.`
+      });
+    } else {
+      const opStatus = restoredRep ? 'Active' : 'Vacant';
+      programTerritories.push({
+        recordId: arc.recordId || `REC-${restoredCode.replace(/[^A-Za-z0-9]/g, '')}`,
+        userId: (arc.userId && arc.userId.includes('@')) ? arc.userId : '',
+        latestPrevCode: restoredCode,
+        activeCode: restoredCode,
+        rep: restoredRep || 'Unassigned Rep',
+        district: restoredDistrict,
+        docs: arc.docs || arc.coveredDocsCount || arc.doctorsCovered || 0,
+        status: 'CHANGED',
+        operationalStatus: opStatus,
+        isActive: true,
+        isResigned: false,
+        auditTrail: [{
+          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          action: 'REACTIVATED',
+          user: 'admin@pims.com [SFE Lead]',
+          details: `${detailPrefix} ${restoredCode} from Archive Folder back into active masterlist.`
+        }]
+      });
+    }
+
+    const finalOpStatus = restoredRep ? 'Active' : 'Vacant';
+    let treeNode = territoryTreeData.find(t => t.name === restoredCode || t.territory_name === restoredCode);
+    if (!treeNode) {
+      treeNode = {
+        name: restoredCode,
+        territory_name: restoredCode,
+        parent_territory: restoredDistrict,
+        is_group: 0,
+        territory_manager: restoredRep,
+        operational_status: finalOpStatus,
+        status: finalOpStatus,
+        custom_account_or_program: activeProgram,
+        program: activeProgram
+      };
+      territoryTreeData.push(treeNode);
+    } else {
+      treeNode.territory_manager = restoredRep;
+      treeNode.operational_status = finalOpStatus;
+      treeNode.status = finalOpStatus;
+    }
+    if (typeof registerNodeProgram === 'function') registerNodeProgram(restoredCode, activeProgram);
+    if (typeof expandTreeAncestors === 'function') expandTreeAncestors(treeNode.parent_territory || restoredCode);
+    if (typeof syncBaselineTerritoryEntry === 'function') {
+      syncBaselineTerritoryEntry(restoredCode, {
+        rep: restoredRep || 'Unassigned Rep',
+        operationalStatus: finalOpStatus,
+        isActive: true,
+        isResigned: false,
+        status: 'CHANGED'
+      });
+    }
+    return restoredCode;
+  }
+
   function restoreArchivedRecord(idx) {
     const arc = archivedRecords[idx];
     if (!arc) return;
 
-    const restoredCode = arc.histCode || arc.activeCode || arc.recordId;
-    programTerritories.push({
-      recordId: arc.recordId || `REC-${restoredCode.replace(/[^A-Za-z0-9]/g, '')}`,
-      userId: (arc.userId && arc.userId.includes('@')) ? arc.userId : '',
-      latestPrevCode: restoredCode,
-      activeCode: restoredCode,
-      rep: arc.rep || arc.assignedRep || 'Unassigned / Reserved',
-      district: arc.district || 'Restored Cluster',
-      docs: arc.docs || arc.doctorsCovered || 0,
-      status: 'CHANGED',
-      auditTrail: [{
-        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        action: 'REACTIVATED',
-        user: 'admin@pims.com [SFE Lead]',
-        details: `Restored decommissioned territory ${restoredCode} from Archive Folder back into active masterlist.`
-      }]
-    });
-
+    const restoredCode = arc.code || arc.histCode || arc.activeCode || arc.recordId;
     archivedRecords.splice(idx, 1);
     saveArchivedRecordsForProgram();
+
+    restoreSingleArchivedRecord(arc, 'Restored decommissioned territory');
+
     try {
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
     } catch (_) {}
+
+    if (isStreamlitActive || (window.parent && window.parent !== window)) {
+      const node = territoryTreeData.find(t => t.name === restoredCode || t.territory_name === restoredCode);
+      const pt = findProgramTerritoryByCode(restoredCode);
+      const tgtStatus = (pt && pt.operationalStatus) || 'Active';
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "territory_toggle_status",
+            territory: restoredCode,
+            status: tgtStatus,
+            custom_status: tgtStatus,
+            territory_manager: (node && node.territory_manager) || '',
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
 
     renderTable();
     renderTree();
@@ -16490,7 +17026,7 @@ const BASELINE_ERP_TERRITORIES = [
 
   function restoreArchivedRecordByName(code, event) {
     if (event) event.stopPropagation();
-    const idx = archivedRecords.findIndex(r => (r.histCode || r.activeCode || r.recordId) === code);
+    const idx = archivedRecords.findIndex(r => (r.code || r.histCode || r.activeCode || r.recordId) === code);
     if (idx !== -1) {
       restoreArchivedRecord(idx);
     } else {
@@ -16503,31 +17039,43 @@ const BASELINE_ERP_TERRITORIES = [
     if (!archivedRecords || archivedRecords.length === 0) return;
     if (!confirm(`Restore all ${archivedRecords.length} archived territories back to the active masterlist?`)) return;
 
+    const restoredItems = [];
     while (archivedRecords.length > 0) {
       const arc = archivedRecords.pop();
-      const restoredCode = arc.histCode || arc.activeCode || arc.recordId;
-      programTerritories.push({
-        recordId: arc.recordId || `REC-${restoredCode.replace(/[^A-Za-z0-9]/g, '')}`,
-        userId: (arc.userId && arc.userId.includes('@')) ? arc.userId : '',
-        latestPrevCode: restoredCode,
-        activeCode: restoredCode,
-        rep: arc.rep || arc.assignedRep || 'Unassigned / Reserved',
-        district: arc.district || 'Restored Cluster',
-        docs: arc.docs || arc.doctorsCovered || 0,
-        status: 'CHANGED',
-        auditTrail: [{
-          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-          action: 'REACTIVATED',
-          user: 'admin@pims.com [SFE Lead]',
-          details: `Batch restored decommissioned territory ${restoredCode} from Archive Folder.`
-        }]
-      });
+      const restoredCode = restoreSingleArchivedRecord(arc, 'Batch restored decommissioned territory');
+      if (restoredCode) {
+        const node = territoryTreeData.find(t => t.name === restoredCode || t.territory_name === restoredCode);
+        const pt = findProgramTerritoryByCode(restoredCode);
+        restoredItems.push({
+          name: restoredCode,
+          parent_territory: (node && node.parent_territory) || (pt && pt.district) || 'All Territories',
+          is_group: (node && node.is_group) ? 1 : 0,
+          territory_manager: (node && node.territory_manager) || '',
+          status: (pt && pt.operationalStatus) || 'Active',
+          custom_account_or_program: activeProgram
+        });
+      }
     }
 
     saveArchivedRecordsForProgram();
     try {
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+      localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
     } catch (_) {}
+
+    if (restoredItems.length > 0 && (isStreamlitActive || (window.parent && window.parent !== window))) {
+      try {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: {
+            action: "bulk_tree_edit",
+            territories: restoredItems,
+            timestamp: Date.now()
+          }
+        }, "*");
+      } catch (_) {}
+    }
 
     renderTable();
     renderTree();
@@ -17690,20 +18238,24 @@ const BASELINE_ERP_TERRITORIES = [
       } catch (_) {}
     }
 
-    // Refresh UI Table Grid and Tree View
+    // Refresh UI Table Grid, Territory Tree, Realignment, and Summary Report
     renderTable();
     if (typeof renderTree === 'function') renderTree();
+    if (typeof renderRealignmentAndArchive === 'function') renderRealignmentAndArchive();
+    if (typeof renderSummaryReport === 'function') renderSummaryReport();
 
     closeDoctorTransferModal();
     showToast(`Successfully transferred and synced doctor reassignment! (${transferredToTargetCount} transferred to ${targetRep})`, 'success');
 
-    // Trigger asynchronous background persistence
-    try {
-      if (typeof syncTreeWithERPNext === 'function') {
-        syncTreeWithERPNext(false).catch(e => console.warn('Background ERPNext sync notification:', e));
+    // In standalone mode (non-Streamlit), trigger background ERPNext refresh; in Streamlit mode, app.py already refreshes on doctor_transfer
+    if (!(isStreamlitActive || (window.parent && window.parent !== window))) {
+      try {
+        if (typeof syncTreeWithERPNext === 'function') {
+          syncTreeWithERPNext(false).catch(e => console.warn('Background ERPNext sync notification:', e));
+        }
+      } catch (err) {
+        console.warn('Sync dispatch:', err);
       }
-    } catch (err) {
-      console.warn('Sync dispatch:', err);
     }
   }
 
@@ -17919,12 +18471,39 @@ const BASELINE_ERP_TERRITORIES = [
     // 1. Update programTerritories row
     activeResignTerritoryRow.rep = newRep;
     if (newUserId) activeResignTerritoryRow.userId = newUserId;
+    activeResignTerritoryRow.operationalStatus = 'Active';
+    activeResignTerritoryRow.isActive = true;
+    activeResignTerritoryRow.isResigned = false;
     activeResignTerritoryRow.status = 'CHANGED';
 
     // 2. Update territoryTreeData node
     const treeNode = territoryTreeData.find(t => t.name === terrCode || t.territory_name === terrCode);
     if (treeNode) {
       treeNode.territory_manager = newRep;
+      treeNode.operational_status = 'Active';
+      treeNode.status = 'Active';
+      if (newUserId) treeNode.custom_user_id = newUserId;
+    }
+    if (typeof registerSalesPersonProgram === 'function') {
+      registerSalesPersonProgram(newRep, activeProgram);
+    }
+    if (typeof syncBaselineTerritoryEntry === 'function') {
+      syncBaselineTerritoryEntry(terrCode, {
+        rep: newRep,
+        userId: newUserId || activeResignTerritoryRow.userId || '',
+        operationalStatus: 'Active',
+        isActive: true,
+        isResigned: false,
+        status: 'CHANGED'
+      });
+    }
+    if (Array.isArray(archivedRecords)) {
+      for (let ai = archivedRecords.length - 1; ai >= 0; ai--) {
+        const a = archivedRecords[ai];
+        if (a && (a.code === terrCode || a.histCode === terrCode)) {
+          archivedRecords.splice(ai, 1);
+        }
+      }
     }
 
     // 3. Merge / Transfer 100% of the previous representative's doctors in programAccounts
@@ -17956,23 +18535,13 @@ const BASELINE_ERP_TERRITORIES = [
 
     // 5. Persist to localStorage
     try {
+      localStorage.setItem('pims_stg_archived_territories_' + activeProgram, JSON.stringify(archivedRecords));
       localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
       localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
       localStorage.setItem('pims_accounts_' + activeProgram, JSON.stringify(programAccounts));
     } catch (_) {}
 
-    // 6. Push to ERPNext live API
-    try {
-      fetch(`/api/resource/Territory/${encodeURIComponent(terrCode)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ territory_manager: newRep })
-      }).then(r => {
-        if (r.ok) console.log(`[ERPNext] Live sync successful for Territory ${terrCode}`);
-      }).catch(e => console.warn('[ERPNext Sync Notice]:', e));
-    } catch (_) {}
-
-    // Streamlit bidirectional dispatch
+    // 6. Push to ERPNext live API (standalone mode) or Streamlit bidirectional dispatch
     if (isStreamlitActive || (window.parent && window.parent !== window)) {
       try {
         window.parent.postMessage({
@@ -17983,10 +18552,21 @@ const BASELINE_ERP_TERRITORIES = [
             territory: terrCode,
             old_rep: oldRep,
             new_rep: newRep,
+            new_user_id: newUserId || "",
             transferred_docs: transferredCount,
             timestamp: Date.now()
           }
         }, "*");
+      } catch (_) {}
+    } else {
+      try {
+        fetch(`/api/resource/Territory/${encodeURIComponent(terrCode)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ territory_manager: newRep })
+        }).then(r => {
+          if (r.ok) console.log(`[ERPNext] Live sync successful for Territory ${terrCode}`);
+        }).catch(e => console.warn('[ERPNext Sync Notice]:', e));
       } catch (_) {}
     }
 
