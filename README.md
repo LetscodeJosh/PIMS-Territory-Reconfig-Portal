@@ -6,18 +6,31 @@ See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for the complete `v.0.1.2` release 
 
 ---
 
+## Active Release Versions
+
+| Version | Track | Date | Git Tag | Summary |
+| :--- | :--- | :--- | :--- | :--- |
+| **`v.0.1.2`** | Current | 2026-11-20 | `v.0.1.2` | Top header `v.0.1.2` badge, animated hamburger toggle, Sales Person `(CODE)` rename sync, subtree-preserving tree search, bidirectional Table Grid &harr; Tree View sync, dynamic Row Actions (`Vacant` / `Inactive` / `Transfer Doctor`), streamlined status confirmation modal, clearer Audit Trail, zero decorative icons, `Bulk Operation` & intelligent Bulk Rename, and cleaned Archive tab. |
+| **`v.0.1.1`** | Previous | 2026-11-10 | `v.0.1.1` | Bug fix & stability release: MedRep tagging status validation, Table Grid column alignment, ERPNext direct deletion sync, Archive Vault terminology, permanent Enterprise Light Mode, and UAT #7/#8/#9 fixes. |
+| **`v.0.1.0`** | Initial | 2026-10-18 | `v.0.1.0` | Initial standalone Territory Reconfiguration Web Portal release: dedicated `VERSION` tracking, Realignment/Archive Vault, Summary Report & Audit Trail, strict no-deletion workflow, and interactive first-time user guide. |
+
+---
+
 ## Deployment Options
 
 This repository supports two production deployment models:
 
 ### Option 1: Pure GCP Compute Engine (Bare-Metal Linux via PuTTY) — Recommended for Enterprise
+
 Deploy directly onto a **Google Cloud Platform (GCP) Compute Engine VM** using standard Linux tools (`systemd`, `nginx`, `python3-venv`).
-* **Zero Docker, Zero Container Extensions**.
-* Runs 24/7 as an autonomous background service (`pims-portal.service`).
-* Includes Nginx reverse proxy with WebSocket support and optional free Let's Encrypt SSL.
-* Follow the complete step-by-step runbook in [`GCP_DEPLOYMENT_GUIDE.md`](./GCP_DEPLOYMENT_GUIDE.md)**.
+
+- **Zero Docker, Zero Container Extensions**.
+- Runs 24/7 as an autonomous background service (`pims-portal.service`).
+- Includes Nginx reverse proxy with WebSocket support and optional free Let's Encrypt SSL.
+- Follow the complete step-by-step runbook in [`GCP_DEPLOYMENT_GUIDE.md`](./GCP_DEPLOYMENT_GUIDE.md).
 
 **Quick 1-Command Installation via PuTTY:**
+
 ```bash
 git clone https://github.com/LetscodeJosh/PIMS-Territory-Reconfig-Portal.git ~/pims-portal
 cd ~/pims-portal
@@ -27,7 +40,9 @@ bash deploy/gcp/install.sh
 ---
 
 ### Option 2: Streamlit Community Cloud (Zero Server Management)
+
 Deploy in 3 minutes via Streamlit's hosted cloud service:
+
 1. Fork or push this repository to GitHub.
 2. Sign in to **[share.streamlit.io](https://share.streamlit.io/)**.
 3. Select this repository (`main` branch) with main file path `app.py`.
@@ -49,6 +64,7 @@ PIMS-Territory-Reconfig-Portal/
 ├── index.html                              # Web app alias for hosting platforms
 ├── secure_frappe_gateway.py                # Cyber-grade Frappe API proxy & anti-BOLA/IDOR sentinel
 ├── .env.example                            # Production environment template
+├── VERSION                                 # Active standalone portal version tracker (v.0.1.2)
 ├── GCP_DEPLOYMENT_GUIDE.md                 # Complete GCP bare-metal deployment runbook
 ├── RELEASE_NOTES.md                        # Formal release notes & UAT changelog
 ├── .streamlit/
@@ -66,6 +82,6 @@ PIMS-Territory-Reconfig-Portal/
 
 ## Security & ERPNext Integration Standard
 
-* **Zero Hardcoded Secrets**: All endpoints and service account credentials can be configured via environment variables (`.env`) or Streamlit secrets.
-* **Masterlist Protection**: Permanent deletion is disabled in the web portal. Unused territories are safely archived to the Archive Vault.
-* **Resilient Failover**: Cached structures and session recovery ensure the portal remains responsive during transient backend interruptions.
+- **Zero Hardcoded Secrets**: All endpoints and service account credentials can be configured via environment variables (`.env`) or Streamlit secrets.
+- **Masterlist Protection**: Permanent deletion is disabled in the web portal. Unused territories are safely archived to the Archive Vault.
+- **Resilient Failover**: Cached structures and session recovery ensure the portal remains responsive during transient backend interruptions.

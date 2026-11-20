@@ -1,7 +1,7 @@
 ## [v.0.1.2 - UX Enhancements, Tree/Grid Sync, Sales Person Code Sync & Intelligent Bulk Operation] - 2026-11-20
 
 ### Key Enhancements & Fixes Applied
-- **Login Page Header Versioning (`v.0.1.2`)**: Displayed the active portal version badge (`v.0.1.2`) in the `#loginView` card header banner.
+- **Top Header Bar Versioning (`v.0.1.2`)**: Displayed the active portal version badge (`v.0.1.2` via `#headerPortalVersionBadge`) directly beside `HCP Profiling • Territory Reconfiguration Portal` in the top navigation bar.
 - **Animated Sidebar Toggle**: Added smooth CSS transitions on the hamburger icon (`#sidebarToggleBtn`) reflecting open/closed menu states.
 - **Sales Person Code Synchronization on Territory Rename**: Single and bulk territory renames automatically update parenthesized territory codes `(CODE)` on matching Sales Person records in both the portal dropdown/tree and ERPNext backend (`_sync_sales_person_code_on_territory_rename`).
 - **Parent-Subtree Search Preservation**: Filtering the Territory Tree retains matching parent territories together with their child subtrees.
@@ -64,3 +64,14 @@
   - Resignation & Handover quick merge with ERPNext HR employee/user ID auto-population.
   - Live multi-user Institution Approvals sync and MedRep Submission workbench.
 - 100% SHA-256 byte-for-byte parity across all 7 mirrored portal files.
+
+---
+
+## [v.0.1.0 - Initial Release: SFE Territory Reconfiguration Web Portal] - 2026-10-18
+
+### Initial Release Foundation
+- **Dedicated Versioning**: Established standalone web application versioning starting at `v.0.1.0` with dedicated `VERSION` tracking file (`git tag v.0.1.0` at commit `1f87ffc`).
+- **Realignment Tab Refinement**: Eliminated active district cluster grids to retain strictly the Archived & Inactive Territories Directory Vault.
+- **Summary Report & Audit Trail UI/UX**: Unified KPI summary numbers and added sticky headers with scrollable viewports for deep audit logs.
+- **Strict No-Deletion Architecture**: Replaced permanent territory deletion in table actions with a safe **Tag Inactive / Vacant** workflow and live ERPNext synchronization.
+- **Interactive Guidance Engine**: Implemented first-time user login detection with an interactive onboarding walkthrough.
