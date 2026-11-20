@@ -1,3 +1,13 @@
+## [v.0.1.3 - Authoritative Live ERPNext Deletion Sync & Shared State Auto-Pruning] - 2026-11-20
+
+### Key Enhancements & Fixes Applied
+- **Top Header Bar Versioning (`v.0.1.3`)**: Updated the top navigation version badge (`#headerPortalVersionBadge`) and `VERSION` tracker to `v.0.1.3`.
+- **Authoritative Live ERPNext Territory Deletion Sync (`app.py`)**:
+  - Updated `merge_shared_territories_into_list(..., is_live_erpnext=False)` and `fetch_live_territories()` so live ERPNext responses are authoritative for territory existence.
+  - Automatically prunes territories deleted directly in ERPNext from `shared_territory_state.json` on refresh instead of re-appending them, while retaining `Vacant` / `Inactive` status overlays on active territories and `pending_erp_sync=True` resilience for offline creations.
+
+---
+
 ## [v.0.1.2 - UX Enhancements, Tree/Grid Sync, Sales Person Code Sync & Intelligent Bulk Operation] - 2026-11-20
 
 ### Key Enhancements & Fixes Applied
