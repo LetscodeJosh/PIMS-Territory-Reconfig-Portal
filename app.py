@@ -525,13 +525,35 @@ def get_safe_secret(key, default=""):
 def _get_shared_opener_store():
     return {"opener": None}
 
+def _opener_has_valid_sid(op):
+    if not op:
+        return False
+    jar = getattr(op, "cookie_jar", None)
+    if jar is None:
+        return True
+    try:
+        return any(c.name == "sid" and c.value and c.value != "Guest" for c in jar)
+    except Exception:
+        return False
+
 def get_authenticated_opener(force_refresh=False):
     existing_opener = None
-    if "opener" in st.session_state and st.session_state["opener"]:
-        existing_opener = st.session_state["opener"]
-    elif _get_shared_opener_store().get("opener"):
-        existing_opener = _get_shared_opener_store().get("opener")
-        st.session_state["opener"] = existing_opener
+    try:
+        if "opener" in st.session_state and st.session_state["opener"]:
+            existing_opener = st.session_state["opener"]
+    except Exception:
+        existing_opener = None
+    if not existing_opener:
+        try:
+            shared = _get_shared_opener_store().get("opener")
+            if shared:
+                existing_opener = shared
+                try:
+                    st.session_state["opener"] = existing_opener
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     if not force_refresh and existing_opener:
         return existing_opener
@@ -557,34 +579,42 @@ def get_authenticated_opener(force_refresh=False):
             )
             login_res = opener.open(login_req, timeout=12)
             res_data = json.loads(login_res.read().decode("utf-8"))
-            if res_data.get("message") == "Logged In":
-                st.session_state["opener"] = opener
-                _get_shared_opener_store()["opener"] = opener
+            has_sid = any(c.name == "sid" and c.value and c.value != "Guest" for c in cj)
+            if res_data.get("message") == "Logged In" and has_sid:
+                try:
+                    st.session_state["opener"] = opener
+                except Exception:
+                    pass
+                try:
+                    _get_shared_opener_store()["opener"] = opener
+                except Exception:
+                    pass
                 return opener
         except Exception as ex:
             print(f"[Auto Session Renewal Error] {ex}")
 
-    if existing_opener:
+    if existing_opener and not force_refresh:
         return existing_opener
 
-    opener, cj = create_erpnext_opener()
-    opener.cookie_jar = cj
-    st.session_state["opener"] = opener
-    return opener
+    return None
 
 def call_erpnext_resiliently(opener, req, timeout=12):
-    """Executes ERPNext HTTP requests with automatic session recovery if idle for long periods."""
+    """Executes ERPNext HTTP requests with automatic session recovery on 401 expiry without clobbering on 403."""
     try:
         return opener.open(req, timeout=timeout)
     except urllib.error.HTTPError as he:
-        if he.code in [401, 403]:
+        if he.code == 401:
             refreshed = get_authenticated_opener(force_refresh=True)
-            if refreshed and refreshed is not opener:
-                st.session_state["opener"] = refreshed
+            if refreshed and refreshed is not opener and _opener_has_valid_sid(refreshed):
+                try:
+                    st.session_state["opener"] = refreshed
+                except Exception:
+                    pass
+                clean_headers = {k: v for k, v in req.header_items() if k.lower() != "cookie"}
                 retry_req = urllib.request.Request(
                     req.full_url,
                     data=req.data,
-                    headers=dict(req.header_items()),
+                    headers=clean_headers,
                     method=req.get_method()
                 )
                 return refreshed.open(retry_req, timeout=timeout)
@@ -1052,7 +1082,9 @@ def fetch_live_territories(opener):
     for fields_list in [
         ["name", "territory_name", "parent_territory", "is_group", "territory_manager", "custom_user_id", "custom_account_or_program", "custom_district"],
         ["name", "territory_name", "parent_territory", "is_group", "territory_manager", "custom_user_id", "custom_account_or_program"],
-        ["name", "territory_name", "parent_territory", "is_group", "territory_manager"]
+        ["name", "territory_name", "parent_territory", "is_group", "territory_manager", "custom_district"],
+        ["name", "territory_name", "parent_territory", "is_group", "territory_manager"],
+        ["name", "territory_name", "parent_territory", "is_group"]
     ]:
         try:
             fields = json.dumps(fields_list)
@@ -1073,7 +1105,10 @@ def fetch_live_sales_persons(opener):
         return cached if cached else None
     for fields_list in [
         ["name", "sales_person_name", "parent_sales_person", "employee", "is_group", "enabled", "department", "custom_district"],
-        ["name", "sales_person_name", "parent_sales_person", "employee", "is_group", "enabled", "department"]
+        ["name", "sales_person_name", "parent_sales_person", "employee", "is_group", "enabled", "custom_district"],
+        ["name", "sales_person_name", "parent_sales_person", "employee", "is_group", "enabled", "department"],
+        ["name", "sales_person_name", "parent_sales_person", "employee", "is_group", "enabled"],
+        ["name", "sales_person_name", "parent_sales_person", "is_group", "enabled"]
     ]:
         try:
             fields = json.dumps(fields_list)
@@ -3530,6 +3565,35 @@ def purge_expired_sessions():
     for k in expired:
         ACTIVE_SESSIONS.pop(k, None)
 
+def _sync_live_masterlists(opener):
+    """Fetches all live ERPNext masterlists in parallel with isolated per-DocType error handling."""
+    fetch_specs = {
+        "live_territories": fetch_live_territories,
+        "live_sales_persons": fetch_live_sales_persons,
+        "live_employees": fetch_live_employees,
+        "live_users": fetch_live_users,
+        "live_institutions": fetch_live_institutions,
+    }
+    results = {}
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {key: executor.submit(fn, opener) for key, fn in fetch_specs.items()}
+            for key, fut in futures.items():
+                try:
+                    results[key] = fut.result()
+                except Exception as f_ex:
+                    print(f"[Streamlit Data Fetch Warning] {key}: {f_ex}")
+    except Exception as ex:
+        print(f"[Streamlit Data Fetch Warning] {ex}")
+        for key, fn in fetch_specs.items():
+            if key not in results:
+                try:
+                    results[key] = fn(opener)
+                except Exception as seq_ex:
+                    print(f"[Streamlit Data Fetch Warning] {key} sequential: {seq_ex}")
+    for key, val in results.items():
+        st.session_state[key] = val
+
 # 3. Mount Territory Reconfiguration Portal Component
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(CURRENT_DIR, "index.html")
@@ -3642,23 +3706,7 @@ if component_val and isinstance(component_val, dict):
             if res.get("authorized") and opener:
                 st.session_state["opener"] = opener
                 _get_shared_opener_store()["opener"] = opener
-                try:
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-                        f_terrs = executor.submit(fetch_live_territories, opener)
-                        f_sps = executor.submit(fetch_live_sales_persons, opener)
-                        f_emps = executor.submit(fetch_live_employees, opener)
-                        f_users = executor.submit(fetch_live_users, opener)
-                        f_insts = executor.submit(fetch_live_institutions, opener)
-                        st.session_state["live_territories"] = f_terrs.result()
-                        st.session_state["live_sales_persons"] = f_sps.result()
-                        st.session_state["live_employees"] = f_emps.result()
-                        st.session_state["live_users"] = f_users.result()
-                        st.session_state["live_institutions"] = f_insts.result()
-                except Exception as ex:
-                    print(f"[Streamlit Data Fetch Warning] {ex}")
-                    st.session_state["live_territories"] = fetch_live_territories(opener)
-                    st.session_state["live_users"] = fetch_live_users(opener)
-                    st.session_state["live_institutions"] = fetch_live_institutions(opener)
+                _sync_live_masterlists(opener)
                 token = secrets.token_urlsafe(32)
                 st.session_state["session_token"] = token
                 clear_query_param("sfe_session")
@@ -3746,23 +3794,7 @@ if component_val and isinstance(component_val, dict):
             opener = st.session_state.get("opener") or get_authenticated_opener()
             if opener:
                 st.session_state["opener"] = opener
-                try:
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-                        f_terrs = executor.submit(fetch_live_territories, opener)
-                        f_sps = executor.submit(fetch_live_sales_persons, opener)
-                        f_emps = executor.submit(fetch_live_employees, opener)
-                        f_users = executor.submit(fetch_live_users, opener)
-                        f_insts = executor.submit(fetch_live_institutions, opener)
-                        st.session_state["live_territories"] = f_terrs.result()
-                        st.session_state["live_sales_persons"] = f_sps.result()
-                        st.session_state["live_employees"] = f_emps.result()
-                        st.session_state["live_users"] = f_users.result()
-                        st.session_state["live_institutions"] = f_insts.result()
-                except Exception as ex:
-                    st.session_state["live_territories"] = fetch_live_territories(opener)
-                    st.session_state["live_sales_persons"] = fetch_live_sales_persons(opener)
-                    st.session_state["live_employees"] = fetch_live_employees(opener)
-                    st.session_state["live_users"] = fetch_live_users(opener)
+                _sync_live_masterlists(opener)
 
                 t_count = len(st.session_state.get("live_territories") or [])
                 if action == "tree_refresh":
