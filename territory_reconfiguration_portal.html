@@ -6094,7 +6094,7 @@ const BASELINE_ERP_TERRITORIES = [
     return null;
   }
 
-  function detectSalesPersonProgram(spOrName) {
+  function detectSalesPersonProgram(spOrName, skipTreeLookup = false) {
     if (!spOrName) return null;
     const spName = typeof spOrName === 'string'
       ? spOrName.trim()
@@ -6173,7 +6173,7 @@ const BASELINE_ERP_TERRITORIES = [
         }
       }
     }
-    if (typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData)) {
+    if (!skipTreeLookup && typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData)) {
       const parentMap = {};
       const nodeMap = {};
       territoryTreeData.forEach(t => {
@@ -6189,7 +6189,7 @@ const BASELINE_ERP_TERRITORIES = [
           if (mgrRaw === spName.toLowerCase() || (mgrClean && mgrClean === cleanSp)) {
             if (nodeProgMap[t.name]) return nodeProgMap[t.name];
             if (typeof detectNodeProgram === 'function') {
-              const detectedNodeProg = detectNodeProgram(t, parentMap, nodeMap);
+              const detectedNodeProg = detectNodeProgram(t, parentMap, nodeMap, true);
               if (detectedNodeProg) return detectedNodeProg;
             }
             const tProg = detectTextProgram(`${t.name || ''} ${t.parent_territory || ''} ${t.custom_account_or_program || ''}`);
@@ -6240,7 +6240,7 @@ const BASELINE_ERP_TERRITORIES = [
     return true;
   }
 
-  function detectNodeProgram(nodeOrName, parentMap, nodeMap) {
+  function detectNodeProgram(nodeOrName, parentMap, nodeMap, skipMgrLookup = false) {
     let curr = typeof nodeOrName === 'string' ? nodeOrName : (nodeOrName ? nodeOrName.name : '');
     const nodeProgMap = getNodeProgramMap();
     let visited = new Set();
@@ -6271,8 +6271,8 @@ const BASELINE_ERP_TERRITORIES = [
       const fromText = detectTextProgram(curr);
       if (fromText) return fromText;
 
-      if (node && node.territory_manager) {
-        const mgrProg = detectSalesPersonProgram(node.territory_manager);
+      if (!skipMgrLookup && node && node.territory_manager) {
+        const mgrProg = detectSalesPersonProgram(node.territory_manager, true);
         if (mgrProg && mgrProg !== 'ROOT_SALES_TEAM' && mgrProg !== 'OTHER_PROGRAM') {
           return mgrProg;
         }
@@ -6304,20 +6304,35 @@ const BASELINE_ERP_TERRITORIES = [
       }
     });
 
-    // Check live territoryTreeData nodes — strictly match targetProg only (never leak across programs)
+    // Check live territoryTreeData nodes — strictly match targetProg and include non-conflicting ancestor folders
     if (typeof territoryTreeData !== 'undefined' && Array.isArray(territoryTreeData)) {
       const parentMap = {};
       const nodeMap = {};
       territoryTreeData.forEach(t => {
-        parentMap[t.name] = t.parent_territory;
-        nodeMap[t.name] = t;
+        if (t && t.name) {
+          parentMap[t.name] = t.parent_territory;
+          nodeMap[t.name] = t;
+        }
       });
       territoryTreeData.forEach(t => {
-        const name = t.name;
+        const name = t ? t.name : '';
         if (!name || name === 'All Territories') return;
         const detected = detectNodeProgram(t, parentMap, nodeMap);
         if (detected === targetProg) {
           allowedNames.add(name);
+          // Propagate non-conflicting ancestor folders so tree root rendering never hides parent groups
+          let anc = parentMap[name];
+          const visitedAnc = new Set([name]);
+          while (anc && anc !== 'All Territories' && !visitedAnc.has(anc)) {
+            visitedAnc.add(anc);
+            const ancNode = nodeMap[anc];
+            const ancDetected = detectNodeProgram(ancNode || anc, parentMap, nodeMap, true);
+            if (ancDetected && ancDetected !== targetProg) {
+              break;
+            }
+            allowedNames.add(anc);
+            anc = parentMap[anc];
+          }
         }
       });
     }
@@ -13451,23 +13466,26 @@ const BASELINE_ERP_TERRITORIES = [
   }
 
   async function syncSalesPersonsAndEmployeesWithERPNext() {
-    // 1. Fetch Sales Persons (requesting custom_district with schema-safe fallback)
-    try {
-      let res = await fetch('/api/resource/Sales%20Person?fields=["name","sales_person_name","parent_sales_person","employee","is_group","enabled","department","custom_district"]&limit_page_length=2000', {
-        headers: { 'Accept': 'application/json' }
-      });
-      if (!res.ok) {
-        res = await fetch('/api/resource/Sales%20Person?fields=["name","sales_person_name","parent_sales_person","employee","is_group","enabled","department"]&limit_page_length=2000', {
+    // 1. Fetch Sales Persons (requesting custom_district & department with schema-safe fallbacks)
+    const spFieldSets = [
+      ["name","sales_person_name","parent_sales_person","employee","is_group","enabled","department","custom_district"],
+      ["name","sales_person_name","parent_sales_person","employee","is_group","enabled","department"],
+      ["name","sales_person_name","parent_sales_person","employee","is_group","enabled"]
+    ];
+    for (const fl of spFieldSets) {
+      try {
+        const res = await fetch(`/api/resource/Sales%20Person?fields=${encodeURIComponent(JSON.stringify(fl))}&limit_page_length=2000`, {
           headers: { 'Accept': 'application/json' }
         });
-      }
-      if (res.ok) {
-        const body = await res.json();
-        const live = body.data || [];
-        availableSalesPersons = live.length > 0 ? live : JSON.parse(JSON.stringify(BASELINE_SALES_PERSONS));
-        localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons));
-      }
-    } catch (_) {}
+        if (res.ok) {
+          const body = await res.json();
+          const live = body.data || [];
+          availableSalesPersons = live.length > 0 ? live : JSON.parse(JSON.stringify(BASELINE_SALES_PERSONS));
+          localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons));
+          break;
+        }
+      } catch (_) {}
+    }
 
     // 2. Fetch Employees (Active Only)
     try {
