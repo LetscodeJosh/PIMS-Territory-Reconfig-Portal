@@ -1,3 +1,18 @@
+## [v.0.1.4 - Live-Only ERPNext Dropdowns, GCP Staging Sync & HCP App MedRep Parity] - 2026-11-26
+
+### Key Enhancements & Fixes Applied
+- **Top Header Bar Versioning (`v.0.1.4`)**: Updated the top navigation version badge (`#headerPortalVersionBadge`) and `VERSION` tracker to `v.0.1.4`.
+- **Zero Hardcoded Fallback Rosters or Temporary JSON State (`app.py`, `index.html`)**:
+  - Removed `PROGRAM_SALES_PERSON_ROSTER`, `LIVE_DATA`, `BASELINE_*`, `ERP_TERRITORY_USER_MAP`, and `localStorage` fallback pollution from Territory Manager, Parent Sales Person, Employee, and User dropdowns so empty ERPNext DocTypes cleanly display `No data available`.
+  - Disabled temporary `shared_territory_state.json` persistence/re-injection so ERPNext DocTypes are the sole source of truth on GCP VMs.
+- **GCP Staging Territory & Sales Person Creation Fixes (`app.py`, `deploy/gcp/update.sh`)**:
+  - Added automatic Frappe `X-Frappe-CSRF-Token` attachment + retry, dynamic root node bootstrapping (`Sales Team` / `All Territories`) on empty Staging DocTypes, `frappe.desk.treeview.add_node` & `frappe.client.insert` fallbacks, and real ERPNext error reporting.
+  - Updated `deploy/gcp/update.sh` to pull the active branch (`staging`) and clean up legacy `shared_territory_state.json`.
+- **HCP App <-> Territory Web App MedRep Availability Sync (`app.py`, `index.html`)**:
+  - Auto-resolves `Territory.custom_user_id` from `Sales Person -> Employee -> User` on assignment/handover/reactivation and clears both `territory_manager` and `custom_user_id` whenever a territory is vacated, deactivated, or archived.
+
+---
+
 ## [v.0.1.3 - Authoritative Live ERPNext Deletion Sync & Shared State Auto-Pruning] - 2026-11-20
 
 ### Key Enhancements & Fixes Applied
