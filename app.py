@@ -74,32 +74,16 @@ def load_dotenv_safely(env_path=".env"):
 # Load local .env if present (ignored by git for security)
 load_dotenv_safely(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
-# Multi-User Real-Time Synchronization Store for Institutions
+# Live ERPNext Authoritative Mode: Do NOT persist or re-inject temporary Institution records from local JSON.
 APP_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SHARED_INST_FILE = os.path.join(APP_BASE_DIR, "shared_institution_state.json")
 
 def load_shared_inst_overrides():
-    if os.path.exists(SHARED_INST_FILE):
-        try:
-            with open(SHARED_INST_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return {}
     return {}
 
 def save_shared_inst_override(inst_id, override_data):
-    if not inst_id:
-        return
-    current = load_shared_inst_overrides()
-    if inst_id in current and isinstance(current[inst_id], dict):
-        current[inst_id].update(override_data)
-    else:
-        current[inst_id] = override_data
-    try:
-        with open(SHARED_INST_FILE, "w", encoding="utf-8") as f:
-            json.dump(current, f, indent=2)
-    except Exception as e:
-        print(f"[Shared Inst Save Error] {e}")
+    # Intentionally disabled: ERPNext Staging Institution DocType is the sole source of truth.
+    return
 
 # Live ERPNext Authoritative Mode: Do NOT persist or re-inject temporary Territory or Sales Person records from local JSON.
 SHARED_TERRITORY_FILE = os.path.join(APP_BASE_DIR, "shared_territory_state.json")
@@ -948,22 +932,96 @@ def fetch_live_employees(opener):
 
 def fetch_live_users(opener):
     if not opener:
-        return None
+        return []
     try:
         fields = json.dumps(["name", "email", "full_name", "first_name", "last_name", "enabled"])
         url = f"{ERPNEXT_SERVER_URL}/api/resource/User?fields={urllib.parse.quote(fields)}&limit_page_length=3000"
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
         res = call_erpnext_resiliently(opener, req, timeout=15)
         data = json.loads(res.read().decode("utf-8")).get("data", [])
-        return data
+        return data if isinstance(data, list) else []
     except Exception as e:
         print(f"[Streamlit Proxy] Failed to fetch live users: {e}")
-        return None
+        return []
+
+
+def _fetch_live_doctype_names(opener, doctype, limit=500):
+    """Fetches authoritative live record names from a connected ERPNext Staging DocType (returns [] when empty)."""
+    if not opener or not doctype:
+        return []
+    try:
+        fields = urllib.parse.quote(json.dumps(["name"]))
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/{urllib.parse.quote(doctype, safe='')}?fields={fields}&order_by=name%20asc&limit_page_length={int(limit)}"
+        req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+        res = call_erpnext_resiliently(opener, req, timeout=10)
+        rows = json.loads(res.read().decode("utf-8")).get("data", [])
+        if isinstance(rows, list):
+            return [safe_str(r.get("name")) for r in rows if isinstance(r, dict) and safe_str(r.get("name"))]
+    except Exception as e:
+        print(f"[Streamlit Proxy] Failed to fetch live {doctype}: {e}")
+    return []
+
+
+def fetch_live_item_groups(opener):
+    return _fetch_live_doctype_names(opener, "Item Group", limit=500)
+
+
+def fetch_live_fiscal_years(opener):
+    return _fetch_live_doctype_names(opener, "Fiscal Year", limit=100)
+
+
+def fetch_live_distributions(opener):
+    return _fetch_live_doctype_names(opener, "Monthly Distribution", limit=200)
+
+
+def fetch_live_departments(opener):
+    return _fetch_live_doctype_names(opener, "Department", limit=500)
+
+
+def fetch_live_designations(opener):
+    return _fetch_live_doctype_names(opener, "Designation", limit=500)
+
+
+def fetch_live_hcp_accounts(opener):
+    """Fetches live covered HCP doctor accounts directly from ERPNext Staging (returns [] when DocType is empty)."""
+    if not opener:
+        return []
+    for fields_list in [
+        ["name", "hcp", "hcp_name", "doctor_name", "specialty", "specialization", "workplace_name", "institution_name", "workplace_id", "territory", "territory_code", "sales_person", "medrep_name", "account_or_program", "program"],
+        ["name", "hcp", "hcp_name", "workplace_id", "territory", "sales_person"],
+        ["name", "territory"]
+    ]:
+        try:
+            fields = urllib.parse.quote(json.dumps(fields_list))
+            url = f"{ERPNEXT_SERVER_URL}/api/resource/HCP%20Account?fields={fields}&limit_page_length=2500"
+            req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+            res = call_erpnext_resiliently(opener, req, timeout=12)
+            rows = json.loads(res.read().decode("utf-8")).get("data", [])
+            if isinstance(rows, list):
+                normalized = []
+                for r in rows:
+                    if not isinstance(r, dict):
+                        continue
+                    normalized.append({
+                        "accName": safe_str(r.get("name")),
+                        "hcpId": safe_str(r.get("hcp") or r.get("name")),
+                        "doctor": safe_str(r.get("hcp_name") or r.get("doctor_name") or r.get("hcp") or r.get("name")),
+                        "spec": safe_str(r.get("specialty") or r.get("specialization")),
+                        "hospital": safe_str(r.get("workplace_name") or r.get("institution_name") or r.get("workplace_id")),
+                        "liveTerritory": safe_str(r.get("territory") or r.get("territory_code")),
+                        "rep": safe_str(r.get("sales_person") or r.get("medrep_name")),
+                        "program": safe_str(r.get("account_or_program") or r.get("program"))
+                    })
+                return normalized
+        except Exception as e:
+            print(f"[Streamlit Proxy] fetch_live_hcp_accounts fallback with {fields_list}: {e}")
+            continue
+    return []
 
 
 def fetch_live_institutions(opener):
     if not opener:
-        return None
+        return []
     try:
         fields = json.dumps(["*"])
         url = f"{ERPNEXT_SERVER_URL}/api/resource/Institution?fields={urllib.parse.quote(fields)}&order_by=name%20desc&limit_page_length=2500"
@@ -1085,10 +1143,10 @@ def fetch_live_institutions(opener):
                     if not wf_st or wf_st == "Draft":
                         inst["workflow_state"] = "Pending Approval"
 
-        return data
+        return data if isinstance(data, list) else []
     except Exception as e:
         print(f"[Streamlit Proxy] Failed to fetch live institutions: {e}")
-        return None
+        return []
 
 
 def _post_institution_meta_comment(opener, inst_name, human_text, meta_dict):
@@ -3694,23 +3752,30 @@ def purge_expired_sessions():
         ACTIVE_SESSIONS.pop(k, None)
 
 def _sync_live_masterlists(opener):
-    """Fetches all live ERPNext masterlists in parallel with isolated per-DocType error handling."""
+    """Fetches all live ERPNext Staging DocTypes in parallel with isolated per-DocType error handling."""
     fetch_specs = {
         "live_territories": fetch_live_territories,
         "live_sales_persons": fetch_live_sales_persons,
         "live_employees": fetch_live_employees,
         "live_users": fetch_live_users,
         "live_institutions": fetch_live_institutions,
+        "live_hcp_accounts": fetch_live_hcp_accounts,
+        "live_item_groups": fetch_live_item_groups,
+        "live_fiscal_years": fetch_live_fiscal_years,
+        "live_distributions": fetch_live_distributions,
+        "live_departments": fetch_live_departments,
+        "live_designations": fetch_live_designations,
     }
     results = {}
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
             futures = {key: executor.submit(fn, opener) for key, fn in fetch_specs.items()}
             for key, fut in futures.items():
                 try:
                     results[key] = fut.result()
                 except Exception as f_ex:
                     print(f"[Streamlit Data Fetch Warning] {key}: {f_ex}")
+                    results[key] = []
     except Exception as ex:
         print(f"[Streamlit Data Fetch Warning] {ex}")
         for key, fn in fetch_specs.items():
@@ -3719,6 +3784,7 @@ def _sync_live_masterlists(opener):
                     results[key] = fn(opener)
                 except Exception as seq_ex:
                     print(f"[Streamlit Data Fetch Warning] {key} sequential: {seq_ex}")
+                    results[key] = []
     for key, val in results.items():
         st.session_state[key] = val
 
@@ -3793,6 +3859,18 @@ if "live_users" not in st.session_state:
     st.session_state["live_users"] = None
 if "live_institutions" not in st.session_state:
     st.session_state["live_institutions"] = None
+if "live_hcp_accounts" not in st.session_state:
+    st.session_state["live_hcp_accounts"] = None
+if "live_item_groups" not in st.session_state:
+    st.session_state["live_item_groups"] = None
+if "live_fiscal_years" not in st.session_state:
+    st.session_state["live_fiscal_years"] = None
+if "live_distributions" not in st.session_state:
+    st.session_state["live_distributions"] = None
+if "live_departments" not in st.session_state:
+    st.session_state["live_departments"] = None
+if "live_designations" not in st.session_state:
+    st.session_state["live_designations"] = None
 if "tree_sync_event" not in st.session_state:
     st.session_state["tree_sync_event"] = None
 if "last_action_timestamp" not in st.session_state:
@@ -3800,6 +3878,9 @@ if "last_action_timestamp" not in st.session_state:
 
 # Render the web app component directly (Opens directly to the native login view)
 _active_prog = st.session_state.get("active_program", "Abbott Diabetes Care")
+_accounts_for_prog = st.session_state.get(f"live_accounts_{_active_prog}")
+if _accounts_for_prog is None:
+    _accounts_for_prog = st.session_state.get("live_hcp_accounts")
 component_val = portal_component(
     auth_response=auth_to_deliver,
     reset_password_response=reset_to_deliver,
@@ -3808,7 +3889,12 @@ component_val = portal_component(
     live_employees=st.session_state["live_employees"],
     live_users=st.session_state["live_users"],
     live_institutions=st.session_state["live_institutions"],
-    live_accounts=st.session_state.get(f"live_accounts_{_active_prog}"),
+    live_accounts=_accounts_for_prog,
+    live_item_groups=st.session_state["live_item_groups"],
+    live_fiscal_years=st.session_state["live_fiscal_years"],
+    live_distributions=st.session_state["live_distributions"],
+    live_departments=st.session_state["live_departments"],
+    live_designations=st.session_state["live_designations"],
     tree_sync_event=st.session_state["tree_sync_event"],
     key="pims_portal_app"
 )
@@ -3878,6 +3964,12 @@ if component_val and isinstance(component_val, dict):
             st.session_state["live_employees"] = None
             st.session_state["live_users"] = None
             st.session_state["live_institutions"] = None
+            st.session_state["live_hcp_accounts"] = None
+            st.session_state["live_item_groups"] = None
+            st.session_state["live_fiscal_years"] = None
+            st.session_state["live_distributions"] = None
+            st.session_state["live_departments"] = None
+            st.session_state["live_designations"] = None
             st.session_state["tree_sync_event"] = None
             st.session_state["session_token"] = None
             st.rerun()

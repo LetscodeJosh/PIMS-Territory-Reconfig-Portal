@@ -27,10 +27,8 @@ echo -e "${GREEN}[1/4] Pulling latest commits from git ${CURRENT_BRANCH} branch.
 git fetch origin "${CURRENT_BRANCH}"
 git pull --ff-only origin "${CURRENT_BRANCH}"
 
-# Remove any legacy local temporary JSON cache so ERPNext DocTypes remain sole source of truth
-if [ -f "${APP_DIR}/shared_territory_state.json" ]; then
-    rm -f "${APP_DIR}/shared_territory_state.json"
-fi
+# Remove any legacy local temporary JSON caches so ERPNext Staging DocTypes remain sole source of truth
+rm -f "${APP_DIR}/shared_territory_state.json" "${APP_DIR}/shared_institution_state.json"
 
 echo -e "\n${GREEN}[2/4] Updating Python dependencies...${NC}"
 source "${APP_DIR}/venv/bin/activate"
