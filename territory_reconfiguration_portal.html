@@ -7411,29 +7411,8 @@ const BASELINE_ERP_TERRITORIES = [];
   // SFE Universal Territory Area & District Coverage Mappings
   // (Extensible placeholder dictionary ready for SFE area code/district file)
   // =========================================================================
-  const TERRITORY_AREA_MAPPINGS = {
-    // Abbott Diabetes Care
-    'AD0101': 'GMA/NLZ', 'AD0102': 'GMA/NLZ', 'AD0103': 'GMA/NLZ', 'AD0104': 'GMA/NLZ',
-    'AD0105': 'COOR/GMA', 'AD0105 (COOR)': 'COOR/GMA', 'AD0106': 'GMA/NLZ', 'AD0107': 'GMA/NLZ',
-    'AD0108': 'GMA/SLZ', 'AD0109': 'GMA/SLZ', 'AD0110': 'GMA/SLZ', 'AD0111': 'GMA/SLZ',
-    'AD0112': 'GMA/SLZ', 'AD0113': 'GMA/NLZ', 'AD0114': 'GMA/SLZ', 'AD0115': 'GMA/SLZ',
-    'AD0116': 'COOR/GMA', 'AD0117': 'COOR/GMA', 'AD0118': 'COOR/GMA', 'AD0119': 'GMA/NLZ',
-    'AD0120': 'GMA/NLZ', 'ADC01': 'GMA/SLZ', 'ADC02': 'GMA/SLZ',
-    // Bayer Consumer Health
-    'BA1-01': 'SGMA/VIS', 'BA1-02': 'SGMA/VIS', 'BA1-03': 'SGMA/VIS', 'BA1-04': 'SGMA/VIS', 'BA1-05': 'SGMA/VIS', 'BA1-06': 'SGMA/VIS',
-    'BA2-01': 'WGMA', 'BA2-02': 'WGMA', 'BA2-03': 'WGMA', 'BA2-04': 'WGMA', 'BA2-05': 'WGMA', 'BA2-06': 'WGMA', 'BA2-07': 'WGMA', 'BA2-08': 'WGMA',
-    'BA3-01': 'NEGMA', 'BA3-02': 'NEGMA', 'BA3-03': 'NEGMA', 'BA3-04': 'NEGMA', 'BA3-05': 'NEGMA', 'BA3-06': 'NEGMA', 'BA3-07': 'NEGMA',
-    'BA4-01': 'SLZ', 'BA4-02': 'SLZ', 'BA4-03': 'SLZ', 'BA4-04': 'SLZ', 'BA4-05': 'SLZ', 'BA4-06': 'SLZ', 'BA4-07': 'SLZ', 'BA4-08': 'SLZ',
-    'BA5-01': 'NLZ/CAM', 'BA5-02': 'NLZ/CAM', 'BA5-03': 'NLZ/CAM', 'BA5-04': 'NLZ/CAM', 'BA5-05': 'NLZ/CAM', 'BA5-06': 'NLZ/CAM', 'BA5-07': 'NLZ/CAM',
-    'BA6-01': 'CEB/MIN', 'BA6-02': 'CEB/MIN', 'BA6-03': 'CEB/MIN', 'BA6-04': 'CEB/MIN', 'BA6-05': 'CEB/MIN', 'BA6-06': 'CEB/MIN',
-    'BA7-01': 'ILO/VIS', 'BA7-02': 'ILO/VIS', 'BA7-03': 'ILO/VIS', 'BA7-04': 'ILO/VIS', 'BA7-05': 'ILO/VIS', 'BA7-06': 'ILO/VIS', 'BA7-07': 'ILO/VIS', 'BA7-08': 'ILO/VIS',
-    'BA8-01': 'DVO/MIN', 'BA8-02': 'DVO/MIN', 'BA8-03': 'DVO/MIN', 'BA8-04': 'DVO/MIN', 'BA8-05': 'DVO/MIN', 'BA8-06': 'DVO/MIN', 'BA8-07': 'DVO/MIN', 'BA8-08': 'DVO/MIN',
-    // RiteMed
-    'RM101': 'NGMA/NLZ', 'RM102': 'NGMA/NLZ', 'RM103': 'NGMA/NLZ', 'RM104': 'NGMA/NLZ', 'RM105': 'NGMA/NLZ', 'RM106': 'NGMA/NLZ',
-    'RM201': 'SGMA/SLZ', 'RM202': 'SGMA/SLZ', 'RM203': 'SGMA/SLZ',
-    // Vivaro
-    'VIV-01': 'GMA', 'VIV-02': 'GMA', 'VIV-03': 'GMA', 'VIV-04': 'GMA', 'VIV-05': 'GMA', 'VIV-06': 'GMA'
-  };
+  // Strict Live ERPNext Source of Truth: zero hardcoded territory-to-area fallback mappings
+  const TERRITORY_AREA_MAPPINGS = {};
 
   function resolveTerritoryArea(territoryCode, district) {
     if (!territoryCode) return 'Coverage Area';
@@ -11427,13 +11406,29 @@ const BASELINE_ERP_TERRITORIES = [];
     openTargetMenuType = null;
   }
 
+  function _populateLiveSelectOptions(selectEl, liveList, selectedVal) {
+    if (!selectEl) return;
+    const opts = Array.isArray(liveList) ? liveList : [];
+    if (opts.length === 0) {
+      selectEl.innerHTML = '<option value="">No data available</option>';
+      selectEl.value = '';
+      return;
+    }
+    selectEl.innerHTML = opts.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    if (selectedVal && opts.includes(selectedVal)) {
+      selectEl.value = selectedVal;
+    } else {
+      selectEl.value = opts[0];
+    }
+  }
+
   function addSpTargetRow() {
     newSpTargetsList.push({
-      item_group: '',
-      fiscal_year: '2026',
+      item_group: (Array.isArray(ERP_ITEM_GROUPS) && ERP_ITEM_GROUPS[0]) ? ERP_ITEM_GROUPS[0] : '',
+      fiscal_year: (Array.isArray(ERP_FISCAL_YEARS) && ERP_FISCAL_YEARS[0]) ? ERP_FISCAL_YEARS[0] : '',
       target_qty: '',
       target_amount: '',
-      distribution_id: 'Evenly Distributed',
+      distribution_id: (Array.isArray(ERP_DISTRIBUTIONS) && ERP_DISTRIBUTIONS[0]) ? ERP_DISTRIBUTIONS[0] : '',
       selected: false
     });
     const newIdx = newSpTargetsList.length - 1;
@@ -11497,10 +11492,10 @@ const BASELINE_ERP_TERRITORIES = [];
     document.getElementById('spTargetRowModalTitle').textContent = `Editing Row #${idx + 1}`;
     
     const igSelect = document.getElementById('spTargetRowModalItemGroup');
-    if (igSelect) igSelect.value = row.item_group || 'All Item Groups';
+    _populateLiveSelectOptions(igSelect, ERP_ITEM_GROUPS, row.item_group || '');
 
     const fySelect = document.getElementById('spTargetRowModalFiscalYear');
-    if (fySelect) fySelect.value = row.fiscal_year || '2026';
+    _populateLiveSelectOptions(fySelect, ERP_FISCAL_YEARS, row.fiscal_year || '');
 
     const qtyInp = document.getElementById('spTargetRowModalQty');
     if (qtyInp) qtyInp.value = row.target_qty !== '' ? row.target_qty : '';
@@ -11509,7 +11504,7 @@ const BASELINE_ERP_TERRITORIES = [];
     if (amtInp) amtInp.value = row.target_amount !== '' ? row.target_amount : '';
 
     const distSelect = document.getElementById('spTargetRowModalDistribution');
-    if (distSelect) distSelect.value = row.distribution_id || 'Evenly Distributed';
+    _populateLiveSelectOptions(distSelect, ERP_DISTRIBUTIONS, row.distribution_id || '');
 
     document.getElementById('spTargetRowModalOverlay').classList.add('active');
   }
@@ -11535,11 +11530,11 @@ const BASELINE_ERP_TERRITORIES = [];
     saveCurrentSpTargetRowModal();
     const idx = parseInt(document.getElementById('spTargetRowEditIndex').value, 10);
     newSpTargetsList.splice(idx, 0, {
-      item_group: 'All Item Groups',
-      fiscal_year: '2026',
+      item_group: (Array.isArray(ERP_ITEM_GROUPS) && ERP_ITEM_GROUPS[0]) ? ERP_ITEM_GROUPS[0] : '',
+      fiscal_year: (Array.isArray(ERP_FISCAL_YEARS) && ERP_FISCAL_YEARS[0]) ? ERP_FISCAL_YEARS[0] : '',
       target_qty: '',
       target_amount: '',
-      distribution_id: 'Evenly Distributed',
+      distribution_id: (Array.isArray(ERP_DISTRIBUTIONS) && ERP_DISTRIBUTIONS[0]) ? ERP_DISTRIBUTIONS[0] : '',
       selected: false
     });
     openSpTargetRowModal(idx);
@@ -11550,11 +11545,11 @@ const BASELINE_ERP_TERRITORIES = [];
     saveCurrentSpTargetRowModal();
     const idx = parseInt(document.getElementById('spTargetRowEditIndex').value, 10);
     newSpTargetsList.splice(idx + 1, 0, {
-      item_group: 'All Item Groups',
-      fiscal_year: '2026',
+      item_group: (Array.isArray(ERP_ITEM_GROUPS) && ERP_ITEM_GROUPS[0]) ? ERP_ITEM_GROUPS[0] : '',
+      fiscal_year: (Array.isArray(ERP_FISCAL_YEARS) && ERP_FISCAL_YEARS[0]) ? ERP_FISCAL_YEARS[0] : '',
       target_qty: '',
       target_amount: '',
-      distribution_id: 'Evenly Distributed',
+      distribution_id: (Array.isArray(ERP_DISTRIBUTIONS) && ERP_DISTRIBUTIONS[0]) ? ERP_DISTRIBUTIONS[0] : '',
       selected: false
     });
     openSpTargetRowModal(idx + 1);
@@ -16484,18 +16479,7 @@ const BASELINE_ERP_TERRITORIES = [];
           Item Group
         </label>
         <select id="spTargetRowModalItemGroup" style="width:100%; height:34px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12px; outline:none; box-sizing:border-box; cursor:pointer;">
-          <option value="ACCESSORIES">ACCESSORIES</option>
-          <option value="All Item Groups">All Item Groups</option>
-          <option value="Pharmaceuticals">Pharmaceuticals</option>
-          <option value="Consumables">Consumables</option>
-          <option value="Diagnostic Equipment">Diagnostic Equipment</option>
-          <option value="Medical Devices">Medical Devices</option>
-          <option value="Oral Hypoglycemics">Oral Hypoglycemics</option>
-          <option value="Insulin Delivery">Insulin Delivery</option>
-          <option value="Nutritional Supplements">Nutritional Supplements</option>
-          <option value="Products">Products</option>
-          <option value="Services">Services</option>
-          <option value="Raw Material">Raw Material</option>
+          <option value="">No data available</option>
         </select>
       </div>
 
@@ -16504,11 +16488,7 @@ const BASELINE_ERP_TERRITORIES = [];
           Fiscal Year <span style="color:#EF4444;">*</span>
         </label>
         <select id="spTargetRowModalFiscalYear" style="width:100%; height:34px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12px; outline:none; box-sizing:border-box; cursor:pointer;">
-          <option value="2026">2026</option>
-          <option value="2025">2025</option>
-          <option value="2024">2024</option>
-          <option value="2027">2027</option>
-          <option value="2028">2028</option>
+          <option value="">No data available</option>
         </select>
       </div>
 
@@ -16531,14 +16511,7 @@ const BASELINE_ERP_TERRITORIES = [];
           Target Distribution <span style="color:#EF4444;">*</span>
         </label>
         <select id="spTargetRowModalDistribution" style="width:100%; height:34px; background:#27272A; border:1px solid #3F3F46; border-radius:6px; padding:0 10px; color:#FFFFFF; font-size:12px; outline:none; box-sizing:border-box; cursor:pointer;">
-          <option value="Evenly Distributed">Evenly Distributed</option>
-          <option value="Quarterly Seasonality">Quarterly Seasonality</option>
-          <option value="Q1 Heavy">Q1 Heavy</option>
-          <option value="Q2 Heavy">Q2 Heavy</option>
-          <option value="Q3 Heavy">Q3 Heavy</option>
-          <option value="Q4 Heavy">Q4 Heavy</option>
-          <option value="Monthly Spread">Monthly Spread</option>
-          <option value="Seasonal Peak">Seasonal Peak</option>
+          <option value="">No data available</option>
         </select>
       </div>
 
