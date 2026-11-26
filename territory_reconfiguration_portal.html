@@ -7238,6 +7238,29 @@ const BASELINE_ERP_TERRITORIES = [
 
   let streamlitLoginWatchdog = null;
 
+  let hasReceivedLiveSalesPersons = false;
+  let hasReceivedLiveEmployees = false;
+  let hasReceivedLiveUsers = false;
+  let hasReceivedLiveTerritories = false;
+
+  function isPortalInStreamlitMode() {
+    return Boolean(isStreamlitActive || (typeof window !== 'undefined' && window.parent && window.parent !== window));
+  }
+
+  function clearLegacyMasterlistStorage() {
+    try {
+      [
+        'pims_stg_sales_persons_v1',
+        'pims_stg_sp_program_map_v1',
+        'pims_active_employees_v2',
+        'pims_active_employees_v1',
+        'pims_employees_v1',
+        'pims_user_accounts_v1',
+        'pims_stg_territory_tree_v1'
+      ].forEach(k => localStorage.removeItem(k));
+    } catch (_) {}
+  }
+
   function getProgramScopedSalesPersonPool(programName) {
     const targetProg = programName || getSelectedProgramName();
     const spPool = [];
@@ -7251,6 +7274,8 @@ const BASELINE_ERP_TERRITORIES = [
       return cleaned.trim().toLowerCase();
     };
 
+    // Strict Live ERPNext Source of Truth: populate ONLY from connected ERPNext Sales Person DocType records
+    // (Zero hardcoded PROGRAM_SALES_PERSON_ROSTER, LIVE_DATA, or territory rep fallback injection)
     if (typeof availableSalesPersons !== 'undefined' && Array.isArray(availableSalesPersons)) {
       availableSalesPersons.forEach(s => {
         const sName = (s && (s.sales_person_name || s.name)) ? String(s.sales_person_name || s.name).trim() : '';
@@ -7263,52 +7288,6 @@ const BASELINE_ERP_TERRITORIES = [
         spPool.push(s);
       });
     }
-
-    // Include baseline program roster entries not yet in availableSalesPersons (deduping by base MedRep name)
-    const progRoster = (typeof PROGRAM_SALES_PERSON_ROSTER === 'object' && PROGRAM_SALES_PERSON_ROSTER && PROGRAM_SALES_PERSON_ROSTER[targetProg]) || [];
-    progRoster.forEach(s => {
-      const sName = (s && (s.sales_person_name || s.name)) ? String(s.sales_person_name || s.name).trim() : '';
-      if (!sName || seenNames.has(sName.toLowerCase())) return;
-      if (s.enabled === 0 || s.enabled === false) return;
-      const cleanKey = getCleanSpKey(sName);
-      if (cleanKey && seenCleanNames.has(cleanKey)) return;
-      seenNames.add(sName.toLowerCase());
-      if (cleanKey) seenCleanNames.add(cleanKey);
-      spPool.push(s);
-    });
-
-    // Include program-specific MedReps from active programTerritories or LIVE_DATA[targetProg]
-    const terrSources = [];
-    if (typeof programTerritories !== 'undefined' && Array.isArray(programTerritories) && targetProg === activeProgram) {
-      const allowedTerrs = getProgramTerritoryNames(targetProg);
-      programTerritories.forEach(pt => {
-        const code = pt && (pt.activeCode || pt.histCode || pt.latestPrevCode);
-        if (!code || allowedTerrs.has(code)) terrSources.push(pt);
-      });
-    }
-    const baseTerrs = (typeof LIVE_DATA === 'object' && LIVE_DATA && LIVE_DATA[targetProg] && Array.isArray(LIVE_DATA[targetProg].territories))
-      ? LIVE_DATA[targetProg].territories
-      : [];
-    baseTerrs.forEach(bt => terrSources.push(bt));
-
-    terrSources.forEach(pt => {
-      const rawRep = (typeof cleanRepDisplayName === 'function')
-        ? cleanRepDisplayName(pt && pt.rep)
-        : String((pt && pt.rep) || '').trim();
-      const lowerRep = rawRep.toLowerCase();
-      if (!rawRep || lowerRep.includes('unassigned') || lowerRep.includes('vacant') || lowerRep.includes('folder')) return;
-      if (seenNames.has(lowerRep) || seenCleanNames.has(lowerRep)) return;
-      seenNames.add(lowerRep);
-      seenCleanNames.add(lowerRep);
-      spPool.push({
-        name: rawRep,
-        sales_person_name: rawRep,
-        parent_sales_person: targetProg,
-        is_group: 0,
-        enabled: 1,
-        program: targetProg
-      });
-    });
 
     return spPool;
   }
@@ -7430,24 +7409,27 @@ const BASELINE_ERP_TERRITORIES = [
         }
 
 
-        // 2. Process Live Users Masterlist
+        // 2. Process Live Users Masterlist (1:1 ERPNext DocType Reflection - no fallback cache)
         try {
-          if (liveUsers && Array.isArray(liveUsers) && liveUsers.length > 0) {
+          if (liveUsers && Array.isArray(liveUsers)) {
+            hasReceivedLiveUsers = true;
             availableUsers = liveUsers;
             try {
-              localStorage.setItem('pims_user_accounts_v1', JSON.stringify(liveUsers));
+              localStorage.removeItem('pims_user_accounts_v1');
             } catch (_) {}
           }
         } catch (uErr) {
           console.warn('[Streamlit Live Users Warning]', uErr);
         }
 
-        // 3. Process Live Sales Persons Masterlist (1:1 Staging Reflection)
+        // 3. Process Live Sales Persons Masterlist (1:1 ERPNext DocType Reflection - empty when ERPNext has none)
         try {
           if (liveSalesPersons && Array.isArray(liveSalesPersons)) {
-            availableSalesPersons = liveSalesPersons.length > 0 ? liveSalesPersons : JSON.parse(JSON.stringify(BASELINE_SALES_PERSONS));
+            hasReceivedLiveSalesPersons = true;
+            availableSalesPersons = liveSalesPersons;
             try {
-              localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons));
+              localStorage.removeItem('pims_stg_sales_persons_v1');
+              localStorage.removeItem('pims_stg_sp_program_map_v1');
             } catch (_) {}
             try {
               populateParentSalesPersonSelect();
@@ -7457,35 +7439,32 @@ const BASELINE_ERP_TERRITORIES = [
           console.warn('[Streamlit Live Sales Persons Warning]', spErr);
         }
 
-        // 4. Process Live Active Employees directly from dev.pmii-marketing.com / ERPNext
+        // 4. Process Live Active Employees directly from ERPNext (no hardcoded fallback when empty)
         try {
-          if (liveEmployees && Array.isArray(liveEmployees) && liveEmployees.length > 0) {
+          if (liveEmployees && Array.isArray(liveEmployees)) {
+            hasReceivedLiveEmployees = true;
             const empMap = new Map();
             liveEmployees.forEach(e => {
               if (e && e.name && (!e.status || e.status === 'Active')) {
                 empMap.set(e.name, e);
               }
             });
-            if (empMap.size > 0) {
-              availableEmployees = Array.from(empMap.values());
-            } else {
-              BASELINE_EMPLOYEES.forEach(e => empMap.set(e.name, e));
-              availableEmployees = Array.from(empMap.values());
-            }
+            availableEmployees = Array.from(empMap.values());
             try {
-              localStorage.setItem('pims_active_employees_v2', JSON.stringify(availableEmployees));
-              localStorage.setItem('pims_active_employees_v1', JSON.stringify(availableEmployees));
-              localStorage.setItem('pims_employees_v1', JSON.stringify(availableEmployees));
+              localStorage.removeItem('pims_active_employees_v2');
+              localStorage.removeItem('pims_active_employees_v1');
+              localStorage.removeItem('pims_employees_v1');
             } catch (_) {}
           }
         } catch (empErr) {
           console.warn('[Streamlit Live Employees Warning]', empErr);
         }
 
-        // 5. Process Live Territories Tree
+        // 5. Process Live Territories Tree (1:1 ERPNext DocType Reflection)
         try {
-          if (liveTerrs && Array.isArray(liveTerrs) && liveTerrs.length > 0) {
-            if (!liveTerrs.some(t => t.name === 'All Territories')) {
+          if (liveTerrs && Array.isArray(liveTerrs)) {
+            hasReceivedLiveTerritories = true;
+            if (liveTerrs.length > 0 && !liveTerrs.some(t => t.name === 'All Territories')) {
               liveTerrs.unshift({
                 name: 'All Territories',
                 territory_name: 'All Territories',
@@ -7501,7 +7480,7 @@ const BASELINE_ERP_TERRITORIES = [
             });
             territoryTreeData = liveTerrs;
             try {
-              localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
+              localStorage.removeItem('pims_stg_territory_tree_v1');
             } catch (_) {}
             syncProgramTerritoriesWithTree();
             if (typeof renderTable === 'function') renderTable();
@@ -12713,30 +12692,33 @@ const BASELINE_ERP_TERRITORIES = [
 
   function initTerritoryTree() {
     initSalesPersonsAndEmployees();
+    if (isPortalInStreamlitMode()) {
+      clearLegacyMasterlistStorage();
+      if (!hasReceivedLiveTerritories && !Array.isArray(territoryTreeData)) {
+        territoryTreeData = [];
+      }
+      return;
+    }
     const savedUsers = localStorage.getItem('pims_user_accounts_v1');
     if (savedUsers) {
       try {
         const parsed = JSON.parse(savedUsers);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          availableUsers = parsed;
-        } else {
-          availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
-        }
+        availableUsers = Array.isArray(parsed) ? parsed : [];
       } catch (_) {
-        availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
+        availableUsers = [];
       }
     } else {
-      availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
+      availableUsers = [];
     }
     const saved = localStorage.getItem('pims_stg_territory_tree_v1');
     if (saved) {
       try {
         territoryTreeData = JSON.parse(saved);
       } catch (_) {
-        territoryTreeData = JSON.parse(JSON.stringify(BASELINE_ERP_TERRITORIES));
+        territoryTreeData = [];
       }
     } else {
-      territoryTreeData = JSON.parse(JSON.stringify(BASELINE_ERP_TERRITORIES));
+      territoryTreeData = [];
     }
     (territoryTreeData || []).forEach(t => {
       if (!t.custom_user_id && ERP_TERRITORY_USER_MAP[t.name]) {
@@ -13003,7 +12985,13 @@ const BASELINE_ERP_TERRITORIES = [
     container.innerHTML = '';
 
     if (!territoryTreeData || territoryTreeData.length === 0) {
-      initTerritoryTree();
+      if (!hasReceivedLiveTerritories && !isPortalInStreamlitMode()) {
+        initTerritoryTree();
+      }
+    }
+    if (!territoryTreeData || territoryTreeData.length === 0) {
+      container.innerHTML = '<div style="padding: 28px 18px; text-align: center; color: #64748B; font-size: 13px;">No territory data available in connected ERPNext DocType.</div>';
+      return;
     }
 
     // Build parent -> children map (strictly active territories in Editor)
@@ -13408,61 +13396,17 @@ const BASELINE_ERP_TERRITORIES = [
   let remoteSearchTimer = null;
 
   function initSalesPersonsAndEmployees() {
-    try {
-      const savedSps = localStorage.getItem('pims_stg_sales_persons_v1');
-      if (savedSps) {
-        const parsed = JSON.parse(savedSps);
-        if (Array.isArray(parsed) && parsed.length >= BASELINE_SALES_PERSONS.length) {
-          availableSalesPersons = parsed;
-        } else {
-          availableSalesPersons = JSON.parse(JSON.stringify(BASELINE_SALES_PERSONS));
-          localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons));
-        }
-      } else {
-        availableSalesPersons = JSON.parse(JSON.stringify(BASELINE_SALES_PERSONS));
-      }
-    } catch (_) {
-      availableSalesPersons = JSON.parse(JSON.stringify(BASELINE_SALES_PERSONS));
+    // Strict Live ERPNext Source of Truth: never seed dropdowns from hardcoded BASELINE_* or stale localStorage caches
+    clearLegacyMasterlistStorage();
+    if (!hasReceivedLiveSalesPersons) {
+      availableSalesPersons = [];
     }
-
-    try {
-      const savedEmps = localStorage.getItem('pims_active_employees_v2');
-      if (savedEmps) {
-        const parsed = JSON.parse(savedEmps);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          availableEmployees = parsed;
-        } else {
-          availableEmployees = JSON.parse(JSON.stringify(BASELINE_EMPLOYEES));
-          localStorage.setItem('pims_active_employees_v2', JSON.stringify(availableEmployees));
-          localStorage.setItem('pims_active_employees_v1', JSON.stringify(availableEmployees));
-          localStorage.setItem('pims_employees_v1', JSON.stringify(availableEmployees));
-        }
-      } else {
-        availableEmployees = JSON.parse(JSON.stringify(BASELINE_EMPLOYEES));
-        localStorage.setItem('pims_active_employees_v2', JSON.stringify(availableEmployees));
-        localStorage.setItem('pims_active_employees_v1', JSON.stringify(availableEmployees));
-        localStorage.setItem('pims_employees_v1', JSON.stringify(availableEmployees));
-      }
-    } catch (_) {
-      availableEmployees = JSON.parse(JSON.stringify(BASELINE_EMPLOYEES));
+    if (!hasReceivedLiveEmployees) {
+      availableEmployees = [];
     }
-    try {
-      const savedUsers = localStorage.getItem('pims_user_accounts_v1');
-      if (savedUsers) {
-        const parsed = JSON.parse(savedUsers);
-        if (Array.isArray(parsed) && parsed.length >= BASELINE_USERS.length) {
-          availableUsers = parsed;
-        } else {
-          availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
-          localStorage.setItem('pims_user_accounts_v1', JSON.stringify(availableUsers));
-        }
-      } else {
-        availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
-      }
-    } catch (_) {
-      availableUsers = JSON.parse(JSON.stringify(BASELINE_USERS));
+    if (!hasReceivedLiveUsers) {
+      availableUsers = [];
     }
-
   }
 
   async function syncSalesPersonsAndEmployeesWithERPNext() {
@@ -13479,9 +13423,9 @@ const BASELINE_ERP_TERRITORIES = [
         });
         if (res.ok) {
           const body = await res.json();
-          const live = body.data || [];
-          availableSalesPersons = live.length > 0 ? live : JSON.parse(JSON.stringify(BASELINE_SALES_PERSONS));
-          localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons));
+          const live = Array.isArray(body.data) ? body.data : [];
+          availableSalesPersons = live;
+          hasReceivedLiveSalesPersons = true;
           break;
         }
       } catch (_) {}
@@ -13494,20 +13438,9 @@ const BASELINE_ERP_TERRITORIES = [
       });
       if (res.ok) {
         const body = await res.json();
-        const live = body.data || [];
-        if (live.length > 0) {
-          live.forEach(l => {
-            if (l.status && l.status !== 'Active') return;
-            const idx = availableEmployees.findIndex(e => e.name === l.name);
-            if (idx >= 0) {
-              availableEmployees[idx] = Object.assign(availableEmployees[idx], l);
-            } else {
-              availableEmployees.push(l);
-            }
-          });
-          localStorage.setItem('pims_active_employees_v1', JSON.stringify(availableEmployees));
-          localStorage.setItem('pims_employees_v1', JSON.stringify(availableEmployees));
-        }
+        const live = Array.isArray(body.data) ? body.data.filter(l => l && (!l.status || l.status === 'Active')) : [];
+        availableEmployees = live;
+        hasReceivedLiveEmployees = true;
       }
     } catch (_) {}
 
@@ -13518,18 +13451,9 @@ const BASELINE_ERP_TERRITORIES = [
       });
       if (res.ok) {
         const body = await res.json();
-        const live = body.data || [];
-        if (live.length > 0) {
-          live.forEach(l => {
-            const idx = availableUsers.findIndex(u => u.name === l.name || u.email === l.email);
-            if (idx >= 0) {
-              availableUsers[idx] = Object.assign(availableUsers[idx], l);
-            } else {
-              availableUsers.push(l);
-            }
-          });
-          localStorage.setItem('pims_user_accounts_v1', JSON.stringify(availableUsers));
-        }
+        const live = Array.isArray(body.data) ? body.data : [];
+        availableUsers = live;
+        hasReceivedLiveUsers = true;
       }
     } catch (_) {}
 
@@ -14073,7 +13997,7 @@ const BASELINE_ERP_TERRITORIES = [
       menu.appendChild(advRow);
 
     } else if (fieldId === 'newSpParent') {
-      // Parent Sales Person: combine Sales Team root, live group branches, and program-scoped sales persons
+      // Parent Sales Person: strictly populate from live connected ERPNext Sales Person DocType records only
       const currentProg = getSelectedProgramName();
       const spPool = [];
       const seenParents = new Set();
@@ -14087,14 +14011,14 @@ const BASELINE_ERP_TERRITORIES = [
         spPool.push(sObj);
       };
 
-      pushUniqueParent({ name: 'Sales Team', sales_person_name: 'Sales Team', is_group: 1, parent_sales_person: '' });
       if (Array.isArray(availableSalesPersons)) {
         availableSalesPersons.forEach(s => {
           if (!s) return;
+          if (s.enabled === 0 || s.enabled === false) return;
           const isGrpSp = (s.is_group == 1 || s.is_group === true);
           if (!isGrpSp) return;
           const detProg = typeof detectSalesPersonProgram === 'function' ? detectSalesPersonProgram(s) : null;
-          if (!detProg || detProg === currentProg) {
+          if (!detProg || detProg === 'ROOT_SALES_TEAM' || detProg === currentProg) {
             pushUniqueParent(s);
           }
         });
@@ -14127,9 +14051,6 @@ const BASELINE_ERP_TERRITORIES = [
           <div class="erp-dropdown-item-sub">New parent folder (is_group = 1 under Sales Team)</div>
         `;
         customItem.onclick = () => {
-          if (typeof registerSalesPersonProgram === 'function') {
-            registerSalesPersonProgram(rawQ, currentProg);
-          }
           selectErpItem('newSpParent', rawQ, rawQ, { name: rawQ, sales_person_name: rawQ, is_group: 1, parent_sales_person: 'Sales Team', program: currentProg });
           closeAllErpDropdowns();
         };
@@ -14138,10 +14059,10 @@ const BASELINE_ERP_TERRITORIES = [
 
       if (matches.length === 0) {
         const emptyDiv = document.createElement('div');
-        emptyDiv.style.cssText = 'padding: 10px 14px; color: #64748B; font-size: 11.5px;';
+        emptyDiv.style.cssText = 'padding: 10px 14px; color: #64748B; font-size: 11.5px; font-style: italic;';
         emptyDiv.innerText = rawQ
-          ? `No ${currentProg} parent matching "${query}"`
-          : `No parent sales persons found for ${currentProg}`;
+          ? `No Parent Sales Person matching "${query}"`
+          : 'No data available';
         menu.appendChild(emptyDiv);
         appendCustomParentOption();
       } else {
@@ -14194,8 +14115,7 @@ const BASELINE_ERP_TERRITORIES = [
         menu.appendChild(unassignedItem);
       }
 
-      // Filter Sales Persons across fields (name, sales_person_name, parent_sales_person, employee, custom_district)
-      // Strictly scope Territory Manager to activeProgram managers/reps
+      // Filter Sales Persons strictly from connected ERPNext Sales Person DocType records
       const currentProg = getSelectedProgramName();
       const programScopedPool = getProgramScopedSalesPersonPool(currentProg);
 
@@ -14216,20 +14136,18 @@ const BASELINE_ERP_TERRITORIES = [
       });
 
       if (matches.length === 0) {
-        if (rawQ || (fieldId !== 'treeAddManager' && fieldId !== 'treeEditManager')) {
-          const emptyDiv = document.createElement('div');
-          emptyDiv.style.cssText = 'padding: 10px 14px; color: #64748B; font-size: 11.5px;';
-          emptyDiv.innerText = rawQ
-            ? `No ${activeProgram} Sales Person matching "${query}"`
-            : `No Sales Persons in ${activeProgram} yet`;
-          menu.appendChild(emptyDiv);
-        }
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.cssText = 'padding: 10px 14px; color: #64748B; font-size: 11.5px; font-style: italic;';
+        emptyDiv.innerText = rawQ
+          ? `No Sales Person matching "${query}"`
+          : 'No data available';
+        menu.appendChild(emptyDiv);
       } else {
         matches.slice(0, 50).forEach(s => {
           const item = document.createElement('div');
           const name = s.sales_person_name || s.name;
           const spDist = (s.custom_district || s.district || '').trim();
-          const parentBase = s.parent_sales_person ? s.parent_sales_person : (s.employee ? `Employee: ${s.employee}` : activeProgram);
+          const parentBase = s.parent_sales_person ? s.parent_sales_person : (s.employee ? `Employee: ${s.employee}` : '');
           const subText = [parentBase, spDist ? `District: ${spDist}` : ''].filter(Boolean).join(' • ');
 
           // Check if this sales person has an Active territory vs only an Inactive territory
@@ -14869,10 +14787,11 @@ const BASELINE_ERP_TERRITORIES = [
     const empId = document.getElementById('newSpEmployeeInput').value.trim();
     const userAcc = document.getElementById('newSpUserAccountInput') ? document.getElementById('newSpUserAccountInput').value.trim() : '';
 
-    // Allow selecting OR typing a Parent Sales Person folder directly
+    // Allow selecting OR typing a Parent Sales Person folder directly (leave empty to let backend resolve/bootstrap live ERPNext root)
     const parentSpInpVal = document.getElementById('newSpParentInput') ? document.getElementById('newSpParentInput').value.trim() : '';
     const parentSpDispVal = document.getElementById('newSpParentDisplay') ? document.getElementById('newSpParentDisplay').value.trim() : '';
-    const parentSp = parentSpInpVal || parentSpDispVal || 'Sales Team';
+    const inStreamlit = Boolean(isStreamlitActive || (window.parent && window.parent !== window));
+    const parentSp = parentSpInpVal || parentSpDispVal || (inStreamlit ? '' : 'Sales Team');
     const spDistrict = document.getElementById('newSpDistrictInput') ? document.getElementById('newSpDistrictInput').value.trim() : '';
     const commRate = parseFloat(document.getElementById('newSpCommissionInput').value) || 0;
     const isGrp = document.getElementById('newSpIsGroup').checked ? 1 : 0;
@@ -14889,31 +14808,10 @@ const BASELINE_ERP_TERRITORIES = [
         distribution_id: t.distribution_id || 'Evenly Distributed'
       }));
 
-    // Ensure non-root parent folder is represented as is_group = 1 locally
-    if (parentSp && parentSp.toLowerCase() !== 'sales team') {
-      registerSalesPersonProgram(parentSp, activeProgram);
-      const existingParent = availableSalesPersons.find(s =>
-        s && ((s.name || '').toLowerCase() === parentSp.toLowerCase() || (s.sales_person_name || '').toLowerCase() === parentSp.toLowerCase())
-      );
-      if (existingParent) {
-        existingParent.is_group = 1;
-      } else {
-        availableSalesPersons.unshift({
-          name: parentSp,
-          sales_person_name: parentSp,
-          parent_sales_person: 'Sales Team',
-          is_group: 1,
-          enabled: 1,
-          program: activeProgram,
-          custom_account_or_program: activeProgram
-        });
-      }
-    }
-
     const newSpRecord = {
       name: spName,
       sales_person_name: spName,
-      parent_sales_person: parentSp,
+      parent_sales_person: parentSp || 'Sales Team',
       is_group: isGrp,
       enabled: isEnabled,
       employee: empId || null,
@@ -14925,22 +14823,37 @@ const BASELINE_ERP_TERRITORIES = [
       program: activeProgram,
       custom_account_or_program: activeProgram
     };
-    registerSalesPersonProgram(spName, activeProgram);
 
-    // Update local list
-    const existingIdx = availableSalesPersons.findIndex(s => s && (s.name === spName || s.sales_person_name === spName));
-    if (existingIdx >= 0) {
-      availableSalesPersons[existingIdx] = newSpRecord;
-    } else {
-      availableSalesPersons.unshift(newSpRecord);
+    if (!inStreamlit) {
+      // Standalone mode only: ensure local state reflects submission before direct API sync
+      if (parentSp && parentSp.toLowerCase() !== 'sales team') {
+        const existingParent = availableSalesPersons.find(s =>
+          s && ((s.name || '').toLowerCase() === parentSp.toLowerCase() || (s.sales_person_name || '').toLowerCase() === parentSp.toLowerCase())
+        );
+        if (existingParent) {
+          existingParent.is_group = 1;
+        } else {
+          availableSalesPersons.unshift({
+            name: parentSp,
+            sales_person_name: parentSp,
+            parent_sales_person: 'Sales Team',
+            is_group: 1,
+            enabled: 1,
+            program: activeProgram,
+            custom_account_or_program: activeProgram
+          });
+        }
+      }
+      const existingIdx = availableSalesPersons.findIndex(s => s && (s.name === spName || s.sales_person_name === spName));
+      if (existingIdx >= 0) {
+        availableSalesPersons[existingIdx] = newSpRecord;
+      } else {
+        availableSalesPersons.unshift(newSpRecord);
+      }
     }
-    try {
-      localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons));
-    } catch (_) {}
 
-    const inStreamlit = Boolean(isStreamlitActive || (window.parent && window.parent !== window));
     if (inStreamlit) {
-      // Streamlit bidirectional dispatch (single authoritative ERPNext sync path)
+      // Streamlit bidirectional dispatch (single authoritative ERPNext sync path; server returns live DocType truth)
       try {
         window.parent.postMessage({
           isStreamlitMessage: true,
@@ -15068,7 +14981,8 @@ const BASELINE_ERP_TERRITORIES = [
     if (typeof renderSummaryReport === 'function') renderSummaryReport();
 
     if (inStreamlit) {
-      showToast(`Saving Sales Person "${spName}" under "${parentSp}" to ERPNext...`, 'info');
+      const parentDesc = parentSp ? ` under "${parentSp}"` : '';
+      showToast(`Saving Sales Person "${spName}"${parentDesc} to ERPNext...`, 'info');
     } else {
       showToast(`Sales Person "${spName}" created and synchronized successfully!`, 'success');
     }
@@ -15489,7 +15403,13 @@ const BASELINE_ERP_TERRITORIES = [
     if (!rawParent) rawParent = 'All Territories';
     const isGroup = document.getElementById('treeAddIsGroup').checked ? 1 : 0;
     const progBranch = (LIVE_DATA[activeProgram] && LIVE_DATA[activeProgram].territoryBranch) ? LIVE_DATA[activeProgram].territoryBranch : 'All Territories';
-    const parent = (rawParent === 'All Territories' && !isGroup) ? progBranch : rawParent;
+    const hasLiveProgBranch = Boolean(
+      progBranch &&
+      progBranch !== 'All Territories' &&
+      Array.isArray(territoryTreeData) &&
+      territoryTreeData.some(t => t && (t.name === progBranch || t.territory_name === progBranch))
+    );
+    const parent = (rawParent === 'All Territories' && !isGroup && hasLiveProgBranch) ? progBranch : rawParent;
     const name = document.getElementById('treeAddNameInput').value.trim();
     const mgr = cleanRepDisplayName(document.getElementById('treeAddManagerInput').value.trim());
     const rawAddDist = document.getElementById('treeAddDistrictInput') ? document.getElementById('treeAddDistrictInput').value.trim() : '';
@@ -15530,7 +15450,9 @@ const BASELINE_ERP_TERRITORIES = [
         if (spMatch) {
           spMatch.custom_district = terrDistrict;
           spMatch.district = terrDistrict;
-          try { localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons)); } catch (_) {}
+          if (!isPortalInStreamlitMode()) {
+            try { localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons)); } catch (_) {}
+          }
         }
       }
     }
@@ -15777,7 +15699,9 @@ const BASELINE_ERP_TERRITORIES = [
         if (spMatch) {
           spMatch.custom_district = rawEditDist;
           spMatch.district = rawEditDist;
-          try { localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons)); } catch (_) {}
+          if (!isPortalInStreamlitMode()) {
+            try { localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons)); } catch (_) {}
+          }
         }
       }
     }
