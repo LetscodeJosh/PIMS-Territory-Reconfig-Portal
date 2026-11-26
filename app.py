@@ -2654,6 +2654,35 @@ def _resolve_user_id(opener, uid, headers_json):
     return None
 
 
+def _resolve_medrep_user_id_from_sales_person(opener, sp_name, headers_json):
+    """
+    Resolves the logged-in MedRep's authoritative ERPNext User email from Sales Person -> Employee -> user_id
+    so the HCP App and Territory Reconfig Web App stay 100% synchronized on territory availability.
+    """
+    clean_sp = safe_str(sp_name)
+    if not clean_sp or not opener:
+        return None
+    try:
+        sp_doc = _find_existing_sales_person(opener, clean_sp, headers_json)
+        if not isinstance(sp_doc, dict):
+            return None
+        emp_id = safe_str(sp_doc.get("employee"))
+        if not emp_id:
+            return None
+        emp_url = f"{ERPNEXT_SERVER_URL}/api/resource/Employee/{urllib.parse.quote(emp_id, safe='')}"
+        e_res = call_erpnext_resiliently(opener, urllib.request.Request(emp_url, headers=headers_json), timeout=6)
+        emp_doc = json.loads(e_res.read().decode("utf-8")).get("data", {})
+        if not isinstance(emp_doc, dict):
+            return None
+        for cand in (emp_doc.get("user_id"), emp_doc.get("company_email"), emp_doc.get("personal_email")):
+            resolved = _resolve_user_id(opener, cand, headers_json)
+            if resolved:
+                return resolved
+    except Exception:
+        pass
+    return None
+
+
 def execute_tree_action(opener, action, payload):
     if not opener:
         opener = get_authenticated_opener()
@@ -2730,7 +2759,9 @@ def execute_tree_action(opener, action, payload):
                 dist_val=custom_district,
                 prog_val=custom_prog
             ) if t_mgr else None
-            resolved_uid = _resolve_user_id(opener, custom_uid, headers_json) if custom_uid else None
+            resolved_uid = _resolve_user_id(opener, custom_uid, headers_json) if (custom_uid and resolved_mgr) else None
+            if resolved_mgr and not resolved_uid:
+                resolved_uid = _resolve_medrep_user_id_from_sales_person(opener, resolved_mgr, headers_json)
 
             body = {
                 "territory_name": t_name,
@@ -2741,6 +2772,8 @@ def execute_tree_action(opener, action, payload):
                 body["territory_manager"] = resolved_mgr
             if resolved_uid:
                 body["custom_user_id"] = resolved_uid
+            elif not resolved_mgr:
+                body["custom_user_id"] = ""
             if custom_prog:
                 body["custom_account_or_program"] = custom_prog
             if safe_str(custom_district):
@@ -2782,10 +2815,11 @@ def execute_tree_action(opener, action, payload):
             success, err = _post_or_put_terr(body)
             if not success:
                 last_err = err or last_err
-                # Progressive schema-safe fallback: strip optional fields one by one
+                # Progressive schema-safe fallback: strip custom_account_or_program FIRST so custom_user_id (HCP App MedRep sync) stays intact!
                 for opt_fields in (
-                    ["custom_account_or_program", "custom_user_id"],
+                    ["custom_account_or_program"],
                     ["custom_district"],
+                    ["custom_user_id"],
                     ["territory_manager"]
                 ):
                     removed_any = False
@@ -2848,25 +2882,36 @@ def execute_tree_action(opener, action, payload):
                 except Exception as ins_ex:
                     last_err = str(ins_ex) or last_err
 
-            # If created via TreeView/insert fallback, apply optional metadata via PUT safely
+            # Ensure critical HCP App MedRep sync fields (territory_manager, custom_user_id, custom_district) are applied even after fallback creation
             if success and (resolved_mgr or safe_str(custom_district) or resolved_uid):
                 extra_put = {}
                 if resolved_mgr:
                     extra_put["territory_manager"] = resolved_mgr
-                if safe_str(custom_district):
-                    extra_put["custom_district"] = safe_str(custom_district)
                 if resolved_uid:
                     extra_put["custom_user_id"] = resolved_uid
+                if safe_str(custom_district):
+                    extra_put["custom_district"] = safe_str(custom_district)
                 if extra_put:
+                    put_url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}"
                     try:
                         call_erpnext_resiliently(opener, urllib.request.Request(
-                            f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}",
+                            put_url,
                             data=json.dumps(extra_put).encode("utf-8"),
                             headers=headers_json,
                             method="PUT"
                         ), timeout=8)
                     except Exception:
-                        pass
+                        # Apply each critical field independently so one missing custom field never drops territory_manager or custom_user_id
+                        for fk, fv in extra_put.items():
+                            try:
+                                call_erpnext_resiliently(opener, urllib.request.Request(
+                                    put_url,
+                                    data=json.dumps({fk: fv}).encode("utf-8"),
+                                    headers=headers_json,
+                                    method="PUT"
+                                ), timeout=6)
+                            except Exception:
+                                pass
 
             if success and "live_territories" in st.session_state and isinstance(st.session_state["live_territories"], list):
                 if not any(t.get("name") == t_name for t in st.session_state["live_territories"]):
@@ -2908,26 +2953,29 @@ def execute_tree_action(opener, action, payload):
             else:
                 eff_status = "Active" if ((not is_unassigned_mgr) or new_is_group) else "Vacant"
 
-            shared_mgr = "" if (is_unassigned_mgr or eff_status == "Vacant") else (resolved_mgr or new_mgr)
+            if eff_status in ("Vacant", "Inactive") or is_unassigned_mgr:
+                resolved_uid = ""
+            elif not resolved_uid and resolved_mgr:
+                resolved_uid = _resolve_medrep_user_id_from_sales_person(opener, resolved_mgr, headers_json) or ""
+
+            shared_mgr = "" if (is_unassigned_mgr or eff_status in ("Vacant", "Inactive")) else (resolved_mgr or new_mgr)
 
             body = {}
             if new_parent:
                 body["parent_territory"] = new_parent
             if new_is_group is not None:
                 body["is_group"] = int(new_is_group or 0)
-            if eff_status == "Vacant" or is_unassigned_mgr:
+            if eff_status in ("Vacant", "Inactive") or is_unassigned_mgr:
+                # HCP App Sync Invariant: Vacating or deactivating a territory MUST clear BOTH territory_manager & custom_user_id
                 body["territory_manager"] = ""
-            elif eff_status == "Inactive":
-                body["territory_manager"] = ""
+                body["custom_user_id"] = ""
             elif resolved_mgr:
                 body["territory_manager"] = resolved_mgr
+                body["custom_user_id"] = resolved_uid or (custom_uid if (custom_uid and "@" in custom_uid) else "")
             elif new_mgr:
                 body["territory_manager"] = new_mgr
+                body["custom_user_id"] = resolved_uid or (custom_uid if (custom_uid and "@" in custom_uid) else "")
 
-            if resolved_uid:
-                body["custom_user_id"] = resolved_uid
-            elif custom_uid and "@" in custom_uid:
-                body["custom_user_id"] = custom_uid
             if custom_prog:
                 body["custom_account_or_program"] = custom_prog
             if custom_district is not None:
@@ -2953,48 +3001,44 @@ def execute_tree_action(opener, action, payload):
                     msg_out = ("warning", f"ERPNext responded with HTTP {res.status}")
             except urllib.error.HTTPError as he:
                 last_err = _extract_erp_http_error(he)
-                # Stage 1a: Strip only account/program and user custom fields, preserving custom_district & territory_manager
-                for lf in ["custom_account_or_program", "custom_user_id"]:
-                    body.pop(lf, None)
-                try:
-                    res = _put_terr(body)
-                    if res.status == 200:
-                        synced_ok = True
-                        msg_out = ("success", f'Territory "{orig_name}" transferred/updated under "{new_parent or "All Territories"}" on {get_server_display_name()}!')
-                except urllib.error.HTTPError as he_d:
-                    last_err = _extract_erp_http_error(he_d) or last_err
-                    # Stage 1b: Strip custom_district, keeping territory_manager intact
-                    body.pop("custom_district", None)
+                # Progressive schema-safe fallback: strip custom_account_or_program FIRST while keeping custom_user_id (HCP App MedRep sync) intact!
+                for strip_keys in (
+                    ["custom_account_or_program"],
+                    ["custom_district"],
+                    ["custom_user_id"],
+                    ["territory_manager"]
+                ):
+                    removed = False
+                    for lf in strip_keys:
+                        if lf in body:
+                            body.pop(lf, None)
+                            removed = True
+                    if not removed:
+                        continue
                     try:
                         res = _put_terr(body)
                         if res.status == 200:
                             synced_ok = True
                             msg_out = ("success", f'Territory "{orig_name}" transferred/updated under "{new_parent or "All Territories"}" on {get_server_display_name()}!')
-                    except urllib.error.HTTPError as he2:
-                        last_err = _extract_erp_http_error(he2) or last_err
-                        body.pop("territory_manager", None)
-                        try:
-                            res = _put_terr(body)
-                            if res.status == 200:
+                            break
+                    except urllib.error.HTTPError as he_step:
+                        last_err = _extract_erp_http_error(he_step) or last_err
+                        if he_step.code == 404:
+                            c_ok, c_err = _create_single_territory_record(
+                                orig_name,
+                                new_parent or "All Territories",
+                                int(new_is_group or 0),
+                                resolved_mgr or "",
+                                resolved_uid or "",
+                                custom_prog,
+                                custom_district=clean_dist
+                            )
+                            if c_ok:
                                 synced_ok = True
-                                msg_out = ("success", f'Territory "{orig_name}" transferred/updated under "{new_parent or "All Territories"}" on {get_server_display_name()}!')
-                        except urllib.error.HTTPError as he3:
-                            last_err = _extract_erp_http_error(he3) or last_err
-                            if he3.code == 404:
-                                c_ok, c_err = _create_single_territory_record(
-                                    orig_name,
-                                    new_parent or "All Territories",
-                                    int(new_is_group or 0),
-                                    resolved_mgr or "",
-                                    resolved_uid or "",
-                                    custom_prog,
-                                    custom_district=clean_dist
-                                )
-                                if c_ok:
-                                    synced_ok = True
-                                    msg_out = ("success", f'Territory "{orig_name}" created & linked under "{new_parent or "All Territories"}" on {get_server_display_name()}!')
-                                else:
-                                    last_err = c_err or last_err
+                                msg_out = ("success", f'Territory "{orig_name}" created & linked under "{new_parent or "All Territories"}" on {get_server_display_name()}!')
+                            else:
+                                last_err = c_err or last_err
+                            break
                 if not synced_ok and 'msg_out' not in locals():
                     msg_out = ("error", f'Could not update Territory "{orig_name}" on {get_server_display_name()}: {last_err or "ERPNext rejected update."}')
             except Exception as ex:
@@ -3300,64 +3344,91 @@ def execute_tree_action(opener, action, payload):
         elif action in ["territory_toggle_status", "territory_deactivate"]:
             t_name = safe_str(payload.get("territory") or payload.get("territory_name") or payload.get("name") or payload.get("code") or payload.get("activeCode"))
             new_mgr = safe_str(payload.get("territory_manager") or payload.get("rep"))
+            new_uid = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
             new_status = safe_str(payload.get("status") or payload.get("operational_status") or ("Active" if new_mgr and "INACTIVE" not in new_mgr.upper() and "UNASSIGNED" not in new_mgr.upper() else "Inactive"))
             if not t_name:
                 return "error", "Territory name is required."
             resolved_mgr = _resolve_sales_person_for_manager(opener, new_mgr, headers_json) if (new_status == "Active" and new_mgr) else None
-            if new_status == "Vacant":
-                shared_mgr = ""
+            if new_status in ("Vacant", "Inactive"):
                 erp_mgr = ""
-            elif new_status == "Inactive":
-                shared_mgr = new_mgr
-                erp_mgr = ""
+                erp_uid = ""
             else:
-                shared_mgr = resolved_mgr or new_mgr
                 erp_mgr = resolved_mgr or new_mgr
-            record_shared_territory_edit(t_name, manager=shared_mgr, status=new_status)
+                erp_uid = _resolve_user_id(opener, new_uid, headers_json) if new_uid else ""
+                if not erp_uid and resolved_mgr:
+                    erp_uid = _resolve_medrep_user_id_from_sales_person(opener, resolved_mgr, headers_json) or ""
             if new_status != "Active" or erp_mgr:
-                body = {"territory_manager": erp_mgr}
-                data = json.dumps(body).encode("utf-8")
-                req = urllib.request.Request(
-                    f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}",
-                    data=data,
-                    headers=headers_json,
-                    method="PUT"
-                )
+                # HCP App Sync Invariant: Keep Territory.territory_manager and Territory.custom_user_id strictly synchronized
+                body = {"territory_manager": erp_mgr, "custom_user_id": erp_uid}
+                put_url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}"
                 try:
-                    res = call_erpnext_resiliently(opener, req, timeout=12)
+                    res = call_erpnext_resiliently(opener, urllib.request.Request(
+                        put_url,
+                        data=json.dumps(body).encode("utf-8"),
+                        headers=headers_json,
+                        method="PUT"
+                    ), timeout=12)
                     if res.status == 200:
                         return "success", f'Territory "{t_name}" status set to {new_status} on {get_server_display_name()}!'
-                    return "success", f'Territory "{t_name}" status updated to {new_status}.'
-                except Exception:
-                    return "success", f'Territory "{t_name}" status updated to {new_status}.'
+                    return "warning", f"ERPNext responded with HTTP {res.status}"
+                except urllib.error.HTTPError as he:
+                    # Fallback if custom_user_id field is absent on target schema
+                    try:
+                        res2 = call_erpnext_resiliently(opener, urllib.request.Request(
+                            put_url,
+                            data=json.dumps({"territory_manager": erp_mgr}).encode("utf-8"),
+                            headers=headers_json,
+                            method="PUT"
+                        ), timeout=12)
+                        if res2.status == 200:
+                            return "success", f'Territory "{t_name}" status set to {new_status} on {get_server_display_name()}!'
+                    except urllib.error.HTTPError as he2:
+                        return "error", f'Could not update Territory "{t_name}" status on {get_server_display_name()}: {_extract_erp_http_error(he2)}'
+                    return "error", f'Could not update Territory "{t_name}" status on {get_server_display_name()}: {_extract_erp_http_error(he)}'
+                except Exception as ex:
+                    return "error", f'Could not update Territory "{t_name}" status on {get_server_display_name()}: {str(ex)}'
             return "success", f'Territory "{t_name}" status set to {new_status}!'
 
         elif action in ["bulk_decommission", "bulk_archive"]:
             items = payload.get("territories", [])
             updated_count = 0
+            errors = []
             for item in items:
                 if isinstance(item, str):
                     t_name = safe_str(item)
-                    item_mgr = ""
                 elif isinstance(item, dict):
                     t_name = safe_str(item.get("territory") or item.get("name") or item.get("code") or item.get("activeCode"))
-                    item_mgr = safe_str(item.get("territory_manager") or item.get("rep"))
                 else:
                     continue
                 if not t_name:
                     continue
-                record_shared_territory_edit(t_name, manager=item_mgr, status="Inactive")
+                put_url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}"
+                # Clear BOTH territory_manager and custom_user_id so archived MedReps immediately lose territory availability in HCP App
                 try:
-                    req = urllib.request.Request(
-                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}",
-                        data=json.dumps({"territory_manager": ""}).encode("utf-8"),
+                    res = call_erpnext_resiliently(opener, urllib.request.Request(
+                        put_url,
+                        data=json.dumps({"territory_manager": "", "custom_user_id": ""}).encode("utf-8"),
                         headers=headers_json,
                         method="PUT"
-                    )
-                    call_erpnext_resiliently(opener, req, timeout=10)
-                except Exception:
-                    pass
-                updated_count += 1
+                    ), timeout=10)
+                    if res.status == 200:
+                        updated_count += 1
+                except urllib.error.HTTPError:
+                    try:
+                        res2 = call_erpnext_resiliently(opener, urllib.request.Request(
+                            put_url,
+                            data=json.dumps({"territory_manager": ""}).encode("utf-8"),
+                            headers=headers_json,
+                            method="PUT"
+                        ), timeout=10)
+                        if res2.status == 200:
+                            updated_count += 1
+                    except Exception as ex2:
+                        errors.append(f"{t_name}: {str(ex2)}")
+                except Exception as ex:
+                    errors.append(f"{t_name}: {str(ex)}")
+            if updated_count == 0 and errors:
+                return "error", f"Could not archive territories on {get_server_display_name()}: {errors[0]}"
             return "success", f"Archived {updated_count} territories as Inactive on {get_server_display_name()}!"
 
         elif action == "resignation_handover":
@@ -3368,29 +3439,37 @@ def execute_tree_action(opener, action, payload):
                 return "error", "Territory name is required for handover."
             resolved_mgr = _resolve_sales_person_for_manager(opener, new_rep, headers_json) if new_rep else None
             resolved_uid = _resolve_user_id(opener, new_uid, headers_json) if new_uid else None
+            if not resolved_uid and resolved_mgr:
+                resolved_uid = _resolve_medrep_user_id_from_sales_person(opener, resolved_mgr, headers_json)
             shared_mgr = resolved_mgr or new_rep
-            record_shared_territory_edit(
-                t_name,
-                manager=shared_mgr,
-                user_id=(resolved_uid or new_uid) if new_uid else None,
-                status="Active" if shared_mgr else "Vacant"
-            )
-            body = {"territory_manager": shared_mgr}
-            if resolved_uid:
-                body["custom_user_id"] = resolved_uid
+            # Always overwrite custom_user_id so resigned MedRep immediately loses HCP App territory availability
+            body = {"territory_manager": shared_mgr, "custom_user_id": resolved_uid or ""}
+            put_url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}"
             try:
-                req = urllib.request.Request(
-                    f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}",
+                res = call_erpnext_resiliently(opener, urllib.request.Request(
+                    put_url,
                     data=json.dumps(body).encode("utf-8"),
                     headers=headers_json,
                     method="PUT"
-                )
-                res = call_erpnext_resiliently(opener, req, timeout=12)
+                ), timeout=12)
                 if res.status == 200:
                     return "success", f'Handover saved: "{t_name}" reassigned to "{shared_mgr}" on {get_server_display_name()}!'
-            except Exception:
-                pass
-            return "success", f'Handover saved: "{t_name}" reassigned to "{shared_mgr}".'
+                return "warning", f"ERPNext responded with HTTP {res.status}"
+            except urllib.error.HTTPError as he:
+                try:
+                    res2 = call_erpnext_resiliently(opener, urllib.request.Request(
+                        put_url,
+                        data=json.dumps({"territory_manager": shared_mgr}).encode("utf-8"),
+                        headers=headers_json,
+                        method="PUT"
+                    ), timeout=12)
+                    if res2.status == 200:
+                        return "success", f'Handover saved: "{t_name}" reassigned to "{shared_mgr}" on {get_server_display_name()}!'
+                except Exception:
+                    pass
+                return "error", f'Handover failed for "{t_name}" on {get_server_display_name()}: {_extract_erp_http_error(he)}'
+            except Exception as ex:
+                return "error", f'Handover failed for "{t_name}" on {get_server_display_name()}: {str(ex)}'
 
         elif action == "sales_person_create":
             sp_name = safe_str(payload.get("sales_person_name") or payload.get("name"))

@@ -7473,11 +7473,6 @@ const BASELINE_ERP_TERRITORIES = [
                 territory_manager: null
               });
             }
-            liveTerrs.forEach(t => {
-              if (!t.custom_user_id && ERP_TERRITORY_USER_MAP[t.name]) {
-                t.custom_user_id = ERP_TERRITORY_USER_MAP[t.name];
-              }
-            });
             territoryTreeData = liveTerrs;
             try {
               localStorage.removeItem('pims_stg_territory_tree_v1');
@@ -12614,7 +12609,7 @@ const BASELINE_ERP_TERRITORIES = [
           isActive: !isResignedTree,
           isResigned: isResignedTree,
           recordId: newRecordId,
-          userId: isVacantTree ? '' : (t.custom_user_id || ERP_TERRITORY_USER_MAP[t.name] || (base ? (base.userId || '') : '')),
+          userId: (isVacantTree || isResignedTree) ? '' : (t.custom_user_id || ''),
           isGroup: t.is_group ? 1 : 0,
           auditTrail: base ? (base.auditTrail || []) : [{
             timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
@@ -12642,10 +12637,8 @@ const BASELINE_ERP_TERRITORIES = [
           existing.custom_district = '';
         }
 
-        const accurateUid = t.custom_user_id || ERP_TERRITORY_USER_MAP[t.name];
-        if (accurateUid && !isVacantTree) {
-          existing.userId = accurateUid;
-        }
+        // 1:1 ERPNext Truth for HCP App MedRep Availability Sync (never inject hardcoded ERP_TERRITORY_USER_MAP)
+        existing.userId = (!isVacantTree && !isResignedTree) ? (t.custom_user_id || '') : '';
 
         if (t.parent_territory && existing.district !== t.parent_territory) {
           existing.district = t.parent_territory;
@@ -12720,11 +12713,6 @@ const BASELINE_ERP_TERRITORIES = [
     } else {
       territoryTreeData = [];
     }
-    (territoryTreeData || []).forEach(t => {
-      if (!t.custom_user_id && ERP_TERRITORY_USER_MAP[t.name]) {
-        t.custom_user_id = ERP_TERRITORY_USER_MAP[t.name];
-      }
-    });
   }
 
   async function syncTreeWithERPNext(triggerServerRefresh = false) {
@@ -12763,11 +12751,6 @@ const BASELINE_ERP_TERRITORIES = [
               territory_manager: null
             });
           }
-          liveTerrs.forEach(t => {
-            if (!t.custom_user_id && ERP_TERRITORY_USER_MAP[t.name]) {
-              t.custom_user_id = ERP_TERRITORY_USER_MAP[t.name];
-            }
-          });
           territoryTreeData = liveTerrs;
           treeExpandedNodes.add('All Territories');
           const progBranch = LIVE_DATA[activeProgram]?.territoryBranch;
@@ -13803,12 +13786,66 @@ const BASELINE_ERP_TERRITORIES = [
       disp.focus();
     }
     if (clr) clr.style.display = 'none';
+    // HCP App Sync: Clearing Territory Manager (Unassigned/Vacant) also clears linked MedRep User ID
+    if (fieldId === 'treeAddManager') {
+      const uidInp = document.getElementById('treeAddUserAccountInput');
+      const uidDisp = document.getElementById('treeAddUserAccountDisplay');
+      const uidClr = document.getElementById('treeAddUserAccountClear');
+      if (uidInp) uidInp.value = '';
+      if (uidDisp) { uidDisp.value = ''; uidDisp.placeholder = 'Unassigned'; }
+      if (uidClr) uidClr.style.display = 'none';
+    } else if (fieldId === 'treeEditManager') {
+      const uidInp = document.getElementById('treeEditUserAccountInput');
+      const uidDisp = document.getElementById('treeEditUserAccountDisplay');
+      const uidClr = document.getElementById('treeEditUserAccountClear');
+      if (uidInp) uidInp.value = '';
+      if (uidDisp) { uidDisp.value = ''; uidDisp.placeholder = 'Unassigned'; }
+      if (uidClr) uidClr.style.display = 'none';
+    }
     if (isParentTerritoryField(fieldId)) {
       activeErpDropdown = fieldId;
       const menu = document.getElementById(fieldId + 'Menu');
       if (menu) menu.classList.add('active');
     }
     renderErpDropdownMenu(fieldId, '');
+  }
+
+  function resolveLiveUserForSalesPerson(extraData, fallbackName) {
+    // 1. Direct email on record if present
+    const directUid = extraData && (extraData.user_id || extraData.company_email || extraData.personal_email || extraData.email);
+    if (directUid && String(directUid).includes('@')) {
+      const cleanDirect = String(directUid).trim().toLowerCase();
+      const uRec = availableUsers.find(u => ((u.email || u.name || '').trim().toLowerCase() === cleanDirect));
+      if (uRec) return { email: uRec.email || uRec.name, user: uRec };
+    }
+    // 2. Authoritative ERPNext linkage: Sales Person.employee -> Employee.user_id -> User
+    if (extraData && extraData.employee && Array.isArray(availableEmployees)) {
+      const empRec = availableEmployees.find(e => e && e.name === extraData.employee);
+      if (empRec) {
+        const empEmails = [empRec.user_id, empRec.company_email, empRec.personal_email]
+          .filter(v => v && String(v).includes('@'))
+          .map(v => String(v).trim().toLowerCase());
+        for (const em of empEmails) {
+          const uRec = availableUsers.find(u => ((u.email || u.name || '').trim().toLowerCase() === em));
+          if (uRec) return { email: uRec.email || uRec.name, user: uRec };
+          if (empRec.user_id && empRec.user_id.trim().toLowerCase() === em) {
+            return { email: em, user: { email: em, full_name: empRec.employee_name || fallbackName } };
+          }
+        }
+      }
+    }
+    // 3. Exact full-name match against live availableUsers
+    const mgrClean = cleanRepDisplayName(fallbackName || (extraData && (extraData.sales_person_name || extraData.name)) || '').toLowerCase();
+    if (mgrClean && Array.isArray(availableUsers)) {
+      const uMatch = availableUsers.find(u => {
+        const uName = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
+        return uName && (uName === mgrClean || uName.includes(mgrClean) || mgrClean.includes(uName));
+      });
+      if (uMatch) {
+        return { email: uMatch.email || uMatch.name, user: uMatch };
+      }
+    }
+    return null;
   }
 
   function selectErpItem(fieldId, value, displayLabel, extraData) {
@@ -13830,7 +13867,7 @@ const BASELINE_ERP_TERRITORIES = [
       if (distInp && value) distInp.value = value;
     }
 
-    // Auto-populate User ID & District when selecting Territory Manager in New Territory modal
+    // Auto-populate User ID & District from live ERPNext Sales Person -> Employee -> User linkage (HCP App sync)
     if (fieldId === 'treeAddManager') {
       const spDist = (extraData && (extraData.custom_district || extraData.district)) ||
         (typeof getSalesPersonDistrict === 'function' ? getSalesPersonDistrict(extraData || value) : '');
@@ -13838,25 +13875,20 @@ const BASELINE_ERP_TERRITORIES = [
       if (distAddInp && spDist) {
         distAddInp.value = spDist;
       }
-      if (extraData) {
-        const uid = extraData.user_id || extraData.company_email || extraData.personal_email || extraData.email;
-        if (uid) {
-          selectErpItem('treeAddUserAccount', uid, uid, { email: uid });
-        } else {
-          const mgrClean = cleanRepDisplayName(displayLabel || value);
-          const uMatch = availableUsers.find(u => {
-            const uName = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
-            return uName && (uName === mgrClean.toLowerCase() || uName.includes(mgrClean.toLowerCase()) || mgrClean.toLowerCase().includes(uName));
-          });
-          if (uMatch) {
-            const uEmail = uMatch.email || uMatch.name;
-            selectErpItem('treeAddUserAccount', uEmail, uEmail, uMatch);
-          }
-        }
+      const matched = resolveLiveUserForSalesPerson(extraData, displayLabel || value);
+      if (matched && matched.email) {
+        selectErpItem('treeAddUserAccount', matched.email, matched.email, matched.user);
+      } else {
+        const uidInp = document.getElementById('treeAddUserAccountInput');
+        const uidDisp = document.getElementById('treeAddUserAccountDisplay');
+        const uidClr = document.getElementById('treeAddUserAccountClear');
+        if (uidInp) uidInp.value = '';
+        if (uidDisp) { uidDisp.value = ''; uidDisp.placeholder = 'Unassigned'; }
+        if (uidClr) uidClr.style.display = 'none';
       }
     }
 
-    // Auto-populate District (and blank User ID) when selecting Territory Manager in Edit Territory modal
+    // Always synchronize User ID & District when changing Territory Manager in Edit Territory modal (never retain old MedRep's User ID)
     if (fieldId === 'treeEditManager') {
       const spDist = (extraData && (extraData.custom_district || extraData.district)) ||
         (typeof getSalesPersonDistrict === 'function' ? getSalesPersonDistrict(extraData || value) : '');
@@ -13864,26 +13896,20 @@ const BASELINE_ERP_TERRITORIES = [
       if (distEditInp && spDist) {
         distEditInp.value = spDist;
       }
-      const editUidInp = document.getElementById('treeEditUserAccountInput');
-      if (extraData && editUidInp && !editUidInp.value.trim()) {
-        const uid = extraData.user_id || extraData.company_email || extraData.personal_email || extraData.email;
-        if (uid) {
-          selectErpItem('treeEditUserAccount', uid, uid, { email: uid });
-        } else {
-          const mgrClean = cleanRepDisplayName(displayLabel || value);
-          const uMatch = availableUsers.find(u => {
-            const uName = (u.full_name || `${u.first_name || ''} ${u.last_name || ''}`).trim().toLowerCase();
-            return uName && (uName === mgrClean.toLowerCase() || uName.includes(mgrClean.toLowerCase()) || mgrClean.toLowerCase().includes(uName));
-          });
-          if (uMatch) {
-            const uEmail = uMatch.email || uMatch.name;
-            selectErpItem('treeEditUserAccount', uEmail, uEmail, uMatch);
-          }
-        }
+      const matched = resolveLiveUserForSalesPerson(extraData, displayLabel || value);
+      if (matched && matched.email) {
+        selectErpItem('treeEditUserAccount', matched.email, matched.email, matched.user);
+      } else {
+        const uidInp = document.getElementById('treeEditUserAccountInput');
+        const uidDisp = document.getElementById('treeEditUserAccountDisplay');
+        const uidClr = document.getElementById('treeEditUserAccountClear');
+        if (uidInp) uidInp.value = '';
+        if (uidDisp) { uidDisp.value = ''; uidDisp.placeholder = 'Unassigned'; }
+        if (uidClr) uidClr.style.display = 'none';
       }
     }
 
-    // If selecting employee in New Sales Person modal, auto-fill Sales Person Name, District (if blank), and User ID based on HR records
+    // If selecting employee in New Sales Person modal, auto-fill Sales Person Name, District (if blank), and verified ERPNext User ID only
     if (fieldId === 'newSpEmployee' && extraData) {
       const empFullName = extraData.employee_name || `${extraData.first_name || ''} ${extraData.last_name || ''}`.trim() || extraData.name;
       const cleanName = cleanRepDisplayName(empFullName);
@@ -13898,7 +13924,7 @@ const BASELINE_ERP_TERRITORIES = [
         spDistInp.value = empDist;
       }
 
-      // Auto-match user account (User ID) from employee record or availableUsers
+      // Auto-match ONLY real ERPNext user accounts (never fabricate @pims.com emails)
       const empEmail = (extraData.user_id || extraData.company_email || extraData.personal_email || '').toLowerCase();
       const cleanEmpName = cleanName.toLowerCase();
       let matchedUser = availableUsers.find(u => {
@@ -13907,8 +13933,17 @@ const BASELINE_ERP_TERRITORIES = [
         return (empEmail && (uEmail === empEmail || uEmail.includes(empEmail))) || (uName && (uName === cleanEmpName || uName.includes(cleanEmpName) || cleanEmpName.includes(uName)));
       });
 
-      const matchedUid = (matchedUser && (matchedUser.email || matchedUser.name)) || empEmail || (cleanEmpName.replace(/\s+/g, '.') + '@pims.com');
-      selectErpItem('newSpUserAccount', matchedUid, `${matchedUid} (${cleanName})`, matchedUser || { email: matchedUid, full_name: cleanName });
+      const matchedUid = (matchedUser && (matchedUser.email || matchedUser.name)) || (empEmail && empEmail.includes('@') ? empEmail : '');
+      if (matchedUid) {
+        selectErpItem('newSpUserAccount', matchedUid, `${matchedUid} (${cleanName})`, matchedUser || { email: matchedUid, full_name: cleanName });
+      } else {
+        const uidInp = document.getElementById('newSpUserAccountInput');
+        const uidDisp = document.getElementById('newSpUserAccountDisplay');
+        const uidClr = document.getElementById('newSpUserAccountClear');
+        if (uidInp) uidInp.value = '';
+        if (uidDisp) { uidDisp.value = ''; uidDisp.placeholder = 'Unassigned'; }
+        if (uidClr) uidClr.style.display = 'none';
+      }
 
       // Display HR record linked details notice
       const notice = document.getElementById('newSpEmployeeDetailsNotice');
