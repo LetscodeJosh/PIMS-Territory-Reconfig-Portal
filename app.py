@@ -74,137 +74,35 @@ def load_dotenv_safely(env_path=".env"):
 # Load local .env if present (ignored by git for security)
 load_dotenv_safely(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
-# Multi-User Real-Time Synchronization Store for Institutions
+# Live ERPNext Authoritative Mode: Do NOT persist or re-inject temporary Institution records from local JSON.
 APP_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SHARED_INST_FILE = os.path.join(APP_BASE_DIR, "shared_institution_state.json")
 
 def load_shared_inst_overrides():
-    if os.path.exists(SHARED_INST_FILE):
-        try:
-            with open(SHARED_INST_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return {}
     return {}
 
 def save_shared_inst_override(inst_id, override_data):
-    if not inst_id:
-        return
-    current = load_shared_inst_overrides()
-    if inst_id in current and isinstance(current[inst_id], dict):
-        current[inst_id].update(override_data)
-    else:
-        current[inst_id] = override_data
-    try:
-        with open(SHARED_INST_FILE, "w", encoding="utf-8") as f:
-            json.dump(current, f, indent=2)
-    except Exception as e:
-        print(f"[Shared Inst Save Error] {e}")
+    # Intentionally disabled: ERPNext Staging Institution DocType is the sole source of truth.
+    return
 
-# Multi-User Real-Time Territory Mirroring & State Persistence Store
+# Live ERPNext Authoritative Mode: Do NOT persist or re-inject temporary Territory or Sales Person records from local JSON.
 SHARED_TERRITORY_FILE = os.path.join(APP_BASE_DIR, "shared_territory_state.json")
 
 def load_shared_territory_state():
-    if os.path.exists(SHARED_TERRITORY_FILE):
-        try:
-            with open(SHARED_TERRITORY_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return {"territories": {}, "renames": {}, "deleted": [], "overrides": {}}
-    return {"territories": {}, "renames": {}, "deleted": [], "overrides": {}}
+    return {"territories": {}, "renames": {}, "deleted": [], "overrides": {}, "sales_persons": {}, "sp_renames": {}}
 
 def save_shared_territory_state(state):
-    try:
-        with open(SHARED_TERRITORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(state, f, indent=2)
-    except Exception as e:
-        print(f"[Shared Territory Save Error] {e}")
+    # Intentionally disabled: ERPNext DocTypes are the sole source of truth (no temporary JSON caching).
+    return
 
 def record_shared_territory_add(name, parent, is_group, manager="", user_id="", program="", district="", pending_erp_sync=False):
-    if not name:
-        return
-    st_data = load_shared_territory_state()
-    terrs = st_data.setdefault("territories", {})
-    del_list = st_data.setdefault("deleted", [])
-    if name in del_list:
-        del_list.remove(name)
-    entry = {
-        "name": name,
-        "territory_name": name,
-        "parent_territory": parent or "All Territories",
-        "is_group": int(is_group or 0),
-        "territory_manager": manager or "",
-        "custom_user_id": user_id or "",
-        "custom_account_or_program": program or "Abbott Diabetes Care",
-        "operational_status": "Active" if manager or is_group else "Vacant",
-        "status": "Active" if manager or is_group else "Vacant",
-        "pending_erp_sync": bool(pending_erp_sync)
-    }
-    if district:
-        entry["custom_district"] = district
-        entry["district"] = district
-    terrs[name] = entry
-    save_shared_territory_state(st_data)
+    return
 
 def record_shared_territory_edit(orig_name, parent=None, is_group=None, manager=None, user_id=None, program=None, status=None, district=None, pending_erp_sync=None):
-    if not orig_name:
-        return
-    st_data = load_shared_territory_state()
-    terrs = st_data.setdefault("territories", {})
-    entry = dict(terrs[orig_name]) if orig_name in terrs else {
-        "name": orig_name,
-        "territory_name": orig_name
-    }
-    if parent is not None:
-        entry["parent_territory"] = parent
-    if is_group is not None:
-        entry["is_group"] = int(is_group or 0)
-    if manager is not None:
-        entry["territory_manager"] = manager
-    if user_id is not None:
-        entry["custom_user_id"] = user_id
-    if program is not None:
-        entry["custom_account_or_program"] = program
-    if district is not None:
-        entry["custom_district"] = district
-        entry["district"] = district
-    if status is not None:
-        entry["status"] = status
-        entry["operational_status"] = status
-    elif manager:
-        entry["status"] = "Active"
-        entry["operational_status"] = "Active"
-    if pending_erp_sync is not None:
-        entry["pending_erp_sync"] = bool(pending_erp_sync)
-    terrs[orig_name] = entry
-    save_shared_territory_state(st_data)
+    return
 
 def record_shared_sales_person_meta(sp_name, parent_sp=None, is_group=None, district=None, program=None, employee=None, pending_erp_sync=False):
-    clean_name = safe_str(sp_name)
-    if not clean_name:
-        return
-    st_data = load_shared_territory_state()
-    sp_store = st_data.setdefault("sales_persons", {})
-    entry = dict(sp_store[clean_name]) if clean_name in sp_store and isinstance(sp_store[clean_name], dict) else {
-        "name": clean_name,
-        "sales_person_name": clean_name,
-        "enabled": 1
-    }
-    if parent_sp is not None:
-        entry["parent_sales_person"] = safe_str(parent_sp) or "Sales Team"
-    if is_group is not None:
-        entry["is_group"] = int(is_group or 0)
-    if district is not None:
-        entry["custom_district"] = safe_str(district)
-        entry["district"] = safe_str(district)
-    if program is not None:
-        entry["custom_account_or_program"] = safe_str(program)
-        entry["program"] = safe_str(program)
-    if employee is not None:
-        entry["employee"] = safe_str(employee)
-    entry["pending_erp_sync"] = bool(pending_erp_sync)
-    sp_store[clean_name] = entry
-    save_shared_territory_state(st_data)
+    return
 
 def _replace_parenthesized_territory_code(sp_name, old_code, new_code):
     """Replaces only an exact parenthesized territory code token (e.g. 'ARCENE PIANG (AD0116)' -> 'ARCENE PIANG (AD0900)')."""
@@ -221,266 +119,52 @@ def _replace_parenthesized_territory_code(sp_name, old_code, new_code):
     return pattern.sub(lambda _m: f"({clean_new})", clean_sp)
 
 def record_shared_sales_person_rename(old_sp_name, new_sp_name):
-    if not old_sp_name or not new_sp_name or old_sp_name == new_sp_name:
-        return
-    st_data = load_shared_territory_state()
-    sp_renames = st_data.setdefault("sp_renames", {})
-    for k, v in list(sp_renames.items()):
-        if v == old_sp_name:
-            if k == new_sp_name:
-                sp_renames.pop(k, None)
-            else:
-                sp_renames[k] = new_sp_name
-    sp_renames.pop(new_sp_name, None)
-    sp_renames[old_sp_name] = new_sp_name
-    sp_store = st_data.setdefault("sales_persons", {})
-    if old_sp_name in sp_store:
-        moved = sp_store.pop(old_sp_name)
-        if isinstance(moved, dict):
-            moved["name"] = new_sp_name
-            moved["sales_person_name"] = new_sp_name
-            sp_store[new_sp_name] = moved
-    save_shared_territory_state(st_data)
+    return
 
 def merge_shared_sales_persons_into_list(sp_list, is_live_erpnext=False):
     if not isinstance(sp_list, list):
-        return sp_list
-    st_data = load_shared_territory_state()
-    sp_renames = st_data.get("sp_renames", {})
-    sp_store = st_data.setdefault("sales_persons", {})
-    if not sp_renames and not sp_store:
-        return sp_list
-    state_dirty = False
-    existing_lower = set()
-    for s in sp_list:
-        if isinstance(s, dict):
-            n = safe_str(s.get("name") or s.get("sales_person_name"))
-            if n and n not in sp_renames:
-                existing_lower.add(n.lower())
-    merged = []
+        return []
+    normalized = []
     seen = set()
     for s in sp_list:
         if not isinstance(s, dict):
             continue
         sp_copy = dict(s)
-        orig_name = sp_copy.get("name") or sp_copy.get("sales_person_name") or ""
-        orig_sp_name = sp_copy.get("sales_person_name") or orig_name
-        target_name = sp_renames.get(orig_name) or sp_renames.get(orig_sp_name)
-        if target_name:
-            if target_name.lower() in seen or (orig_name != target_name and target_name.lower() in existing_lower):
-                continue
-            sp_copy["name"] = target_name
-            sp_copy["sales_person_name"] = target_name
-        parent_sp = sp_copy.get("parent_sales_person") or ""
-        if parent_sp in sp_renames:
-            sp_copy["parent_sales_person"] = sp_renames[parent_sp]
         eff_name = safe_str(sp_copy.get("name") or sp_copy.get("sales_person_name"))
-        if eff_name and eff_name in sp_store and isinstance(sp_store[eff_name], dict):
-            meta = sp_store[eff_name]
-            if not safe_str(sp_copy.get("custom_district")) and safe_str(meta.get("custom_district")):
-                sp_copy["custom_district"] = meta["custom_district"]
-                sp_copy["district"] = meta["custom_district"]
-            elif safe_str(sp_copy.get("custom_district")) and not safe_str(sp_copy.get("district")):
-                sp_copy["district"] = sp_copy["custom_district"]
-            if meta.get("custom_account_or_program") and not sp_copy.get("custom_account_or_program"):
-                sp_copy["custom_account_or_program"] = meta["custom_account_or_program"]
-                sp_copy["program"] = meta["custom_account_or_program"]
-            if is_live_erpnext and meta.get("pending_erp_sync"):
-                meta["pending_erp_sync"] = False
-                state_dirty = True
-        elif safe_str(sp_copy.get("custom_district")) and not safe_str(sp_copy.get("district")):
-            sp_copy["district"] = sp_copy["custom_district"]
-        key = eff_name.lower()
-        if key and key in seen:
+        if not eff_name:
             continue
-        if key:
-            seen.add(key)
-        merged.append(sp_copy)
-
-    if is_live_erpnext:
-        for s_name, s_node in list(sp_store.items()):
-            if s_name.lower() in seen:
-                continue
-            if isinstance(s_node, dict) and s_node.get("pending_erp_sync") is True:
-                seen.add(s_name.lower())
-                s_copy = dict(s_node)
-                s_copy.pop("pending_erp_sync", None)
-                merged.append(s_copy)
-            else:
-                sp_store.pop(s_name, None)
-                state_dirty = True
-        if state_dirty:
-            save_shared_territory_state(st_data)
-    return merged
+        key = eff_name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        if safe_str(sp_copy.get("custom_district")) and not safe_str(sp_copy.get("district")):
+            sp_copy["district"] = sp_copy["custom_district"]
+        normalized.append(sp_copy)
+    return normalized
 
 def record_shared_territory_rename(old_name, new_name):
-    if not old_name or not new_name or old_name == new_name:
-        return
-    st_data = load_shared_territory_state()
-    renames = st_data.setdefault("renames", {})
-    for k, v in list(renames.items()):
-        if v == old_name:
-            if k == new_name:
-                renames.pop(k, None)
-            else:
-                renames[k] = new_name
-    renames.pop(new_name, None)
-    renames[old_name] = new_name
-
-    del_list = st_data.setdefault("deleted", [])
-    if new_name in del_list:
-        del_list.remove(new_name)
-
-    terrs = st_data.setdefault("territories", {})
-    if old_name in terrs:
-        entry = terrs.pop(old_name)
-        entry["name"] = new_name
-        entry["territory_name"] = new_name
-        if entry.get("territory_manager"):
-            updated_mgr = _replace_parenthesized_territory_code(entry.get("territory_manager"), old_name, new_name)
-            if updated_mgr:
-                entry["territory_manager"] = updated_mgr
-        terrs[new_name] = entry
-    for t_entry in terrs.values():
-        if isinstance(t_entry, dict) and t_entry.get("parent_territory") == old_name:
-            t_entry["parent_territory"] = new_name
-    save_shared_territory_state(st_data)
+    return
 
 def record_shared_territory_deletion(name):
-    if not name:
-        return
-    st_data = load_shared_territory_state()
-    del_list = st_data.setdefault("deleted", [])
-    if name not in del_list:
-        del_list.append(name)
-    terrs = st_data.setdefault("territories", {})
-    terrs.pop(name, None)
-    save_shared_territory_state(st_data)
+    return
 
 def merge_shared_territories_into_list(terrs_list, is_live_erpnext=False):
-    st_data = load_shared_territory_state()
-    del_list = st_data.setdefault("deleted", [])
-    del_set = set(del_list)
-    renames = st_data.setdefault("renames", {})
-    custom_terrs = st_data.setdefault("territories", {})
-    sp_store = st_data.get("sales_persons", {})
-    sp_dist_by_name = {}
-    if isinstance(sp_store, dict):
-        for spk, spv in sp_store.items():
-            if isinstance(spv, dict) and safe_str(spv.get("custom_district") or spv.get("district")):
-                sp_dist_by_name[spk.lower()] = safe_str(spv.get("custom_district") or spv.get("district"))
-    state_dirty = False
-
-    merged = []
+    if not isinstance(terrs_list, list):
+        return []
+    normalized = []
     seen = set()
-    raw_live_names = set()
-    existing_unrenamed = set()
-    if isinstance(terrs_list, list):
-        for orig_t in terrs_list:
-            if isinstance(orig_t, dict):
-                n = orig_t.get("name") or orig_t.get("territory_name")
-                if n:
-                    raw_live_names.add(n)
-                    if n not in renames and n not in del_set:
-                        existing_unrenamed.add(n)
-
-    if isinstance(terrs_list, list):
-        for orig_t in terrs_list:
-            if not isinstance(orig_t, dict):
-                continue
-            t = dict(orig_t)
-            name = t.get("name") or t.get("territory_name")
-            if not name or name in del_set:
-                continue
-            # Apply rename if present
-            if name in renames:
-                target_name = renames[name]
-                if target_name in seen or (name != target_name and target_name in existing_unrenamed):
-                    continue
-                name = target_name
-                t["name"] = name
-                t["territory_name"] = name
-            p_terr = t.get("parent_territory")
-            if p_terr and p_terr in renames:
-                t["parent_territory"] = renames[p_terr]
-            if name in seen:
-                continue
-            # Apply sparse shared territory overrides if present (keeping live ERPNext authoritative when synced)
-            if name in custom_terrs:
-                c = custom_terrs[name]
-                if isinstance(c, dict):
-                    is_pending = bool(c.get("pending_erp_sync"))
-                    live_parent = safe_str(t.get("parent_territory"))
-                    live_mgr = safe_str(t.get("territory_manager"))
-                    if c.get("parent_territory") and (not is_live_erpnext or is_pending or not live_parent):
-                        t["parent_territory"] = c["parent_territory"]
-                    if "is_group" in c and c["is_group"] is not None and (not is_live_erpnext or is_pending):
-                        t["is_group"] = c["is_group"]
-                    if is_live_erpnext and not is_pending and live_mgr:
-                        # Live ERPNext has an authoritative assigned manager — never let stale Vacant/empty state overwrite it
-                        t["status"] = "Active"
-                        t["operational_status"] = "Active"
-                    else:
-                        if "territory_manager" in c and (not is_live_erpnext or is_pending or not live_mgr):
-                            t["territory_manager"] = c["territory_manager"]
-                        if "status" in c:
-                            t["status"] = c["status"]
-                            t["operational_status"] = c["status"]
-                    if "custom_user_id" in c and not safe_str(t.get("custom_user_id")):
-                        t["custom_user_id"] = c["custom_user_id"]
-                    if "custom_account_or_program" in c and not safe_str(t.get("custom_account_or_program")):
-                        t["custom_account_or_program"] = c["custom_account_or_program"]
-                    if safe_str(c.get("custom_district") or c.get("district")) and not safe_str(t.get("custom_district")):
-                        d_val = safe_str(c.get("custom_district") or c.get("district"))
-                        t["custom_district"] = d_val
-                        t["district"] = d_val
-                    if is_live_erpnext and is_pending:
-                        c["pending_erp_sync"] = False
-                        state_dirty = True
-            if not safe_str(t.get("custom_district")) and safe_str(t.get("territory_manager")):
-                mgr_key = safe_str(t.get("territory_manager")).lower()
-                if mgr_key in sp_dist_by_name:
-                    t["custom_district"] = sp_dist_by_name[mgr_key]
-                    t["district"] = sp_dist_by_name[mgr_key]
-            seen.add(name)
-            merged.append(t)
-
-    if is_live_erpnext:
-        # Live ERPNext is authoritative for existence: only retain non-live entries queued offline (pending_erp_sync)
-        for c_name, c_node in list(custom_terrs.items()):
-            if c_name in seen:
-                continue
-            if isinstance(c_node, dict) and c_node.get("pending_erp_sync") is True and c_name not in del_set and c_node.get("parent_territory"):
-                seen.add(c_name)
-                c_copy = dict(c_node)
-                c_copy.pop("pending_erp_sync", None)
-                merged.append(c_copy)
-            else:
-                custom_terrs.pop(c_name, None)
-                state_dirty = True
-
-        pruned_deleted = [d for d in del_list if d in raw_live_names]
-        if len(pruned_deleted) != len(del_list):
-            st_data["deleted"] = pruned_deleted
-            state_dirty = True
-
-        pruned_renames = {k: v for k, v in renames.items() if k in raw_live_names}
-        if len(pruned_renames) != len(renames):
-            st_data["renames"] = pruned_renames
-            state_dirty = True
-
-        if state_dirty:
-            save_shared_territory_state(st_data)
-    else:
-        # Offline/unreachable ERPNext fallback: preserve cached territories for 24/7 continuity
-        for c_name, c_node in custom_terrs.items():
-            if c_name not in seen and c_name not in del_set and isinstance(c_node, dict) and c_node.get("parent_territory"):
-                seen.add(c_name)
-                c_copy = dict(c_node)
-                c_copy.pop("pending_erp_sync", None)
-                merged.append(c_copy)
-
-    return merged
+    for orig_t in terrs_list:
+        if not isinstance(orig_t, dict):
+            continue
+        t = dict(orig_t)
+        name = safe_str(t.get("name") or t.get("territory_name"))
+        if not name or name in seen:
+            continue
+        if safe_str(t.get("custom_district")) and not safe_str(t.get("district")):
+            t["district"] = t["custom_district"]
+        seen.add(name)
+        normalized.append(t)
+    return normalized
 
 def get_erpnext_url():
     """Dynamically resolves ERPNext server endpoint strictly targeting Development (https://dev.pmii-marketing.com)."""
@@ -598,11 +282,104 @@ def get_authenticated_opener(force_refresh=False):
 
     return None
 
-def call_erpnext_resiliently(opener, req, timeout=12):
-    """Executes ERPNext HTTP requests with automatic session recovery on 401 expiry without clobbering on 403."""
+def _get_frappe_csrf_token(opener, force_refresh=False):
+    """Safely retrieves and caches the Frappe CSRF token for cookie-authenticated POST/PUT/DELETE calls."""
+    if not opener:
+        return ""
+    cached = getattr(opener, "_frappe_csrf_token", "")
+    if cached and not force_refresh:
+        return cached
+    token = ""
     try:
-        return opener.open(req, timeout=timeout)
+        req = urllib.request.Request(
+            f"{ERPNEXT_SERVER_URL}/api/method/frappe.sessions.get_csrf_token",
+            headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"}
+        )
+        res = opener.open(req, timeout=6)
+        raw = res.read().decode("utf-8", errors="ignore")
+        parsed = json.loads(raw) if raw else {}
+        val = parsed.get("message") if isinstance(parsed, dict) else ""
+        if isinstance(val, str) and val.strip():
+            token = val.strip()
+    except Exception:
+        pass
+    if not token:
+        try:
+            app_req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/app",
+                headers={"Accept": "text/html", "User-Agent": "Mozilla/5.0"}
+            )
+            app_res = opener.open(app_req, timeout=6)
+            html = app_res.read().decode("utf-8", errors="ignore")
+            m = re.search(r'(?:frappe\.csrf_token|window\.csrf_token)\s*=\s*["\']([A-Za-z0-9_\-\.]+)["\']', html)
+            if m:
+                token = m.group(1).strip()
+        except Exception:
+            pass
+    try:
+        setattr(opener, "_frappe_csrf_token", token)
+    except Exception:
+        pass
+    return token
+
+
+def _clone_request_with_headers(req, extra_headers=None, strip_cookie=False):
+    headers = {}
+    for k, v in req.header_items():
+        if strip_cookie and k.lower() == "cookie":
+            continue
+        headers[k] = v
+    if extra_headers:
+        for ek, ev in extra_headers.items():
+            if ev is not None:
+                headers[ek] = ev
+    return urllib.request.Request(
+        req.full_url,
+        data=req.data,
+        headers=headers,
+        method=req.get_method()
+    )
+
+
+def call_erpnext_resiliently(opener, req, timeout=12):
+    """Executes ERPNext HTTP requests with Frappe CSRF support and automatic 401 session recovery without clobbering on 403."""
+    method = (req.get_method() or "GET").upper()
+    active_req = req
+    if method in ("POST", "PUT", "DELETE", "PATCH"):
+        existing_lower = {k.lower() for k, _ in req.header_items()}
+        extra = {}
+        if "expect" not in existing_lower:
+            extra["Expect"] = ""
+        if "x-frappe-csrf-token" not in existing_lower:
+            csrf_tok = _get_frappe_csrf_token(opener, force_refresh=False)
+            if csrf_tok:
+                extra["X-Frappe-CSRF-Token"] = csrf_tok
+        if extra:
+            active_req = _clone_request_with_headers(req, extra_headers=extra, strip_cookie=False)
+    try:
+        return opener.open(active_req, timeout=timeout)
     except urllib.error.HTTPError as he:
+        if he.code in (400, 403) and method in ("POST", "PUT", "DELETE", "PATCH"):
+            err_preview = ""
+            try:
+                err_bytes = he.read()
+                err_preview = err_bytes.decode("utf-8", errors="ignore")
+                import io
+                err_buf = io.BytesIO(err_bytes)
+                he.fp = err_buf
+                he.read = err_buf.read
+            except Exception:
+                pass
+            low_preview = err_preview.lower()
+            if "csrf" in low_preview or "invalid request" in low_preview:
+                fresh_csrf = _get_frappe_csrf_token(opener, force_refresh=True)
+                if fresh_csrf:
+                    retry_csrf_req = _clone_request_with_headers(
+                        req,
+                        extra_headers={"X-Frappe-CSRF-Token": fresh_csrf, "Expect": ""},
+                        strip_cookie=True
+                    )
+                    return opener.open(retry_csrf_req, timeout=timeout)
         if he.code == 401:
             refreshed = get_authenticated_opener(force_refresh=True)
             if refreshed and refreshed is not opener and _opener_has_valid_sid(refreshed):
@@ -610,13 +387,13 @@ def call_erpnext_resiliently(opener, req, timeout=12):
                     st.session_state["opener"] = refreshed
                 except Exception:
                     pass
-                clean_headers = {k: v for k, v in req.header_items() if k.lower() != "cookie"}
-                retry_req = urllib.request.Request(
-                    req.full_url,
-                    data=req.data,
-                    headers=clean_headers,
-                    method=req.get_method()
-                )
+                extra_retry = {}
+                if method in ("POST", "PUT", "DELETE", "PATCH"):
+                    extra_retry["Expect"] = ""
+                    csrf_tok = _get_frappe_csrf_token(refreshed, force_refresh=True)
+                    if csrf_tok:
+                        extra_retry["X-Frappe-CSRF-Token"] = csrf_tok
+                retry_req = _clone_request_with_headers(req, extra_headers=extra_retry, strip_cookie=True)
                 return refreshed.open(retry_req, timeout=timeout)
         raise he
 
@@ -630,6 +407,7 @@ def create_erpnext_opener():
         urllib.request.HTTPCookieProcessor(cj),
         urllib.request.HTTPSHandler(context=ctx)
     )
+    opener.cookie_jar = cj
     return opener, cj
 
 INJECTION_PATTERN = re.compile(
@@ -1078,7 +856,7 @@ def verify_erpnext_credentials(usr, pwd, client_failed_attempts=0):
 
 def fetch_live_territories(opener):
     if not opener:
-        return merge_shared_territories_into_list([], is_live_erpnext=False)
+        return []
     for fields_list in [
         ["name", "territory_name", "parent_territory", "is_group", "territory_manager", "custom_user_id", "custom_account_or_program", "custom_district"],
         ["name", "territory_name", "parent_territory", "is_group", "territory_manager", "custom_user_id", "custom_account_or_program"],
@@ -1092,17 +870,16 @@ def fetch_live_territories(opener):
             req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
             res = call_erpnext_resiliently(opener, req, timeout=12)
             data = json.loads(res.read().decode("utf-8")).get("data", [])
-            if isinstance(data, list) and len(data) > 0:
+            if isinstance(data, list):
                 return merge_shared_territories_into_list(data, is_live_erpnext=True)
         except Exception as e:
             print(f"[Streamlit Proxy] fetch_live_territories fallback with {fields_list}: {e}")
             continue
-    return merge_shared_territories_into_list([], is_live_erpnext=False)
+    return []
 
 def fetch_live_sales_persons(opener):
     if not opener:
-        cached = merge_shared_sales_persons_into_list([], is_live_erpnext=False)
-        return cached if cached else None
+        return []
     for fields_list in [
         ["name", "sales_person_name", "parent_sales_person", "employee", "is_group", "enabled", "department", "custom_district"],
         ["name", "sales_person_name", "parent_sales_person", "employee", "is_group", "enabled", "custom_district"],
@@ -1116,17 +893,16 @@ def fetch_live_sales_persons(opener):
             req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
             res = call_erpnext_resiliently(opener, req, timeout=12)
             data = json.loads(res.read().decode("utf-8")).get("data", [])
-            if isinstance(data, list) and len(data) > 0:
+            if isinstance(data, list):
                 return merge_shared_sales_persons_into_list(data, is_live_erpnext=True)
         except Exception as e:
             print(f"[Streamlit Proxy] Failed to fetch live sales persons with {fields_list}: {e}")
             continue
-    cached = merge_shared_sales_persons_into_list([], is_live_erpnext=False)
-    return cached if cached else None
+    return []
 
 def fetch_live_employees(opener):
     if not opener:
-        return None
+        return []
     try:
         fields = json.dumps(["name", "employee_name", "first_name", "last_name", "gender", "company", "status", "department", "designation", "user_id", "company_email", "personal_email"])
         filters = json.dumps([["Employee", "status", "=", "Active"]])
@@ -1141,7 +917,7 @@ def fetch_live_employees(opener):
                 f"&limit_start={limit_start}&limit_page_length={limit_page_length}"
             )
             req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
-            res = opener.open(req, timeout=15)
+            res = call_erpnext_resiliently(opener, req, timeout=15)
             batch = json.loads(res.read().decode("utf-8")).get("data", [])
             if not batch:
                 break
@@ -1152,26 +928,100 @@ def fetch_live_employees(opener):
         return all_emps
     except Exception as e:
         print(f"[Streamlit Proxy] Failed to fetch live employees: {e}")
-        return None
+        return []
 
 def fetch_live_users(opener):
     if not opener:
-        return None
+        return []
     try:
         fields = json.dumps(["name", "email", "full_name", "first_name", "last_name", "enabled"])
         url = f"{ERPNEXT_SERVER_URL}/api/resource/User?fields={urllib.parse.quote(fields)}&limit_page_length=3000"
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
         res = call_erpnext_resiliently(opener, req, timeout=15)
         data = json.loads(res.read().decode("utf-8")).get("data", [])
-        return data
+        return data if isinstance(data, list) else []
     except Exception as e:
         print(f"[Streamlit Proxy] Failed to fetch live users: {e}")
-        return None
+        return []
+
+
+def _fetch_live_doctype_names(opener, doctype, limit=500):
+    """Fetches authoritative live record names from a connected ERPNext Staging DocType (returns [] when empty)."""
+    if not opener or not doctype:
+        return []
+    try:
+        fields = urllib.parse.quote(json.dumps(["name"]))
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/{urllib.parse.quote(doctype, safe='')}?fields={fields}&order_by=name%20asc&limit_page_length={int(limit)}"
+        req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+        res = call_erpnext_resiliently(opener, req, timeout=10)
+        rows = json.loads(res.read().decode("utf-8")).get("data", [])
+        if isinstance(rows, list):
+            return [safe_str(r.get("name")) for r in rows if isinstance(r, dict) and safe_str(r.get("name"))]
+    except Exception as e:
+        print(f"[Streamlit Proxy] Failed to fetch live {doctype}: {e}")
+    return []
+
+
+def fetch_live_item_groups(opener):
+    return _fetch_live_doctype_names(opener, "Item Group", limit=500)
+
+
+def fetch_live_fiscal_years(opener):
+    return _fetch_live_doctype_names(opener, "Fiscal Year", limit=100)
+
+
+def fetch_live_distributions(opener):
+    return _fetch_live_doctype_names(opener, "Monthly Distribution", limit=200)
+
+
+def fetch_live_departments(opener):
+    return _fetch_live_doctype_names(opener, "Department", limit=500)
+
+
+def fetch_live_designations(opener):
+    return _fetch_live_doctype_names(opener, "Designation", limit=500)
+
+
+def fetch_live_hcp_accounts(opener):
+    """Fetches live covered HCP doctor accounts directly from ERPNext Staging (returns [] when DocType is empty)."""
+    if not opener:
+        return []
+    for fields_list in [
+        ["name", "hcp", "hcp_name", "doctor_name", "specialty", "specialization", "workplace_name", "institution_name", "workplace_id", "territory", "territory_code", "sales_person", "medrep_name", "account_or_program", "program"],
+        ["name", "hcp", "hcp_name", "workplace_id", "territory", "sales_person"],
+        ["name", "territory"]
+    ]:
+        try:
+            fields = urllib.parse.quote(json.dumps(fields_list))
+            url = f"{ERPNEXT_SERVER_URL}/api/resource/HCP%20Account?fields={fields}&limit_page_length=2500"
+            req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+            res = call_erpnext_resiliently(opener, req, timeout=12)
+            rows = json.loads(res.read().decode("utf-8")).get("data", [])
+            if isinstance(rows, list):
+                normalized = []
+                for r in rows:
+                    if not isinstance(r, dict):
+                        continue
+                    normalized.append({
+                        "accName": safe_str(r.get("name")),
+                        "hcpId": safe_str(r.get("hcp") or r.get("name")),
+                        "doctor": safe_str(r.get("hcp_name") or r.get("doctor_name") or r.get("hcp") or r.get("name")),
+                        "spec": safe_str(r.get("specialty") or r.get("specialization")),
+                        "hospital": safe_str(r.get("workplace_name") or r.get("institution_name") or r.get("workplace_id")),
+                        "liveTerritory": safe_str(r.get("territory") or r.get("territory_code")),
+                        "rep": safe_str(r.get("sales_person") or r.get("medrep_name")),
+                        "program": safe_str(r.get("account_or_program") or r.get("program"))
+                    })
+                return normalized
+        except Exception as e:
+            print(f"[Streamlit Proxy] fetch_live_hcp_accounts fallback with {fields_list}: {e}")
+            continue
+    return []
 
 
 def fetch_live_institutions(opener):
     if not opener:
-        return None
+        return []
     try:
         fields = json.dumps(["*"])
         url = f"{ERPNEXT_SERVER_URL}/api/resource/Institution?fields={urllib.parse.quote(fields)}&order_by=name%20desc&limit_page_length=2500"
@@ -1180,13 +1030,21 @@ def fetch_live_institutions(opener):
             res = call_erpnext_resiliently(opener, req, timeout=15)
             data = json.loads(res.read().decode("utf-8")).get("data", [])
         except Exception:
-            core_fields = json.dumps(["name", "institution_name", "region_name", "province_name", "city_municipality", "barangay_name", "street_address", "owner", "creation", "modified", "docstatus"])
+            core_fields = json.dumps(["name", "institution_name", "status", "workflow_state", "approval_status", "region_name", "province_name", "city_municipality", "barangay_name", "street_address", "owner", "creation", "modified", "docstatus"])
             fallback_url = f"{ERPNEXT_SERVER_URL}/api/resource/Institution?fields={urllib.parse.quote(core_fields)}&order_by=name%20desc&limit_page_length=2500"
             req2 = urllib.request.Request(fallback_url, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
-            res2 = call_erpnext_resiliently(opener, req2, timeout=15)
-            data = json.loads(res2.read().decode("utf-8")).get("data", [])
+            try:
+                res2 = call_erpnext_resiliently(opener, req2, timeout=15)
+                data = json.loads(res2.read().decode("utf-8")).get("data", [])
+            except Exception:
+                min_fields = json.dumps(["name", "institution_name", "status", "region_name", "province_name", "city_municipality", "barangay_name", "street_address", "owner", "creation", "modified", "docstatus"])
+                fallback_url2 = f"{ERPNEXT_SERVER_URL}/api/resource/Institution?fields={urllib.parse.quote(min_fields)}&order_by=name%20desc&limit_page_length=2500"
+                req3 = urllib.request.Request(fallback_url2, headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+                res3 = call_erpnext_resiliently(opener, req3, timeout=15)
+                data = json.loads(res3.read().decode("utf-8")).get("data", [])
 
         # Hydrate audit trail and PIMS_META from Frappe Comment doctype
+        # IMPORTANT: Live ERPNext Institution fields (status, workflow_state, docstatus) are ALWAYS authoritative over older comments!
         try:
             c_fields = json.dumps(["name", "reference_name", "content", "comment_by", "owner", "creation"])
             c_filters = json.dumps([["reference_doctype", "=", "Institution"]])
@@ -1203,6 +1061,11 @@ def fetch_live_institutions(opener):
             meta_regex = re.compile(r"<!--PIMS_META:(\{.*?\})-->", re.DOTALL)
             for inst in data:
                 iname = inst.get("name")
+                # Snapshot authoritative live ERPNext status fields before hydrating comment metadata
+                live_status = safe_str(inst.get("status"))
+                live_wf = safe_str(inst.get("workflow_state"))
+                live_approval = safe_str(inst.get("approval_status"))
+                live_docstatus = int(inst.get("docstatus", 0) or 0)
                 c_list = by_inst.get(iname, [])
                 audit_trail = inst.get("audit_trail") if isinstance(inst.get("audit_trail"), list) else []
                 for c in c_list:
@@ -1213,7 +1076,7 @@ def fetch_live_institutions(opener):
                             meta_obj = json.loads(m.group(1))
                             inst["has_pims_meta"] = 1
                             for mk, mv in meta_obj.items():
-                                if mv is not None and mv != "" and mk not in ("action", "user", "role", "timestamp", "details"):
+                                if mv is not None and mv != "" and mk not in ("action", "user", "role", "timestamp", "details", "status", "workflow_state", "approval_status", "docstatus"):
                                     inst[mk] = mv
                             audit_trail.append({
                                 "timestamp": meta_obj.get("timestamp") or c.get("creation") or "",
@@ -1237,25 +1100,16 @@ def fetch_live_institutions(opener):
                                 "action": "Comment / Note",
                                 "details": clean_txt
                             })
+                # Keep live ERPNext status strictly authoritative
+                eff_live_state = live_wf or live_status or live_approval or ("Approved" if live_docstatus == 1 else ("Rejected" if live_docstatus == 2 else "Draft"))
+                inst["status"] = live_status or eff_live_state
+                inst["workflow_state"] = eff_live_state
+                inst["docstatus"] = live_docstatus
                 inst["audit_trail"] = audit_trail
         except Exception as ce:
             print(f"[Streamlit Proxy] Comment hydration notice: {ce}")
 
-        # Multi-User Real-Time Sync: Merge Shared Overrides Across Concurrent Sessions
-        try:
-            shared_ov = load_shared_inst_overrides()
-            if shared_ov and isinstance(data, list):
-                by_name = {rec.get("name"): rec for rec in data if isinstance(rec, dict) and rec.get("name")}
-                for s_id, s_rec in shared_ov.items():
-                    if s_id in by_name:
-                        by_name[s_id].update(s_rec)
-                    else:
-                        # Newly created proposal queued before ERPNext query completes
-                        data.insert(0, s_rec)
-        except Exception as se:
-            print(f"[Streamlit Proxy] Shared override merge warning: {se}")
-
-        # MedRep Proposal Detection & Seamless Reflection (Zero Data Loss)
+        # MedRep Proposal Detection & Live ERPNext Status Normalization
         if isinstance(data, list):
             for inst in data:
                 if not isinstance(inst, dict):
@@ -1263,21 +1117,28 @@ def fetch_live_institutions(opener):
                 iname = safe_str(inst.get("name"))
                 owner = safe_str(inst.get("owner")).lower()
                 remarks = (safe_str(inst.get("remarks")) + " " + safe_str(inst.get("custom_remarks")) + " " + safe_str(inst.get("certification_note"))).lower()
-                wf_st = safe_str(inst.get("workflow_state"))
                 doc_st = int(inst.get("docstatus", 0) or 0)
+                wf_st = safe_str(inst.get("workflow_state") or inst.get("status") or inst.get("approval_status"))
+                if not wf_st:
+                    wf_st = "Approved" if doc_st == 1 else ("Rejected" if doc_st == 2 else "Draft")
+                inst["workflow_state"] = wf_st
+                if not safe_str(inst.get("status")):
+                    inst["status"] = wf_st
 
-                # An institution submitted from HCP App or Web Portal is classified as MedRep Submission if:
-                # 1. Explicitly tagged is_proposal or is_medrep_submission
-                # 2. Workflow state is Pending Approval / Pending Review / Proposal
-                # 3. ID matches proposal naming series (INST-PROP-*)
-                # 4. Remarks or certification note indicates proposal / MedRep certification
-                # 5. Linked to a doctor
-                # 6. Created by a MedRep user (owner not System Admin / jptan)
-                # 7. Newly created institution sequence (greater than baseline INST-09341)
+                wf_low = wf_st.lower()
+                # If already explicitly Approved, Rejected, Remapped, or Pending DSM Approval in ERPNext, NEVER demote back to Draft/Proposal!
+                if wf_low in ("approved", "rejected", "remapped", "pending dsm approval") or doc_st in (1, 2):
+                    if wf_low == "approved" or doc_st == 1:
+                        inst["workflow_state"] = "Approved"
+                        inst["status"] = "Approved"
+                        inst["is_proposal"] = 0
+                        inst["is_medrep_submission"] = 0
+                    continue
+
                 is_prop = (
                     inst.get("is_proposal") == 1 or
                     inst.get("is_medrep_submission") == 1 or
-                    wf_st.lower() in ("pending approval", "pending review", "proposal") or
+                    wf_low in ("pending approval", "pending review", "proposal") or
                     iname.startswith("INST-PROP-") or
                     "proposed" in remarks or
                     "certified by medrep" in remarks or
@@ -1285,18 +1146,18 @@ def fetch_live_institutions(opener):
                     bool(inst.get("certification_note")) or
                     inst.get("is_certified") == 1 or
                     (owner and "profinsights.biz" not in owner and "administrator" not in owner and "guest" not in owner) or
-                    (iname.startswith("INST-") and iname > "INST-09341" and wf_st.lower() not in ("approved", "rejected", "pending dsm approval"))
+                    (iname.startswith("INST-") and iname > "INST-09341")
                 )
-                if is_prop and wf_st not in ("Approved", "Rejected", "Pending DSM Approval") and doc_st != 2:
+                if is_prop:
                     inst["is_proposal"] = 1
                     inst["is_medrep_submission"] = 1
-                    if not wf_st or wf_st == "Draft":
+                    if not wf_st or wf_low == "draft":
                         inst["workflow_state"] = "Pending Approval"
 
-        return data
+        return data if isinstance(data, list) else []
     except Exception as e:
         print(f"[Streamlit Proxy] Failed to fetch live institutions: {e}")
-        return None
+        return []
 
 
 def _post_institution_meta_comment(opener, inst_name, human_text, meta_dict):
@@ -1411,6 +1272,85 @@ def _propagate_institution_to_linked_records(opener, match_identifiers, hcp_acco
             pass
 
 
+def _sync_institution_status_to_erpnext(opener, name, target_state, headers_json, wf_action=None, extra_fields=None):
+    """
+    Synchronizes Institution approval status directly to ERPNext Institution DocType
+    across Frappe Workflow, `status`, and `workflow_state` fields so both ERPNext
+    and the HCP Nexus App always reflect the exact live approval status.
+    """
+    if not opener or not name:
+        return False, "Missing ERPNext session or Institution ID."
+    synced = False
+    last_err = ""
+    if wf_action:
+        try:
+            wf_body = json.dumps({"doc": {"doctype": "Institution", "name": name}, "action": wf_action}).encode("utf-8")
+            wf_req = urllib.request.Request(
+                f"{ERPNEXT_SERVER_URL}/api/method/frappe.model.workflow.apply_workflow",
+                data=wf_body,
+                headers=headers_json,
+                method="POST"
+            )
+            wf_res = call_erpnext_resiliently(opener, wf_req, timeout=12)
+            if wf_res.status == 200:
+                synced = True
+        except Exception as wfe:
+            last_err = str(wfe)
+
+    put_url = f"{ERPNEXT_SERVER_URL}/api/resource/Institution/{urllib.parse.quote(name, safe='')}"
+    base_extra = dict(extra_fields or {})
+    # Progressive field updates: always ensure `status` and/or `workflow_state` are persisted on Institution DocType
+    candidate_payloads = [
+        {**base_extra, "status": target_state, "workflow_state": target_state},
+        {**base_extra, "status": target_state},
+        {**base_extra, "workflow_state": target_state},
+        {"status": target_state},
+        {"workflow_state": target_state},
+    ]
+    for payload_dict in candidate_payloads:
+        try:
+            put_req = urllib.request.Request(
+                put_url,
+                data=json.dumps(payload_dict).encode("utf-8"),
+                headers=headers_json,
+                method="PUT"
+            )
+            put_res = call_erpnext_resiliently(opener, put_req, timeout=12)
+            if put_res.status == 200:
+                synced = True
+                break
+        except urllib.error.HTTPError as he:
+            last_err = _extract_erp_http_error(he) or last_err
+        except Exception as ex:
+            last_err = str(ex) or last_err
+
+    if not synced:
+        for field_key in ("status", "workflow_state"):
+            try:
+                sv_body = json.dumps({
+                    "doctype": "Institution",
+                    "name": name,
+                    "fieldname": field_key,
+                    "value": target_state
+                }).encode("utf-8")
+                sv_req = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.set_value",
+                    data=sv_body,
+                    headers=headers_json,
+                    method="POST"
+                )
+                sv_res = call_erpnext_resiliently(opener, sv_req, timeout=12)
+                if sv_res.status == 200:
+                    synced = True
+                    break
+            except urllib.error.HTTPError as he:
+                last_err = _extract_erp_http_error(he) or last_err
+            except Exception as ex:
+                last_err = str(ex) or last_err
+
+    return synced, ("" if synced else (last_err or f"ERPNext rejected status update to '{target_state}'."))
+
+
 def execute_institution_action(opener, action, payload):
     if not opener:
         opener = get_authenticated_opener()
@@ -1432,46 +1372,31 @@ def execute_institution_action(opener, action, payload):
             name = safe_str(payload.get("name") or payload.get("institution_id"))
             inst_title = safe_str(payload.get("institution_name")) or name
             needs_dsm = bool(payload.get("route_to_dsm")) if "route_to_dsm" in payload else (bool(payload.get("requires_dsm_approval")) and safe_str(payload.get("current_state")) != "Pending DSM Approval")
-            target_state = "Pending DSM Approval" if needs_dsm else "Draft"
+            target_state = "Pending DSM Approval" if needs_dsm else "Approved"
             target_docstatus = 0
             wf_action = "Route to DSM" if needs_dsm else "Approve"
 
             if not name:
                 return "error", "Institution ID is required."
 
-            success = False
-            try:
-                wf_body = json.dumps({"doc": {"doctype": "Institution", "name": name}, "action": wf_action}).encode("utf-8")
-                wf_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.model.workflow.apply_workflow", data=wf_body, headers=headers_json, method="POST")
-                wf_res = call_erpnext_resiliently(opener, wf_req, timeout=12)
-                success = (wf_res.status == 200)
-            except Exception:
-                success = False
-
-            if not success:
-                try:
-                    put_body = json.dumps({"workflow_state": target_state, "docstatus": target_docstatus, "rejection_reason": ""}).encode("utf-8")
-                    put_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/resource/Institution/{urllib.parse.quote(name)}", data=put_body, headers=headers_json, method="PUT")
-                    put_res = call_erpnext_resiliently(opener, put_req, timeout=12)
-                    success = (put_res.status == 200)
-                except Exception:
-                    pass
-
-            if not success:
-                try:
-                    sv_body = json.dumps({"doctype": "Institution", "name": name, "fieldname": {"workflow_state": target_state, "docstatus": target_docstatus}}).encode("utf-8")
-                    sv_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.set_value", data=sv_body, headers=headers_json, method="POST")
-                    sv_res = call_erpnext_resiliently(opener, sv_req, timeout=12)
-                    success = (sv_res.status == 200)
-                except Exception:
-                    pass
+            synced_ok, sync_err = _sync_institution_status_to_erpnext(
+                opener,
+                name,
+                target_state,
+                headers_json,
+                wf_action=wf_action,
+                extra_fields={"rejection_reason": ""}
+            )
+            if not synced_ok:
+                return "error", f'Could not update Institution "{inst_title}" ({name}) to {target_state} on {get_server_display_name()}: {sync_err}'
 
             human_msg = (
                 f"Validated by {actor_user} ({actor_role}) in Web Portal and routed to DSM for regional approval."
                 if needs_dsm else
-                f"Approved by {actor_user} ({actor_role}) in Web Portal. Facility is now active in the Institution Directory."
+                f"Approved by {actor_user} ({actor_role}) in Web Portal. Facility status synced as Approved in ERPNext & HCP Nexus App."
             )
             _post_institution_meta_comment(opener, name, human_msg, {
+                "status": target_state,
                 "workflow_state": target_state,
                 "docstatus": target_docstatus,
                 "rejection_reason": "",
@@ -1491,18 +1416,7 @@ def execute_institution_action(opener, action, payload):
                     submission_payload={"rejection_reason": "", "rejected_institution_tag": ""}
                 )
 
-            save_shared_inst_override(name, {
-                "name": name,
-                "institution_name": inst_title,
-                "workflow_state": target_state,
-                "docstatus": target_docstatus,
-                "is_proposal": 0,
-                "is_medrep_submission": 0,
-                "rejection_reason": "",
-                "approved_by": actor_user,
-                "approved_at": now_iso
-            })
-            return "success", f'Institution "{inst_title}" ({name}) {("routed to DSM" if needs_dsm else "approved directly into Institution Directory (Draft)")}!'
+            return "success", f'Institution "{inst_title}" ({name}) {("routed to Pending DSM Approval" if needs_dsm else "approved and synced as Approved to ERPNext & HCP Nexus App")}!'
 
         elif action in ["inst_create", "inst_propose"]:
             name = safe_str(payload.get("name") or payload.get("institution_id")) or f"INST-PROP-{int(time.time())}"
@@ -1545,8 +1459,8 @@ def execute_institution_action(opener, action, payload):
                 "submitted_at": now_iso
             }
 
-            # Standard ERPNext fields for live creation
-            erp_inst_doc = {
+            # Standard ERPNext fields for live creation (with Pending Approval status fallback)
+            erp_inst_doc_base = {
                 "doctype": "Institution",
                 "institution_name": inst_title,
                 "ownership": ownership,
@@ -1559,16 +1473,29 @@ def execute_institution_action(opener, action, payload):
                 "address_line1": street,
                 "remarks": cert_note
             }
-            try:
-                c_body = json.dumps(erp_inst_doc).encode("utf-8")
-                c_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/resource/Institution", data=c_body, headers=headers_json, method="POST")
-                c_res = call_erpnext_resiliently(opener, c_req, timeout=10)
-                if c_res.status in [200, 201]:
-                    c_data = json.loads(c_res.read().decode("utf-8")).get("data", {})
-                    if c_data.get("name"):
-                        new_rec["erp_name"] = c_data["name"]
-            except Exception:
-                pass
+            created_in_erp = False
+            create_err = ""
+            for doc_candidate in (
+                {**erp_inst_doc_base, "status": "Pending Approval", "workflow_state": "Pending Approval"},
+                {**erp_inst_doc_base, "status": "Pending Approval"},
+                erp_inst_doc_base,
+            ):
+                try:
+                    c_body = json.dumps(doc_candidate).encode("utf-8")
+                    c_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/resource/Institution", data=c_body, headers=headers_json, method="POST")
+                    c_res = call_erpnext_resiliently(opener, c_req, timeout=10)
+                    if c_res.status in [200, 201]:
+                        c_data = json.loads(c_res.read().decode("utf-8")).get("data", {})
+                        if c_data.get("name"):
+                            new_rec["erp_name"] = c_data["name"]
+                        created_in_erp = True
+                        break
+                except urllib.error.HTTPError as he:
+                    create_err = _extract_erp_http_error(he) or create_err
+                except Exception as ex:
+                    create_err = str(ex) or create_err
+            if not created_in_erp:
+                return "error", f'Could not create Institution proposal "{inst_title}" on {get_server_display_name()}: {create_err or "ERPNext rejected creation"}'
 
             # Log audit metadata comment
             try:
@@ -1656,23 +1583,17 @@ def execute_institution_action(opener, action, payload):
             target_docstatus = 0
             if auto_approve:
                 target_state = "Pending DSM Approval" if needs_dsm else "Approved"
-                target_docstatus = 0 if needs_dsm else 1
                 wf_action = "Route to DSM" if needs_dsm else "Approve"
-                wf_ok = False
-                try:
-                    wf_body = json.dumps({"doc": {"doctype": "Institution", "name": name}, "action": wf_action}).encode("utf-8")
-                    wf_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.model.workflow.apply_workflow", data=wf_body, headers=headers_json, method="POST")
-                    wf_res = call_erpnext_resiliently(opener, wf_req, timeout=12)
-                    wf_ok = (wf_res.status == 200)
-                except Exception:
-                    wf_ok = False
-                if not wf_ok:
-                    try:
-                        sv_body = json.dumps({"doctype": "Institution", "name": name, "fieldname": {"workflow_state": target_state, "docstatus": target_docstatus}}).encode("utf-8")
-                        sv_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.set_value", data=sv_body, headers=headers_json, method="POST")
-                        call_erpnext_resiliently(opener, sv_req, timeout=12)
-                    except Exception:
-                        pass
+                synced_ok, sync_err = _sync_institution_status_to_erpnext(
+                    opener,
+                    name,
+                    target_state,
+                    headers_json,
+                    wf_action=wf_action,
+                    extra_fields={"rejection_reason": ""}
+                )
+                if not synced_ok:
+                    return "error", f'Normalized fields saved, but ERPNext rejected status update to "{target_state}" for "{clean_wp}" ({name}): {sync_err}'
 
             loc_summary = ", ".join([x for x in [safe_str(payload.get("city_name")) or city_id, safe_str(payload.get("province_name")) or prov_id, safe_str(payload.get("region_name")) or reg_id] if x])
             human_msg = f"Normalized by {actor_user} ({actor_role}) in Web Portal: {clean_wp} ({ownership}, {inst_type}, {capability}) at {loc_summary}."
@@ -1726,23 +1647,16 @@ def execute_institution_action(opener, action, payload):
                 return "error", "Both Institution ID and mandatory rejection reason are required."
 
             rejection_tag = f"[REJECTED INSTITUTION: {reason}]"
-            try:
-                put_req = urllib.request.Request(
-                    f"{ERPNEXT_SERVER_URL}/api/resource/Institution/{urllib.parse.quote(name)}",
-                    data=json.dumps({"rejection_reason": reason, "workflow_state": "Rejected", "docstatus": 0}).encode("utf-8"),
-                    headers=headers_json,
-                    method="PUT"
-                )
-                call_erpnext_resiliently(opener, put_req, timeout=12)
-            except Exception:
-                pass
-
-            try:
-                wf_body = json.dumps({"doc": {"doctype": "Institution", "name": name}, "action": "Reject"}).encode("utf-8")
-                wf_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.model.workflow.apply_workflow", data=wf_body, headers=headers_json, method="POST")
-                call_erpnext_resiliently(opener, wf_req, timeout=12)
-            except Exception:
-                pass
+            synced_ok, sync_err = _sync_institution_status_to_erpnext(
+                opener,
+                name,
+                "Rejected",
+                headers_json,
+                wf_action="Reject",
+                extra_fields={"rejection_reason": reason}
+            )
+            if not synced_ok:
+                return "error", f'Could not reject Institution "{inst_title}" ({name}) on {get_server_display_name()}: {sync_err}'
 
             human_msg = f"Rejected by {actor_user} ({actor_role}) in Web Portal. Reason: {reason}"
             _post_institution_meta_comment(opener, name, human_msg, {
@@ -1787,23 +1701,16 @@ def execute_institution_action(opener, action, payload):
             remapped_tag = f"Remapped by SFE to: {rep_name}"
             full_note = f"{remapped_tag} ({note})"
 
-            try:
-                wf_body = json.dumps({"doc": {"doctype": "Institution", "name": old_id}, "action": "Remap"}).encode("utf-8")
-                wf_req = urllib.request.Request(f"{ERPNEXT_SERVER_URL}/api/method/frappe.model.workflow.apply_workflow", data=wf_body, headers=headers_json, method="POST")
-                call_erpnext_resiliently(opener, wf_req, timeout=12)
-            except Exception:
-                pass
-
-            try:
-                put_req = urllib.request.Request(
-                    f"{ERPNEXT_SERVER_URL}/api/resource/Institution/{urllib.parse.quote(old_id)}",
-                    data=json.dumps({"workflow_state": "Remapped", "rejection_reason": full_note}).encode("utf-8"),
-                    headers=headers_json,
-                    method="PUT"
-                )
-                call_erpnext_resiliently(opener, put_req, timeout=12)
-            except Exception:
-                pass
+            synced_ok, sync_err = _sync_institution_status_to_erpnext(
+                opener,
+                old_id,
+                "Remapped",
+                headers_json,
+                wf_action="Remap",
+                extra_fields={"rejection_reason": full_note}
+            )
+            if not synced_ok:
+                return "error", f'Could not remap Institution "{old_name}" ({old_id}) on {get_server_display_name()}: {sync_err}'
 
             human_msg = f"Remapped by {actor_user} ({actor_role}) in Web Portal to canonical facility {rep_name} ({rep_id}). {note}"
             _post_institution_meta_comment(opener, old_id, human_msg, {
@@ -1982,42 +1889,191 @@ def execute_institution_action(opener, action, payload):
     except Exception as e:
         return "error", f"Institution action error: {str(e)}"
 
+_TERRITORY_ROOT_CACHE = None
+
+def _get_territory_root_node(opener, headers_json):
+    """Detects the top-level root folder in ERPNext Territory tree (typically 'All Territories')."""
+    global _TERRITORY_ROOT_CACHE
+    if _TERRITORY_ROOT_CACHE:
+        return _TERRITORY_ROOT_CACHE
+    if not opener:
+        return None
+    try:
+        fields = urllib.parse.quote(json.dumps(["name", "parent_territory", "is_group"]))
+        flt = urllib.parse.quote(json.dumps([["Territory", "is_group", "=", 1]]))
+        url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory?fields={fields}&filters={flt}&limit_page_length=200"
+        res = call_erpnext_resiliently(opener, urllib.request.Request(url, headers=headers_json), timeout=6)
+        rows = json.loads(res.read().decode("utf-8")).get("data", [])
+        if isinstance(rows, list):
+            for r in rows:
+                if isinstance(r, dict) and not safe_str(r.get("parent_territory")):
+                    _TERRITORY_ROOT_CACHE = safe_str(r.get("name"))
+                    if _TERRITORY_ROOT_CACHE:
+                        return _TERRITORY_ROOT_CACHE
+            for r in rows:
+                if isinstance(r, dict) and safe_str(r.get("name")).lower() == "all territories":
+                    _TERRITORY_ROOT_CACHE = safe_str(r.get("name"))
+                    return _TERRITORY_ROOT_CACHE
+    except Exception:
+        pass
+    return None
+
+def _ensure_territory_root_exists(opener, headers_json):
+    """Ensures a root Territory node exists in ERPNext (bootstrapping 'All Territories' if DocType is empty)."""
+    global _TERRITORY_ROOT_CACHE
+    root_name = _get_territory_root_node(opener, headers_json)
+    if root_name:
+        return True, root_name, ""
+    if not opener:
+        return False, "", "No active ERPNext session."
+    last_err = ""
+    try:
+        c_req = urllib.request.Request(
+            f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+            data=json.dumps({
+                "territory_name": "All Territories",
+                "parent_territory": "",
+                "is_group": 1
+            }).encode("utf-8"),
+            headers=headers_json,
+            method="POST"
+        )
+        res = call_erpnext_resiliently(opener, c_req, timeout=10)
+        if res.status in [200, 201]:
+            _TERRITORY_ROOT_CACHE = "All Territories"
+            return True, "All Territories", ""
+    except urllib.error.HTTPError as he:
+        err_msg = _extract_erp_http_error(he)
+        if "DuplicateEntryError" in err_msg:
+            _TERRITORY_ROOT_CACHE = "All Territories"
+            return True, "All Territories", ""
+        last_err = err_msg
+    except Exception as ex:
+        last_err = str(ex)
+    try:
+        form_data = urllib.parse.urlencode({
+            "doctype": "Territory",
+            "parent": "",
+            "territory_name": "All Territories",
+            "is_group": "1",
+            "is_root": "true"
+        }).encode("utf-8")
+        tv_req = urllib.request.Request(
+            f"{ERPNEXT_SERVER_URL}/api/method/frappe.desk.treeview.add_node",
+            data=form_data,
+            headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+            method="POST"
+        )
+        tv_res = call_erpnext_resiliently(opener, tv_req, timeout=10)
+        if tv_res.status in [200, 201]:
+            _TERRITORY_ROOT_CACHE = "All Territories"
+            return True, "All Territories", ""
+    except urllib.error.HTTPError as he:
+        last_err = _extract_erp_http_error(he) or last_err
+    except Exception as ex:
+        last_err = str(ex) or last_err
+    return False, "All Territories", last_err
+
 def _ensure_parent_territory_is_group(opener, parent_name, headers_json):
     """Ensure a parent territory exists and has is_group=1 on ERPNext before attaching child territories under it."""
     parent_clean = safe_str(parent_name)
-    if not parent_clean or parent_clean == "All Territories" or not opener:
-        return
+    if not opener:
+        return False, parent_clean or "All Territories", "No active ERPNext session."
+    root_ok, root_terr, root_err = _ensure_territory_root_exists(opener, headers_json)
+    effective_root = root_terr or "All Territories"
+    if not parent_clean or parent_clean.lower() in ("all territories", effective_root.lower()):
+        return root_ok, effective_root, root_err
+    last_err = ""
     try:
         chk_url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(parent_clean, safe='')}"
         chk_req = urllib.request.Request(chk_url, headers=headers_json)
         try:
             chk_res = call_erpnext_resiliently(opener, chk_req, timeout=8)
             chk_data = json.loads(chk_res.read().decode("utf-8")).get("data", {})
+            actual_name = safe_str(chk_data.get("name")) or parent_clean
             if not chk_data.get("is_group"):
-                promote_req = urllib.request.Request(
-                    chk_url,
-                    data=json.dumps({"is_group": 1}).encode("utf-8"),
-                    headers=headers_json,
-                    method="PUT"
-                )
-                call_erpnext_resiliently(opener, promote_req, timeout=8)
+                promoted = False
+                try:
+                    promote_req = urllib.request.Request(
+                        chk_url,
+                        data=json.dumps({"is_group": 1}).encode("utf-8"),
+                        headers=headers_json,
+                        method="PUT"
+                    )
+                    p_res = call_erpnext_resiliently(opener, promote_req, timeout=8)
+                    promoted = (p_res.status == 200)
+                except Exception:
+                    pass
+                if not promoted:
+                    try:
+                        sv_data = urllib.parse.urlencode({
+                            "doctype": "Territory",
+                            "name": actual_name,
+                            "fieldname": "is_group",
+                            "value": "1"
+                        }).encode("utf-8")
+                        call_erpnext_resiliently(opener, urllib.request.Request(
+                            f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.set_value",
+                            data=sv_data,
+                            headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+                            method="POST"
+                        ), timeout=8)
+                    except Exception:
+                        pass
+            return True, actual_name, ""
         except urllib.error.HTTPError as he:
             if he.code == 404:
-                # Parent does not exist yet! Create it under "All Territories" with is_group=1
+                # Parent does not exist yet! Create it under effective_root with is_group=1
                 post_body = {
                     "territory_name": parent_clean,
-                    "parent_territory": "All Territories",
+                    "parent_territory": effective_root,
                     "is_group": 1
                 }
-                c_req = urllib.request.Request(
-                    f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
-                    data=json.dumps(post_body).encode("utf-8"),
-                    headers=headers_json,
-                    method="POST"
-                )
-                call_erpnext_resiliently(opener, c_req, timeout=8)
-    except Exception:
-        pass
+                try:
+                    c_req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
+                        data=json.dumps(post_body).encode("utf-8"),
+                        headers=headers_json,
+                        method="POST"
+                    )
+                    c_res = call_erpnext_resiliently(opener, c_req, timeout=8)
+                    if c_res.status in [200, 201]:
+                        return True, parent_clean, ""
+                except urllib.error.HTTPError as che:
+                    last_err = _extract_erp_http_error(che)
+                    if "DuplicateEntryError" in last_err:
+                        return True, parent_clean, ""
+                except Exception as cex:
+                    last_err = str(cex)
+                # Fallback: Frappe TreeView add_node for parent group creation
+                try:
+                    tv_data = urllib.parse.urlencode({
+                        "doctype": "Territory",
+                        "parent": effective_root,
+                        "territory_name": parent_clean,
+                        "is_group": "1",
+                        "is_root": "false"
+                    }).encode("utf-8")
+                    tv_req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/method/frappe.desk.treeview.add_node",
+                        data=tv_data,
+                        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+                        method="POST"
+                    )
+                    tv_res = call_erpnext_resiliently(opener, tv_req, timeout=8)
+                    if tv_res.status in [200, 201]:
+                        return True, parent_clean, ""
+                except urllib.error.HTTPError as tvhe:
+                    last_err = _extract_erp_http_error(tvhe) or last_err
+                except Exception as tvex:
+                    last_err = str(tvex) or last_err
+                return False, parent_clean, last_err
+            else:
+                last_err = _extract_erp_http_error(he)
+                return False, parent_clean, last_err
+    except Exception as ex:
+        return False, parent_clean, str(ex)
+    return True, parent_clean, ""
 
 
 _DISTRICT_CUSTOM_FIELDS_ENSURED = False
@@ -2072,12 +2128,12 @@ def _ensure_district_custom_fields(opener, headers_json):
             pass
 
 def _get_sales_person_root_node(opener, headers_json):
-    """Detects the top-level root folder in ERPNext Sales Person tree (typically 'Sales Team')."""
+    """Detects the top-level root folder in ERPNext Sales Person tree (returns None if DocType is empty)."""
     global _SALES_PERSON_ROOT_CACHE
     if _SALES_PERSON_ROOT_CACHE:
         return _SALES_PERSON_ROOT_CACHE
     if not opener:
-        return "Sales Team"
+        return None
     try:
         fields = urllib.parse.quote(json.dumps(["name", "parent_sales_person", "is_group"]))
         flt = urllib.parse.quote(json.dumps([["Sales Person", "is_group", "=", 1]]))
@@ -2087,15 +2143,37 @@ def _get_sales_person_root_node(opener, headers_json):
         if isinstance(rows, list):
             for r in rows:
                 if isinstance(r, dict) and not safe_str(r.get("parent_sales_person")):
-                    _SALES_PERSON_ROOT_CACHE = safe_str(r.get("name")) or "Sales Team"
-                    return _SALES_PERSON_ROOT_CACHE
+                    _SALES_PERSON_ROOT_CACHE = safe_str(r.get("name"))
+                    if _SALES_PERSON_ROOT_CACHE:
+                        return _SALES_PERSON_ROOT_CACHE
             for r in rows:
                 if isinstance(r, dict) and safe_str(r.get("name")).lower() == "sales team":
                     _SALES_PERSON_ROOT_CACHE = safe_str(r.get("name"))
                     return _SALES_PERSON_ROOT_CACHE
     except Exception:
         pass
-    return "Sales Team"
+    return None
+
+def _ensure_sales_person_root_exists(opener, headers_json):
+    """Ensures a root Sales Person group exists on ERPNext, bootstrapping 'Sales Team' if DocType is empty."""
+    global _SALES_PERSON_ROOT_CACHE
+    existing_root = _get_sales_person_root_node(opener, headers_json)
+    if existing_root:
+        return True, existing_root, ""
+    if not opener:
+        return False, "", "No active ERPNext session."
+    ok, created_name, err_msg = _create_sp_via_rest_or_treeview(
+        opener,
+        "Sales Team",
+        "",
+        1,
+        {"enabled": 1},
+        headers_json
+    )
+    if ok:
+        _SALES_PERSON_ROOT_CACHE = created_name or "Sales Team"
+        return True, _SALES_PERSON_ROOT_CACHE, ""
+    return False, "", err_msg
 
 def _find_existing_sales_person(opener, sp_name, headers_json):
     """Finds an existing Sales Person record by exact or case-insensitive name."""
@@ -2167,7 +2245,11 @@ def _create_sp_via_rest_or_treeview(opener, sp_name, parent_sp, is_group, base_b
 
     attempt_body = dict(base_body)
     attempt_body["sales_person_name"] = clean_sp
-    attempt_body["parent_sales_person"] = parent_sp
+    clean_parent = safe_str(parent_sp)
+    if clean_parent:
+        attempt_body["parent_sales_person"] = clean_parent
+    else:
+        attempt_body.pop("parent_sales_person", None)
     attempt_body["is_group"] = int(is_group or 0)
 
     ok, created_name, err = _try_rest_post(attempt_body)
@@ -2184,14 +2266,14 @@ def _create_sp_via_rest_or_treeview(opener, sp_name, parent_sp, is_group, base_b
                 return True, created_name or clean_sp, ""
             last_err = err
 
-    # Fallback: Frappe native TreeView add_node endpoint (/app/sales-person/view/tree)
+    # Fallback 1: Frappe native TreeView add_node endpoint (/app/sales-person/view/tree)
     try:
         form_data = urllib.parse.urlencode({
             "doctype": "Sales Person",
-            "parent": parent_sp,
+            "parent": clean_parent,
             "sales_person_name": clean_sp,
             "is_group": str(int(is_group or 0)),
-            "is_root": "false"
+            "is_root": "true" if not clean_parent else "false"
         }).encode("utf-8")
         tv_req = urllib.request.Request(
             f"{ERPNEXT_SERVER_URL}/api/method/frappe.desk.treeview.add_node",
@@ -2222,6 +2304,31 @@ def _create_sp_via_rest_or_treeview(opener, sp_name, parent_sp, is_group, base_b
     except Exception as tv_ex:
         last_err = str(tv_ex) or last_err
 
+    # Fallback 2: Frappe Desk frappe.client.insert RPC
+    try:
+        doc_payload = {
+            "doctype": "Sales Person",
+            "sales_person_name": clean_sp,
+            "is_group": int(is_group or 0),
+            "enabled": int(base_body.get("enabled", 1) if base_body.get("enabled") is not None else 1)
+        }
+        if clean_parent:
+            doc_payload["parent_sales_person"] = clean_parent
+        ins_data = urllib.parse.urlencode({"doc": json.dumps(doc_payload)}).encode("utf-8")
+        ins_req = urllib.request.Request(
+            f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.insert",
+            data=ins_data,
+            headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+            method="POST"
+        )
+        ins_res = call_erpnext_resiliently(opener, ins_req, timeout=12)
+        if ins_res.status in [200, 201]:
+            return True, clean_sp, ""
+    except urllib.error.HTTPError as ins_he:
+        last_err = _extract_erp_http_error(ins_he) or last_err
+    except Exception as ins_ex:
+        last_err = str(ins_ex) or last_err
+
     # Check whether another process created it concurrently
     existing_after = _find_existing_sales_person(opener, clean_sp, headers_json)
     if existing_after:
@@ -2231,12 +2338,14 @@ def _create_sp_via_rest_or_treeview(opener, sp_name, parent_sp, is_group, base_b
 
 def _ensure_parent_sales_person_is_group(opener, parent_name, headers_json, parent_of_parent=""):
     """Ensure a parent sales person exists and has is_group=1 on ERPNext before attaching child sales persons under it."""
-    root_sp = _get_sales_person_root_node(opener, headers_json)
-    parent_clean = safe_str(parent_name)
-    if not parent_clean or parent_clean.lower() in ("sales team", root_sp.lower()):
-        return True, root_sp, ""
     if not opener:
         return False, "", "No active ERPNext session."
+    root_ok, root_sp, root_err = _ensure_sales_person_root_exists(opener, headers_json)
+    parent_clean = safe_str(parent_name)
+    if not parent_clean or (root_sp and parent_clean.lower() in ("sales team", root_sp.lower())) or (not root_sp and parent_clean.lower() == "sales team"):
+        if root_ok and root_sp:
+            return True, root_sp, ""
+        return False, "", root_err or "Could not verify or create root Sales Person ('Sales Team') on ERPNext."
 
     existing = _find_existing_sales_person(opener, parent_clean, headers_json)
     if existing:
@@ -2574,16 +2683,29 @@ def _sync_sales_person_code_on_territory_rename(opener, old_terr, new_terr, head
                 record_shared_sales_person_rename(old_sp, new_sp)
                 if is_terr_mgr:
                     record_shared_territory_edit(clean_new, manager=new_sp)
+                    mgr_put_body = {"territory_manager": new_sp}
+                    resolved_rename_uid = _resolve_medrep_user_id_from_sales_person(opener, new_sp, headers_json)
+                    if resolved_rename_uid:
+                        mgr_put_body["custom_user_id"] = resolved_rename_uid
                     try:
                         mgr_req = urllib.request.Request(
                             f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(clean_new, safe='')}",
-                            data=json.dumps({"territory_manager": new_sp}).encode("utf-8"),
+                            data=json.dumps(mgr_put_body).encode("utf-8"),
                             headers=headers_json,
                             method="PUT"
                         )
                         call_erpnext_resiliently(opener, mgr_req, timeout=8)
                     except Exception:
-                        pass
+                        try:
+                            mgr_req_fb = urllib.request.Request(
+                                f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(clean_new, safe='')}",
+                                data=json.dumps({"territory_manager": new_sp}).encode("utf-8"),
+                                headers=headers_json,
+                                method="PUT"
+                            )
+                            call_erpnext_resiliently(opener, mgr_req_fb, timeout=8)
+                        except Exception:
+                            pass
 
                 # Reflect immediately in session state (including child parent_sales_person links)
                 if "live_sales_persons" in st.session_state and isinstance(st.session_state.live_sales_persons, list):
@@ -2660,6 +2782,35 @@ def _resolve_user_id(opener, uid, headers_json):
     return None
 
 
+def _resolve_medrep_user_id_from_sales_person(opener, sp_name, headers_json):
+    """
+    Resolves the logged-in MedRep's authoritative ERPNext User email from Sales Person -> Employee -> user_id
+    so the HCP App and Territory Reconfig Web App stay 100% synchronized on territory availability.
+    """
+    clean_sp = safe_str(sp_name)
+    if not clean_sp or not opener:
+        return None
+    try:
+        sp_doc = _find_existing_sales_person(opener, clean_sp, headers_json)
+        if not isinstance(sp_doc, dict):
+            return None
+        emp_id = safe_str(sp_doc.get("employee"))
+        if not emp_id:
+            return None
+        emp_url = f"{ERPNEXT_SERVER_URL}/api/resource/Employee/{urllib.parse.quote(emp_id, safe='')}"
+        e_res = call_erpnext_resiliently(opener, urllib.request.Request(emp_url, headers=headers_json), timeout=6)
+        emp_doc = json.loads(e_res.read().decode("utf-8")).get("data", {})
+        if not isinstance(emp_doc, dict):
+            return None
+        for cand in (emp_doc.get("user_id"), emp_doc.get("company_email"), emp_doc.get("personal_email")):
+            resolved = _resolve_user_id(opener, cand, headers_json)
+            if resolved:
+                return resolved
+    except Exception:
+        pass
+    return None
+
+
 def execute_tree_action(opener, action, payload):
     if not opener:
         opener = get_authenticated_opener()
@@ -2713,7 +2864,7 @@ def execute_tree_action(opener, action, payload):
                 return resolved
             sp_parent = safe_str(parent_hint)
             if not sp_parent or sp_parent == "All Territories":
-                sp_parent = _get_sales_person_root_node(opener, headers_json)
+                sp_parent = ""
             sp_ok, created_sp, _ = _ensure_sales_person_exists_in_erpnext(
                 opener,
                 clean_mgr,
@@ -2727,30 +2878,36 @@ def execute_tree_action(opener, action, payload):
 
         def _create_single_territory_record(t_name, parent, is_group, t_mgr, custom_uid, custom_prog, custom_district="", parent_sp_hint=""):
             _ensure_district_custom_fields(opener, headers_json)
-            if parent and parent != "All Territories":
-                _ensure_parent_territory_is_group(opener, parent, headers_json)
+            p_ok, resolved_parent, p_err = _ensure_parent_territory_is_group(opener, parent, headers_json)
+            effective_parent = resolved_parent or safe_str(parent) or "All Territories"
             resolved_mgr = _resolve_or_autocreate_manager(
                 t_mgr,
-                parent_hint=parent_sp_hint or parent,
+                parent_hint=parent_sp_hint,
                 is_group_flag=is_group,
                 dist_val=custom_district,
                 prog_val=custom_prog
             ) if t_mgr else None
-            resolved_uid = _resolve_user_id(opener, custom_uid, headers_json) if custom_uid else None
+            resolved_uid = _resolve_user_id(opener, custom_uid, headers_json) if (custom_uid and resolved_mgr) else None
+            if resolved_mgr and not resolved_uid:
+                resolved_uid = _resolve_medrep_user_id_from_sales_person(opener, resolved_mgr, headers_json)
 
             body = {
                 "territory_name": t_name,
-                "parent_territory": parent or "All Territories",
+                "parent_territory": effective_parent,
                 "is_group": is_group
             }
             if resolved_mgr:
                 body["territory_manager"] = resolved_mgr
             if resolved_uid:
                 body["custom_user_id"] = resolved_uid
+            elif not resolved_mgr:
+                body["custom_user_id"] = ""
             if custom_prog:
                 body["custom_account_or_program"] = custom_prog
             if safe_str(custom_district):
                 body["custom_district"] = safe_str(custom_district)
+
+            last_err = p_err if not p_ok else ""
 
             def _post_or_put_terr(p_body):
                 data_bytes = json.dumps(p_body).encode("utf-8")
@@ -2762,82 +2919,144 @@ def execute_tree_action(opener, action, payload):
                 )
                 try:
                     res = call_erpnext_resiliently(opener, req, timeout=12)
-                    return res.status in [200, 201]
+                    return res.status in [200, 201], ""
                 except urllib.error.HTTPError as he:
-                    err_text = he.read().decode("utf-8", errors="ignore")
-                    if "DuplicateEntryError" in err_text:
+                    err_msg = _extract_erp_http_error(he)
+                    if "DuplicateEntryError" in err_msg:
                         up_req = urllib.request.Request(
                             f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}",
                             data=data_bytes,
                             headers=headers_json,
                             method="PUT"
                         )
-                        call_erpnext_resiliently(opener, up_req, timeout=12)
-                        return True
-                    raise
-
-            success = False
-            try:
-                success = _post_or_put_terr(body)
-            except urllib.error.HTTPError:
-                # Stage 1a: Strip optional program/user custom fields first while keeping custom_district and territory_manager intact!
-                for lf in ["custom_account_or_program", "custom_user_id"]:
-                    body.pop(lf, None)
-                try:
-                    success = _post_or_put_terr(body)
-                except urllib.error.HTTPError:
-                    # Stage 1b: Strip custom_district if Territory schema lacks it, still preserving territory_manager
-                    body.pop("custom_district", None)
-                    try:
-                        success = _post_or_put_terr(body)
-                    except urllib.error.HTTPError:
-                        # Stage 2: Drop territory_manager only if LinkValidation persists
-                        body.pop("territory_manager", None)
                         try:
-                            success = _post_or_put_terr(body)
-                        except urllib.error.HTTPError:
-                            # Stage 3: Fallback parent to All Territories
-                            body["parent_territory"] = "All Territories"
+                            ur = call_erpnext_resiliently(opener, up_req, timeout=12)
+                            return ur.status in [200, 201], ""
+                        except urllib.error.HTTPError as uhe:
+                            return False, _extract_erp_http_error(uhe)
+                        except Exception as uex:
+                            return False, str(uex)
+                    return False, err_msg
+                except Exception as ex:
+                    return False, str(ex)
+
+            success, err = _post_or_put_terr(body)
+            if not success:
+                last_err = err or last_err
+                # Progressive schema-safe fallback: strip custom_account_or_program FIRST so custom_user_id (HCP App MedRep sync) stays intact!
+                for opt_fields in (
+                    ["custom_account_or_program"],
+                    ["custom_district"],
+                    ["custom_user_id"],
+                    ["territory_manager"]
+                ):
+                    removed_any = False
+                    for lf in opt_fields:
+                        if lf in body:
+                            body.pop(lf, None)
+                            removed_any = True
+                    if removed_any:
+                        success, err = _post_or_put_terr(body)
+                        if success:
+                            break
+                        last_err = err or last_err
+
+            # Fallback: Frappe native TreeView add_node endpoint (/app/territory/view/tree)
+            if not success:
+                try:
+                    tv_parent = body.get("parent_territory") or effective_parent
+                    form_data = urllib.parse.urlencode({
+                        "doctype": "Territory",
+                        "parent": tv_parent,
+                        "territory_name": t_name,
+                        "is_group": str(int(is_group or 0)),
+                        "is_root": "false"
+                    }).encode("utf-8")
+                    tv_req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/method/frappe.desk.treeview.add_node",
+                        data=form_data,
+                        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+                        method="POST"
+                    )
+                    tv_res = call_erpnext_resiliently(opener, tv_req, timeout=12)
+                    if tv_res.status in [200, 201]:
+                        success = True
+                except urllib.error.HTTPError as tv_he:
+                    last_err = _extract_erp_http_error(tv_he) or last_err
+                except Exception as tv_ex:
+                    last_err = str(tv_ex) or last_err
+
+            # Fallback: Frappe Desk frappe.client.insert RPC
+            if not success:
+                try:
+                    ins_doc = {
+                        "doctype": "Territory",
+                        "territory_name": t_name,
+                        "parent_territory": body.get("parent_territory") or effective_parent,
+                        "is_group": int(is_group or 0)
+                    }
+                    ins_data = urllib.parse.urlencode({"doc": json.dumps(ins_doc)}).encode("utf-8")
+                    ins_req = urllib.request.Request(
+                        f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.insert",
+                        data=ins_data,
+                        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+                        method="POST"
+                    )
+                    ins_res = call_erpnext_resiliently(opener, ins_req, timeout=12)
+                    if ins_res.status in [200, 201]:
+                        success = True
+                except urllib.error.HTTPError as ins_he:
+                    last_err = _extract_erp_http_error(ins_he) or last_err
+                except Exception as ins_ex:
+                    last_err = str(ins_ex) or last_err
+
+            # Ensure critical HCP App MedRep sync fields (territory_manager, custom_user_id, custom_district) are applied even after fallback creation
+            if success and (resolved_mgr or safe_str(custom_district) or resolved_uid):
+                extra_put = {}
+                if resolved_mgr:
+                    extra_put["territory_manager"] = resolved_mgr
+                if resolved_uid:
+                    extra_put["custom_user_id"] = resolved_uid
+                if safe_str(custom_district):
+                    extra_put["custom_district"] = safe_str(custom_district)
+                if extra_put:
+                    put_url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}"
+                    try:
+                        call_erpnext_resiliently(opener, urllib.request.Request(
+                            put_url,
+                            data=json.dumps(extra_put).encode("utf-8"),
+                            headers=headers_json,
+                            method="PUT"
+                        ), timeout=8)
+                    except Exception:
+                        # Apply each critical field independently so one missing custom field never drops territory_manager or custom_user_id
+                        for fk, fv in extra_put.items():
                             try:
-                                success = _post_or_put_terr(body)
+                                call_erpnext_resiliently(opener, urllib.request.Request(
+                                    put_url,
+                                    data=json.dumps({fk: fv}).encode("utf-8"),
+                                    headers=headers_json,
+                                    method="PUT"
+                                ), timeout=6)
                             except Exception:
                                 pass
-                    except Exception:
-                        pass
-                except Exception:
-                    pass
-            except Exception:
-                pass
 
-            # Persist locally only marking pending_erp_sync when upstream POST failed so ERPNext deletions remain authoritative
-            record_shared_territory_add(
-                t_name,
-                parent,
-                is_group,
-                manager=resolved_mgr or t_mgr,
-                user_id=resolved_uid or custom_uid,
-                program=custom_prog,
-                district=safe_str(custom_district),
-                pending_erp_sync=(not success)
-            )
-
-            # In all cases, immediately reflect node in session state live_territories so UI never wipes it
-            if "live_territories" in st.session_state and isinstance(st.session_state["live_territories"], list):
+            if success and "live_territories" in st.session_state and isinstance(st.session_state["live_territories"], list):
                 if not any(t.get("name") == t_name for t in st.session_state["live_territories"]):
                     new_live_row = {
                         "name": t_name,
                         "territory_name": t_name,
-                        "parent_territory": parent or "All Territories",
+                        "parent_territory": effective_parent,
                         "is_group": is_group,
-                        "territory_manager": resolved_mgr or t_mgr or "",
-                        "custom_user_id": resolved_uid or custom_uid or "",
+                        "territory_manager": resolved_mgr or "",
+                        "custom_user_id": resolved_uid or "",
                         "custom_account_or_program": custom_prog or ""
                     }
                     if safe_str(custom_district):
                         new_live_row["custom_district"] = safe_str(custom_district)
                         new_live_row["district"] = safe_str(custom_district)
                     st.session_state["live_territories"].append(new_live_row)
-            return success
+            return success, ("" if success else (last_err or f"ERPNext rejected creation of Territory '{t_name}'."))
 
         def _edit_single_territory_record(orig_name, new_parent, new_is_group, new_mgr, custom_uid="", custom_prog="", explicit_status=None, custom_district=None):
             if not orig_name:
@@ -2850,7 +3069,7 @@ def execute_tree_action(opener, action, payload):
             is_unassigned_mgr = (not new_mgr) or new_mgr.lower() in ("unassigned", "unassigned rep", "unassigned slot", "vacant", "folder (group)")
             resolved_mgr = _resolve_or_autocreate_manager(
                 new_mgr,
-                parent_hint=new_parent,
+                parent_hint="",
                 is_group_flag=new_is_group,
                 dist_val=clean_dist,
                 prog_val=custom_prog
@@ -2862,26 +3081,29 @@ def execute_tree_action(opener, action, payload):
             else:
                 eff_status = "Active" if ((not is_unassigned_mgr) or new_is_group) else "Vacant"
 
-            shared_mgr = "" if (is_unassigned_mgr or eff_status == "Vacant") else (resolved_mgr or new_mgr)
+            if eff_status in ("Vacant", "Inactive") or is_unassigned_mgr:
+                resolved_uid = ""
+            elif not resolved_uid and resolved_mgr:
+                resolved_uid = _resolve_medrep_user_id_from_sales_person(opener, resolved_mgr, headers_json) or ""
+
+            shared_mgr = "" if (is_unassigned_mgr or eff_status in ("Vacant", "Inactive")) else (resolved_mgr or new_mgr)
 
             body = {}
             if new_parent:
                 body["parent_territory"] = new_parent
             if new_is_group is not None:
                 body["is_group"] = int(new_is_group or 0)
-            if eff_status == "Vacant" or is_unassigned_mgr:
+            if eff_status in ("Vacant", "Inactive") or is_unassigned_mgr:
+                # HCP App Sync Invariant: Vacating or deactivating a territory MUST clear BOTH territory_manager & custom_user_id
                 body["territory_manager"] = ""
-            elif eff_status == "Inactive":
-                body["territory_manager"] = ""
+                body["custom_user_id"] = ""
             elif resolved_mgr:
                 body["territory_manager"] = resolved_mgr
+                body["custom_user_id"] = resolved_uid or (custom_uid if (custom_uid and "@" in custom_uid) else "")
             elif new_mgr:
                 body["territory_manager"] = new_mgr
+                body["custom_user_id"] = resolved_uid or (custom_uid if (custom_uid and "@" in custom_uid) else "")
 
-            if resolved_uid:
-                body["custom_user_id"] = resolved_uid
-            elif custom_uid and "@" in custom_uid:
-                body["custom_user_id"] = custom_uid
             if custom_prog:
                 body["custom_account_or_program"] = custom_prog
             if custom_district is not None:
@@ -2897,6 +3119,7 @@ def execute_tree_action(opener, action, payload):
                 return call_erpnext_resiliently(opener, req, timeout=12)
 
             synced_ok = False
+            last_err = ""
             try:
                 res = _put_terr(body)
                 if res.status == 200:
@@ -2905,61 +3128,49 @@ def execute_tree_action(opener, action, payload):
                 else:
                     msg_out = ("warning", f"ERPNext responded with HTTP {res.status}")
             except urllib.error.HTTPError as he:
-                _ = he.read().decode("utf-8", errors="ignore")
-                # Stage 1a: Strip only account/program and user custom fields, preserving custom_district & territory_manager
-                for lf in ["custom_account_or_program", "custom_user_id"]:
-                    body.pop(lf, None)
-                try:
-                    res = _put_terr(body)
-                    if res.status == 200:
-                        synced_ok = True
-                        msg_out = ("success", f'Territory "{orig_name}" transferred/updated under "{new_parent or "All Territories"}" on {get_server_display_name()}!')
-                except urllib.error.HTTPError as he_d:
-                    _ = he_d.read().decode("utf-8", errors="ignore")
-                    # Stage 1b: Strip custom_district, keeping territory_manager intact
-                    body.pop("custom_district", None)
+                last_err = _extract_erp_http_error(he)
+                # Progressive schema-safe fallback: strip custom_account_or_program FIRST while keeping custom_user_id (HCP App MedRep sync) intact!
+                for strip_keys in (
+                    ["custom_account_or_program"],
+                    ["custom_district"],
+                    ["custom_user_id"],
+                    ["territory_manager"]
+                ):
+                    removed = False
+                    for lf in strip_keys:
+                        if lf in body:
+                            body.pop(lf, None)
+                            removed = True
+                    if not removed:
+                        continue
                     try:
                         res = _put_terr(body)
                         if res.status == 200:
                             synced_ok = True
                             msg_out = ("success", f'Territory "{orig_name}" transferred/updated under "{new_parent or "All Territories"}" on {get_server_display_name()}!')
-                    except urllib.error.HTTPError as he2:
-                        _ = he2.read().decode("utf-8", errors="ignore")
-                        body.pop("territory_manager", None)
-                        try:
-                            res = _put_terr(body)
-                            if res.status == 200:
+                            break
+                    except urllib.error.HTTPError as he_step:
+                        last_err = _extract_erp_http_error(he_step) or last_err
+                        if he_step.code == 404:
+                            c_ok, c_err = _create_single_territory_record(
+                                orig_name,
+                                new_parent or "All Territories",
+                                int(new_is_group or 0),
+                                resolved_mgr or "",
+                                resolved_uid or "",
+                                custom_prog,
+                                custom_district=clean_dist
+                            )
+                            if c_ok:
                                 synced_ok = True
-                                msg_out = ("success", f'Territory "{orig_name}" transferred/updated under "{new_parent or "All Territories"}" on {get_server_display_name()}!')
-                        except urllib.error.HTTPError as he3:
-                            _ = he3.read().decode("utf-8", errors="ignore")
-                            if he3.code == 404:
-                                try:
-                                    create_body = {
-                                        "territory_name": orig_name,
-                                        "parent_territory": new_parent or "All Territories",
-                                        "is_group": int(new_is_group or 0)
-                                    }
-                                    if resolved_mgr:
-                                        create_body["territory_manager"] = resolved_mgr
-                                    if clean_dist:
-                                        create_body["custom_district"] = clean_dist
-                                    create_req = urllib.request.Request(
-                                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory",
-                                        data=json.dumps(create_body).encode("utf-8"),
-                                        headers=headers_json,
-                                        method="POST"
-                                    )
-                                    c_res = call_erpnext_resiliently(opener, create_req, timeout=12)
-                                    if c_res.status in [200, 201]:
-                                        synced_ok = True
-                                        msg_out = ("success", f'Territory "{orig_name}" created & linked under "{new_parent or "All Territories"}" on {get_server_display_name()}!')
-                                except Exception:
-                                    pass
+                                msg_out = ("success", f'Territory "{orig_name}" created & linked under "{new_parent or "All Territories"}" on {get_server_display_name()}!')
+                            else:
+                                last_err = c_err or last_err
+                            break
                 if not synced_ok and 'msg_out' not in locals():
-                    msg_out = ("success", f'Territory "{orig_name}" transferred & saved under "{new_parent or "All Territories"}".')
-            except Exception:
-                msg_out = ("success", f'Territory "{orig_name}" transferred & saved under "{new_parent or "All Territories"}".')
+                    msg_out = ("error", f'Could not update Territory "{orig_name}" on {get_server_display_name()}: {last_err or "ERPNext rejected update."}')
+            except Exception as ex:
+                msg_out = ("error", f'Could not update Territory "{orig_name}" on {get_server_display_name()}: {str(ex)}')
 
             record_shared_territory_edit(
                 orig_name,
@@ -3100,7 +3311,7 @@ def execute_tree_action(opener, action, payload):
             sp_parent_hint = safe_str(payload.get("parent_sales_person")) or ""
             if not t_name:
                 return "error", "Territory name cannot be blank."
-            _create_single_territory_record(
+            ok, err_msg = _create_single_territory_record(
                 t_name,
                 parent,
                 is_group,
@@ -3110,11 +3321,14 @@ def execute_tree_action(opener, action, payload):
                 custom_district=custom_dist,
                 parent_sp_hint=sp_parent_hint
             )
-            return "success", f'Territory "{t_name}" created & synchronized with {get_server_display_name()}!'
+            if ok:
+                return "success", f'Territory "{t_name}" created & synchronized with {get_server_display_name()}!'
+            return "error", f'Could not create Territory "{t_name}" on {get_server_display_name()}: {err_msg}'
 
         elif action == "bulk_tree_add":
             terrs = payload.get("territories", [])
             count = 0
+            errors = []
             for item in terrs:
                 if isinstance(item, dict):
                     t_name = safe_str(item.get("territory_name") or item.get("name") or item.get("code"))
@@ -3126,7 +3340,7 @@ def execute_tree_action(opener, action, payload):
                     item_dist = safe_str(item.get("custom_district") or item.get("district_area") or item.get("area_district"))
                     sp_parent_hint = safe_str(item.get("parent_sales_person")) or ""
                     if t_name:
-                        _create_single_territory_record(
+                        ok, err_msg = _create_single_territory_record(
                             t_name,
                             parent,
                             is_group,
@@ -3136,7 +3350,14 @@ def execute_tree_action(opener, action, payload):
                             custom_district=item_dist,
                             parent_sp_hint=sp_parent_hint
                         )
-                        count += 1
+                        if ok:
+                            count += 1
+                        elif err_msg:
+                            errors.append(f"{t_name}: {err_msg}")
+            if count == 0 and errors:
+                return "error", f"Could not create territories on {get_server_display_name()}: {errors[0]}"
+            if errors:
+                return "warning", f"Synced {count} territories to {get_server_display_name()}; {len(errors)} failed ({errors[0]})."
             return "success", f"Successfully synced {count} new territories live to {get_server_display_name()}!"
 
         elif action == "tree_edit":
@@ -3194,6 +3415,18 @@ def execute_tree_action(opener, action, payload):
                 edit_parent = safe_str(payload.get("parent_territory"))
                 edit_is_group = int(payload.get("is_group", 0) or 0)
                 edit_mgr = safe_str(payload.get("territory_manager"))
+                # Prevent Grid Edit from reverting Territory.territory_manager back to the pre-rename Sales Person code (e.g. 'JOSHUA TAN (AD100)' -> 'JOSHUA TAN (AD1002)')
+                if edit_mgr:
+                    replaced_edit_mgr = _replace_parenthesized_territory_code(edit_mgr, old_name, new_name)
+                    if replaced_edit_mgr:
+                        edit_mgr = replaced_edit_mgr
+                    elif renamed_sps:
+                        edit_base = re.sub(r"\s*\([^)]*\)", "", edit_mgr).strip().lower()
+                        for rsp in renamed_sps:
+                            rsp_base = re.sub(r"\s*\([^)]*\)", "", safe_str(rsp)).strip().lower()
+                            if edit_base and rsp_base == edit_base:
+                                edit_mgr = safe_str(rsp)
+                                break
                 edit_uid = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
                 edit_prog = safe_str(payload.get("custom_account_or_program") or payload.get("program"))
                 edit_status = safe_str(payload.get("status") or payload.get("operational_status")) or None
@@ -3251,64 +3484,91 @@ def execute_tree_action(opener, action, payload):
         elif action in ["territory_toggle_status", "territory_deactivate"]:
             t_name = safe_str(payload.get("territory") or payload.get("territory_name") or payload.get("name") or payload.get("code") or payload.get("activeCode"))
             new_mgr = safe_str(payload.get("territory_manager") or payload.get("rep"))
+            new_uid = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
             new_status = safe_str(payload.get("status") or payload.get("operational_status") or ("Active" if new_mgr and "INACTIVE" not in new_mgr.upper() and "UNASSIGNED" not in new_mgr.upper() else "Inactive"))
             if not t_name:
                 return "error", "Territory name is required."
             resolved_mgr = _resolve_sales_person_for_manager(opener, new_mgr, headers_json) if (new_status == "Active" and new_mgr) else None
-            if new_status == "Vacant":
-                shared_mgr = ""
+            if new_status in ("Vacant", "Inactive"):
                 erp_mgr = ""
-            elif new_status == "Inactive":
-                shared_mgr = new_mgr
-                erp_mgr = ""
+                erp_uid = ""
             else:
-                shared_mgr = resolved_mgr or new_mgr
                 erp_mgr = resolved_mgr or new_mgr
-            record_shared_territory_edit(t_name, manager=shared_mgr, status=new_status)
+                erp_uid = _resolve_user_id(opener, new_uid, headers_json) if new_uid else ""
+                if not erp_uid and resolved_mgr:
+                    erp_uid = _resolve_medrep_user_id_from_sales_person(opener, resolved_mgr, headers_json) or ""
             if new_status != "Active" or erp_mgr:
-                body = {"territory_manager": erp_mgr}
-                data = json.dumps(body).encode("utf-8")
-                req = urllib.request.Request(
-                    f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}",
-                    data=data,
-                    headers=headers_json,
-                    method="PUT"
-                )
+                # HCP App Sync Invariant: Keep Territory.territory_manager and Territory.custom_user_id strictly synchronized
+                body = {"territory_manager": erp_mgr, "custom_user_id": erp_uid}
+                put_url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}"
                 try:
-                    res = call_erpnext_resiliently(opener, req, timeout=12)
+                    res = call_erpnext_resiliently(opener, urllib.request.Request(
+                        put_url,
+                        data=json.dumps(body).encode("utf-8"),
+                        headers=headers_json,
+                        method="PUT"
+                    ), timeout=12)
                     if res.status == 200:
                         return "success", f'Territory "{t_name}" status set to {new_status} on {get_server_display_name()}!'
-                    return "success", f'Territory "{t_name}" status updated to {new_status}.'
-                except Exception:
-                    return "success", f'Territory "{t_name}" status updated to {new_status}.'
+                    return "warning", f"ERPNext responded with HTTP {res.status}"
+                except urllib.error.HTTPError as he:
+                    # Fallback if custom_user_id field is absent on target schema
+                    try:
+                        res2 = call_erpnext_resiliently(opener, urllib.request.Request(
+                            put_url,
+                            data=json.dumps({"territory_manager": erp_mgr}).encode("utf-8"),
+                            headers=headers_json,
+                            method="PUT"
+                        ), timeout=12)
+                        if res2.status == 200:
+                            return "success", f'Territory "{t_name}" status set to {new_status} on {get_server_display_name()}!'
+                    except urllib.error.HTTPError as he2:
+                        return "error", f'Could not update Territory "{t_name}" status on {get_server_display_name()}: {_extract_erp_http_error(he2)}'
+                    return "error", f'Could not update Territory "{t_name}" status on {get_server_display_name()}: {_extract_erp_http_error(he)}'
+                except Exception as ex:
+                    return "error", f'Could not update Territory "{t_name}" status on {get_server_display_name()}: {str(ex)}'
             return "success", f'Territory "{t_name}" status set to {new_status}!'
 
         elif action in ["bulk_decommission", "bulk_archive"]:
             items = payload.get("territories", [])
             updated_count = 0
+            errors = []
             for item in items:
                 if isinstance(item, str):
                     t_name = safe_str(item)
-                    item_mgr = ""
                 elif isinstance(item, dict):
                     t_name = safe_str(item.get("territory") or item.get("name") or item.get("code") or item.get("activeCode"))
-                    item_mgr = safe_str(item.get("territory_manager") or item.get("rep"))
                 else:
                     continue
                 if not t_name:
                     continue
-                record_shared_territory_edit(t_name, manager=item_mgr, status="Inactive")
+                put_url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}"
+                # Clear BOTH territory_manager and custom_user_id so archived MedReps immediately lose territory availability in HCP App
                 try:
-                    req = urllib.request.Request(
-                        f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}",
-                        data=json.dumps({"territory_manager": ""}).encode("utf-8"),
+                    res = call_erpnext_resiliently(opener, urllib.request.Request(
+                        put_url,
+                        data=json.dumps({"territory_manager": "", "custom_user_id": ""}).encode("utf-8"),
                         headers=headers_json,
                         method="PUT"
-                    )
-                    call_erpnext_resiliently(opener, req, timeout=10)
-                except Exception:
-                    pass
-                updated_count += 1
+                    ), timeout=10)
+                    if res.status == 200:
+                        updated_count += 1
+                except urllib.error.HTTPError:
+                    try:
+                        res2 = call_erpnext_resiliently(opener, urllib.request.Request(
+                            put_url,
+                            data=json.dumps({"territory_manager": ""}).encode("utf-8"),
+                            headers=headers_json,
+                            method="PUT"
+                        ), timeout=10)
+                        if res2.status == 200:
+                            updated_count += 1
+                    except Exception as ex2:
+                        errors.append(f"{t_name}: {str(ex2)}")
+                except Exception as ex:
+                    errors.append(f"{t_name}: {str(ex)}")
+            if updated_count == 0 and errors:
+                return "error", f"Could not archive territories on {get_server_display_name()}: {errors[0]}"
             return "success", f"Archived {updated_count} territories as Inactive on {get_server_display_name()}!"
 
         elif action == "resignation_handover":
@@ -3319,29 +3579,37 @@ def execute_tree_action(opener, action, payload):
                 return "error", "Territory name is required for handover."
             resolved_mgr = _resolve_sales_person_for_manager(opener, new_rep, headers_json) if new_rep else None
             resolved_uid = _resolve_user_id(opener, new_uid, headers_json) if new_uid else None
+            if not resolved_uid and resolved_mgr:
+                resolved_uid = _resolve_medrep_user_id_from_sales_person(opener, resolved_mgr, headers_json)
             shared_mgr = resolved_mgr or new_rep
-            record_shared_territory_edit(
-                t_name,
-                manager=shared_mgr,
-                user_id=(resolved_uid or new_uid) if new_uid else None,
-                status="Active" if shared_mgr else "Vacant"
-            )
-            body = {"territory_manager": shared_mgr}
-            if resolved_uid:
-                body["custom_user_id"] = resolved_uid
+            # Always overwrite custom_user_id so resigned MedRep immediately loses HCP App territory availability
+            body = {"territory_manager": shared_mgr, "custom_user_id": resolved_uid or ""}
+            put_url = f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}"
             try:
-                req = urllib.request.Request(
-                    f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(t_name, safe='')}",
+                res = call_erpnext_resiliently(opener, urllib.request.Request(
+                    put_url,
                     data=json.dumps(body).encode("utf-8"),
                     headers=headers_json,
                     method="PUT"
-                )
-                res = call_erpnext_resiliently(opener, req, timeout=12)
+                ), timeout=12)
                 if res.status == 200:
                     return "success", f'Handover saved: "{t_name}" reassigned to "{shared_mgr}" on {get_server_display_name()}!'
-            except Exception:
-                pass
-            return "success", f'Handover saved: "{t_name}" reassigned to "{shared_mgr}".'
+                return "warning", f"ERPNext responded with HTTP {res.status}"
+            except urllib.error.HTTPError as he:
+                try:
+                    res2 = call_erpnext_resiliently(opener, urllib.request.Request(
+                        put_url,
+                        data=json.dumps({"territory_manager": shared_mgr}).encode("utf-8"),
+                        headers=headers_json,
+                        method="PUT"
+                    ), timeout=12)
+                    if res2.status == 200:
+                        return "success", f'Handover saved: "{t_name}" reassigned to "{shared_mgr}" on {get_server_display_name()}!'
+                except Exception:
+                    pass
+                return "error", f'Handover failed for "{t_name}" on {get_server_display_name()}: {_extract_erp_http_error(he)}'
+            except Exception as ex:
+                return "error", f'Handover failed for "{t_name}" on {get_server_display_name()}: {str(ex)}'
 
         elif action == "sales_person_create":
             sp_name = safe_str(payload.get("sales_person_name") or payload.get("name"))
@@ -3566,23 +3834,30 @@ def purge_expired_sessions():
         ACTIVE_SESSIONS.pop(k, None)
 
 def _sync_live_masterlists(opener):
-    """Fetches all live ERPNext masterlists in parallel with isolated per-DocType error handling."""
+    """Fetches all live ERPNext Staging DocTypes in parallel with isolated per-DocType error handling."""
     fetch_specs = {
         "live_territories": fetch_live_territories,
         "live_sales_persons": fetch_live_sales_persons,
         "live_employees": fetch_live_employees,
         "live_users": fetch_live_users,
         "live_institutions": fetch_live_institutions,
+        "live_hcp_accounts": fetch_live_hcp_accounts,
+        "live_item_groups": fetch_live_item_groups,
+        "live_fiscal_years": fetch_live_fiscal_years,
+        "live_distributions": fetch_live_distributions,
+        "live_departments": fetch_live_departments,
+        "live_designations": fetch_live_designations,
     }
     results = {}
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
             futures = {key: executor.submit(fn, opener) for key, fn in fetch_specs.items()}
             for key, fut in futures.items():
                 try:
                     results[key] = fut.result()
                 except Exception as f_ex:
                     print(f"[Streamlit Data Fetch Warning] {key}: {f_ex}")
+                    results[key] = []
     except Exception as ex:
         print(f"[Streamlit Data Fetch Warning] {ex}")
         for key, fn in fetch_specs.items():
@@ -3591,6 +3866,7 @@ def _sync_live_masterlists(opener):
                     results[key] = fn(opener)
                 except Exception as seq_ex:
                     print(f"[Streamlit Data Fetch Warning] {key} sequential: {seq_ex}")
+                    results[key] = []
     for key, val in results.items():
         st.session_state[key] = val
 
@@ -3665,6 +3941,18 @@ if "live_users" not in st.session_state:
     st.session_state["live_users"] = None
 if "live_institutions" not in st.session_state:
     st.session_state["live_institutions"] = None
+if "live_hcp_accounts" not in st.session_state:
+    st.session_state["live_hcp_accounts"] = None
+if "live_item_groups" not in st.session_state:
+    st.session_state["live_item_groups"] = None
+if "live_fiscal_years" not in st.session_state:
+    st.session_state["live_fiscal_years"] = None
+if "live_distributions" not in st.session_state:
+    st.session_state["live_distributions"] = None
+if "live_departments" not in st.session_state:
+    st.session_state["live_departments"] = None
+if "live_designations" not in st.session_state:
+    st.session_state["live_designations"] = None
 if "tree_sync_event" not in st.session_state:
     st.session_state["tree_sync_event"] = None
 if "last_action_timestamp" not in st.session_state:
@@ -3672,6 +3960,9 @@ if "last_action_timestamp" not in st.session_state:
 
 # Render the web app component directly (Opens directly to the native login view)
 _active_prog = st.session_state.get("active_program", "Abbott Diabetes Care")
+_accounts_for_prog = st.session_state.get(f"live_accounts_{_active_prog}")
+if _accounts_for_prog is None:
+    _accounts_for_prog = st.session_state.get("live_hcp_accounts")
 component_val = portal_component(
     auth_response=auth_to_deliver,
     reset_password_response=reset_to_deliver,
@@ -3680,7 +3971,12 @@ component_val = portal_component(
     live_employees=st.session_state["live_employees"],
     live_users=st.session_state["live_users"],
     live_institutions=st.session_state["live_institutions"],
-    live_accounts=st.session_state.get(f"live_accounts_{_active_prog}"),
+    live_accounts=_accounts_for_prog,
+    live_item_groups=st.session_state["live_item_groups"],
+    live_fiscal_years=st.session_state["live_fiscal_years"],
+    live_distributions=st.session_state["live_distributions"],
+    live_departments=st.session_state["live_departments"],
+    live_designations=st.session_state["live_designations"],
     tree_sync_event=st.session_state["tree_sync_event"],
     key="pims_portal_app"
 )
@@ -3750,6 +4046,12 @@ if component_val and isinstance(component_val, dict):
             st.session_state["live_employees"] = None
             st.session_state["live_users"] = None
             st.session_state["live_institutions"] = None
+            st.session_state["live_hcp_accounts"] = None
+            st.session_state["live_item_groups"] = None
+            st.session_state["live_fiscal_years"] = None
+            st.session_state["live_distributions"] = None
+            st.session_state["live_departments"] = None
+            st.session_state["live_designations"] = None
             st.session_state["tree_sync_event"] = None
             st.session_state["session_token"] = None
             st.rerun()

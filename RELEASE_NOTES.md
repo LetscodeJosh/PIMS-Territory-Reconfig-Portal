@@ -1,3 +1,34 @@
+## [v.1.0.1 - Institution Approval Live Sync, Grid Rename Sales Person Parity & Fast 1:1 HCP App Sync] - 2026-11-27
+
+### Key Enhancements & Fixes Applied
+- **Top Header Bar Versioning (`v.1.0.1`)**: Updated `#headerPortalVersionBadge`, `VERSION`, and `README.md` to `v.1.0.1` (and promoted the prior live-only baseline from `v.0.1.4` to `v.1.0.0`).
+- **Live Institution Approval Status & HCP Nexus App Propagation (`app.py`, `index.html`)**:
+  - Reads authoritative live ERPNext `Institution.status` / `workflow_state` without letting older `PIMS_META` comments overwrite live `Approved` status.
+  - Writes both `status` and `workflow_state` (with Frappe Workflow & `frappe.client.set_value` fallbacks) and unblocks propagation of `workplace_approval_note = "this institution is now approved"` to linked `HCP Account`, `HCP`, and `HCP Profile Submission` records for the HCP Nexus App.
+- **Territory Rename `(CODE)` -> `Sales Person` + `custom_user_id` 1:1 Sync Fix (`app.py`, `index.html`)**:
+  - Fixed Grid Edit `tree_rename` (`apply_field_updates=True`) so renaming a territory code (e.g. `AD100` -> `AD1002` with `JOSHUA TAN (AD100)` -> `JOSHUA TAN (AD1002)`) no longer passes the stale pre-rename `territory_manager` string back into `_edit_single_territory_record`.
+  - Automatically re-syncs `Territory.custom_user_id` alongside `Territory.territory_manager` on rename so the HCP App immediately recognizes the renamed MedRep territory.
+- **Zero-Ghost Creation & Fast Live Background Sync (`index.html`)**:
+  - Blocked ghost Sales Person insertion into `availableSalesPersons` / `localStorage` during Streamlit Bulk Add operations before ERPNext confirms creation.
+  - Tightened Territory Tree background auto-sync interval from 15s to 8s (paused while modals are open) alongside immediate post-action `st.rerun()` masterlist refresh.
+
+---
+
+## [v.1.0.0 - Live-Only ERPNext Dropdowns, GCP Staging Sync & HCP App MedRep Parity] - 2026-11-26
+
+### Key Enhancements & Fixes Applied
+- **Version Baseline (`v.1.0.0`, formerly `v.0.1.4`)**: Promoted the zero-hardcoded live ERPNext baseline to `v.1.0.0`.
+- **Zero Hardcoded Fallback Rosters or Temporary JSON State (`app.py`, `index.html`)**:
+  - Removed `PROGRAM_SALES_PERSON_ROSTER`, `LIVE_DATA`, `BASELINE_*`, `ERP_TERRITORY_USER_MAP`, and `localStorage` fallback pollution from Territory Manager, Parent Sales Person, Employee, and User dropdowns so empty ERPNext DocTypes cleanly display `No data available`.
+  - Disabled temporary `shared_territory_state.json` persistence/re-injection so ERPNext DocTypes are the sole source of truth on GCP VMs.
+- **GCP Staging Territory & Sales Person Creation Fixes (`app.py`, `deploy/gcp/update.sh`)**:
+  - Added automatic Frappe `X-Frappe-CSRF-Token` attachment + retry, dynamic root node bootstrapping (`Sales Team` / `All Territories`) on empty Staging DocTypes, `frappe.desk.treeview.add_node` & `frappe.client.insert` fallbacks, and real ERPNext error reporting.
+  - Updated `deploy/gcp/update.sh` to pull the active branch (`staging`) and clean up legacy `shared_territory_state.json`.
+- **HCP App <-> Territory Web App MedRep Availability Sync (`app.py`, `index.html`)**:
+  - Auto-resolves `Territory.custom_user_id` from `Sales Person -> Employee -> User` on assignment/handover/reactivation and clears both `territory_manager` and `custom_user_id` whenever a territory is vacated, deactivated, or archived.
+
+---
+
 ## [v.0.1.3 - Authoritative Live ERPNext Deletion Sync & Shared State Auto-Pruning] - 2026-11-20
 
 ### Key Enhancements & Fixes Applied

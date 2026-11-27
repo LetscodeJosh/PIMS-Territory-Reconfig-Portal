@@ -18,8 +18,17 @@ echo -e "${BLUE}================================================================
 echo -e "${BLUE}  Updating PIMS Territory Reconfiguration Portal to Latest Version     ${NC}"
 echo -e "${BLUE}======================================================================${NC}"
 
-echo -e "${GREEN}[1/4] Pulling latest commits from git main branch...${NC}"
-git pull origin main
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo staging)"
+if [ "${CURRENT_BRANCH}" = "HEAD" ] || [ -z "${CURRENT_BRANCH}" ]; then
+    CURRENT_BRANCH="staging"
+fi
+
+echo -e "${GREEN}[1/4] Pulling latest commits from git ${CURRENT_BRANCH} branch...${NC}"
+git fetch origin "${CURRENT_BRANCH}"
+git pull --ff-only origin "${CURRENT_BRANCH}"
+
+# Remove any legacy local temporary JSON caches so ERPNext Staging DocTypes remain sole source of truth
+rm -f "${APP_DIR}/shared_territory_state.json" "${APP_DIR}/shared_institution_state.json"
 
 echo -e "\n${GREEN}[2/4] Updating Python dependencies...${NC}"
 source "${APP_DIR}/venv/bin/activate"
