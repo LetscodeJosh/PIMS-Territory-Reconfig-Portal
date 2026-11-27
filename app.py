@@ -2624,6 +2624,11 @@ def _sync_sales_person_code_on_territory_rename(opener, old_terr, new_terr, head
                         if candidate_new:
                             seen_old.add(sp_id.lower())
                             targets.append((sp, sp_id, candidate_new))
+                elif not re.search(r"\([^)]+\)", sp_id):
+                    # Leaf Sales Person had no parenthesized territory code yet -> append newly renamed territory code
+                    candidate_new = f"{sp_id} ({clean_new})"
+                    seen_old.add(sp_id.lower())
+                    targets.append((sp, sp_id, candidate_new))
 
         for sp_obj, old_sp, new_sp in targets:
             is_terr_mgr = bool(
@@ -2728,6 +2733,83 @@ def _sync_sales_person_code_on_territory_rename(opener, old_terr, new_terr, head
         print(f"[Sales Person Rename Sync Error] {ex}")
 
     return renamed_results
+
+
+def _ensure_sales_person_has_territory_code(opener, sp_name, terr_code, headers_json, is_group=0):
+    """
+    When a leaf Territory Code (e.g. 'AD100') is encoded and assigned to a leaf Sales Person
+    without a parenthesized code yet (e.g. 'JOSHUA TAN'), renames the Sales Person in ERPNext
+    to 'JOSHUA TAN (AD100)' so subsequent Territory renames ('AD100' -> 'AD1002') automatically
+    update the code inside the parentheses ('JOSHUA TAN (AD1002)').
+    Never alters group folders or double-wraps an existing code.
+    """
+    clean_sp = safe_str(sp_name)
+    clean_code = safe_str(terr_code)
+    if not opener or not clean_sp or not clean_code or int(is_group or 0):
+        return clean_sp
+    if clean_sp.lower() in ("unassigned", "unassigned rep", "unassigned slot", "vacant", "folder (group)", "sales team"):
+        return clean_sp
+    if clean_code.lower() in ("all territories", "sales team"):
+        return clean_sp
+    # Already contains this territory code in parentheses
+    if re.search(r"\(\s*" + re.escape(clean_code) + r"\s*\)", clean_sp, re.IGNORECASE):
+        return clean_sp
+    # Only append automatically when Sales Person has NO parenthesized territory code yet
+    if re.search(r"\([^)]+\)\s*$", clean_sp):
+        return clean_sp
+
+    # Never rename group Sales Persons (e.g. District / Program folders)
+    try:
+        sp_doc = _find_existing_sales_person(opener, clean_sp, headers_json)
+        if sp_doc and int(sp_doc.get("is_group") or 0):
+            return clean_sp
+    except Exception:
+        pass
+
+    target_sp = f"{clean_sp} ({clean_code})"
+    # Collision guard: if target already exists, reuse it cleanly without overwriting
+    existing_target = _find_existing_sales_person(opener, target_sp, headers_json)
+    if existing_target:
+        return safe_str(existing_target.get("name")) or target_sp
+
+    try:
+        sp_form = urllib.parse.urlencode({
+            "doctype": "Sales Person",
+            "old_name": clean_sp,
+            "new_name": target_sp
+        }).encode("utf-8")
+        sp_req = urllib.request.Request(
+            f"{ERPNEXT_SERVER_URL}/api/method/frappe.client.rename_doc",
+            data=sp_form,
+            headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+            method="POST"
+        )
+        sp_res = call_erpnext_resiliently(opener, sp_req, timeout=12)
+        if sp_res and sp_res.status == 200:
+            try:
+                sp_put = urllib.request.Request(
+                    f"{ERPNEXT_SERVER_URL}/api/resource/Sales%20Person/{urllib.parse.quote(target_sp, safe='')}",
+                    data=json.dumps({"sales_person_name": target_sp}).encode("utf-8"),
+                    headers=headers_json,
+                    method="PUT"
+                )
+                call_erpnext_resiliently(opener, sp_put, timeout=10)
+            except Exception:
+                pass
+            if "live_sales_persons" in st.session_state and isinstance(st.session_state.live_sales_persons, list):
+                for s in st.session_state.live_sales_persons:
+                    if not isinstance(s, dict):
+                        continue
+                    if s.get("name") == clean_sp or s.get("sales_person_name") == clean_sp:
+                        s["name"] = target_sp
+                        s["sales_person_name"] = target_sp
+                    if s.get("parent_sales_person") == clean_sp:
+                        s["parent_sales_person"] = target_sp
+            return target_sp
+    except Exception as ex:
+        print(f"[Sales Person Auto-Tag Notice] {clean_sp} -> {target_sp}: {ex}")
+
+    return clean_sp
 
 
 def _resolve_sales_person_for_manager(opener, rep_name, headers_json):
@@ -2887,6 +2969,8 @@ def execute_tree_action(opener, action, payload):
                 dist_val=custom_district,
                 prog_val=custom_prog
             ) if t_mgr else None
+            if resolved_mgr and not int(is_group or 0) and t_name:
+                resolved_mgr = _ensure_sales_person_has_territory_code(opener, resolved_mgr, t_name, headers_json, is_group=is_group)
             resolved_uid = _resolve_user_id(opener, custom_uid, headers_json) if (custom_uid and resolved_mgr) else None
             if resolved_mgr and not resolved_uid:
                 resolved_uid = _resolve_medrep_user_id_from_sales_person(opener, resolved_mgr, headers_json)
@@ -3083,8 +3167,11 @@ def execute_tree_action(opener, action, payload):
 
             if eff_status in ("Vacant", "Inactive") or is_unassigned_mgr:
                 resolved_uid = ""
-            elif not resolved_uid and resolved_mgr:
-                resolved_uid = _resolve_medrep_user_id_from_sales_person(opener, resolved_mgr, headers_json) or ""
+            else:
+                if resolved_mgr and not int(new_is_group or 0) and orig_name:
+                    resolved_mgr = _ensure_sales_person_has_territory_code(opener, resolved_mgr, orig_name, headers_json, is_group=new_is_group)
+                if not resolved_uid and resolved_mgr:
+                    resolved_uid = _resolve_medrep_user_id_from_sales_person(opener, resolved_mgr, headers_json) or ""
 
             shared_mgr = "" if (is_unassigned_mgr or eff_status in ("Vacant", "Inactive")) else (resolved_mgr or new_mgr)
 
@@ -3578,6 +3665,8 @@ def execute_tree_action(opener, action, payload):
             if not t_name:
                 return "error", "Territory name is required for handover."
             resolved_mgr = _resolve_sales_person_for_manager(opener, new_rep, headers_json) if new_rep else None
+            if resolved_mgr and t_name:
+                resolved_mgr = _ensure_sales_person_has_territory_code(opener, resolved_mgr, t_name, headers_json, is_group=0)
             resolved_uid = _resolve_user_id(opener, new_uid, headers_json) if new_uid else None
             if not resolved_uid and resolved_mgr:
                 resolved_uid = _resolve_medrep_user_id_from_sales_person(opener, resolved_mgr, headers_json)
@@ -3833,40 +3922,46 @@ def purge_expired_sessions():
     for k in expired:
         ACTIVE_SESSIONS.pop(k, None)
 
-def _sync_live_masterlists(opener):
-    """Fetches all live ERPNext Staging DocTypes in parallel with isolated per-DocType error handling."""
-    fetch_specs = {
+def _sync_live_masterlists(opener, core_only=False):
+    """Fetches live ERPNext DocTypes in parallel; preserves prior valid data on transient network failures."""
+    core_specs = {
         "live_territories": fetch_live_territories,
         "live_sales_persons": fetch_live_sales_persons,
         "live_employees": fetch_live_employees,
         "live_users": fetch_live_users,
-        "live_institutions": fetch_live_institutions,
         "live_hcp_accounts": fetch_live_hcp_accounts,
+    }
+    full_specs = {
+        **core_specs,
+        "live_institutions": fetch_live_institutions,
         "live_item_groups": fetch_live_item_groups,
         "live_fiscal_years": fetch_live_fiscal_years,
         "live_distributions": fetch_live_distributions,
         "live_departments": fetch_live_departments,
         "live_designations": fetch_live_designations,
     }
+    fetch_specs = core_specs if core_only else full_specs
     results = {}
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
             futures = {key: executor.submit(fn, opener) for key, fn in fetch_specs.items()}
             for key, fut in futures.items():
                 try:
-                    results[key] = fut.result()
+                    val = fut.result()
+                    if val is not None:
+                        results[key] = val
                 except Exception as f_ex:
                     print(f"[Streamlit Data Fetch Warning] {key}: {f_ex}")
-                    results[key] = []
     except Exception as ex:
         print(f"[Streamlit Data Fetch Warning] {ex}")
         for key, fn in fetch_specs.items():
             if key not in results:
                 try:
-                    results[key] = fn(opener)
+                    val = fn(opener)
+                    if val is not None:
+                        results[key] = val
                 except Exception as seq_ex:
                     print(f"[Streamlit Data Fetch Warning] {key} sequential: {seq_ex}")
-                    results[key] = []
     for key, val in results.items():
         st.session_state[key] = val
 
@@ -4096,7 +4191,7 @@ if component_val and isinstance(component_val, dict):
             opener = st.session_state.get("opener") or get_authenticated_opener()
             if opener:
                 st.session_state["opener"] = opener
-                _sync_live_masterlists(opener)
+                _sync_live_masterlists(opener, core_only=(action == "tree_refresh" and bool(component_val.get("silent"))))
 
                 t_count = len(st.session_state.get("live_territories") or [])
                 if action == "tree_refresh":

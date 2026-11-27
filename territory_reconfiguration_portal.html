@@ -12784,18 +12784,21 @@ const BASELINE_ERP_TERRITORIES = [];
             const origSpId = String(sp.name || sp.sales_person_name || '').trim();
             const mCode = origSpId.match(/\(\s*([^()]+?)\s*\)\s*$/);
             const staleCode = mCode ? String(mCode[1] || '').trim() : '';
+            let nextSpId = null;
             if (staleCode && staleCode.toLowerCase() !== toCode.toLowerCase()) {
-              const nextSpId = replaceParenthesizedTerritoryCode(origSpId, staleCode, toCode);
-              if (nextSpId && nextSpId !== origSpId && (!existingNamesLower.has(nextSpId.toLowerCase()) || origSpId.toLowerCase() === nextSpId.toLowerCase())) {
-                existingNamesLower.delete(origSpId.toLowerCase());
-                existingNamesLower.add(nextSpId.toLowerCase());
-                sp.name = nextSpId;
-                sp.sales_person_name = nextSpId;
-                renamedMap.set(origSpId.toLowerCase(), nextSpId);
-                renamedPairs.push({ oldSp: origSpId, newSp: nextSpId });
-                if (typeof registerSalesPersonProgram === 'function') {
-                  registerSalesPersonProgram(nextSpId, activeProgram);
-                }
+              nextSpId = replaceParenthesizedTerritoryCode(origSpId, staleCode, toCode);
+            } else if (!/\([^)]+\)/.test(origSpId)) {
+              nextSpId = `${origSpId} (${toCode})`;
+            }
+            if (nextSpId && nextSpId !== origSpId && (!existingNamesLower.has(nextSpId.toLowerCase()) || origSpId.toLowerCase() === nextSpId.toLowerCase())) {
+              existingNamesLower.delete(origSpId.toLowerCase());
+              existingNamesLower.add(nextSpId.toLowerCase());
+              sp.name = nextSpId;
+              sp.sales_person_name = nextSpId;
+              renamedMap.set(origSpId.toLowerCase(), nextSpId);
+              renamedPairs.push({ oldSp: origSpId, newSp: nextSpId });
+              if (typeof registerSalesPersonProgram === 'function') {
+                registerSalesPersonProgram(nextSpId, activeProgram);
               }
             }
           }
@@ -19630,6 +19633,15 @@ const BASELINE_ERP_TERRITORIES = [];
     }
   }
 
+  function isUserActivelyEditingOrSelecting() {
+    if (document.querySelector('.modal-overlay.active')) return true;
+    const activeEl = document.activeElement;
+    if (activeEl && /^(INPUT|TEXTAREA|SELECT)$/.test(activeEl.tagName)) return true;
+    if (document.querySelector('.row-action-menu.open, .inst-action-menu.open, .erp-dropdown-list.open, .erp-search-dropdown.open')) return true;
+    if (document.querySelector('#editorTable tbody input[type="checkbox"]:checked')) return true;
+    return false;
+  }
+
   // --- AUTOMATIC REAL-TIME TERRITORY TREE SYNCHRONIZATION ---
   let sfeTerrAutoPollTimer = null;
   function startSfeTerrAutoPoll() {
@@ -19637,7 +19649,7 @@ const BASELINE_ERP_TERRITORIES = [];
       const pollMs = 8000; // Real-time ERPNext territory tree synchronization (8 seconds)
       sfeTerrAutoPollTimer = setInterval(() => {
         if (!authenticatedUser) return;
-        if (document.querySelector('.modal-overlay.active')) return;
+        if (isUserActivelyEditingOrSelecting()) return;
         const editorTab = document.getElementById('tab-editor');
         if (editorTab && editorTab.classList.contains('active')) {
           if (isStreamlitActive || (window.parent && window.parent !== window)) {
