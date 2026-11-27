@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>HCP Profiling &bull; Territory Reconfiguration Portal</title>
-<!-- Portal Release: v.0.1.4 -->
+<!-- Portal Release: v.1.0.1 -->
 <script>
   // Robust Streamlit Custom Component Handshake Engine
   (function() {
@@ -3410,7 +3410,7 @@
       </div>
       <div class="brand-text" style="display:flex; align-items:center; gap:8px;">
         <h1>HCP Profiling &bull; Territory Reconfiguration Portal</h1>
-        <span id="headerPortalVersionBadge" style="display:inline-block; padding:2px 9px; border-radius:999px; background:rgba(56, 189, 248, 0.16); border:1px solid rgba(56, 189, 248, 0.45); color:#BAE6FD; font-size:11px; font-weight:700; letter-spacing:0.4px; line-height:1.3;">v.0.1.4</span>
+        <span id="headerPortalVersionBadge" style="display:inline-block; padding:2px 9px; border-radius:999px; background:rgba(56, 189, 248, 0.16); border:1px solid rgba(56, 189, 248, 0.45); color:#BAE6FD; font-size:11px; font-weight:700; letter-spacing:0.4px; line-height:1.3;">v.1.0.1</span>
       </div>
     </div>
   </div>
@@ -9168,7 +9168,7 @@ const BASELINE_ERP_TERRITORIES = [];
       }
       if (typeof registerNodeProgram === 'function') registerNodeProgram(code, activeProgram);
 
-      // 3. Ensure Sales Person record + District is registered locally
+      // 3. Ensure Sales Person record + District is registered locally (standalone mode only; Streamlit waits for live ERPNext truth)
       if (assignedMgr) {
         if (typeof registerSalesPersonProgram === 'function') registerSalesPersonProgram(assignedMgr, activeProgram);
         const existingSp = availableSalesPersons.find(s => {
@@ -9181,7 +9181,7 @@ const BASELINE_ERP_TERRITORIES = [];
             existingSp.district = resolvedAreaDist;
             salesPersonListDirty = true;
           }
-        } else {
+        } else if (!isPortalInStreamlitMode()) {
           const defaultParentSp = (LIVE_DATA[activeProgram] && LIVE_DATA[activeProgram].salesBranch) || 'Sales Team';
           availableSalesPersons.push({
             name: assignedMgr,
@@ -9225,14 +9225,16 @@ const BASELINE_ERP_TERRITORIES = [];
       });
     });
 
-    // CRITICAL: Persist to localStorage for 100% reload survival
-    try {
-      localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
-      localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
-      if (salesPersonListDirty) {
-        localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons));
-      }
-    } catch (_) {}
+    // Persist local state only in standalone mode; Streamlit uses live ERPNext DocTypes as sole truth
+    if (!isPortalInStreamlitMode()) {
+      try {
+        localStorage.setItem('pims_stg_program_territories_' + activeProgram, JSON.stringify(programTerritories));
+        localStorage.setItem('pims_stg_territory_tree_v1', JSON.stringify(territoryTreeData));
+        if (salesPersonListDirty) {
+          localStorage.setItem('pims_stg_sales_persons_v1', JSON.stringify(availableSalesPersons));
+        }
+      } catch (_) {}
+    }
 
     // Streamlit bidirectional dispatch for bulk creation on ERPNext
     if (isStreamlitActive || (window.parent && window.parent !== window)) {
@@ -13467,8 +13469,34 @@ const BASELINE_ERP_TERRITORIES = [];
     }
 
     const isStreamlitEnv = isStreamlitActive || (window.parent && window.parent !== window);
+    let syncedNewRep = newRep;
     if (newActiveCode !== oldCode) {
-      syncSalesPersonTerritoryCodeLocally(oldCode, newActiveCode, rawRepInput, prevCodeBeforeRename, !isStreamlitEnv);
+      const renamedPairs = syncSalesPersonTerritoryCodeLocally(oldCode, newActiveCode, rawRepInput, prevCodeBeforeRename, !isStreamlitEnv) || [];
+      if (syncedNewRep) {
+        const directUpdated = typeof replaceParenthesizedTerritoryCode === 'function'
+          ? replaceParenthesizedTerritoryCode(syncedNewRep, oldCode, newActiveCode)
+          : null;
+        if (directUpdated) {
+          syncedNewRep = directUpdated;
+        } else if (renamedPairs.length > 0) {
+          const repBase = typeof cleanRepDisplayName === 'function'
+            ? cleanRepDisplayName(syncedNewRep).toLowerCase()
+            : String(syncedNewRep).replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+          const matchedPair = renamedPairs.find(p => {
+            const pBase = typeof cleanRepDisplayName === 'function'
+              ? cleanRepDisplayName(p.oldSp).toLowerCase()
+              : String(p.oldSp || '').replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+            return p.oldSp.toLowerCase() === syncedNewRep.toLowerCase() || (repBase && pBase === repBase);
+          });
+          if (matchedPair && matchedPair.newSp) {
+            syncedNewRep = matchedPair.newSp;
+          }
+        }
+        if (row.operationalStatus === 'Active') {
+          row.rep = syncedNewRep;
+          if (treeNode) treeNode.territory_manager = syncedNewRep;
+        }
+      }
     }
 
     try {
@@ -13496,7 +13524,7 @@ const BASELINE_ERP_TERRITORIES = [];
             new_name: newActiveCode,
             parent_territory: row.district || 'All Territories',
             is_group: treeNode ? (treeNode.is_group || 0) : 0,
-            territory_manager: (row.operationalStatus === 'Active') ? newRep : '',
+            territory_manager: (row.operationalStatus === 'Active') ? syncedNewRep : '',
             ...(preservedDist ? { custom_district: preservedDist } : {}),
             custom_user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
             user_id: (newUserId && newUserId.includes('@')) ? newUserId : null,
@@ -19606,7 +19634,7 @@ const BASELINE_ERP_TERRITORIES = [];
   let sfeTerrAutoPollTimer = null;
   function startSfeTerrAutoPoll() {
     if (!sfeTerrAutoPollTimer) {
-      const pollMs = 15000; // Real-time ERPNext territory tree synchronization (15 seconds)
+      const pollMs = 8000; // Real-time ERPNext territory tree synchronization (8 seconds)
       sfeTerrAutoPollTimer = setInterval(() => {
         if (!authenticatedUser) return;
         if (document.querySelector('.modal-overlay.active')) return;

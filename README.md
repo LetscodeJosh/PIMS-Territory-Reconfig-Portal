@@ -1,8 +1,8 @@
-# PIMS Territory Reconfiguration Portal (v.0.1.4)
+# PIMS Territory Reconfiguration Portal (v.1.0.1)
 
 Welcome to the **PIMS Territory Reconfiguration Portal** repository. This enterprise web application allows Sales Force Effectiveness (SFE) Leads and District Managers to reconfigure territories, manage MedRep resignations, execute portfolio doctor handovers, and review institution proposals with 1:1 ERPNext masterlist synchronization.
 
-See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for the complete `v.0.1.4` release notes and active feature matrix.
+See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for the complete `v.1.0.1` release notes and active feature matrix.
 
 ---
 
@@ -10,7 +10,8 @@ See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for the complete `v.0.1.4` release 
 
 | Version       | Track    | Date       | Git Tag   | Summary                                                                                                                                                                                                                                                                                                                                                                                            |
 | :------------ | :------- | :--------- | :-------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`v.0.1.4`** | Current  | 2026-11-26 | `v.0.1.4` | Strict live-only ERPNext dropdowns (zero hardcoded rosters, `localStorage` caches, or temporary `shared_territory_state.json`), GCP Staging Territory/Sales Person root bootstrap & Frappe CSRF handling, 1:1 HCP App MedRep availability sync (`territory_manager` + `custom_user_id`), and `v.0.1.4` header version badge.                                                                      |
+| **`v.1.0.1`** | Current  | 2026-11-27 | `v.1.0.1` | Live ERPNext Institution Approval `status` sync & HCP Nexus App propagation (`HCP Account` / `HCP` / `HCP Profile Submission`), Grid Edit territory rename `(CODE)` &rarr; `Sales Person` + `custom_user_id` 1:1 sync fix, zero-ghost Streamlit creation/bulk-add safeguards, 8-second live background polling, and `v.1.0.1` header version badge.                                                 |
+| **`v.1.0.0`** | Previous | 2026-11-26 | `v.1.0.0` | Strict live-only ERPNext dropdowns (zero hardcoded rosters, `localStorage` caches, or temporary `shared_territory_state.json`), GCP Staging Territory/Sales Person root bootstrap & Frappe CSRF handling, 1:1 HCP App MedRep availability sync (`territory_manager` + `custom_user_id`), and zero-hardcoded-dataset enforcement across all 11 ERPNext DocTypes.                                    |
 | **`v.0.1.3`** | Previous | 2026-11-20 | `v.0.1.3` | Authoritative live ERPNext territory deletion sync & auto-pruning of deleted records in `shared_territory_state.json`, with `pending_erp_sync` offline protection and top header `v.0.1.3` version badge.                                                                                                                                                                                        |
 | **`v.0.1.2`** | Previous | 2026-11-20 | `v.0.1.2` | Top header version badge, animated hamburger toggle, Sales Person `(CODE)` rename sync, subtree-preserving tree search, bidirectional Table Grid &harr; Tree View sync, dynamic Row Actions (`Vacant` / `Inactive` / `Transfer Doctor`), streamlined status confirmation modal, clearer Audit Trail, zero decorative icons, `Bulk Operation` & intelligent Bulk Rename, and cleaned Archive tab. |
 | **`v.0.1.1`** | Previous | 2026-11-10 | `v.0.1.1` | Bug fix & stability release: MedRep tagging status validation, Table Grid column alignment, ERPNext direct deletion sync, Archive Vault terminology, permanent Enterprise Light Mode, and UAT #7/#8/#9 fixes.                                                                                                                                                                                      |
@@ -66,7 +67,7 @@ PIMS-Territory-Reconfig-Portal/
 ├── index.html                              # Web app alias for hosting platforms
 ├── secure_frappe_gateway.py                # Cyber-grade Frappe API proxy & anti-BOLA/IDOR sentinel
 ├── .env.example                            # Production environment template
-├── VERSION                                 # Active standalone portal version tracker (v.0.1.4)
+├── VERSION                                 # Active standalone portal version tracker (v.1.0.1)
 ├── GCP_DEPLOYMENT_GUIDE.md                 # Complete GCP bare-metal deployment runbook
 ├── RELEASE_NOTES.md                        # Formal release notes & UAT changelog
 ├── .streamlit/

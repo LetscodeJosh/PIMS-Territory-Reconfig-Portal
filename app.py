@@ -2683,16 +2683,29 @@ def _sync_sales_person_code_on_territory_rename(opener, old_terr, new_terr, head
                 record_shared_sales_person_rename(old_sp, new_sp)
                 if is_terr_mgr:
                     record_shared_territory_edit(clean_new, manager=new_sp)
+                    mgr_put_body = {"territory_manager": new_sp}
+                    resolved_rename_uid = _resolve_medrep_user_id_from_sales_person(opener, new_sp, headers_json)
+                    if resolved_rename_uid:
+                        mgr_put_body["custom_user_id"] = resolved_rename_uid
                     try:
                         mgr_req = urllib.request.Request(
                             f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(clean_new, safe='')}",
-                            data=json.dumps({"territory_manager": new_sp}).encode("utf-8"),
+                            data=json.dumps(mgr_put_body).encode("utf-8"),
                             headers=headers_json,
                             method="PUT"
                         )
                         call_erpnext_resiliently(opener, mgr_req, timeout=8)
                     except Exception:
-                        pass
+                        try:
+                            mgr_req_fb = urllib.request.Request(
+                                f"{ERPNEXT_SERVER_URL}/api/resource/Territory/{urllib.parse.quote(clean_new, safe='')}",
+                                data=json.dumps({"territory_manager": new_sp}).encode("utf-8"),
+                                headers=headers_json,
+                                method="PUT"
+                            )
+                            call_erpnext_resiliently(opener, mgr_req_fb, timeout=8)
+                        except Exception:
+                            pass
 
                 # Reflect immediately in session state (including child parent_sales_person links)
                 if "live_sales_persons" in st.session_state and isinstance(st.session_state.live_sales_persons, list):
@@ -3402,6 +3415,18 @@ def execute_tree_action(opener, action, payload):
                 edit_parent = safe_str(payload.get("parent_territory"))
                 edit_is_group = int(payload.get("is_group", 0) or 0)
                 edit_mgr = safe_str(payload.get("territory_manager"))
+                # Prevent Grid Edit from reverting Territory.territory_manager back to the pre-rename Sales Person code (e.g. 'JOSHUA TAN (AD100)' -> 'JOSHUA TAN (AD1002)')
+                if edit_mgr:
+                    replaced_edit_mgr = _replace_parenthesized_territory_code(edit_mgr, old_name, new_name)
+                    if replaced_edit_mgr:
+                        edit_mgr = replaced_edit_mgr
+                    elif renamed_sps:
+                        edit_base = re.sub(r"\s*\([^)]*\)", "", edit_mgr).strip().lower()
+                        for rsp in renamed_sps:
+                            rsp_base = re.sub(r"\s*\([^)]*\)", "", safe_str(rsp)).strip().lower()
+                            if edit_base and rsp_base == edit_base:
+                                edit_mgr = safe_str(rsp)
+                                break
                 edit_uid = safe_str(payload.get("custom_user_id") or payload.get("user_id") or payload.get("userId"))
                 edit_prog = safe_str(payload.get("custom_account_or_program") or payload.get("program"))
                 edit_status = safe_str(payload.get("status") or payload.get("operational_status")) or None
