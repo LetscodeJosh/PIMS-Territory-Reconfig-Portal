@@ -17649,7 +17649,8 @@ const BASELINE_ERP_TERRITORIES = [];
     const lowWf = rawWf.toLowerCase();
     const ownerStr = String(r.owner || r.submitted_by || '').toLowerCase();
     const remStr = (String(r.remarks || '') + ' ' + String(r.custom_remarks || '') + ' ' + String(r.certification_note || '')).toLowerCase();
-    const isProposal = Boolean(
+    const isExplicitlyFinal = (lowWf === 'approved' || lowWf === 'rejected' || lowWf === 'remapped' || lowWf === 'pending dsm approval' || docstatus === 1 || docstatus === 2);
+    const isProposal = !isExplicitlyFinal && Boolean(
       r.is_proposal === 1 || r.is_proposal === true ||
       r.is_medrep_submission === 1 || r.is_medrep_submission === true ||
       lowWf === 'pending approval' || lowWf === 'pending review' || lowWf === 'proposal' ||
@@ -17660,17 +17661,18 @@ const BASELINE_ERP_TERRITORIES = [];
       remStr.includes('proposed') ||
       remStr.includes('certified by medrep') ||
       (ownerStr && !ownerStr.includes('profinsights.biz') && !ownerStr.includes('administrator') && !ownerStr.includes('guest')) ||
-      (name.startsWith('INST-') && name > 'INST-09341' && lowWf !== 'approved' && lowWf !== 'rejected' && lowWf !== 'pending dsm approval')
+      (name.startsWith('INST-') && name > 'INST-09341')
     );
 
     if (lowWf === 'rejected' || lowWf === 'remapped' || docstatus === 2) {
-      wf = 'Rejected';
+      wf = lowWf === 'remapped' ? 'Remapped' : 'Rejected';
+    } else if (lowWf === 'approved' || docstatus === 1) {
+      wf = 'Approved';
     } else if (lowWf === 'pending dsm approval') {
       wf = 'Pending DSM Approval';
     } else if (isProposal) {
       wf = 'Pending Approval';
     } else {
-      // In ERPNext Institution DocType, masterlist facilities are strictly status: Draft (docstatus: 0)
       wf = 'Draft';
     }
 
@@ -17693,6 +17695,7 @@ const BASELINE_ERP_TERRITORIES = [];
       name: name,
       institution_name: instName,
       docstatus: docstatus,
+      status: wf,
       workflow_state: wf,
       ownership: ownership,
       institution_type: instType,
@@ -17789,7 +17792,7 @@ const BASELINE_ERP_TERRITORIES = [];
         credentials: 'include'
       });
       if (!resp.ok) {
-        resp = await fetch('/api/resource/Institution?fields=%5B%22name%22,%22institution_name%22,%22ownership%22,%22institution_type%22,%22service_capability%22,%22requires_dsm_approval%22,%22linked_doctor_name%22,%22city_municipality%22,%22province_name%22,%22region_name%22,%22street_address%22,%22barangay_name%22,%22workflow_state%22,%22rejection_reason%22,%22is_resubmission%22,%22owner%22,%22docstatus%22%5D&order_by=name%20desc&limit_page_length=0', {
+        resp = await fetch('/api/resource/Institution?fields=%5B%22name%22,%22institution_name%22,%22ownership%22,%22institution_type%22,%22service_capability%22,%22requires_dsm_approval%22,%22linked_doctor_name%22,%22city_municipality%22,%22province_name%22,%22region_name%22,%22street_address%22,%22barangay_name%22,%22status%22,%22workflow_state%22,%22rejection_reason%22,%22is_resubmission%22,%22owner%22,%22docstatus%22%5D&order_by=name%20desc&limit_page_length=0', {
           credentials: 'include'
         });
       }
@@ -17833,7 +17836,16 @@ const BASELINE_ERP_TERRITORIES = [];
             const id = String(row.name || '').trim();
             if (byInst.has(id)) {
               const info = byInst.get(id);
+              const liveStatus = String(row.status || '').trim();
+              const liveWf = String(row.workflow_state || '').trim();
+              const liveAppr = String(row.approval_status || '').trim();
+              const liveDocstatus = row.docstatus;
               Object.assign(row, info.meta);
+              // Live ERPNext Institution status/workflow_state is always authoritative over comment history
+              if (liveStatus) row.status = liveStatus;
+              if (liveWf) row.workflow_state = liveWf;
+              if (liveAppr) row.approval_status = liveAppr;
+              if (liveDocstatus !== undefined && liveDocstatus !== null && liveDocstatus !== '') row.docstatus = liveDocstatus;
               row.audit_trail = info.trail;
             }
           }
@@ -17951,8 +17963,8 @@ const BASELINE_ERP_TERRITORIES = [];
       if (sfeInstStatusFilter === 'MedRep Submission' || sfeInstStatusFilter === 'Pending Approval') {
         if (!isProp && st !== 'Pending Approval') return false;
       } else if (sfeInstStatusFilter === 'Draft') {
-        // Institution Directory: Active masterlist facilities in Draft that are not pending proposals
-        if (st !== 'Draft' || isProp) return false;
+        // Institution Directory: All active masterlist facilities (Approved or Draft) that are not pending proposals/rejected/pending DSM
+        if ((st !== 'Approved' && st !== 'Draft') || isProp) return false;
       } else if (sfeInstStatusFilter === 'Pending DSM Approval') {
         if (st !== 'Pending DSM Approval') return false;
       } else if (sfeInstStatusFilter === 'Rejected') {
@@ -18169,14 +18181,18 @@ const BASELINE_ERP_TERRITORIES = [];
 
       let wfBadge = '';
       const st = inst.workflow_state;
-      if (st === 'Draft' || st === 'Pending Approval') {
+      if (st === 'Approved') {
+        wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#DCFCE7; color:#166534; border:1px solid #86EFAC;">Approved</span>`;
+      } else if (st === 'Pending Approval') {
+        wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;">Pending Approval</span>`;
+      } else if (st === 'Draft') {
         wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#FEF3C7; color:#92400E; border:1px solid #FDE68A;">Draft</span>`;
       } else if (st === 'Pending DSM Approval') {
         wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#DBEAFE; color:#1E40AF; border:1px solid #93C5FD;">Pending DSM</span>`;
-      } else if (st === 'Rejected') {
-        wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#FEE2E2; color:#991B1B; border:1px solid #FECACA;">Rejected</span>`;
+      } else if (st === 'Rejected' || st === 'Remapped') {
+        wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#FEE2E2; color:#991B1B; border:1px solid #FECACA;">${escapeSfeHtml(st)}</span>`;
       } else {
-        wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#DCFCE7; color:#166534; border:1px solid #86EFAC;">Approved</span>`;
+        wfBadge = `<span style="display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; background:#F1F5F9; color:#334155; border:1px solid #CBD5E1;">${escapeSfeHtml(st || 'Draft')}</span>`;
       }
 
       const rejectNoteHtml = (st === 'Rejected' && inst.rejection_reason)
@@ -18948,10 +18964,11 @@ const BASELINE_ERP_TERRITORIES = [];
 
     const actor = (authenticatedUser && (authenticatedUser.full_name || authenticatedUser.email)) || 'SFE Specialist';
     const routeToDsm = inst.requires_dsm_approval && inst.workflow_state !== 'Pending DSM Approval';
-    const nextState = routeToDsm ? 'Pending DSM Approval' : 'Draft';
-    const nextDocstatus = 0; // Strict ERPNext Institution DocType alignment: masterlist facilities have docstatus: 0 (Draft)
+    const nextState = routeToDsm ? 'Pending DSM Approval' : 'Approved';
+    const nextDocstatus = 0;
 
     inst.workflow_state = nextState;
+    inst.status = nextState;
     inst.docstatus = nextDocstatus;
     inst.is_proposal = false;
     inst.is_medrep_submission = false;
@@ -18961,7 +18978,7 @@ const BASELINE_ERP_TERRITORIES = [];
     inst.audit_trail.push({
       actor: actor,
       timestamp: new Date().toISOString(),
-      detail: `${routeToDsm ? 'Routed to Pending DSM Approval' : 'Approved directly into Institution Directory (Draft)'} by ${actor}`
+      detail: `${routeToDsm ? 'Routed to Pending DSM Approval' : 'Approved and synced to ERPNext Institution Directory & HCP Nexus App'} by ${actor}`
     });
 
     recordSfeLocalInstitutionOverride(inst);
@@ -19208,8 +19225,9 @@ const BASELINE_ERP_TERRITORIES = [];
 
     const actor = (authenticatedUser && (authenticatedUser.full_name || authenticatedUser.email)) || 'SFE Specialist';
     if (approveAfterSave) {
-      inst.workflow_state = routeToDsm ? 'Pending DSM Approval' : 'Draft';
-      inst.docstatus = 0; // Strict ERPNext Institution DocType alignment (Draft)
+      inst.workflow_state = routeToDsm ? 'Pending DSM Approval' : 'Approved';
+      inst.status = inst.workflow_state;
+      inst.docstatus = 0;
       inst.is_proposal = false;
       inst.is_medrep_submission = false;
       inst.rejection_reason = '';
